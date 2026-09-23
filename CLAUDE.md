@@ -21,6 +21,19 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
 4. **Brand look:** luxury black, imperial purple and gold. Use the `Brand` colours and the theme in `ui/Theme.kt`.
    Don't hard-code other colours. Serif headings, letter-spaced labels, gold hairlines.
 
+## Product direction (owner decisions, 2026-09-23)
+
+- FitLens is becoming **the main workout logger**: it records and works as FitNotes did, plus FitLens's extra
+  features (photos, video, PDF, custom metrics). The backlog is issues #5–#35. **#6 is the foundation epic**:
+  FitLens-owned workout data; most logging tickets depend on it.
+- **FitNotes import stays**, as a one-off during first-run setup and a manual import from Settings any time. Imports
+  **merge** and must never wipe or overwrite FitLens data. The FitNotes folder auto-sync becomes off by default.
+- `.fitlens` backups are for FitLens only. There's no export back to FitNotes.
+- **Local only:** no accounts, cloud services, online subscriptions or internet permission. Android's Google
+  auto-backup stays disabled (`data_extraction_rules.xml`). Automatic backups go only to a folder the user chooses.
+- Android APKs only for now, working across phone screen sizes. A self-hosted Docker web version may come later.
+- Recommended next build: #6 + #5 + #34.
+
 ## Backlog agents
 
 | Agent | Owns | Labels |
