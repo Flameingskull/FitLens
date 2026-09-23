@@ -20,6 +20,10 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    in `.claude/agents/` (details below).
 4. **Brand look:** luxury black, imperial purple and gold. Use the `Brand` colours and the theme in `ui/Theme.kt`.
    Don't hard-code other colours. Serif headings, letter-spaced labels, gold hairlines.
+5. **Log every significant gap.** Whenever any agent (or the main session) finds a significant gap, missing
+   feature or function, or a more stable or maintainable way of doing something, it searches for an existing issue.
+   If there isn't one, it files a feature request (`enhancement`, `needs-triage`) and mentions it in its report.
+   Don't fix it as part of unrelated work.
 
 ## Product direction (owner decisions, 2026-09-23)
 

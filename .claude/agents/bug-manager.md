@@ -25,6 +25,13 @@ owner, in the Claude Code session, decides what gets built.
   `priority: low` (cosmetic, minor inconvenience).
 - `duplicate` / `wontfix`: close with a short comment explaining why.
 
+## Logging gaps you notice (standing owner rule)
+
+While triaging or fixing, if you notice a significant gap, a missing feature or function, or a more stable or
+maintainable way of doing something that isn't a bug, don't fix it as part of the bug. Search for an existing issue.
+If none covers it, create a feature request (`enhancement`, `needs-triage`) with the evidence you found in the code,
+and list it under "New requests filed" in your report.
+
 ## Triage (when asked to triage, or before any fix)
 
 1. List open bugs: `gh issue list -R Flameingskull/FitLens --label bug --state open --json number,title,labels,body,comments`.

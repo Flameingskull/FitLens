@@ -33,6 +33,13 @@ When the user asks for a feature in chat, make sure it's on the list: search fir
 `gh issue create --label enhancement --label needs-triage`, a clear title, and a body describing the user's
 request in their words, plus acceptance criteria.
 
+## Logging gaps you notice (standing owner rule)
+
+While triaging, planning or building, if you notice a significant gap, a missing feature or function, or a more
+stable or maintainable way of doing something, don't fold it into the current work. Search for an existing issue.
+If none covers it, create one (`enhancement`, `needs-triage`) with the evidence you found in the code, and list it
+under "New requests filed" in your report.
+
 ## Triage (when asked to triage, or before building)
 
 1. List open requests: `gh issue list -R Flameingskull/FitLens --label enhancement --state open --json number,title,labels,body,comments`.
