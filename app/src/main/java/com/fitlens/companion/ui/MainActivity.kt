@@ -49,11 +49,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
+import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
-import com.fitlens.companion.data.PhotoImporter
 import com.fitlens.companion.data.Store
 import kotlinx.coroutines.launch
 
@@ -131,8 +131,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        // "Back up after changes" (#34): queue a background backup when FitLens leaves the screen.
+        AutoBackup.onAppBackground(applicationContext)
+    }
+
     private suspend fun handleIntent(intent: Intent?) {
         if (intent == null) return
+        if (intent.getBooleanExtra(AutoBackup.EXTRA_OPEN_BACKUPS, false)) {
+            // Opened from the "backup folder unavailable" notification.
+            intent.removeExtra(AutoBackup.EXTRA_OPEN_BACKUPS)
+            nav.tab(Screen.Sync)
+            return
+        }
         val uris = ArrayList<Uri>()
         when (intent.action) {
             Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let { uris.add(it) }
@@ -147,8 +159,9 @@ class MainActivity : ComponentActivity() {
             when (FitNotesImporter.sniff(this, u)) {
                 FileKind.IMAGE -> images.add(u)
                 FileKind.FITNOTES_BACKUP -> {
-                    UiEvents.busy.value = "Importing FitNotes backup…"
-                    try { UiEvents.show(FitNotesImporter.importBackup(this, u).message) } finally { UiEvents.busy.value = null }
+                    // The Sync tab shows what the backup adds before importing it.
+                    nav.tab(Screen.Sync)
+                    FitNotesImports.pending.value = u
                 }
                 FileKind.BODY_CSV -> UiEvents.show(FitNotesImporter.importBodyCsv(this, u).message)
                 FileKind.WORKOUT_CSV -> UiEvents.show("Workout CSVs aren't needed — share a FitNotes backup (.fitnotes) instead; it contains everything.")
@@ -161,14 +174,8 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (images.isNotEmpty()) {
-            UiEvents.busy.value = "Importing ${images.size} photos…"
-            try {
-                val r = PhotoImporter.importUris(this, images) { d, t -> UiEvents.busy.value = "Importing photos… $d / $t" }
-                UiEvents.show(r.describe())
-                if (r.needsReview > 0) nav.tab(Screen.Photos)
-            } finally {
-                UiEvents.busy.value = null
-            }
+            // Shared photos ask for their pose first (PhotoImportHost), then import.
+            PhotoImports.request(PendingPhotoImport(images) { r -> if (r.needsReview > 0) nav.tab(Screen.Photos) })
         }
     }
 }
@@ -248,6 +255,7 @@ fun AppRoot(nav: Nav) {
                     }
                 }
             }
+            PhotoImportHost()
         }
     }
 }

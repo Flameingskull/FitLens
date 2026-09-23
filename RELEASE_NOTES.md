@@ -1,49 +1,53 @@
 ## Overview
 
-This release adds a complete backup system that works entirely on your phone. Save everything to a single file,
-back up automatically to a folder you choose, restore on a new phone, or create a readable PDF report of your
-progress. FitLens needs no account, sign-in or internet connection, and nothing is sent to online services.
+This release starts FitLens's move to being your main workout logger. FitNotes imports now **merge** into FitLens
+instead of replacing its data, and they show exactly what will be added before anything changes. Automatic backups
+now run in the background, even when FitLens is closed, and they stay on your phone. Progress photos are easier to
+organise by pose: you choose the pose while importing, filter and group by it, and change many photos at once.
 
 ## What's new
 
-### Backup files
-- **Save a full backup:** go to **Sync → Backups → Save backup**. It creates one `.fitlens` file with all your data and
-  photos. Keep a copy off your phone, such as on a computer, USB drive or SD card.
-- **Restore after reinstalling, or on a new phone:** use **Restore backup**, or just open a `.fitlens` file from your
-  file manager. FitLens shows what the backup contains (date made, photos, workouts, body records, dates covered)
-  and asks before replacing anything.
-- **Safe restores:** the backup is unpacked and checked before your current data is touched. If a file is damaged or
-  was made by a newer version of FitLens, the restore stops and your data stays as it was.
-- Archives saved with earlier versions of FitLens can still be restored.
+### FitNotes imports that merge
+- **Imports only add, never replace.** Importing a FitNotes backup adds its new workouts, sets, comments, workout
+  times and body tracker records. Anything already in FitLens is skipped. Nothing you created or edited in FitLens is
+  deleted or overwritten, and importing the same backup twice changes nothing.
+- **See what an import adds first.** Before a FitNotes backup is imported, FitLens shows what it will add and what it
+  will skip, with an option to **save a FitLens backup first**. This applies to picked files, backups shared from
+  FitNotes, and **Sync now**.
+- Exercises and categories are matched by name, so imported history and history logged in FitLens join up.
+- Renames and deletions you make in FitLens are remembered, so a later import doesn't bring back what you removed.
 
-### Automatic backups
-- Choose a folder outside FitLens (for example Documents, Downloads or an SD card) and FitLens backs up there
-  **daily or weekly**, checked each time you open the app. Backups in that folder survive uninstalling the app.
-- FitLens keeps the newest **3, 5 or 10** backups and removes older ones automatically.
-- Use **Back up now** any time. Interrupted backups are cleaned up and never mistaken for complete ones.
+### Automatic backups in the background
+- Daily or weekly automatic backups now run **in the background**, even if FitLens isn't opened, whenever the
+  battery isn't low. They're saved only to the folder you chose and never go online.
+- **Back up after changes** (optional): when you leave FitLens after changing something, a backup is saved in the
+  background, at most once an hour.
+- If the backup folder can't be reached (for example, the SD card was removed or access was lost), a
+  **notification** explains how to fix it. Tapping it opens the backup settings.
 
-### PDF progress report
-- **Create PDF report** produces a readable, printable record in the FitLens style:
-  - a **cover** with your first and latest photos side by side and totals for the period;
-  - **measurement cards**, each with a chart (photo days marked) and start, latest, change, low and high values;
-  - a **training summary** showing sessions, best set and estimated 1RM for every exercise;
-  - a **daily log** with each day's photos, pose, measurements (with change since the previous entry), workout
-    duration, sets, PRs and comments.
-- Choose the period (all, last year, 3 months, 1 month or custom dates), the sections, 0–4 photos per day, and
-  whether to include only days with photos.
-- **Dark** pages match the app. **Light** pages are designed for printing. There's an optional high-quality photo
-  setting, and an estimate of the file size before you create it.
-
-### New phone transfer
-- On Android 12 and newer, FitLens data moves across when you set up a new phone by cable or direct phone-to-phone
-  transfer.
-- Google cloud backup is now turned off for FitLens, so your photos and data aren't copied to online services.
+### Photo poses
+- **Choose a pose when importing:** every bulk import (chosen photos, a whole folder, **Add photos** on a day, or
+  photos shared from your gallery) asks whether the photos are Front, Side, Back, Other or Not set, and applies that
+  pose to all of them.
+- **Filter and group by pose:** the pose filters on the Photos tab show how many photos have each pose. A new
+  **Group by** option shows photos by month or by pose.
+- **Bulk pose editing:** each month or pose section has a **Select** button, and selection mode has **Select all
+  shown**. You can re-tag a whole month, a pose group or everything in the current filter in a few taps.
 
 ## Improved
-- A fresh install now offers **Restore from a backup** on the first screen.
+- The backup settings now show the **last successful backup**, the **next scheduled backup**, the **free space** in
+  the backup folder, and the last failed attempt if there was one.
+- **Automatic sync from the FitNotes backup folder is now off by default.** If you already use it, it stays on after
+  this update.
+- The photo viewer has a labelled pose row, with **Not set** to clear a pose.
+- The photo grid fits more columns on larger screens and in landscape.
+- Groundwork for logging in FitLens: every exercise, category, set, comment and workout time now records whether it
+  came from FitNotes or was created in FitLens. Your existing data is upgraded automatically and kept in full.
 
 ## Known limitations
-- On Android 10 and 11, phone-to-phone transfer can't be separated from cloud backup, so it's turned off. Use a
-  backup file instead.
-- Very large PDF reports (hundreds of photos) can take a few minutes. Fewer photos per day or a shorter period is
-  faster and gives a smaller file.
+- The screens for logging workouts directly in FitLens are coming in later updates.
+- Background backups follow Android's battery rules, so a scheduled backup can run a few hours after it's due.
+- On Android 13 and newer, FitLens asks for the notification permission when automatic backups are first set up. If
+  you decline it, problems still show in the backup settings but no notification appears.
+- If a set you already imported is later edited or deleted in FitNotes, the next import adds the changed version as
+  a new set.

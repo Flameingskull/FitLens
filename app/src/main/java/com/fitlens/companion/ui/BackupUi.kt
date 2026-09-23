@@ -1,6 +1,10 @@
 package com.fitlens.companion.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
@@ -34,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ImportSummary
@@ -68,7 +74,26 @@ fun BackupsCard(snap: Snapshot) {
     var autoFolder by remember { mutableStateOf(Backups.autoFolder()) }
     var autoDays by remember { mutableIntStateOf(Backups.autoDays()) }
     var keep by remember { mutableIntStateOf(Backups.autoKeep()) }
-    val lastAuto = remember(snap) { Backups.lastAutoBackup() }
+    var afterChanges by remember { mutableStateOf(AutoBackup.afterChangesEnabled()) }
+    val busy by UiEvents.busy.collectAsState()
+    // Re-read after each backup (the busy overlay closes) and after data changes.
+    val lastAuto = remember(snap, busy, autoFolder) { Backups.lastAutoBackup() }
+    val lastError = remember(snap, busy, autoFolder) { Backups.lastError() }
+    val nextDue = remember(snap, busy, autoFolder, autoDays) { AutoBackup.nextDue() }
+    var folderStatus by remember { mutableStateOf<AutoBackup.FolderStatus?>(null) }
+    LaunchedEffect(autoFolder, busy) {
+        if (busy == null) folderStatus = AutoBackup.folderStatus(ctx)
+    }
+    // Android 13+ asks for the notification permission the first time automatic backups are set up, so FitLens can
+    // say when the backup folder can't be reached.
+    val askNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    fun ensureNotifyPermission() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    fun fmtTime(ms: Long): String =
+        Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
     var restoreInfo by remember { mutableStateOf<Backups.Info?>(null) }
     var showReport by remember { mutableStateOf(false) }
@@ -100,6 +125,8 @@ fun BackupsCard(snap: Snapshot) {
             Backups.setAutoFolder(ctx, uri)
             autoFolder = uri
             autoDays = Backups.autoDays()
+            AutoBackup.schedule(ctx)
+            ensureNotifyPermission()
             runBusy("Saving the first automatic backup…") { Backups.backupToFolder(ctx) }
         }
     }
@@ -140,10 +167,14 @@ fun BackupsCard(snap: Snapshot) {
                 if (autoFolder != null) Button(onClick = { runBusy("Backing up…") { Backups.backupToFolder(ctx) } }) { Text("Back up now") }
             }
             if (autoFolder != null) {
-                Hint("How often (checked each time you open FitLens)")
+                Hint("How often. Backups run in the background, even when FitLens is closed, while the battery isn't low.")
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(0 to "Off", 1 to "Daily", 7 to "Weekly").forEach { (d, label) ->
-                        FilterChip(selected = autoDays == d, onClick = { autoDays = d; Backups.setAutoDays(d) }, label = { Text(label) })
+                        FilterChip(selected = autoDays == d, onClick = {
+                            autoDays = d
+                            Backups.setAutoDays(d)
+                            AutoBackup.schedule(ctx)
+                        }, label = { Text(label) })
                     }
                 }
                 Hint("Keep the newest")
@@ -152,12 +183,40 @@ fun BackupsCard(snap: Snapshot) {
                         FilterChip(selected = keep == n, onClick = { keep = n; Backups.setAutoKeep(n) }, label = { Text("$n backups") })
                     }
                 }
-                Hint(
-                    lastAuto?.let {
-                        "Last automatic backup: " + Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault())
-                            .format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
-                    } ?: "No automatic backup yet."
+                ToggleRow("Back up after changes", afterChanges) {
+                    afterChanges = it
+                    AutoBackup.setAfterChanges(it)
+                    if (it) ensureNotifyPermission()
+                }
+                Hint("When you leave FitLens after changing something, a backup is saved in the background, at most once an hour.")
+
+                SubHeading("Status")
+                Text(
+                    lastAuto?.let { "Last successful backup: " + fmtTime(it) } ?: "No automatic backup yet.",
+                    style = MaterialTheme.typography.bodyMedium
                 )
+                nextDue?.let { due ->
+                    Hint(
+                        if (due <= System.currentTimeMillis() + 5 * 60_000L) "Next scheduled backup: due now. It runs shortly, once the battery isn't low."
+                        else "Next scheduled backup: from " + fmtTime(due)
+                    )
+                } ?: Hint("Scheduled backups are off.")
+                folderStatus?.let { st ->
+                    if (st.reachable) {
+                        Hint("Backup folder: available" + (st.freeBytes?.let { " · " + Formatter.formatShortFileSize(ctx, it) + " free" } ?: ""))
+                    } else {
+                        Text(
+                            "FitLens can't reach the backup folder. If it's on an SD card, check the card is in; otherwise choose the folder again.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+                lastError?.let { (at, msg) ->
+                    Text(
+                        "Last attempt failed (${fmtTime(at)}): $msg",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
             SubHeading("PDF report")

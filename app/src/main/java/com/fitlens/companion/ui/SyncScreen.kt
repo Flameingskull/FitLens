@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
-import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import java.time.Instant
@@ -45,24 +44,24 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
     val lastAt = remember(snap) { Store.db.getMeta("last_import_at")?.toLongOrNull() }
 
     val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) runBusy("Importing…") {
-            when (FitNotesImporter.sniff(ctx, uri)) {
-                FileKind.FITNOTES_BACKUP -> FitNotesImporter.importBackup(ctx, uri)
-                FileKind.BODY_CSV -> FitNotesImporter.importBodyCsv(ctx, uri)
-                else -> ImportSummary("That isn't a FitNotes backup (.fitnotes) or Body Tracker CSV.", false)
-            }
+        if (uri != null) when (FitNotesImporter.sniff(ctx, uri)) {
+            // A FitNotes backup shows what it adds before anything is imported (FitNotesImportHost).
+            FileKind.FITNOTES_BACKUP -> FitNotesImports.start(ctx, uri)
+            FileKind.BODY_CSV -> runBusy("Importing…") { FitNotesImporter.importBodyCsv(ctx, uri) }
+            else -> UiEvents.show("That isn't a FitNotes backup (.fitnotes) or Body Tracker CSV.")
         }
     }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             BackupSync.setFolder(ctx, uri)
             folder = uri
-            runBusy("Looking for the newest FitNotes backup…") { BackupSync.syncIfNewer(ctx, force = true) }
+            FitNotesImports.startFromFolder(ctx)
         }
     }
     val importPhotos = rememberPhotoImporter()
     val importFolder = rememberFolderPhotoImporter()
 
+    FitNotesImportHost()
     Column(Modifier.fillMaxSize()) {
         PlainTopBar("Sync & import")
         Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -84,7 +83,9 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
                     }
                     Text(
                         "Accepts FitNotes backups (.fitnotes, which include everything) and Body Tracker CSV exports. " +
-                            "You can also share a backup from FitNotes straight to FitLens.",
+                            "You can also share a backup from FitNotes straight to FitLens. Imports merge: you'll see what " +
+                            "will be added first, anything already in FitLens is skipped, and nothing you logged or edited " +
+                            "in FitLens is deleted or changed.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -93,10 +94,11 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
             // ---------- Auto sync ----------
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Automatic sync from backup folder", style = MaterialTheme.typography.titleMedium)
+                    Text("FitNotes backup folder", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Choose the folder where FitNotes saves its backups. Every time you open FitLens it imports the newest " +
-                            "backup there if it's changed. To update: make a backup in FitNotes, then open FitLens.",
+                        "For moving over from FitNotes gradually. Choose the folder where FitNotes saves its backups, then " +
+                            "tap Sync now to import the newest one. With automatic sync on, FitLens also imports it quietly " +
+                            "each time it opens, if it has changed.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
@@ -105,11 +107,9 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose folder" else "Change folder") }
-                        if (folder != null) Button(onClick = {
-                            runBusy("Syncing…") { BackupSync.syncIfNewer(ctx, force = true) }
-                        }) { Text("Sync now") }
+                        if (folder != null) Button(onClick = { FitNotesImports.startFromFolder(ctx) }) { Text("Sync now") }
                     }
-                    if (folder != null) ToggleRow("Sync automatically when FitLens opens", autoSync) {
+                    if (folder != null) ToggleRow("Sync automatically when FitLens opens (off by default)", autoSync) {
                         autoSync = it
                         BackupSync.setAutoSync(it)
                     }
@@ -142,7 +142,7 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
             BackupsCard(snap)
             HorizontalDivider()
             Text(
-                "FitLens never changes your FitNotes data — it only reads backups.",
+                "FitLens never changes your FitNotes data. It only reads FitNotes backups.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

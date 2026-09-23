@@ -7,8 +7,12 @@ and matches every progress photo to its date, so each day shows the photo *and* 
 
 - **Imports FitNotes backups** (`.fitnotes`). These contain everything: workouts, sets, PRs, comments, workout times,
   exercises, categories, all body tracker measurements and custom measurements. It also accepts Body Tracker CSV exports.
-- **Semi-automatic sync:** point FitLens at the folder where FitNotes saves its backups. Whenever you open FitLens it
-  imports the newest backup if it has changed. You can also share a backup from FitNotes straight into FitLens.
+  Imports **merge** into FitLens: before importing, FitLens shows what will be added and what is skipped as already
+  present, and offers to save a FitLens backup first. Nothing created or edited in FitLens is ever deleted or
+  overwritten by an import (see [FitNotes imports and your FitLens data](#fitnotes-imports-and-your-fitlens-data)).
+- **Optional FitNotes folder sync** for moving over gradually: point FitLens at the folder where FitNotes saves its
+  backups and tap **Sync now**, or turn on automatic sync to import the newest backup whenever FitLens opens. Automatic
+  sync is **off by default**. You can also share a backup from FitNotes straight into FitLens.
 - **Bulk photo import:** choose many photos, a whole folder, or share photos from your gallery. Each photo is dated from:
   1. camera metadata (EXIF "date taken"),
   2. then the media library date,
@@ -16,8 +20,8 @@ and matches every progress photo to its date, so each day shows the photo *and* 
   4. then the file's modified date. Photos dated this way are flagged for you to check.
 
   Duplicates are detected and skipped, so re-importing a folder is safe.
-- **Manual entry:** add photos to a specific day, and add measurements by hand. A manual entry is merged automatically
-  once the same value arrives in a FitNotes backup.
+- **Manual entry:** add photos to a specific day, and add measurements by hand. When the same value later arrives in a
+  FitNotes backup, the FitNotes copy is skipped and your entry is kept.
 - **Views:**
   - **Log:** a timeline of every day, with that day's photos, measurements and workout summary.
   - **Day:** everything for one date. It shows the photos; the measurements with the change since the previous entry;
@@ -36,13 +40,41 @@ and matches every progress photo to its date, so each day shows the photo *and* 
   - **Backup file:** save everything, photos included, as one `.fitlens` file. Restore it after reinstalling or on a
     new phone. You can even open it straight from a file manager.
   - **Automatic backups:** daily or weekly to a folder you choose (e.g. Documents or an SD card), so they survive
-    uninstalling. Only the newest few are kept.
+    uninstalling. Only the newest few are kept. They run in the background through Android's job scheduler, even
+    when FitLens isn't open, whenever the battery isn't low. Optionally, **Back up after changes** saves a backup when
+    you leave FitLens after changing something (at most once an hour). If the folder can't be reached (SD card removed
+    or access lost), a notification says how to fix it. Settings show the last successful backup, the next scheduled
+    one and the folder's free space. The only permission used is notifications (Android 13+), asked for when you set
+    up automatic backups. FitLens has no internet permission.
   - **PDF report:** a readable report with your photos, measurement charts, training summary and a daily log, in dark
     (as in the app) or light (for printing).
   - **Phone-to-phone transfer** (Android 12+) carries FitLens data across when you set up a new phone with a cable or
     a direct transfer. Google cloud backup is turned off for FitLens.
 
-FitLens only *reads* FitNotes backups. It never changes your FitNotes data.
+FitLens only *reads* FitNotes backups. It never changes your FitNotes data. FitLens backups (`.fitlens`) are for
+FitLens only; there's no export back to FitNotes.
+
+## FitNotes imports and your FitLens data
+
+FitLens is becoming a full workout logger, so every category, exercise, set, workout comment and workout time records
+who owns it: **FitNotes** (imported) or **FitLens** (created, or edited, in FitLens). FitLens gives every row its own
+id; the FitNotes id is only kept for reference, so the two can never collide. Importing a FitNotes backup follows
+these rules:
+
+1. An import only **adds**. It never deletes, edits or overwrites anything already in FitLens, whoever created it.
+2. Categories and exercises are matched **by name** (ignoring upper/lower case), so imported history and history
+   logged in FitLens join up under one exercise. If both exist, the FitLens version is kept as it is.
+3. A set is already present when FitLens has a set on the same date, for the same exercise, with the same weight,
+   reps, distance and time. Identical sets are counted, so 3 × 5 × 100 kg in the backup matches 3 in FitLens.
+   Importing the same backup twice changes nothing.
+4. Workout comments and times are skipped when the same comment, or the same start and end, is already on that date.
+   Body measurements are skipped when the same measurement, date, time and value exists, or when you entered the same
+   value by hand that day.
+5. Your changes in FitLens win: after you rename an exercise or category, the FitNotes name still maps to it; after you
+   delete imported data, or edit an imported set, comment or time, the next import doesn't bring the original back.
+   Re-creating a deleted exercise with the same name lets its FitNotes history import again.
+
+The rules are also documented in the code (`data/Workouts.kt`).
 
 ---
 
@@ -75,8 +107,9 @@ spare phone, or save a backup (Sync → Backups → Save backup) and uninstall t
 ## First-time setup (in the app)
 
 1. **Sync tab → Import backup file** and choose your latest `FitNotes_Backup_….fitnotes`.
-2. **Sync tab → Choose folder** and pick the folder where FitNotes saves its backups. From then on, making a backup
-   in FitNotes and opening FitLens updates everything automatically.
+2. Optional, if you keep using FitNotes for a while: **Sync tab → FitNotes backup folder → Choose folder** and pick the
+   folder where FitNotes saves its backups. Tap **Sync now** after making a backup in FitNotes, or turn on automatic
+   sync so FitLens imports the newest backup each time it opens.
 3. **Photos tab → + → Import a whole folder** (for example your camera folder or a "Progress" album) or choose photos.
    FitLens dates each photo and places it on the right day.
 4. If any photos had no camera date, a banner says **"N photos need their date checked"**. Tap it to accept or fix the dates.
@@ -87,5 +120,6 @@ spare phone, or save a backup (Sync → Backups → Save backup) and uninstall t
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So FitLens
   can't pull data out of FitNotes directly or make FitNotes create a backup. The backup-folder sync above is the closest
   to automatic that Android allows. It works best if you keep the backups FitNotes saves to your phone in one folder.
+- Background backups follow Android's battery rules, so a scheduled backup can run a few hours after it's due.
 - Photos are copied into FitLens, so deleting a photo in your gallery doesn't remove it from FitLens (and vice versa).
   Save a backup (or turn on automatic backups) before changing phones.

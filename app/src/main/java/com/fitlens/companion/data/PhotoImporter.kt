@@ -83,6 +83,8 @@ object PhotoImporter {
         context: Context,
         uris: List<Uri>,
         forcedDate: String? = null,
+        /** Pose given to every newly added photo. Photos that were already imported keep their pose. */
+        pose: String = Poses.NONE,
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }
     ): PhotoImportResult = withContext(Dispatchers.IO) {
         var added = 0
@@ -141,7 +143,7 @@ object PhotoImporter {
                     if (date == null) putNull("date") else put("date", date)
                     put("taken_at", takenAt?.toString())
                     put("date_source", if (date == null) DateSources.NONE else source)
-                    put("pose", Poses.NONE)
+                    put("pose", pose)
                     put("original_name", name)
                     put("hash", hash)
                     put("added_at", System.currentTimeMillis())

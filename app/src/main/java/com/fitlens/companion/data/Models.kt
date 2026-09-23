@@ -4,10 +4,27 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-data class Category(val id: Long, val name: String, val colour: Int, val sortOrder: Int)
+/** Who owns a workout row: imported from a FitNotes backup, or created (or edited) in FitLens. See [Workouts]. */
+object Sources {
+    const val FITNOTES = "fitnotes"
+    const val FITLENS = "fitlens"
+}
+
+data class Category(val id: Long, val name: String, val colour: Int, val sortOrder: Int, val source: String = Sources.FITLENS) {
+    val imported: Boolean get() = source == Sources.FITNOTES
+}
 
 /** FitNotes exercise types: 0 = weight & reps, 1 = distance & time, 2 = weight & distance(?), 3 = time. */
-data class Exercise(val id: Long, val name: String, val categoryId: Long, val type: Int, val notes: String?)
+data class Exercise(
+    val id: Long,
+    val name: String,
+    val categoryId: Long,
+    val type: Int,
+    val notes: String?,
+    val source: String = Sources.FITLENS
+) {
+    val imported: Boolean get() = source == Sources.FITNOTES
+}
 
 data class SetRow(
     val id: Long,
@@ -18,8 +35,11 @@ data class SetRow(
     val distance: Double,
     val durationSec: Int,
     val isPr: Boolean,
-    val comment: String?
-)
+    val comment: String?,
+    val source: String = Sources.FITLENS
+) {
+    val imported: Boolean get() = source == Sources.FITNOTES
+}
 
 data class MeasurementDef(
     val name: String,

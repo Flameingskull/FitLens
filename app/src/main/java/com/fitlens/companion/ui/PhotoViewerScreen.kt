@@ -106,15 +106,23 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
             )
         }
         Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()).padding(12.dp)) {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Poses.all.forEach { pose ->
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("POSE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                (Poses.all + "Not set").forEach { label ->
+                    val value = if (label == "Not set") Poses.NONE else label
                     FilterChip(
-                        selected = current.pose == pose,
+                        selected = current.pose == value,
                         onClick = {
-                            val newPose = if (current.pose == pose) Poses.NONE else pose
-                            AppScope.scope.launch { Store.setPhotoPose(listOf(current.id), newPose) }
+                            if (current.pose != value) {
+                                val id = current.id
+                                AppScope.scope.launch { Store.setPhotoPose(listOf(id), value) }
+                            }
                         },
-                        label = { Text(pose) }
+                        label = { Text(label) }
                     )
                 }
             }

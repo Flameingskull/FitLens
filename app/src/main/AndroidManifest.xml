@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Android 13+: tells the user when an automatic backup can't reach its folder. Asked for when first needed. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Lets the app see and launch FitNotes on Android 11+ -->
     <queries>
         <package android:name="com.github.jamesgay.fitnotes" />

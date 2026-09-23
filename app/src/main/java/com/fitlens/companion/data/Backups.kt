@@ -193,8 +193,10 @@ object Backups {
                 }
 
                 // Settings that belong to this phone (folder permissions) are kept, not taken from the backup.
-                val keepMeta = listOf("backup_folder", "auto_sync", AUTO_FOLDER, AUTO_DAYS, AUTO_KEEP)
-                    .associateWith { Store.db.getMeta(it) }
+                val keepMeta = listOf(
+                    "backup_folder", "auto_sync", AUTO_FOLDER, AUTO_DAYS, AUTO_KEEP, AUTO_LAST, AUTO_ERROR,
+                    AutoBackup.AFTER_CHANGES, AutoBackup.DIRTY
+                ).associateWith { Store.db.getMeta(it) }
 
                 Store.db.close()
                 val dbFile = context.getDatabasePath(Db.NAME)
@@ -230,6 +232,7 @@ object Backups {
     private const val AUTO_DAYS = "auto_backup_days"
     private const val AUTO_KEEP = "auto_backup_keep"
     private const val AUTO_LAST = "auto_backup_last"
+    private const val AUTO_ERROR = "auto_backup_error"
 
     fun autoFolder(): Uri? = Store.db.getMeta(AUTO_FOLDER)?.let { Uri.parse(it) }
     /** 0 = off, 1 = daily, 7 = weekly. */
@@ -238,6 +241,17 @@ object Backups {
     fun lastAutoBackup(): Long? = Store.db.getMeta(AUTO_LAST)?.toLongOrNull()
     fun setAutoDays(days: Int) = Store.db.setMeta(AUTO_DAYS, days.toString())
     fun setAutoKeep(n: Int) = Store.db.setMeta(AUTO_KEEP, n.toString())
+
+    /** The last automatic backup that failed since the last one that worked: time and message. */
+    fun lastError(): Pair<Long, String>? = Store.db.getMeta(AUTO_ERROR)?.let { v ->
+        val t = v.substringBefore('|').toLongOrNull() ?: return@let null
+        t to v.substringAfter('|')
+    }
+
+    private fun failed(message: String, folderProblem: Boolean): ImportSummary {
+        Store.db.setMeta(AUTO_ERROR, "${System.currentTimeMillis()}|$message")
+        return ImportSummary(message, false, folderProblem)
+    }
 
     fun setAutoFolder(context: Context, uri: Uri) {
         try {
@@ -273,20 +287,29 @@ object Backups {
                 val name = fileName(AUTO_PREFIX)
                 // Written under a temporary name, then renamed, so an interrupted backup is never mistaken for a good one.
                 val doc = DocumentsContract.createDocument(resolver, parent, MIME, name + PART)
-                    ?: return@withContext ImportSummary("Couldn't create a file in the backup folder.", false)
+                    ?: return@withContext failed(FOLDER_MISSING, true)
                 val photos = resolver.openOutputStream(doc, "wt")?.use { write(context, it) }
-                    ?: return@withContext ImportSummary("Couldn't write to the backup folder.", false)
+                    ?: return@withContext failed("Couldn't write to the backup folder.", true)
                 DocumentsContract.renameDocument(resolver, doc, name)
                 Store.db.setMeta(AUTO_LAST, System.currentTimeMillis().toString())
+                Store.db.setMeta(AUTO_ERROR, null)
+                AutoBackup.markBackedUp()
                 prune(context, tree)
                 ImportSummary("Automatic backup saved ($photos photos).", true)
             } catch (e: SecurityException) {
-                ImportSummary("FitLens lost access to the backup folder. Choose it again in Sync → Backups.", false)
+                failed("FitLens lost access to the backup folder. Choose it again in Sync → Backups.", true)
+            } catch (e: java.io.FileNotFoundException) {
+                failed(FOLDER_MISSING, true)
+            } catch (e: IllegalArgumentException) {
+                failed(FOLDER_MISSING, true)
             } catch (e: Exception) {
-                ImportSummary("Automatic backup failed: ${e.message}", false)
+                failed("Automatic backup failed: ${e.message}", false)
             }
         }
     }
+
+    private const val FOLDER_MISSING =
+        "The backup folder isn't available. If it's on an SD card, check the card is in; otherwise choose the folder again in Sync → Backups."
 
     private fun prune(context: Context, tree: Uri) {
         val resolver = context.contentResolver

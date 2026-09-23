@@ -8,9 +8,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Semi-automatic FitNotes sync: the user points FitLens at the folder where FitNotes saves its
- * backups. Whenever FitLens opens (or "Sync now" is tapped) the newest .fitnotes file in that
- * folder is imported if it's newer than the last one imported.
+ * Optional FitNotes folder sync, for people moving over from FitNotes gradually: the user points FitLens at the
+ * folder where FitNotes saves its backups. "Sync now" imports the newest .fitnotes file there (after showing what it
+ * adds), and when "sync automatically" is on, FitLens imports it quietly on opening if it's newer than the last one.
+ * Imports merge into FitLens and never delete or overwrite FitLens data (see [Workouts]).
+ *
+ * Automatic sync is off by default. Installs that had chosen a sync folder before FitLens became the main logger
+ * keep it on (set by the database upgrade to version 3), unless they had switched it off.
  */
 object BackupSync {
 
@@ -27,7 +31,7 @@ object BackupSync {
         Store.db.setMeta("backup_folder", uri.toString())
     }
 
-    fun autoSyncEnabled(): Boolean = Store.db.getMeta("auto_sync") != "0"
+    fun autoSyncEnabled(): Boolean = Store.db.getMeta("auto_sync") == "1"
     fun setAutoSync(on: Boolean) = Store.db.setMeta("auto_sync", if (on) "1" else "0")
 
     suspend fun newestBackup(context: Context): Found? = withContext(Dispatchers.IO) {

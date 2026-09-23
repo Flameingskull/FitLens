@@ -5,13 +5,17 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.PhotoImportResult
 import com.fitlens.companion.data.PhotoImporter
+import com.fitlens.companion.data.Poses
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 /** Scope that outlives individual screens so long imports/exports aren't cancelled by navigation. */
@@ -19,10 +23,10 @@ object AppScope {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 }
 
-suspend fun runPhotoImport(ctx: Context, uris: List<Uri>, forcedDate: String?): PhotoImportResult {
+suspend fun runPhotoImport(ctx: Context, uris: List<Uri>, forcedDate: String?, pose: String = Poses.NONE): PhotoImportResult {
     UiEvents.busy.value = "Importing ${uris.size} photos…"
     try {
-        val r = PhotoImporter.importUris(ctx, uris, forcedDate) { d, t -> UiEvents.busy.value = "Importing photos… $d / $t" }
+        val r = PhotoImporter.importUris(ctx, uris, forcedDate, pose) { d, t -> UiEvents.busy.value = "Importing photos… $d / $t" }
         UiEvents.show(r.describe())
         return r
     } finally {
@@ -44,12 +48,49 @@ fun runBusy(label: String, block: suspend () -> ImportSummary?) {
     }
 }
 
+/** Photos that were picked or shared and are waiting for the user to choose their pose before import. */
+class PendingPhotoImport(
+    val uris: List<Uri>,
+    val forcedDate: String? = null,
+    val onDone: (PhotoImportResult) -> Unit = {}
+)
+
+/** Every bulk photo import goes through here, so each one asks for a pose first (see [PhotoImportHost]). */
+object PhotoImports {
+    val pending = MutableStateFlow<PendingPhotoImport?>(null)
+    fun request(p: PendingPhotoImport) { pending.value = p }
+}
+
+/** Shows the pose question for a pending photo import, then runs the import. Placed once in the app root. */
+@Composable
+fun PhotoImportHost() {
+    val pending by PhotoImports.pending.collectAsState()
+    val ctx = LocalContext.current.applicationContext
+    val p = pending ?: return
+    ImportPoseDialog(
+        count = p.uris.size,
+        onCancel = {
+            PhotoImports.pending.value = null
+            UiEvents.show("Photo import cancelled.")
+        },
+        onPick = { pose ->
+            PhotoImports.pending.value = null
+            AppScope.scope.launch {
+                try {
+                    p.onDone(runPhotoImport(ctx, p.uris, p.forcedDate, pose))
+                } catch (e: Exception) {
+                    UiEvents.show("Something went wrong: ${e.message}")
+                }
+            }
+        }
+    )
+}
+
 /** Multi-select photo picker (keeps full EXIF metadata, unlike the photo picker). */
 @Composable
 fun rememberPhotoImporter(forcedDate: String? = null, onDone: (PhotoImportResult) -> Unit = {}): () -> Unit {
-    val ctx = LocalContext.current.applicationContext
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) AppScope.scope.launch { onDone(runPhotoImport(ctx, uris, forcedDate)) }
+        if (uris.isNotEmpty()) PhotoImports.request(PendingPhotoImport(uris, forcedDate, onDone))
     }
     return { launcher.launch(arrayOf("image/*")) }
 }
@@ -63,7 +104,7 @@ fun rememberFolderPhotoImporter(onDone: (PhotoImportResult) -> Unit = {}): () ->
             UiEvents.busy.value = "Scanning folder…"
             val uris = try { PhotoImporter.listFolderImages(ctx, tree) } finally { UiEvents.busy.value = null }
             if (uris.isEmpty()) UiEvents.show("No images found in that folder.")
-            else onDone(runPhotoImport(ctx, uris, null))
+            else PhotoImports.request(PendingPhotoImport(uris, null, onDone))
         }
     }
     return { launcher.launch(null) }

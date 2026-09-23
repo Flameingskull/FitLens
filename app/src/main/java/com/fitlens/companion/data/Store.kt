@@ -110,17 +110,17 @@ object Store {
     private fun load(): Snapshot {
         val r = db.readableDatabase
         val categories = HashMap<Long, Category>()
-        r.rawQuery("SELECT id, name, colour, sort_order FROM category", null).use { c ->
-            while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3))
+        r.rawQuery("SELECT id, name, colour, sort_order, source FROM category", null).use { c ->
+            while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
         }
         val exercises = HashMap<Long, Exercise>()
-        r.rawQuery("SELECT id, name, category_id, type, notes FROM exercise", null).use { c ->
-            while (c.moveToNext()) exercises[c.lng(0)] = Exercise(c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4))
+        r.rawQuery("SELECT id, name, category_id, type, notes, source FROM exercise", null).use { c ->
+            while (c.moveToNext()) exercises[c.lng(0)] = Exercise(c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS))
         }
         val sets = ArrayList<SetRow>()
-        r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment FROM workout_set ORDER BY date, id", null).use { c ->
+        r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source FROM workout_set ORDER BY date, id", null).use { c ->
             while (c.moveToNext()) sets.add(
-                SetRow(c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8))
+                SetRow(c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8), c.strOr(9, Sources.FITLENS))
             )
         }
         val defs = ArrayList<MeasurementDef>()
@@ -142,7 +142,7 @@ object Store {
             )
         }
         val comments = HashMap<String, MutableList<String>>()
-        r.rawQuery("SELECT date, comment FROM workout_comment", null).use { c ->
+        r.rawQuery("SELECT date, comment FROM workout_comment ORDER BY id", null).use { c ->
             while (c.moveToNext()) {
                 val d = c.strOr(0).take(10)
                 val t = c.strOr(1)
@@ -150,7 +150,7 @@ object Store {
             }
         }
         val times = HashMap<String, MutableList<WorkoutTime>>()
-        r.rawQuery("SELECT date, start, finish FROM workout_time", null).use { c ->
+        r.rawQuery("SELECT date, start, finish FROM workout_time ORDER BY id", null).use { c ->
             while (c.moveToNext()) {
                 val d = c.strOr(0).take(10)
                 times.getOrPut(d) { ArrayList() }.add(WorkoutTime(d, c.strOr(1), c.strOr(2)))
