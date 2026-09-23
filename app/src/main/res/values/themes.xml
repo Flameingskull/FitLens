@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.FitLens" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF050308</item>
+        <item name="android:statusBarColor">#FF050308</item>
+        <item name="android:navigationBarColor">#FF050308</item>
+        <item name="android:colorAccent">#FFD4AF37</item>
+    </style>
+</resources>

@@ -1,0 +1,181 @@
+name: Build FitLens APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Pull requests (including from forks): compile a debug build only. No secrets, no release.
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v5
+        with:
+          name: FitLens-pr-${{ github.event.pull_request.number }}-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+  # Pushes to main: signed release APK + full release post.
+  release:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+    env:
+      # Builds 1-3 were published from the earlier private repository, so numbering continues from there.
+      # The build number is the app's versionCode and must only ever increase.
+      BUILD_OFFSET: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Full history and tags, so the release post can list every commit since the previous build.
+          fetch-depth: 0
+
+      - name: Set version
+        run: |
+          BUILD=$((GITHUB_RUN_NUMBER + BUILD_OFFSET))
+          echo "FITLENS_BUILD=$BUILD" >> "$GITHUB_ENV"
+          echo "VERSION=1.0.$BUILD" >> "$GITHUB_ENV"
+
+      # The signing key lives only in encrypted secrets. A release is never published without it,
+      # because an APK signed with any other key can't update the installed app.
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.FITLENS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "::error::FITLENS_KEYSTORE_BASE64 secret is missing"; exit 1; fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fitlens.keystore"
+          echo "FITLENS_KEYSTORE=$RUNNER_TEMP/fitlens.keystore" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Build release APK
+        id: build
+        env:
+          FITLENS_STORE_PASSWORD: ${{ secrets.FITLENS_STORE_PASSWORD }}
+          FITLENS_KEY_ALIAS: ${{ secrets.FITLENS_KEY_ALIAS }}
+          FITLENS_KEY_PASSWORD: ${{ secrets.FITLENS_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
+          rm -f "$FITLENS_KEYSTORE"
+
+      - name: Package release files
+        if: success()
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/FitLens-$VERSION.apk"
+          git archive --format=zip --prefix="FitLens-$VERSION/" -o "dist/FitLens-$VERSION-source.zip" HEAD
+          git archive --format=tar.gz --prefix="FitLens-$VERSION/" -o "dist/FitLens-$VERSION-source.tar.gz" HEAD
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+
+      - name: Keep release files as build artifact
+        if: success()
+        uses: actions/upload-artifact@v5
+        with:
+          name: FitLens-${{ env.VERSION }}
+          path: dist/*
+
+      # The release post = RELEASE_NOTES.md (the hand-written update list for this build)
+      # + issues resolved + install steps + a table of the attached files + the commits since the previous build.
+      - name: Write release post
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PREV=$(git describe --tags --abbrev=0 --match 'build-*' HEAD^ 2>/dev/null || true)
+          RANGE=${PREV:+$PREV..}HEAD
+          APK="FitLens-$VERSION.apk"
+          size() { numfmt --to=iec --suffix=B "$(stat -c %s "dist/$1")"; }
+          # Issues closed by "Fixes #N" / "Closes #N" / "Resolves #N" in this build's commits
+          ISSUES=$(git log --format=%B "$RANGE" | grep -oiE '(fix(es|ed)?|close[sd]?|resolve[sd]?) #[0-9]+' | grep -oE '[0-9]+' | sort -un || true)
+          {
+            echo "# FitLens $VERSION"
+            echo
+            echo "**Build $FITLENS_BUILD** · $(date -u '+%d %B %Y') · commit [\`${GITHUB_SHA::7}\`](${{ github.server_url }}/${{ github.repository }}/commit/$GITHUB_SHA)"
+            echo
+            if [ -s RELEASE_NOTES.md ]; then cat RELEASE_NOTES.md; else echo "_No release notes were written for this build._"; fi
+            echo
+            if [ -n "$ISSUES" ]; then
+              echo "## Issues resolved"
+              echo
+              for n in $ISSUES; do
+                line=$(gh issue view "$n" -R "$GITHUB_REPOSITORY" --json title,labels \
+                  --jq '(if any(.labels[]; .name == "bug") then "Bug fix" else "Feature" end) + ": " + .title' 2>/dev/null || echo "")
+                echo "- #$n ${line}"
+              done
+              echo
+            fi
+            echo "## Install"
+            echo
+            echo "1. On your Android phone, download **$APK** from the files below."
+            echo "2. Open it and allow installs from your browser or file manager if Android asks."
+            echo "3. It installs over any earlier FitLens build and keeps all your data."
+            echo
+            echo "Requires Android 10 or newer."
+            echo
+            echo "## Files"
+            echo
+            echo "| File | Size | Contents |"
+            echo "| --- | --- | --- |"
+            echo "| \`$APK\` | $(size "$APK") | Signed Android app, ready to install |"
+            echo "| \`FitLens-$VERSION-source.zip\` | $(size "FitLens-$VERSION-source.zip") | Complete source code for this build |"
+            echo "| \`FitLens-$VERSION-source.tar.gz\` | $(size "FitLens-$VERSION-source.tar.gz") | Same source code, tar.gz format |"
+            echo "| \`SHA256SUMS.txt\` | $(size SHA256SUMS.txt) | Checksums to verify the downloads |"
+            echo
+            echo "## Commits in this build"
+            echo
+            git log --no-merges --format="- %s (\`%h\`)" "$RANGE"
+            if [ -n "$PREV" ]; then
+              echo
+              echo "**Full changes:** ${{ github.server_url }}/${{ github.repository }}/compare/$PREV...build-$FITLENS_BUILD"
+            fi
+          } > release-post.md
+
+      - name: Publish release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ env.FITLENS_BUILD }}
+          name: FitLens ${{ env.VERSION }}
+          body_path: release-post.md
+          files: dist/*
+
+      # Writes the result and build log to the ci-logs branch so they can be read with plain git.
+      - name: Record build result
+        if: always()
+        run: |
+          RESULT="${{ steps.build.outcome }}"
+          SHA="${{ github.sha }}"
+          mkdir -p /tmp/ci && cd /tmp/ci
+          git init -q
+          git config user.name "fitlens-ci"
+          git config user.email "fitlens-ci@users.noreply.github.com"
+          echo "run=${{ github.run_number }} build=${FITLENS_BUILD:-?} sha=$SHA result=$RESULT" > status.txt
+          if [ -f "$GITHUB_WORKSPACE/build.log" ]; then
+            grep -E "^e: |error:|FAILURE|What went wrong|BUILD (SUCCESSFUL|FAILED)|AAPT|Execution failed" "$GITHUB_WORKSPACE/build.log" | head -300 > errors.txt || true
+            tail -400 "$GITHUB_WORKSPACE/build.log" > build-tail.log
+          fi
+          git add -A && git commit -qm "CI run ${{ github.run_number }}: $RESULT"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:ci-logs

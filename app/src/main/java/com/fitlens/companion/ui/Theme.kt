@@ -1,0 +1,113 @@
+package com.fitlens.companion.ui
+
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/** Brand palette: black, imperial purple and gold. */
+object Brand {
+    val Black = Color(0xFF050308)
+    val Onyx = Color(0xFF0E0A12)
+    val Surface = Color(0xFF151019)
+    val SurfaceHigh = Color(0xFF1E1724)
+    val SurfaceHighest = Color(0xFF281F30)
+    val ImperialPurple = Color(0xFF4B1E6E)
+    val PurpleDeep = Color(0xFF2E1245)
+    val PurpleLight = Color(0xFFB48BDB)
+    val Gold = Color(0xFFD4AF37)
+    val GoldLight = Color(0xFFF1D98A)
+    val GoldDeep = Color(0xFF8C6D1F)
+    val Ivory = Color(0xFFF7F3EA)
+    val Muted = Color(0xFFBDB3C6)
+    val Hairline = Color(0xFF3A2F44)
+}
+
+/** Chart colours: gold series, purple photo markers, ivory goal line. */
+data class ChartColors(val series: Color, val accent: Color, val goal: Color)
+
+val LocalChartColors = staticCompositionLocalOf { ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory) }
+
+private val Scheme = darkColorScheme(
+    primary = Brand.Gold,
+    onPrimary = Brand.Black,
+    primaryContainer = Brand.PurpleDeep,
+    onPrimaryContainer = Brand.GoldLight,
+    secondary = Brand.PurpleLight,
+    onSecondary = Brand.Black,
+    secondaryContainer = Brand.ImperialPurple,
+    onSecondaryContainer = Brand.GoldLight,
+    tertiary = Brand.GoldLight,
+    onTertiary = Brand.Black,
+    tertiaryContainer = Brand.GoldDeep,
+    onTertiaryContainer = Brand.Ivory,
+    background = Brand.Black,
+    onBackground = Brand.Ivory,
+    surface = Brand.Black,
+    onSurface = Brand.Ivory,
+    surfaceVariant = Brand.SurfaceHigh,
+    onSurfaceVariant = Brand.Muted,
+    surfaceTint = Brand.Gold,
+    surfaceContainerLowest = Brand.Black,
+    surfaceContainerLow = Brand.Onyx,
+    surfaceContainer = Brand.Onyx,
+    surfaceContainerHigh = Brand.Surface,
+    surfaceContainerHighest = Brand.SurfaceHighest,
+    inverseSurface = Brand.Ivory,
+    inverseOnSurface = Brand.Black,
+    inversePrimary = Brand.ImperialPurple,
+    outline = Brand.Hairline,
+    outlineVariant = Color(0xFF2A2231),
+    error = Color(0xFFE8798A),
+    onError = Brand.Black,
+    scrim = Color.Black
+)
+
+private val Serif = FontFamily.Serif
+private val Sans = FontFamily.SansSerif
+
+private val LuxuryType = Typography(
+    displayLarge = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 54.sp, lineHeight = 60.sp),
+    displayMedium = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 42.sp, lineHeight = 50.sp),
+    displaySmall = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 34.sp, lineHeight = 42.sp),
+    headlineLarge = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 30.sp, lineHeight = 38.sp),
+    headlineMedium = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 26.sp, lineHeight = 34.sp),
+    headlineSmall = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 22.sp, lineHeight = 30.sp),
+    titleLarge = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.3.sp),
+    titleMedium = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Medium, fontSize = 17.sp, lineHeight = 24.sp, letterSpacing = 0.2.sp),
+    titleSmall = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 1.6.sp),
+    bodyLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.2.sp),
+    bodyMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.2.sp),
+    bodySmall = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 17.sp, letterSpacing = 0.3.sp),
+    labelLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.8.sp),
+    labelMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.8.sp),
+    labelSmall = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 1.0.sp)
+)
+
+private val LuxuryShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(6.dp),
+    medium = RoundedCornerShape(10.dp),
+    large = RoundedCornerShape(14.dp),
+    extraLarge = RoundedCornerShape(20.dp)
+)
+
+/** FitLens always uses its black, imperial purple and gold theme, whatever the system setting. */
+@Composable
+fun FitLensTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = Scheme, typography = LuxuryType, shapes = LuxuryShapes) {
+        CompositionLocalProvider(LocalChartColors provides ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory)) {
+            content()
+        }
+    }
+}

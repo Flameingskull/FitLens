@@ -1,0 +1,129 @@
+package com.fitlens.companion.data
+
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+data class Category(val id: Long, val name: String, val colour: Int, val sortOrder: Int)
+
+/** FitNotes exercise types: 0 = weight & reps, 1 = distance & time, 2 = weight & distance(?), 3 = time. */
+data class Exercise(val id: Long, val name: String, val categoryId: Long, val type: Int, val notes: String?)
+
+data class SetRow(
+    val id: Long,
+    val exerciseId: Long,
+    val date: String,
+    val weightKg: Double,
+    val reps: Int,
+    val distance: Double,
+    val durationSec: Int,
+    val isPr: Boolean,
+    val comment: String?
+)
+
+data class MeasurementDef(
+    val name: String,
+    val unit: String,
+    val sortOrder: Int,
+    val goalType: Int,
+    val goalValue: Double,
+    val enabled: Boolean,
+    /** Created in FitLens rather than imported from FitNotes. */
+    val custom: Boolean = false,
+    /** For custom metrics: the FitNotes measurement whose values fill it in (null = match by name). */
+    val link: String? = null
+) {
+    /** Lower-case FitNotes name this custom metric takes its values from. */
+    val matchKey: String get() = (link?.takeIf { it.isNotBlank() } ?: name).trim().lowercase()
+}
+
+data class MRecord(
+    val id: Long,
+    val name: String,
+    val unit: String,
+    val date: String,
+    val time: String,
+    val value: Double,
+    val comment: String?,
+    val source: String
+)
+
+object Poses {
+    const val NONE = ""
+    val all = listOf("Front", "Side", "Back", "Other")
+}
+
+object DateSources {
+    const val EXIF = "exif"          // camera metadata (most reliable)
+    const val MEDIA = "media"        // Android media library "date taken"
+    const val FILENAME = "filename"  // parsed from e.g. IMG_20230826_132000.jpg
+    const val FILE = "file"          // file modified time (least reliable)
+    const val MANUAL = "manual"      // set by the user
+    const val NONE = "none"
+
+    fun label(s: String): String = when (s) {
+        EXIF -> "Photo metadata (EXIF)"
+        MEDIA -> "Media library date taken"
+        FILENAME -> "Date in file name"
+        FILE -> "File modified date (check this)"
+        MANUAL -> "Set manually"
+        else -> "No date found"
+    }
+
+    /** Sources worth a second look by the user. */
+    fun needsReview(s: String) = s == FILE || s == NONE
+}
+
+data class Photo(
+    val id: Long,
+    val file: String,
+    val date: String?,
+    val takenAt: String?,
+    val dateSource: String,
+    val pose: String,
+    val note: String?,
+    val originalName: String?
+)
+
+data class WorkoutTime(val date: String, val start: String, val end: String)
+
+object Dates {
+    val ISO: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    private val long = DateTimeFormatter.ofPattern("EEE d MMM yyyy", Locale.getDefault())
+    private val medium = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+    private val short = DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
+    private val monthYear = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+    private val monthYearShort = DateTimeFormatter.ofPattern("MMM yy", Locale.getDefault())
+
+    fun parse(s: String?): LocalDate? = try {
+        if (s == null || s.length < 10) null else LocalDate.parse(s.substring(0, 10), ISO)
+    } catch (e: Exception) {
+        null
+    }
+
+    fun long(s: String): String = parse(s)?.format(long) ?: s
+    fun medium(s: String): String = parse(s)?.format(medium) ?: s
+    fun short(s: String): String = parse(s)?.format(short) ?: s
+    fun monthYear(d: LocalDate): String = d.format(monthYear)
+    fun monthYearShort(d: LocalDate): String = d.format(monthYearShort)
+    fun epochDay(s: String): Long = parse(s)?.toEpochDay() ?: 0L
+    fun today(): String = LocalDate.now().format(ISO)
+}
+
+fun fmtNum(v: Double, maxDecimals: Int = 2): String {
+    val s = String.format(Locale.US, "%.${maxDecimals}f", v)
+    return if (s.contains('.')) s.trimEnd('0').trimEnd('.') else s
+}
+
+fun fmtSigned(v: Double, maxDecimals: Int = 2): String =
+    (if (v > 0) "+" else if (v < 0) "−" else "±") + fmtNum(kotlin.math.abs(v), maxDecimals)
+
+fun fmtDuration(sec: Int): String {
+    val h = sec / 3600
+    val m = (sec % 3600) / 60
+    val s = sec % 60
+    return when {
+        h > 0 -> String.format(Locale.US, "%d:%02d:%02d", h, m, s)
+        else -> String.format(Locale.US, "%d:%02d", m, s)
+    }
+}
