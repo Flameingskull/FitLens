@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import com.fitlens.companion.data.BackupSync
+import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.PhotoImporter
@@ -120,6 +121,13 @@ class MainActivity : ComponentActivity() {
                     UiEvents.busy.value = null
                 }
             }
+            // Automatic local backup when one is due. It runs quietly and only speaks up if something goes wrong.
+            if (UiEvents.busy.value == null) {
+                val app = applicationContext
+                AppScope.scope.launch {
+                    Backups.autoBackupIfDue(app)?.takeIf { !it.ok }?.let { UiEvents.show(it.message) }
+                }
+            }
         }
     }
 
@@ -144,7 +152,11 @@ class MainActivity : ComponentActivity() {
                 }
                 FileKind.BODY_CSV -> UiEvents.show(FitNotesImporter.importBodyCsv(this, u).message)
                 FileKind.WORKOUT_CSV -> UiEvents.show("Workout CSVs aren't needed — share a FitNotes backup (.fitnotes) instead; it contains everything.")
-                FileKind.ARCHIVE -> UiEvents.show("To restore a FitLens archive, use Sync → Restore archive.")
+                FileKind.ARCHIVE -> {
+                    // A .fitlens backup: the Sync tab checks it and asks before restoring.
+                    nav.tab(Screen.Sync)
+                    UiEvents.pendingRestore.value = u
+                }
                 FileKind.UNKNOWN -> UiEvents.show("FitLens doesn't recognise that file.")
             }
         }

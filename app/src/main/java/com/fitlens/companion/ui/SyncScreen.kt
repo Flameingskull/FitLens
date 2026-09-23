@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.fitlens.companion.data.Archive
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
@@ -33,7 +32,6 @@ import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -61,12 +59,6 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
             folder = uri
             runBusy("Looking for the newest FitNotes backup…") { BackupSync.syncIfNewer(ctx, force = true) }
         }
-    }
-    val saveArchive = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        if (uri != null) runBusy("Saving archive…") { Archive.export(ctx, uri) }
-    }
-    val restoreArchive = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) runBusy("Restoring archive…") { Archive.restore(ctx, uri) }
     }
     val importPhotos = rememberPhotoImporter()
     val importFolder = rememberFolderPhotoImporter()
@@ -146,20 +138,8 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
                 }
             }
 
-            // ---------- Archive ----------
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("FitLens archive", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Save everything (photos, dates, poses, manual entries) to one .zip file, e.g. before changing phones.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { saveArchive.launch("FitLens_archive_${LocalDate.now()}.zip") }) { Text("Save archive") }
-                        OutlinedButton(onClick = { restoreArchive.launch(arrayOf("application/zip", "application/octet-stream")) }) { Text("Restore archive") }
-                    }
-                }
-            }
+            // ---------- Backups ----------
+            BackupsCard(snap)
             HorizontalDivider()
             Text(
                 "FitLens never changes your FitNotes data — it only reads backups.",

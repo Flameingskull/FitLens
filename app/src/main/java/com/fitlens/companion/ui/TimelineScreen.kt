@@ -23,6 +23,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,6 +65,7 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
                 "Import your FitNotes backup, then bulk-import your progress photos. FitLens matches each photo to its date automatically."
             ) {
                 Button(onClick = { nav.tab(Screen.Sync) }) { Text("Get started") }
+                TextButton(onClick = { nav.tab(Screen.Sync) }) { Text("Restore from a backup") }
             }
         } else {
         if (lastImport != null) {

@@ -6,10 +6,6 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
 
 /**
  * Semi-automatic FitNotes sync: the user points FitLens at the folder where FitNotes saves its
@@ -81,70 +77,5 @@ object BackupSync {
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
         return true
-    }
-}
-
-/** Full FitLens archive (database + photos) so nothing is lost if the phone or app changes. */
-object Archive {
-
-    suspend fun export(context: Context, dest: Uri): ImportSummary = withContext(Dispatchers.IO) {
-        try {
-            val dbFile = context.getDatabasePath(Db.NAME)
-            Store.db.writableDatabase.rawQuery("PRAGMA wal_checkpoint(FULL)", null).use { it.moveToFirst() }
-            var n = 0
-            context.contentResolver.openOutputStream(dest)?.use { os ->
-                ZipOutputStream(os.buffered()).use { zip ->
-                    zip.putNextEntry(ZipEntry("fitlens.db"))
-                    dbFile.inputStream().use { it.copyTo(zip) }
-                    zip.closeEntry()
-                    Store.photoDir.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") }?.forEach { f ->
-                        zip.putNextEntry(ZipEntry("photos/" + f.name))
-                        f.inputStream().use { it.copyTo(zip) }
-                        zip.closeEntry()
-                        n++
-                    }
-                }
-            } ?: return@withContext ImportSummary("Couldn't write the archive.", false)
-            ImportSummary("Archive saved with $n photos.", true)
-        } catch (e: Exception) {
-            ImportSummary("Archive export failed: ${e.message}", false)
-        }
-    }
-
-    suspend fun restore(context: Context, src: Uri): ImportSummary = withContext(Dispatchers.IO) {
-        try {
-            val tmpDb = File(context.cacheDir, "restore.db")
-            var photos = 0
-            var hadDb = false
-            context.contentResolver.openInputStream(src)?.use { input ->
-                ZipInputStream(input.buffered()).use { zip ->
-                    while (true) {
-                        val e = zip.nextEntry ?: break
-                        when {
-                            e.name == "fitlens.db" -> { tmpDb.outputStream().use { zip.copyTo(it) }; hadDb = true }
-                            e.name.startsWith("photos/") && !e.isDirectory -> {
-                                val name = File(e.name).name
-                                if (name.isNotBlank() && !name.contains("..")) {
-                                    File(Store.photoDir, name).outputStream().use { zip.copyTo(it) }
-                                    photos++
-                                }
-                            }
-                        }
-                    }
-                }
-            } ?: return@withContext ImportSummary("Couldn't open the archive.", false)
-            if (!hadDb) return@withContext ImportSummary("That isn't a FitLens archive.", false)
-            Store.db.close()
-            val dbFile = context.getDatabasePath(Db.NAME)
-            File(dbFile.path + "-wal").delete()
-            File(dbFile.path + "-shm").delete()
-            tmpDb.copyTo(dbFile, overwrite = true)
-            tmpDb.delete()
-            Store.init(context)
-            Store.reload()
-            ImportSummary("Restored archive with $photos photos.", true)
-        } catch (e: Exception) {
-            ImportSummary("Restore failed: ${e.message}", false)
-        }
     }
 }

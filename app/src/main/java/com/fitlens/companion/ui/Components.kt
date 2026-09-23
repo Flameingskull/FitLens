@@ -53,6 +53,8 @@ import java.time.ZoneOffset
 object UiEvents {
     val messages = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val busy = MutableStateFlow<String?>(null)
+    /** A backup file opened from outside the app, waiting for the Sync tab to confirm the restore. */
+    val pendingRestore = MutableStateFlow<android.net.Uri?>(null)
     fun show(msg: String) { messages.tryEmit(msg) }
 }
 

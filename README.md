@@ -32,7 +32,15 @@ and matches every progress photo to its date, so each day shows the photo *and* 
 - **Slideshow and video:** plays your photos in date order with overlays: the date, day/week counter, pose, chosen
   measurements (with change since the start) and a moving progress chart. It exports an **MP4 video**, made on the phone,
   in Portrait HD, Full HD or Square. The video is saved to *Movies/FitLens* and can be shared.
-- **Archive:** save or restore everything (photos included) as one `.zip` file.
+- **Backups, all on your phone:** no accounts, no cloud.
+  - **Backup file:** save everything, photos included, as one `.fitlens` file. Restore it after reinstalling or on a
+    new phone. You can even open it straight from a file manager.
+  - **Automatic backups:** daily or weekly to a folder you choose (e.g. Documents or an SD card), so they survive
+    uninstalling. Only the newest few are kept.
+  - **PDF report:** a readable report with your photos, measurement charts, training summary and a daily log, in dark
+    (as in the app) or light (for printing).
+  - **Phone-to-phone transfer** (Android 12+) carries FitLens data across when you set up a new phone with a cable or
+    a direct transfer. Google cloud backup is turned off for FitLens.
 
 FitLens only *reads* FitNotes backups. It never changes your FitNotes data.
 
@@ -62,7 +70,8 @@ GitHub builds a test APK for every pull request.
 
 Open the project in **Android Studio** and click **Run**, or run `./gradlew assembleDebug`. Your own builds are
 signed with your debug key, so Android won't install them over the official release. Test on an emulator or a
-spare phone, or save an archive (Sync → Save archive) and uninstall the official app first.
+spare phone, or save a backup (Sync → Backups → Save backup) and uninstall the official app first.
+
 ## First-time setup (in the app)
 
 1. **Sync tab → Import backup file** and choose your latest `FitNotes_Backup_….fitnotes`.
@@ -79,4 +88,4 @@ spare phone, or save an archive (Sync → Save archive) and uninstall the offici
   can't pull data out of FitNotes directly or make FitNotes create a backup. The backup-folder sync above is the closest
   to automatic that Android allows. It works best if you keep the backups FitNotes saves to your phone in one folder.
 - Photos are copied into FitLens, so deleting a photo in your gallery doesn't remove it from FitLens (and vice versa).
-  Use **Save archive** before changing phones.
+  Save a backup (or turn on automatic backups) before changing phones.
