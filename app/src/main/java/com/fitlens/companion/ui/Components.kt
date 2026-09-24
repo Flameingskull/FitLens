@@ -145,12 +145,14 @@ fun GoldHairline(modifier: Modifier = Modifier) {
 }
 
 /** A pushed screen's top bar with a back arrow. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
     FitTopBar(title = title, onBack = onBack, trailing = { actions() })
 }
 
 /** A tab screen's top bar, left-aligned as before. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlainTopBar(title: String, actions: @Composable () -> Unit = {}) {
     FitTopBar(title = title, centered = false, trailing = { actions() })
