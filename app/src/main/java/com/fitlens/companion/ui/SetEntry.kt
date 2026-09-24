@@ -2,24 +2,15 @@
 
 package com.fitlens.companion.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
@@ -39,12 +30,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ExerciseTypes
@@ -55,6 +43,8 @@ import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.StepperField
+import com.fitlens.companion.ui.design.SetRow as SetRowView
 import kotlin.math.max
 import kotlinx.coroutines.launch
 
@@ -284,12 +274,15 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
             }
             sets.forEachIndexed { i, s ->
                 item(key = "s${s.id}") {
-                    SetRowItem(
-                        snap = snap,
+                    val isSelected = selected == s.id
+                    SetRowView(
                         index = i + 1,
-                        set = s,
-                        selected = selected == s.id,
-                        onClick = { selected = if (selected == s.id) null else s.id }
+                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                        comment = s.comment,
+                        isPr = s.isPr,
+                        selected = isSelected,
+                        onClick = { selected = if (selected == s.id) null else s.id },
+                        trailingHint = if (isSelected) "Selected" else "Edit"
                     )
                 }
             }
@@ -333,86 +326,5 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     }
     if (editExercise && ex != null) {
         ExerciseEditorDialog(snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editExercise = false })
-    }
-}
-
-/** A numeric field with big − and + buttons either side. */
-@Composable
-private fun StepperField(
-    label: String,
-    value: String,
-    onValue: (String) -> Unit,
-    onStep: (Int) -> Unit,
-    keyboard: KeyboardType = KeyboardType.Decimal
-) {
-    Column {
-        Text(
-            label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 2.dp)
-        )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = { onStep(-1) },
-                modifier = Modifier.size(56.dp),
-                contentPadding = PaddingValues(0.dp)
-            ) { Text("−", style = MaterialTheme.typography.headlineSmall) }
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValue,
-                singleLine = true,
-                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboard),
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedButton(
-                onClick = { onStep(1) },
-                modifier = Modifier.size(56.dp),
-                contentPadding = PaddingValues(0.dp)
-            ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
-        }
-    }
-}
-
-/** One logged set. The selected one is picked out in imperial purple with a gold outline. */
-@Composable
-private fun SetRowItem(snap: Snapshot, index: Int, set: SetRow, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(8.dp)
-    Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp)) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .background(if (selected) Brand.ImperialPurple.copy(alpha = 0.35f) else Brand.Surface, shape)
-                .border(1.dp, if (selected) Brand.Gold else Brand.Hairline, shape)
-                .clickable { onClick() }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("$index", Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Column(Modifier.weight(1f)) {
-                Text(
-                    describeSet(snap, set.weightKg, set.reps, set.distance, set.durationSec),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                if (!set.comment.isNullOrBlank()) {
-                    Text(
-                        "“${set.comment}”",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            // #23 replaces this with a live gold trophy; today only imported FitNotes flags are shown.
-            if (set.isPr) {
-                Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(
-                if (selected) "Selected" else "Edit",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (selected) Brand.Gold else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }

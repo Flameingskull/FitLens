@@ -109,6 +109,50 @@ private val LuxuryShapes = Shapes(
     extraLarge = RoundedCornerShape(20.dp)
 )
 
+/**
+ * Spacing scale for the shared components (#80). New layout code picks from here rather than inventing one-off
+ * dp values, so screens line up with each other.
+ */
+object Spacing {
+    val xxs = 2.dp
+    val xs = 4.dp
+    val sm = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 24.dp
+    val xxl = 32.dp
+    /** The minimum touch target for anything tappable. */
+    val touch = 48.dp
+    /** Stepper buttons and other primary logging controls: larger than the minimum, for use mid-set. */
+    val stepper = 56.dp
+    /** The minimum height of a list row. */
+    val row = 56.dp
+}
+
+/** Shapes the shared components use beyond Material's scale (#80). */
+object FitShapes {
+    /** Set rows, selectable list rows, snackbars. */
+    val row = RoundedCornerShape(8.dp)
+    /** Exercise cards and stat tiles. */
+    val card = RoundedCornerShape(12.dp)
+    /** The top of a modal bottom sheet. */
+    val sheet = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+}
+
+/** Motion durations in milliseconds, plus the stepper's press-and-hold repeat timing (#80). */
+object Motion {
+    const val FAST = 120
+    const val STANDARD = 220
+    const val EMPHASIS = 360
+    /** How long a stepper button must be held before it starts repeating. */
+    const val REPEAT_DELAY_MS = 400L
+    /** The gap between repeats while a stepper button stays held. */
+    const val REPEAT_INTERVAL_MS = 70L
+}
+
+/** The category colour bar when a category has no colour of its own. Matches [categoryColour]'s fallback. */
+val CategoryFallbackColour: Color get() = Brand.Outline
+
 /** FitLens always uses its black, imperial purple and gold theme, whatever the system setting. */
 @Composable
 fun FitLensTheme(content: @Composable () -> Unit) {

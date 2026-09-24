@@ -16,18 +16,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,6 +42,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Photo
 import com.fitlens.companion.data.Snapshot
@@ -144,42 +144,16 @@ fun GoldHairline(modifier: Modifier = Modifier) {
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun topBarColors() = TopAppBarDefaults.topAppBarColors(
-    containerColor = Brand.Black,
-    titleContentColor = Brand.Ivory,
-    navigationIconContentColor = Brand.Gold,
-    actionIconContentColor = Brand.Gold
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
+/** A pushed screen's top bar with a back arrow. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
 @Composable
 fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
-    Column {
-        TopAppBar(
-            title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleLarge) },
-            navigationIcon = {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-            },
-            actions = { actions() },
-            colors = topBarColors()
-        )
-        GoldHairline()
-    }
+    FitTopBar(title = title, onBack = onBack, trailing = { actions() })
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** A tab screen's top bar, left-aligned as before. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
 @Composable
 fun PlainTopBar(title: String, actions: @Composable () -> Unit = {}) {
-    Column {
-        TopAppBar(
-            title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
-            actions = { actions() },
-            colors = topBarColors()
-        )
-        GoldHairline()
-    }
+    FitTopBar(title = title, centered = false, trailing = { actions() })
 }
 
 @Composable
@@ -208,23 +182,62 @@ fun SectionTitle(text: String, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * The one pattern for empty, loading and error screens (#80): a serif title, a one-line body and one primary
+ * action, centred. [EmptyState], [LoadingState] and [ErrorState] are the three entry points.
+ */
 @Composable
-fun EmptyState(title: String, body: String, action: @Composable () -> Unit = {}) {
+private fun StatePanel(title: String, body: String, top: @Composable () -> Unit = {}, action: @Composable () -> Unit = {}) {
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        Modifier.fillMaxSize().padding(Spacing.xxl),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        top()
         Text(title, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
         Text(
             body,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+            modifier = Modifier.padding(top = Spacing.sm, bottom = Spacing.lg)
         )
         action()
     }
+}
+
+/** Nothing to show yet, with an optional action that fixes that. */
+@Composable
+fun EmptyState(title: String, body: String, action: @Composable () -> Unit = {}) {
+    StatePanel(title, body, action = action)
+}
+
+/** Work in progress: a gold spinner above the title. */
+@Composable
+fun LoadingState(title: String, body: String) {
+    StatePanel(title, body, top = {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(bottom = Spacing.lg))
+    })
+}
+
+/** Something failed: a warning icon in the error colour, and one way forward such as "Try again". */
+@Composable
+fun ErrorState(title: String, body: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+    StatePanel(
+        title = title,
+        body = body,
+        top = {
+            Icon(
+                Icons.Filled.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = Spacing.md).size(Spacing.xxl)
+            )
+        },
+        action = {
+            if (actionLabel != null && onAction != null) Button(onClick = onAction) { Text(actionLabel) }
+        }
+    )
 }
 
 @Composable

@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
@@ -55,6 +53,8 @@ import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
+import com.fitlens.companion.ui.design.DayNavigator
+import com.fitlens.companion.ui.design.SetRow
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -66,9 +66,10 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     val photos = snap.photosByDate[date] ?: emptyList()
     val records = snap.recordsByDate[date] ?: emptyList()
     val sets = snap.setsByDate[date] ?: emptyList()
-    val idx = snap.allDates.indexOf(date)
-    val older = if (idx >= 0 && idx + 1 < snap.allDates.size) snap.allDates[idx + 1] else null
-    val newer = if (idx > 0) snap.allDates[idx - 1] else null
+    // The nearest days with data either side. Compared by value rather than by position, so a day picked from the
+    // calendar that has nothing on it yet can still step to its neighbours. allDates is newest first.
+    val older = snap.allDates.firstOrNull { it < date }
+    val newer = snap.allDates.lastOrNull { it > date }
     var addMeasurement by remember { mutableStateOf(false) }
     var deleteRecord by remember { mutableStateOf<MRecord?>(null) }
     val importForDay = rememberPhotoImporter(forcedDate = date)
@@ -85,13 +86,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     fun go(d: String) { nav.stack[nav.stack.lastIndex] = Screen.Day(d) }
 
     Column(Modifier.fillMaxSize()) {
-        BackTopBar(Dates.long(date), onBack = { nav.pop() }) {
-            IconButton(onClick = { older?.let { go(it) } }, enabled = older != null) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous day with data")
-            }
-            IconButton(onClick = { newer?.let { go(it) } }, enabled = newer != null) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day with data")
-            }
+        BackTopBar("Day", onBack = { nav.pop() }) {
             Box {
                 IconButton(onClick = { menu = true }) {
                     Icon(Icons.Filled.MoreVert, contentDescription = "Workout options")
@@ -131,6 +126,15 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 }
             }
         }
+        DayNavigator(
+            date = date,
+            onPrevious = if (older != null) ({ go(older) }) else null,
+            onNext = if (newer != null) ({ go(newer) }) else null,
+            onPickDate = { d -> if (d != date) go(d) },
+            onToday = { val today = Dates.today(); if (today != date) go(today) },
+            previousDescription = "Previous day with data",
+            nextDescription = "Next day with data"
+        )
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
             // ---------- Photos ----------
             item { SectionTitle("Progress photos") }
@@ -272,17 +276,13 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                                 )
                             }
                             exSets.forEachIndexed { i, s ->
-                                Row(Modifier.padding(start = 18.dp, top = 2.dp)) {
-                                    Text("${i + 1}", Modifier.width(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec), Modifier.weight(1f))
-                                    if (s.isPr) Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
-                                }
-                                if (!s.comment.isNullOrBlank()) {
-                                    Text(
-                                        "“${s.comment}”", Modifier.padding(start = 42.dp),
-                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                SetRow(
+                                    index = i + 1,
+                                    summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                                    comment = s.comment,
+                                    isPr = s.isPr,
+                                    framed = false
+                                )
                             }
                         }
                     }
