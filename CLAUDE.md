@@ -29,7 +29,7 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    API level Google Play then requires, raising AGP and Gradle with it, and review that version's behaviour changes.
    Never let an update touch `applicationId`, the signing setup, the signing secrets or `BUILD_OFFSET`.
 7. **Refresh the README every 5 releases**, both on GitHub and locally. Rewrite `README.md` so it matches the app as
-   released, its purpose and direction, and every other section. Last refresh: **1.0.7**. Next due: **1.0.12**. The
+   released, its purpose and direction, and every other section. Last refresh: **1.0.13**. Next due: **1.0.18**. The
    `/new-build` skill checks this in its release-notes step.
 
 ## Product direction (owner decisions, 2026-09-23)

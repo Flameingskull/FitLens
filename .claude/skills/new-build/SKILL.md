@@ -50,8 +50,8 @@ Fix problems before pushing. Make sure nothing adds a keystore, secret or creden
 ## 6. Release notes and commit
 - Rewrite `RELEASE_NOTES.md` for this build only: Overview, then What's new / Improved / Fixed as relevant, then
   Known limitations. Write it professionally and for users, built from the agents' lines.
-- **README refresh every 5 releases** (owner rule). The last refresh was **1.0.7**. If this build's version is at
-  least 5 above the last refresh (next due: **1.0.12**), rewrite `README.md` in the same commit so it matches the app,
+- **README refresh every 5 releases** (owner rule). The last refresh was **1.0.13**. If this build's version is at
+  least 5 above the last refresh (next due: **1.0.18**), rewrite `README.md` in the same commit so it matches the app,
   its purpose and direction, and every other section. Then update the "last refresh" and "next due" versions here and
   in `CLAUDE.md`. After pushing, `git pull` so the local copy matches.
 - Commit using a message file (PowerShell here-strings don't pass reliably to `git commit -m`): a clear summary line,
