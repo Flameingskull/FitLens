@@ -297,6 +297,14 @@ object Workouts {
                 put("is_pr", if (s.isPr) 1 else 0); put("comment", s.comment?.takeIf { it.isNotBlank() })
                 put("source", Sources.FITLENS)
             })
+            // Deleting an imported set left one skip rule; the set is back, so drop one matching rule too (#76).
+            if (s.imported) {
+                w.execSQL(
+                    "DELETE FROM import_rule WHERE rowid = (SELECT rowid FROM import_rule " +
+                        "WHERE kind=? AND key=? AND target_id IS NULL LIMIT 1)",
+                    arrayOf<Any>(RULE_SET, setKey(s.exerciseId, s.date, s.weightKg, s.reps, s.distance, s.durationSec))
+                )
+            }
         }
         rows.size
     }
@@ -428,7 +436,38 @@ object Workouts {
         val moved = (w.longOrNull("SELECT COUNT(*) FROM workout_set WHERE date=?", f) ?: 0L).toInt()
         val values = ContentValues().apply { put("date", t); put("source", Sources.FITLENS) }
         w.update("workout_set", values, "date=?", arrayOf(f))
-        w.update("workout_comment", values, "date=?", arrayOf(f))
+
+        // Comments: if both days have one, merge into a single FitLens row (destination first) (#76).
+        val movedComments = readComments(w, f)
+        val destComments = readComments(w, t)
+        if (movedComments.isNotEmpty() && destComments.isNotEmpty()) {
+            destComments.filter { it.second == Sources.FITNOTES }.forEach { addSkip(w, RULE_COMMENT, commentKey(t, it.first)) }
+            val merged = (destComments + movedComments).map { it.first.trim() }.filter { it.isNotEmpty() }.joinToString("\n\n")
+            w.delete("workout_comment", "date=? OR date=?", arrayOf(f, t))
+            if (merged.isNotEmpty()) {
+                w.insert("workout_comment", null, ContentValues().apply { put("date", t); put("comment", merged); put("source", Sources.FITLENS) })
+            }
+        } else {
+            w.update("workout_comment", values, "date=?", arrayOf(f))
+        }
+
+        // Times: if both days have them, keep one row from the earliest start to the latest finish (#76).
+        // Timestamps are `yyyy-MM-dd HH:mm:ss`, so they compare correctly as text.
+        val movedTimes = readTimes(w, f).map { (s, e, src) -> Triple(s?.let { t + it.drop(10) }, e?.let { t + it.drop(10) }, src) }
+        val destTimes = readTimes(w, t)
+        if (movedTimes.isNotEmpty() && destTimes.isNotEmpty()) {
+            destTimes.filter { it.third == Sources.FITNOTES }.forEach { addSkip(w, RULE_TIME, timeKey(t, it.first, it.second)) }
+            val all = destTimes + movedTimes
+            val start = all.mapNotNull { it.first }.minOrNull()
+            val finish = all.mapNotNull { it.second }.maxOrNull()
+            w.delete("workout_time", "date=? OR date=?", arrayOf(f, t))
+            if (start != null || finish != null) {
+                w.insert("workout_time", null, ContentValues().apply {
+                    put("date", t); put("start", start); put("finish", finish); put("source", Sources.FITLENS)
+                })
+            }
+            return@write moved
+        }
         // Start and finish are full timestamps that begin with the date, so their day part moves with the workout
         // and the recorded duration stays the same.
         w.execSQL(
@@ -439,5 +478,23 @@ object Workouts {
             arrayOf<Any>(t, Sources.FITLENS, t, t, f)
         )
         moved
+    }
+
+    /** The comment rows on [date] as (text, source). */
+    private fun readComments(w: SQLiteDatabase, date: String): List<Pair<String, String>> {
+        val out = ArrayList<Pair<String, String>>()
+        w.rawQuery("SELECT comment, source FROM workout_comment WHERE date=? ORDER BY rowid", arrayOf(date)).use { c ->
+            while (c.moveToNext()) out.add(c.strOr(0) to c.strOr(1))
+        }
+        return out
+    }
+
+    /** The time rows on [date] as (start, finish, source). */
+    private fun readTimes(w: SQLiteDatabase, date: String): List<Triple<String?, String?, String>> {
+        val out = ArrayList<Triple<String?, String?, String>>()
+        w.rawQuery("SELECT start, finish, source FROM workout_time WHERE date=? ORDER BY rowid", arrayOf(date)).use { c ->
+            while (c.moveToNext()) out.add(Triple(c.str(0), c.str(1), c.strOr(2)))
+        }
+        return out
     }
 }

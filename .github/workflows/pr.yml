@@ -1,0 +1,33 @@
+name: Check pull request
+
+# Pull requests (including from forks and Dependabot) get a debug build only: no secrets, no release.
+#
+# This lives in its own workflow on purpose (#78). GitHub counts run numbers per workflow, and build.yml derives
+# the release versionCode from its own run number. When this job lived in build.yml, every pull request build
+# advanced that counter, so releases skipped numbers (1.0.8 was followed by 1.0.13). Keeping pull requests here
+# leaves build.yml's counter to releases alone.
+
+on:
+  pull_request:
+
+jobs:
+  # Pull requests (including from forks): compile a debug build only. No secrets, no release.
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build debug APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v7
+        with:
+          name: FitLens-pr-${{ github.event.pull_request.number }}-debug
+          path: app/build/outputs/apk/debug/*.apk

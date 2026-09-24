@@ -1,34 +1,13 @@
 name: Build FitLens APK
 
+# Releases only. Pull request checks live in pr.yml so they don't advance this workflow's run number, which the
+# versionCode is built from (#78).
 on:
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 jobs:
-  # Pull requests (including from forks): compile a debug build only. No secrets, no release.
-  check:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: gradle/actions/setup-gradle@v6
-      - name: Build debug APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-      - uses: actions/upload-artifact@v7
-        with:
-          name: FitLens-pr-${{ github.event.pull_request.number }}-debug
-          path: app/build/outputs/apk/debug/*.apk
-
   # Pushes to main: signed release APK + full release post.
   release:
     if: github.event_name != 'pull_request'

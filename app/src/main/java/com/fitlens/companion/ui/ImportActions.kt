@@ -31,7 +31,7 @@ object AppScope {
     private val reportErrors = CoroutineExceptionHandler { _, e ->
         Log.e("FitLens", "Background job failed", e)
         UiEvents.busy.value = null
-        UiEvents.show("Something went wrong: ${e.message ?: e::class.java.simpleName}")
+        UiEvents.show("Something went wrong: ${e.message ?: e::class.java.simpleName}", ResultLevel.Failure)
     }
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + reportErrors)
@@ -48,19 +48,25 @@ suspend fun runPhotoImport(ctx: Context, uris: List<Uri>, forcedDate: String?, p
     }
 }
 
-/** Runs a long task with the busy overlay and shows its result message. */
+/**
+ * Runs a long task with the busy overlay and shows its result message: a failure as a dialog the user has to
+ * acknowledge, a success as a snackbar that is also kept for Sync → Backups (#62).
+ */
 fun runBusy(label: String, block: suspend () -> ImportSummary?) {
     AppScope.scope.launch {
         UiEvents.busy.value = label
         try {
-            block()?.let { UiEvents.show(it.message) }
+            block()?.let { UiEvents.show(it.message, it.level()) }
         } catch (e: Exception) {
-            UiEvents.show("Something went wrong: ${e.message}")
+            UiEvents.show("Something went wrong: ${e.message}", ResultLevel.Failure)
         } finally {
             UiEvents.busy.value = null
         }
     }
 }
+
+/** The weight a finished job's result deserves (#62). */
+fun ImportSummary.level(): ResultLevel = if (ok) ResultLevel.Success else ResultLevel.Failure
 
 /** Photos that were picked or shared and are waiting for the user to choose their pose before import. */
 class PendingPhotoImport(

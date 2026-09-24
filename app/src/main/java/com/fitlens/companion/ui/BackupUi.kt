@@ -97,6 +97,13 @@ fun BackupsCard(snap: Snapshot) {
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
     var restoreInfo by remember { mutableStateOf<Backups.Info?>(null) }
     var showReport by remember { mutableStateOf(false) }
+    var confirmUndo by remember { mutableStateOf(false) }
+    // The safety copy (#47) and the last result (#62), re-read whenever a job finishes.
+    val undoAt = remember(snap, busy) { if (Backups.undoAvailable(ctx)) Backups.undoAt() else null }
+    val undoReason = remember(snap, busy) { Backups.undoReason() }
+    val lastResult by UiEvents.lastResult.collectAsState()
+
+    fun undo() = runBusy("Putting your previous data back…") { Backups.undoLastRestore(ctx) }
     var reportOpts by remember { mutableStateOf<ReportOptions?>(null) }
 
     fun inspect(uri: Uri) {
@@ -219,6 +226,30 @@ fun BackupsCard(snap: Snapshot) {
                 }
             }
 
+            if (undoAt != null) {
+                SubHeading("Safety copy")
+                Text(
+                    (undoReason ?: "Safety copy") + ", " + fmtTime(undoAt) + ".",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Hint(
+                    "FitLens keeps a copy of your data from just before the last restore or import, for " +
+                        "${Backups.UNDO_DAYS} days. Undo puts that data back and replaces what is there now."
+                )
+                OutlinedButton(onClick = { confirmUndo = true }) { Text("Undo") }
+            }
+
+            lastResult?.let { r ->
+                SubHeading("Last result")
+                Text(
+                    fmtTime(r.at) + ": " + r.text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (r.level == ResultLevel.Failure || r.level == ResultLevel.Warning) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                TextButton(onClick = { UiEvents.clearLastResult() }) { Text("Clear") }
+            }
+
             SubHeading("PDF report")
             Hint("A readable report of your photos, measurements, charts and workouts in the FitLens style. Good for printing or sharing.")
             Button(onClick = { showReport = true }, enabled = snap.allDates.isNotEmpty()) { Text("Create PDF report") }
@@ -231,7 +262,26 @@ fun BackupsCard(snap: Snapshot) {
         RestoreDialog(info, onDismiss = { restoreInfo = null; restoreUri = null }) {
             restoreInfo = null
             restoreUri = null
-            runBusy("Restoring backup…") { Backups.restore(ctx, uri) }
+            runBusy("Restoring backup…") {
+                val r = Backups.restore(ctx, uri)
+                if (r.ok && Backups.undoAvailable(ctx)) {
+                    UiEvents.show(r.message, ResultLevel.Success, "Undo") { undo() }
+                    null
+                } else r
+            }
+        }
+    }
+    if (confirmUndo) {
+        ConfirmDialog(
+            title = "Put your previous data back?",
+            text = "This replaces everything in FitLens now with the safety copy from " +
+                (undoAt?.let { fmtTime(it) } ?: "before the last restore or import") +
+                ". Anything added since then will be lost.",
+            confirm = "Undo",
+            onDismiss = { confirmUndo = false }
+        ) {
+            confirmUndo = false
+            undo()
         }
     }
     if (showReport) {
@@ -256,7 +306,8 @@ private fun RestoreDialog(info: Backups.Info, onDismiss: () -> Unit, onConfirm: 
                 Text("${info.photos} photos" + (info.workouts?.let { " · $it workouts" } ?: "") + (info.records?.let { " · $it body records" } ?: ""))
                 if (info.firstDate != null && info.lastDate != null) Text("Covers ${Dates.medium(info.firstDate)} – ${Dates.medium(info.lastDate)}")
                 Text(
-                    "This replaces everything currently in FitLens on this phone. To be safe, save a backup of the current data first.",
+                    "This replaces everything currently in FitLens on this phone. FitLens keeps a safety copy of the " +
+                        "current data for ${Backups.UNDO_DAYS} days so you can undo, but a saved backup off the phone is safer still.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error
                 )
             }

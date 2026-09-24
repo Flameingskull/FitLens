@@ -100,7 +100,14 @@ object FitNotesImporter {
     // ---------- FitNotes backups: merged into FitLens, never replacing it ----------
 
     /** A FitNotes backup copied into FitLens's cache and checked, waiting for the user to confirm the import. */
-    class StagedImport(val file: File, val name: String, val modified: Long, val plan: ImportPlan)
+    class StagedImport(
+        val file: File,
+        val name: String,
+        val modified: Long,
+        val plan: ImportPlan,
+        /** Application context, so [importStaged] can take the safety copy (#47) before merging. */
+        val context: Context? = null
+    )
 
     /** Result of [prepare]: a staged import, or a message saying why the file can't be imported. */
     class Prepared(val staged: StagedImport?, val error: String?)
@@ -125,7 +132,10 @@ object FitNotesImporter {
                 return@withContext Prepared(null, "That file isn't a FitNotes backup (.fitnotes).")
             }
             val plan = lock.withLock { runMerge(tmp, apply = false) }
-            Prepared(StagedImport(tmp, displayName(context, uri) ?: "backup", sourceModified, plan), null)
+            Prepared(
+                StagedImport(tmp, displayName(context, uri) ?: "backup", sourceModified, plan, context.applicationContext),
+                null
+            )
         } catch (e: Exception) {
             deleteStage(tmp)
             Prepared(null, "Couldn't read that backup: ${e.message}")
@@ -135,6 +145,13 @@ object FitNotesImporter {
     /** Imports a staged backup (merging it into FitLens) and deletes the staged copy. */
     suspend fun importStaged(staged: StagedImport): ImportSummary = withContext(Dispatchers.IO) {
         try {
+            // The way back (#47): a data-only safety copy before the merge. Without one the import doesn't run.
+            staged.context?.let { ctx ->
+                val safety = Backups.safetyCopy(ctx, "Before importing ${staged.name}")
+                if (!safety.ok) return@withContext ImportSummary(
+                    safety.message + " The import didn't run; nothing in FitLens was changed.", false
+                )
+            }
             val plan = lock.withLock { runMerge(staged.file, apply = true) }
             Store.db.setMeta("last_import_name", staged.name)
             Store.db.setMeta("last_import_at", System.currentTimeMillis().toString())

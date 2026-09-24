@@ -43,7 +43,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +60,7 @@ import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.Store
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 sealed interface Screen {
@@ -106,6 +110,10 @@ class MainActivity : ComponentActivity() {
         setContent { FitLensTheme { AppRoot(nav) } }
         lifecycleScope.launch {
             Store.reload()
+            // A result the user hadn't read when the app was closed stays readable in Sync → Backups (#62).
+            UiEvents.loadLastResult()
+            // Safety copies (#47) are kept for a limited time only.
+            Backups.pruneSafety(applicationContext)
             if (savedInstanceState == null) handleIntent(intent)
         }
     }
@@ -121,7 +129,7 @@ class MainActivity : ComponentActivity() {
             if (BackupSync.autoSyncEnabled() && BackupSync.folder() != null && UiEvents.busy.value == null) {
                 UiEvents.busy.value = "Checking for a new FitNotes backup…"
                 try {
-                    BackupSync.syncIfNewer(this@MainActivity)?.let { UiEvents.show(it.message) }
+                    BackupSync.syncIfNewer(this@MainActivity)?.let { UiEvents.show(it.message, it.level()) }
                 } finally {
                     UiEvents.busy.value = null
                 }
@@ -130,7 +138,7 @@ class MainActivity : ComponentActivity() {
             if (UiEvents.busy.value == null) {
                 val app = applicationContext
                 AppScope.scope.launch {
-                    Backups.autoBackupIfDue(app)?.takeIf { !it.ok }?.let { UiEvents.show(it.message) }
+                    Backups.autoBackupIfDue(app)?.takeIf { !it.ok }?.let { UiEvents.show(it.message, ResultLevel.Failure) }
                 }
             }
         }
@@ -168,7 +176,7 @@ class MainActivity : ComponentActivity() {
                     nav.tab(Screen.Sync)
                     FitNotesImports.pending.value = u
                 }
-                FileKind.BODY_CSV -> UiEvents.show(FitNotesImporter.importBodyCsv(this, u).message)
+                FileKind.BODY_CSV -> FitNotesImporter.importBodyCsv(this, u).let { UiEvents.show(it.message, it.level()) }
                 FileKind.WORKOUT_CSV -> UiEvents.show("Workout CSVs aren't needed — share a FitNotes backup (.fitnotes) instead; it contains everything.")
                 FileKind.ARCHIVE -> {
                     // A .fitlens backup: the Sync tab checks it and asks before restoring.
@@ -191,8 +199,15 @@ fun AppRoot(nav: Nav) {
     val snap by Store.snapshot.collectAsState()
     val busy by UiEvents.busy.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    // A failure or warning waiting to be acknowledged (#62). Messages queue behind it until it is closed.
+    var toAcknowledge by remember { mutableStateOf<UiMessage?>(null) }
     LaunchedEffect(Unit) {
         UiEvents.messages.collect { m ->
+            if (m.mustAcknowledge) {
+                toAcknowledge = m
+                snapshotFlow { toAcknowledge }.first { it == null }
+                return@collect
+            }
             // An action (Undo) gets the longer duration, never Indefinite: the collector waits for each message.
             val result = snackbar.showSnackbar(
                 message = m.text,
@@ -272,6 +287,7 @@ fun AppRoot(nav: Nav) {
                 }
             }
             PhotoImportHost()
+            toAcknowledge?.let { m -> ResultDialog(m) { toAcknowledge = null } }
         }
     }
 }

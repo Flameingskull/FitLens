@@ -320,11 +320,9 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                 UiEvents.show("Set deleted", "Undo") {
                     AppScope.scope.launch {
                         try {
-                            // isPr is carried back so undoing a delete doesn't quietly drop a record (#69).
-                            Workouts.addSet(
-                                s.exerciseId, s.date, s.weightKg, s.reps, s.distance, s.durationSec, s.comment,
-                                isPr = s.isPr
-                            )
+                            // The whole row goes back (isPr included, #69), and restoring an imported set also
+                            // clears the skip rule its delete left behind (#76).
+                            Workouts.addSets(listOf(s))
                         } catch (e: Exception) {
                             UiEvents.show("Couldn't undo that: ${e.message}")
                         }

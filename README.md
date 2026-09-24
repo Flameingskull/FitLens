@@ -136,9 +136,9 @@ The rules are also documented in the code (`data/Workouts.kt`).
 3. New releases install **over** the old one and keep all your data.
 
 Each release includes the APK, the full source code, SHA-256 checksums and professionally written notes on what
-changed. The version number always goes up, but it can skip numbers — it is derived from the build counter, which
-also advances for pull request checks ([#78](https://github.com/Flameingskull/FitLens/issues/78)). A higher number
-is always the newer build.
+changed. The version number goes up with every release (`1.0.<build>`). Earlier releases skipped some numbers
+(1.0.8 was followed by 1.0.13) because pull request checks shared the release build counter; they now run
+separately ([#78](https://github.com/Flameingskull/FitLens/issues/78)). A higher number is always the newer build.
 
 ## First-time setup (in the app)
 

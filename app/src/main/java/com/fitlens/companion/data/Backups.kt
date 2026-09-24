@@ -5,12 +5,14 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.text.format.Formatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.io.InputStream
 import java.io.OutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -59,12 +61,20 @@ object Backups {
         "?"
     }
 
-    /** Writes a complete backup to [os]. Returns the number of photos written. */
-    private fun write(context: Context, os: OutputStream): Int {
+    /**
+     * Writes a complete backup to [os]. Returns the number of photos written.
+     *
+     * [includePhotos] is false only for the safety copy taken before a merge import (#47), which cannot touch
+     * photos: leaving the photo library out keeps that copy small enough to take before every import. Such an
+     * archive is marked `dataOnly` in its manifest so [restoreFrom] puts the database back without emptying the
+     * photo folder. Backups the user saves always include everything.
+     */
+    private fun write(context: Context, os: OutputStream, includePhotos: Boolean = true): Int {
         val dbFile = context.getDatabasePath(Db.NAME)
         Store.db.writableDatabase.rawQuery("PRAGMA wal_checkpoint(FULL)", null).use { it.moveToFirst() }
         val snap = Store.snapshot.value
-        val photos = Store.photoDir.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") } ?: emptyList()
+        val photos = if (!includePhotos) emptyList()
+        else Store.photoDir.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") } ?: emptyList()
         val manifest = JSONObject().apply {
             put("format", FORMAT)
             put("app", "FitLens")
@@ -72,6 +82,7 @@ object Backups {
             put("dbVersion", Db.VERSION)
             put("createdAt", LocalDateTime.now().toString())
             put("photos", photos.size)
+            if (!includePhotos) put("dataOnly", true)
             if (snap != null) {
                 put("workouts", snap.setsByDate.size)
                 put("records", snap.records.size)
@@ -152,11 +163,23 @@ object Backups {
      * Replaces all FitLens data with the backup. Everything is unpacked and checked in a staging folder first,
      * so a damaged or incompatible file is rejected before anything on the phone is touched.
      *
-     * Once the staged database is copied over the live one the change can't be undone, so failures are reported
-     * differently on each side of that point: before it the current data really is untouched, after it the backup
-     * has already taken the place of the old data and the message has to say so.
+     * Once the staged database is copied over the live one the change can't be undone from the backup file, so
+     * a safety copy of the current data is written first (#47) and failures are reported differently on each side
+     * of that point: before it the current data really is untouched, after it the backup has already taken the
+     * place of the old data and the message has to say so, and point at Undo.
      */
-    suspend fun restore(context: Context, src: Uri): ImportSummary = withContext(Dispatchers.IO) {
+    suspend fun restore(context: Context, src: Uri): ImportSummary =
+        restoreFrom(context, "Before restoring a backup") { context.contentResolver.openInputStream(src) }
+
+    /**
+     * The restore itself. [safetyReason] names what the copy is being taken before; null means the caller has
+     * already dealt with the way back, which is the case for [undoLastRestore] replaying the copy itself.
+     */
+    private suspend fun restoreFrom(
+        context: Context,
+        safetyReason: String?,
+        open: () -> InputStream?
+    ): ImportSummary = withContext(Dispatchers.IO) {
         lock.withLock {
             val stage = File(context.cacheDir, "restore_stage").apply { deleteRecursively(); mkdirs() }
             val stagePhotos = File(stage, "photos").apply { mkdirs() }
@@ -165,11 +188,17 @@ object Backups {
             var replacing = false
             try {
                 var photos = 0
-                context.contentResolver.openInputStream(src)?.use { input ->
+                // A safety copy taken before a merge import holds no photos and must not empty the photo folder.
+                var dataOnly = false
+                open()?.use { input ->
                     ZipInputStream(input.buffered()).use { zip ->
                         while (true) {
                             val e = zip.nextEntry ?: break
                             when {
+                                e.name == "manifest.json" ->
+                                    dataOnly = runCatching {
+                                        JSONObject(zip.readBytes().toString(Charsets.UTF_8)).optBoolean("dataOnly", false)
+                                    }.getOrDefault(false)
                                 e.name == "fitlens.db" -> stageDb.outputStream().use { zip.copyTo(it) }
                                 e.name.startsWith("photos/") && !e.isDirectory -> {
                                     val name = File(e.name).name
@@ -198,10 +227,20 @@ object Backups {
                     return@withContext ImportSummary("That backup was made by a newer FitLens. Update FitLens first, then restore.", false)
                 }
 
-                // Settings that belong to this phone (folder permissions) are kept, not taken from the backup.
+                // The way back (#47), written while the current data is still all there. If it can't be made, the
+                // restore doesn't start: replacing everything with no way back is exactly what this prevents.
+                if (safetyReason != null) {
+                    val problem = writeSafetyCopy(context, safetyReason, includePhotos = true)
+                    if (problem != null) return@withContext ImportSummary(problem, false)
+                }
+
+                // Settings that belong to this phone (folder permissions, the safety copy, the last result the
+                // user has yet to read) are kept, not taken from the backup.
                 val keepMeta = listOf(
                     "backup_folder", "auto_sync", AUTO_FOLDER, AUTO_DAYS, AUTO_KEEP, AUTO_LAST, AUTO_ERROR,
-                    AutoBackup.AFTER_CHANGES, AutoBackup.DIRTY
+                    AutoBackup.AFTER_CHANGES, AutoBackup.DIRTY,
+                    UNDO_AT, UNDO_REASON,
+                    "last_result" // UiEvents.LAST_RESULT: this phone's state, not the backup's
                 ).associateWith { Store.db.getMeta(it) }
 
                 replacing = true
@@ -212,19 +251,22 @@ object Backups {
                 File(dbFile.path + "-journal").delete()
                 stageDb.copyTo(dbFile, overwrite = true)
 
-                val photoDir = Store.photoDir
-                val old = File(photoDir.parentFile, "photos_old").apply { deleteRecursively() }
-                photoDir.renameTo(old)
-                if (!stagePhotos.renameTo(photoDir)) {
-                    photoDir.mkdirs()
-                    stagePhotos.listFiles()?.forEach { it.copyTo(File(photoDir, it.name), overwrite = true) }
+                if (!dataOnly) {
+                    val photoDir = Store.photoDir
+                    val old = File(photoDir.parentFile, "photos_old").apply { deleteRecursively() }
+                    photoDir.renameTo(old)
+                    if (!stagePhotos.renameTo(photoDir)) {
+                        photoDir.mkdirs()
+                        stagePhotos.listFiles()?.forEach { it.copyTo(File(photoDir, it.name), overwrite = true) }
+                    }
+                    old.deleteRecursively()
                 }
-                old.deleteRecursively()
 
                 Store.init(context)
                 keepMeta.forEach { (k, v) -> Store.db.setMeta(k, v) }
                 Store.reload()
-                ImportSummary("Backup restored with $photos photos.", true)
+                if (dataOnly) ImportSummary("Your previous workouts, measurements and notes are back.", true)
+                else ImportSummary("Backup restored with $photos photos.", true)
             } catch (e: Exception) {
                 if (replacing) {
                     // The database was already swapped. Reopen it so the app is never left holding a closed
@@ -235,9 +277,15 @@ object Backups {
                     } catch (reopen: Exception) {
                         // Nothing further can be done here; the message below tells the user what to do next.
                     }
+                    val wayBack = if (runCatching { undoAvailable(context) }.getOrDefault(false)) {
+                        "The safety copy taken just before this restore is still here: use Undo in Sync → Backups " +
+                            "to put your previous data back."
+                    } else {
+                        "Check what's there before adding anything new; restoring again is safe."
+                    }
                     ImportSummary(
                         "Restore failed part-way: ${e.message}. Your previous data has already been replaced by " +
-                            "this backup. Check what's there before adding anything new; restoring again is safe.",
+                            "this backup. $wayBack",
                         false
                     )
                 } else {
@@ -245,6 +293,159 @@ object Backups {
                 }
             } finally {
                 stage.deleteRecursively()
+            }
+        }
+    }
+
+    // ---------- The safety copy: the way back from a restore or an import (#47) ----------
+
+    /**
+     * Before anything replaces or merges into the user's data, FitLens writes a `.fitlens` archive of what is
+     * there now to `filesDir/safety/`, and [undoLastRestore] puts it back through the normal restore path, so
+     * database migrations still run and this phone's own settings survive.
+     *
+     * The folder sits in app-private storage, outside `photos/`, so a `.fitlens` backup never picks it up, and
+     * `res/xml/data_extraction_rules.xml` keeps it out of Android's cloud backup and device transfer.
+     */
+    const val UNDO_DAYS = 7
+    private const val SAFETY_DIR = "safety"
+    private const val SAFETY_FILE = "safety_copy.$EXTENSION"
+    private const val UNDO_AT = "safety_at"
+    private const val UNDO_REASON = "safety_reason"
+
+    private fun safetyDir(context: Context): File = File(context.filesDir, SAFETY_DIR).apply { mkdirs() }
+
+    private fun safetyFile(context: Context): File = File(safetyDir(context), SAFETY_FILE)
+
+    /** When the safety copy was taken, or null when there isn't one to go back to. */
+    fun undoAt(): Long? = Store.db.getMeta(UNDO_AT)?.toLongOrNull()
+
+    /** What the safety copy was taken before, e.g. "Before restoring a backup". */
+    fun undoReason(): String? = Store.db.getMeta(UNDO_REASON)
+
+    /** The record and the file have to agree: a record without a file would offer an Undo that can't happen. */
+    fun undoAvailable(context: Context): Boolean = undoAt() != null && safetyFile(context).exists()
+
+    fun undoExpiresAt(): Long? = undoAt()?.let { it + UNDO_DAYS * 24L * 3600_000L }
+
+    /** Roughly how much room a safety copy needs. Photos are stored without recompressing, so they count in full. */
+    suspend fun safetyCopySize(context: Context, includePhotos: Boolean = true): Long = withContext(Dispatchers.IO) {
+        estimateSafetySize(context, includePhotos)
+    }
+
+    private fun estimateSafetySize(context: Context, includePhotos: Boolean): Long {
+        val db = context.getDatabasePath(Db.NAME).let { it.length() + File(it.path + "-wal").length() }
+        val photos = if (!includePhotos) 0L
+        else Store.photoDir.listFiles()?.sumOf { if (it.isFile) it.length() else 0L } ?: 0L
+        return db + photos
+    }
+
+    /**
+     * Writes a safety copy of the current data for any bulk change that isn't already inside [restore].
+     * A failed summary means there is no way back, so the caller must not go ahead.
+     */
+    suspend fun safetyCopy(context: Context, reason: String, includePhotos: Boolean = false): ImportSummary =
+        withContext(Dispatchers.IO) {
+            val problem = lock.withLock { writeSafetyCopy(context, reason, includePhotos) }
+            if (problem == null) ImportSummary("Safety copy saved.", true) else ImportSummary(problem, false)
+        }
+
+    /**
+     * Writes the copy and records it. Returns null when it worked, or a message explaining why it couldn't be
+     * made. The caller must already hold [lock]; this does not take it, so it can be used from inside a restore.
+     */
+    private fun writeSafetyCopy(context: Context, reason: String, includePhotos: Boolean): String? {
+        val dir = safetyDir(context)
+        val need = estimateSafetySize(context, includePhotos)
+        val room = need + need / 10 + 2L * 1024 * 1024
+        val free = runCatching { dir.usableSpace }.getOrDefault(0L)
+        if (free > 0 && free < room) {
+            return "There isn't room on this phone for a safety copy of your current data: about " +
+                Formatter.formatShortFileSize(context, room) + " is needed and " +
+                Formatter.formatShortFileSize(context, free) + " is free. Free some space and try again."
+        }
+        val part = File(dir, SAFETY_FILE + PART)
+        val dest = safetyFile(context)
+        val previous = File(dir, "$SAFETY_FILE.old")
+        return try {
+            part.delete()
+            part.outputStream().use { write(context, it, includePhotos) }
+            // The copy already there is only let go once the new one is complete and in place.
+            previous.delete()
+            if (dest.exists()) dest.renameTo(previous)
+            if (!part.renameTo(dest)) {
+                if (previous.exists()) previous.renameTo(dest)
+                part.delete()
+                "Couldn't finish the safety copy of your current data."
+            } else {
+                previous.delete()
+                Store.db.setMeta(UNDO_AT, System.currentTimeMillis().toString())
+                Store.db.setMeta(UNDO_REASON, reason)
+                null
+            }
+        } catch (e: Exception) {
+            part.delete()
+            "Couldn't save a safety copy of your current data: ${e.message}"
+        }
+    }
+
+    private fun clearUndo() {
+        Store.db.setMeta(UNDO_AT, null)
+        Store.db.setMeta(UNDO_REASON, null)
+    }
+
+    /**
+     * Keeps exactly one safety copy, and only for [UNDO_DAYS]. Called when the app starts, so an archive of a
+     * large photo library never sits in app storage indefinitely.
+     */
+    suspend fun pruneSafety(context: Context) {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val dir = File(context.filesDir, SAFETY_DIR)
+                val at = undoAt()
+                val expired = at == null || System.currentTimeMillis() - at > UNDO_DAYS * 24L * 3600_000L
+                dir.listFiles()?.forEach { if (expired || it.name != SAFETY_FILE) it.delete() }
+                // A record with no file, or a file with no record, would both be lies. Clear either.
+                if (expired || !safetyFile(context).exists()) clearUndo()
+            }
+        }
+    }
+
+    /**
+     * Puts the safety copy back. It goes through the normal restore path, so `onUpgrade` runs if the copy was made
+     * against an older database version, and this phone's folder settings are kept.
+     */
+    suspend fun undoLastRestore(context: Context): ImportSummary = withContext(Dispatchers.IO) {
+        val file = safetyFile(context)
+        val at = undoAt()
+        if (at == null || !file.exists()) {
+            ImportSummary("There's no safety copy to go back to.", false)
+        } else {
+            // Moved out of the safety folder before the restore runs, so the file being read is never the one the
+            // restore is rewriting around.
+            val working = File(context.cacheDir, "undo_$SAFETY_FILE")
+            working.delete()
+            val moved = file.renameTo(working) ||
+                runCatching { file.copyTo(working, overwrite = true); true }.getOrDefault(false)
+            if (!moved) {
+                ImportSummary("Couldn't read the safety copy.", false)
+            } else {
+                val reason = undoReason()
+                clearUndo()
+                val r = restoreFrom(context, safetyReason = null) { working.inputStream() }
+                if (r.ok) {
+                    working.delete()
+                    r
+                } else {
+                    // Put the copy back, with its original date, so the user can try again.
+                    runCatching {
+                        if (working.renameTo(safetyFile(context))) {
+                            Store.db.setMeta(UNDO_AT, at.toString())
+                            Store.db.setMeta(UNDO_REASON, reason)
+                        }
+                    }
+                    r
+                }
             }
         }
     }
