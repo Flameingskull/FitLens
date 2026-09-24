@@ -150,13 +150,19 @@ object Backups {
 
     /**
      * Replaces all FitLens data with the backup. Everything is unpacked and checked in a staging folder first,
-     * so a damaged or incompatible file leaves the current data untouched.
+     * so a damaged or incompatible file is rejected before anything on the phone is touched.
+     *
+     * Once the staged database is copied over the live one the change can't be undone, so failures are reported
+     * differently on each side of that point: before it the current data really is untouched, after it the backup
+     * has already taken the place of the old data and the message has to say so.
      */
     suspend fun restore(context: Context, src: Uri): ImportSummary = withContext(Dispatchers.IO) {
         lock.withLock {
             val stage = File(context.cacheDir, "restore_stage").apply { deleteRecursively(); mkdirs() }
             val stagePhotos = File(stage, "photos").apply { mkdirs() }
             val stageDb = File(stage, "fitlens.db")
+            // Set the moment the live database is about to be closed and overwritten: from here on the old data is gone.
+            var replacing = false
             try {
                 var photos = 0
                 context.contentResolver.openInputStream(src)?.use { input ->
@@ -198,6 +204,7 @@ object Backups {
                     AutoBackup.AFTER_CHANGES, AutoBackup.DIRTY
                 ).associateWith { Store.db.getMeta(it) }
 
+                replacing = true
                 Store.db.close()
                 val dbFile = context.getDatabasePath(Db.NAME)
                 File(dbFile.path + "-wal").delete()
@@ -219,7 +226,23 @@ object Backups {
                 Store.reload()
                 ImportSummary("Backup restored with $photos photos.", true)
             } catch (e: Exception) {
-                ImportSummary("Restore failed: ${e.message}. Your current data wasn't changed.", false)
+                if (replacing) {
+                    // The database was already swapped. Reopen it so the app is never left holding a closed
+                    // database, then tell the user honestly that their previous data has gone.
+                    try {
+                        Store.init(context)
+                        Store.reload()
+                    } catch (reopen: Exception) {
+                        // Nothing further can be done here; the message below tells the user what to do next.
+                    }
+                    ImportSummary(
+                        "Restore failed part-way: ${e.message}. Your previous data has already been replaced by " +
+                            "this backup. Check what's there before adding anything new; restoring again is safe.",
+                        false
+                    )
+                } else {
+                    ImportSummary("Restore failed: ${e.message}. Your current data wasn't changed.", false)
+                }
             } finally {
                 stage.deleteRecursively()
             }

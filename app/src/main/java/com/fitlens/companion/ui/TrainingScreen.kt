@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -63,9 +64,14 @@ fun TrainingScreen(snap: Snapshot, nav: Nav) {
             .sortedWith(compareBy({ snap.categories[it.categoryId]?.sortOrder ?: 99 }, { snap.categories[it.categoryId]?.name ?: "" }, { it.categoryId }, { it.name }))
     }
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Training")
+        PlainTopBar("Training") { LibraryAction(nav) }
         if (snap.sets.isEmpty()) {
-            EmptyState("No workouts yet", "Import a FitNotes backup from the Sync tab.")
+            EmptyState(
+                "No workouts yet",
+                "Build your exercise library and log your first set, or import a FitNotes backup from the Sync tab."
+            ) {
+                Button(onClick = { nav.push(Screen.Library) }) { Text("Open exercise library") }
+            }
         } else {
             val workoutDays = snap.setsByDate.size
             Text(

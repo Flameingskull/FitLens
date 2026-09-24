@@ -24,6 +24,19 @@ class Snapshot(
 ) {
     val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
     val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
+
+    // ---- Exercise library (#13) ----
+    /** Every category, in the order the library shows them. */
+    val categoriesSorted: List<Category> = categories.values.sortedWith(compareBy({ it.sortOrder }, { it.name.lowercase() }))
+    /** Every exercise in the library, whether or not anything has been logged for it, by name. */
+    val exercisesSorted: List<Exercise> = exercises.values.sortedBy { it.name.lowercase() }
+    val favouriteExercises: List<Exercise> = exercisesSorted.filter { it.favourite }
+    /** Last date each exercise was logged (sets are loaded in date order). */
+    val lastUsedByExercise: Map<Long, String> = setsByExercise.mapValues { e -> e.value.last().date }
+    /** Number of separate days each exercise was logged. */
+    val workoutsByExercise: Map<Long, Int> = setsByExercise.mapValues { e -> e.value.distinctBy { it.date }.size }
+
+
     val recordsByDate: Map<String, List<MRecord>> = records.groupBy { it.date }
     /** Records per measurement, sorted by date then time. */
     val recordsByName: Map<String, List<MRecord>> =
@@ -59,6 +72,9 @@ class Snapshot(
     fun photoFile(p: Photo): File = File(photoDir, p.file)
 
     fun weight(kg: Double): Double = if (weightUnit == "lbs") kg * 2.2046226 else kg
+
+    /** The inverse of [weight]: turns a number the user typed in their unit back into the kilograms we store. */
+    fun toKg(shown: Double): Double = if (weightUnit == "lbs") shown / 2.2046226 else shown
 
     fun fmtWeight(kg: Double): String = fmtNum(weight(kg), 2)
 
@@ -114,8 +130,9 @@ object Store {
             while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
         }
         val exercises = HashMap<Long, Exercise>()
-        r.rawQuery("SELECT id, name, category_id, type, notes, source FROM exercise", null).use { c ->
-            while (c.moveToNext()) exercises[c.lng(0)] = Exercise(c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS))
+        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite FROM exercise", null).use { c ->
+            while (c.moveToNext()) exercises[c.lng(0)] =
+                Exercise(c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0)
         }
         val sets = ArrayList<SetRow>()
         r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source FROM workout_set ORDER BY date, id", null).use { c ->

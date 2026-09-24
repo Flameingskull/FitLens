@@ -14,14 +14,41 @@ data class Category(val id: Long, val name: String, val colour: Int, val sortOrd
     val imported: Boolean get() = source == Sources.FITNOTES
 }
 
-/** FitNotes exercise types: 0 = weight & reps, 1 = distance & time, 2 = weight & distance(?), 3 = time. */
+/**
+ * The four FitNotes exercise types, kept so imported exercises behave the same in FitLens. They decide which
+ * fields the set entry screen shows. Per-exercise units, increments and the fuller type handling are #14 and #15.
+ */
+object ExerciseTypes {
+    const val WEIGHT_REPS = 0
+    const val DISTANCE_TIME = 1
+    const val WEIGHT_DISTANCE = 2
+    const val TIME = 3
+
+    val all = listOf(WEIGHT_REPS, DISTANCE_TIME, WEIGHT_DISTANCE, TIME)
+
+    fun label(type: Int): String = when (type) {
+        DISTANCE_TIME -> "Distance & time"
+        WEIGHT_DISTANCE -> "Weight & distance"
+        TIME -> "Time"
+        else -> "Weight & reps"
+    }
+
+    fun usesWeight(type: Int): Boolean = type == WEIGHT_REPS || type == WEIGHT_DISTANCE
+    fun usesReps(type: Int): Boolean = type == WEIGHT_REPS
+    fun usesDistance(type: Int): Boolean = type == DISTANCE_TIME || type == WEIGHT_DISTANCE
+    fun usesDuration(type: Int): Boolean = type == DISTANCE_TIME || type == TIME
+}
+
+/** FitNotes exercise types: see [ExerciseTypes]. */
 data class Exercise(
     val id: Long,
     val name: String,
     val categoryId: Long,
     val type: Int,
     val notes: String?,
-    val source: String = Sources.FITLENS
+    val source: String = Sources.FITLENS,
+    /** Starred in the exercise library, so it comes first in the pickers. */
+    val favourite: Boolean = false
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
 }

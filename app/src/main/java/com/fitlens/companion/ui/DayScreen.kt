@@ -3,6 +3,7 @@ package com.fitlens.companion.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,7 +23,10 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -40,7 +44,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,6 +74,15 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var addMeasurement by remember { mutableStateOf(false) }
     var deleteRecord by remember { mutableStateOf<MRecord?>(null) }
     val importForDay = rememberPhotoImporter(forcedDate = date)
+    // Workout editing (#10)
+    var menu by remember { mutableStateOf(false) }
+    var pickExercise by remember { mutableStateOf(false) }
+    var editComment by remember { mutableStateOf(false) }
+    var copyPrevious by remember { mutableStateOf(false) }
+    var copyToDay by remember { mutableStateOf(false) }
+    var moveToDay by remember { mutableStateOf(false) }
+    var deleteWorkout by remember { mutableStateOf(false) }
+    val hasWorkout = sets.isNotEmpty() || snap.workoutComments.containsKey(date)
 
     fun go(d: String) { nav.stack[nav.stack.lastIndex] = Screen.Day(d) }
 
@@ -81,6 +93,44 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             }
             IconButton(onClick = { newer?.let { go(it) } }, enabled = newer != null) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next day with data")
+            }
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Workout options")
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Add exercise") },
+                        onClick = { menu = false; pickExercise = true }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (snap.workoutComments.containsKey(date)) "Edit workout comment" else "Add workout comment") },
+                        onClick = { menu = false; editComment = true }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Copy a previous workout here") },
+                        onClick = { menu = false; copyPrevious = true }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Copy this workout to another day") },
+                        onClick = { menu = false; copyToDay = true },
+                        enabled = sets.isNotEmpty()
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Move this workout to another day") },
+                        onClick = { menu = false; moveToDay = true },
+                        enabled = hasWorkout
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete this workout") },
+                        onClick = { menu = false; deleteWorkout = true },
+                        enabled = hasWorkout
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Exercise library") },
+                        onClick = { menu = false; nav.push(Screen.Library) }
+                    )
+                }
             }
         }
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -175,8 +225,8 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             }
 
             // ---------- Workout ----------
-            if (sets.isNotEmpty() || snap.workoutComments.containsKey(date)) {
-                item { HorizontalDivider(Modifier.padding(vertical = 8.dp)); SectionTitle("Workout") }
+            item { HorizontalDivider(Modifier.padding(vertical = 8.dp)); SectionTitle("Workout") }
+            if (hasWorkout) {
                 item {
                     val times = snap.workoutTimes[date]
                     val total = times?.sumOf { workoutSeconds(it.start, it.end) } ?: 0L
@@ -187,21 +237,41 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                     ).joinToString(" · ")
                     Text(info, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     snap.workoutComments[date]?.forEach {
-                        Text("“$it”", Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "“$it”",
+                            Modifier.fillMaxWidth().clickable { editComment = true }.padding(horizontal = 16.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                 }
+            } else {
+                item {
+                    Text(
+                        "Nothing logged on this day yet.",
+                        Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            run {
                 val byExercise = sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.id } }
                 byExercise.forEach { (exId, exSets) ->
                     item(key = "e$exId") {
                         val ex = snap.exercises[exId]
                         val cat = snap.categoryOf(exId)
                         Column(
-                            Modifier.fillMaxWidth().clickable { nav.push(Screen.ExerciseDetail(exId)) }.padding(horizontal = 16.dp, vertical = 8.dp)
+                            Modifier.fillMaxWidth().clickable { nav.push(Screen.SetEntry(date, exId)) }.padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Dot(if (cat != null) Color(cat.colour) else MaterialTheme.colorScheme.outline, 10.dp)
+                                Dot(categoryColour(cat?.colour ?: 0), 10.dp)
                                 Spacer(Modifier.width(8.dp))
                                 Text(ex?.name ?: "Exercise #$exId", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Edit",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                             exSets.forEachIndexed { i, s ->
                                 Row(Modifier.padding(start = 18.dp, top = 2.dp)) {
@@ -220,6 +290,19 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                     }
                 }
             }
+            item {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(onClick = { pickExercise = true }) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Add exercise")
+                    }
+                    OutlinedButton(onClick = { copyPrevious = true }) { Text("Copy previous") }
+                }
+            }
         }
     }
 
@@ -229,6 +312,17 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             AppScope.scope.launch { Store.deleteRecord(r.id) }
         }
     }
+    if (pickExercise) {
+        ExercisePickerDialog(snap, onDismiss = { pickExercise = false }) { exId ->
+            pickExercise = false
+            nav.push(Screen.SetEntry(date, exId))
+        }
+    }
+    if (editComment) WorkoutCommentDialog(snap, date) { editComment = false }
+    if (copyPrevious) CopyPreviousWorkoutDialog(snap, date) { copyPrevious = false }
+    if (copyToDay) CopyOrMoveWorkoutDialog(date, move = false) { copyToDay = false }
+    if (moveToDay) CopyOrMoveWorkoutDialog(date, move = true) { moveToDay = false }
+    if (deleteWorkout) DeleteWorkoutDialog(snap, date) { deleteWorkout = false }
 }
 
 fun defOrder(snap: Snapshot, name: String): Int =

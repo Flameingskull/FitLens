@@ -30,7 +30,14 @@ object Brand {
     val GoldDeep = Color(0xFF8C6D1F)
     val Ivory = Color(0xFFF7F3EA)
     val Muted = Color(0xFFBDB3C6)
+    /** Decorative rules and chart grids only: too quiet to carry meaning on its own. */
     val Hairline = Color(0xFF3A2F44)
+    /**
+     * Borders that define a control (switches, outlined fields and buttons, chips, checkboxes).
+     * A dusk-purple grey kept in the brand's cool family, at 4.22:1 on [Black] and 3.25:1 on [SurfaceHighest],
+     * so every outlined control clears the 3:1 minimum for user-interface components.
+     */
+    val Outline = Color(0xFF7A6C86)
 }
 
 /** Chart colours: gold series, purple photo markers, ivory goal line. */
@@ -66,7 +73,7 @@ private val Scheme = darkColorScheme(
     inverseSurface = Brand.Ivory,
     inverseOnSurface = Brand.Black,
     inversePrimary = Brand.ImperialPurple,
-    outline = Brand.Hairline,
+    outline = Brand.Outline,
     outlineVariant = Color(0xFF2A2231),
     error = Color(0xFFE8798A),
     onError = Brand.Black,

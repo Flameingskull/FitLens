@@ -10,7 +10,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 3
+        const val VERSION = 4
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -36,7 +36,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TABLE category(id INTEGER PRIMARY KEY, name TEXT NOT NULL, colour INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE TABLE exercise(id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0, notes TEXT, " +
-                "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
+                "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE INDEX idx_set_date ON workout_set(date)",
@@ -83,6 +83,17 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             db.execSQL(
                 "INSERT OR IGNORE INTO meta(k, v) SELECT 'auto_sync', '1' WHERE EXISTS (SELECT 1 FROM meta WHERE k='backup_folder' AND v IS NOT NULL)"
             )
+        }
+        if (oldVersion < 4) {
+            // ---- 1.0.8, the logging core -------------------------------------------------------------------
+            // One consolidated step for the whole 1.0.8 build: anything else this build needs is added *inside*
+            // this block rather than as a version 5, so an update and an archive restore both replay one upgrade.
+            // Every statement must migrate in place and keep existing rows.
+            //
+            // #13 exercise library: favourite exercises, listed first in the exercise pickers. Existing
+            // exercises (imported or FitLens's own) default to not a favourite and are otherwise untouched.
+            db.execSQL("ALTER TABLE exercise ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0")
+            // (add further 1.0.8 statements here)
         }
     }
 

@@ -89,8 +89,10 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                         Box(Modifier.weight(1f).aspectRatio(0.72f).padding(2.dp)) {
                             if (dayNum in 1..days) {
                                 val date = month.atDay(dayNum).format(Dates.ISO)
+                                // Any day opens, whether or not it has data: that's how a workout gets logged on
+                                // a day FitLens hasn't seen before (#10).
                                 DayCell(snap, date, dayNum, colors.accent, colors.series) {
-                                    if (snap.allDates.contains(date)) nav.push(Screen.Day(date))
+                                    nav.push(Screen.Day(date))
                                 }
                             }
                         }

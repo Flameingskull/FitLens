@@ -180,6 +180,21 @@ Alternatively, save a backup first (**Sync → Backups → Save backup**) and un
 Every push to `main` is built and signed by GitHub Actions and published as a release. Pull requests get a debug
 build only.
 
+## Maintenance
+
+Dependencies and Actions are kept current automatically by **Dependabot** (`.github/dependabot.yml`): Gradle
+dependencies weekly, GitHub Actions monthly. Kotlin, the Compose compiler plugin and KSP arrive as one grouped pull
+request, because their versions are locked to one another and updating them separately breaks the build. Dependabot
+pull requests run the `check` job only — a debug build with no secrets — so nothing is published until a merge.
+
+**Every year, before 31 August**, raise `compileSdk` and `targetSdk` to the API level Google Play then requires,
+raising AGP and the Gradle wrapper if that level needs it, and review the behaviour changes for that Android version:
+permissions, the photo picker, the foreground services and notifications used by the rest timer and automatic
+backups, and edge-to-edge. Confirm the exact level against Google's current policy page at the time.
+
+Updates never change `applicationId` (`com.fitlens.companion`), the signing setup, the signing secrets or
+`BUILD_OFFSET`. Every build stays an update that installs over the previous one and keeps its data.
+
 ## License
 
 [MIT](LICENSE) © 2026 Flameingskull

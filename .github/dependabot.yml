@@ -1,0 +1,41 @@
+# Keeps FitLens's dependencies and Actions current (#39).
+#
+# Guardrails: Dependabot only ever edits version strings and `uses:` tags. It must never change
+# `applicationId` (com.fitlens.companion), the signing config, the signing secrets, or BUILD_OFFSET.
+# Its pull requests run the `check` job only (debug build, no secrets, no release), so nothing
+# publishes until the owner merges.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Kotlin, the Compose compiler plugin, KSP and kotlinx.serialization are version-locked to one
+      # another. They have to move together or the build breaks.
+      kotlin-toolchain:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp*"
+      androidx-compose:
+        patterns:
+          - "androidx.*"
+          - "androidx.compose:compose-bom"
+      other:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp*"
+          - "androidx.*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns:
+          - "*"

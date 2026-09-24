@@ -197,6 +197,52 @@ object Workouts {
         if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)
     }
 
+    /** Stars or unstars an exercise. Favourites are listed first when choosing an exercise. */
+    suspend fun setFavourite(id: Long, favourite: Boolean): Unit = write { w ->
+        w.update("exercise", ContentValues().apply { put("favourite", if (favourite) 1 else 0) }, "id=?", arrayOf(id.toString()))
+    }
+
+    /**
+     * Adds the [StarterLibrary] categories and exercises that aren't in the library yet, for someone starting
+     * without a FitNotes backup. Only ever called when the user asks for it.
+     *
+     * A name that already exists (ignoring case, whoever created it) is left exactly as it is: nothing is renamed,
+     * re-filed, overwritten or deleted, so running it on a library full of imported FitNotes exercises is safe.
+     * [palette] gives the colours to hand out to the categories it creates, in order.
+     */
+    suspend fun seedStarterLibrary(palette: List<Int>): SeedResult = write { w ->
+        var categoriesAdded = 0
+        var exercisesAdded = 0
+        var skipped = 0
+        var order = w.longOrNull("SELECT IFNULL(MAX(sort_order), 0) FROM category") ?: 0L
+        StarterLibrary.categories.forEachIndexed { i, sc ->
+            val categoryId = sameName(w, "category", sc.name) ?: run {
+                order += 1
+                categoriesAdded += 1
+                clearDeletedLink(w, RULE_CATEGORY, sc.name)
+                w.insertOrThrow("category", null, ContentValues().apply {
+                    put("name", sc.name)
+                    put("colour", if (palette.isEmpty()) 0 else palette[i % palette.size])
+                    put("sort_order", order)
+                    put("source", Sources.FITLENS)
+                })
+            }
+            sc.exercises.forEach { se ->
+                if (sameName(w, "exercise", se.name) != null) {
+                    skipped += 1
+                } else {
+                    clearDeletedLink(w, RULE_EXERCISE, se.name)
+                    w.insertOrThrow("exercise", null, ContentValues().apply {
+                        put("name", se.name); put("category_id", categoryId); put("type", se.type)
+                        put("source", Sources.FITLENS)
+                    })
+                    exercisesAdded += 1
+                }
+            }
+        }
+        SeedResult(categoriesAdded, exercisesAdded, skipped)
+    }
+
     // ---------- Sets ----------
 
     suspend fun addSet(
@@ -238,6 +284,22 @@ object Workouts {
     }
 
     suspend fun deleteSet(id: Long): Unit = write { w -> deleteSetsWhere(w, "id=?", arrayOf(id.toString())) }
+
+    /**
+     * Puts whole sets back in one transaction, used to undo a delete. They return as FitLens's own rows on the
+     * date they carry; their old ids are not reused. Returns how many were added.
+     */
+    suspend fun addSets(rows: List<SetRow>): Int = write { w ->
+        rows.forEach { s ->
+            w.insertOrThrow("workout_set", null, ContentValues().apply {
+                put("exercise_id", s.exerciseId); put("date", s.date.take(10)); put("weight", s.weightKg)
+                put("reps", s.reps); put("distance", s.distance); put("duration", s.durationSec)
+                put("is_pr", if (s.isPr) 1 else 0); put("comment", s.comment?.takeIf { it.isNotBlank() })
+                put("source", Sources.FITLENS)
+            })
+        }
+        rows.size
+    }
 
     private fun deleteSetsWhere(w: SQLiteDatabase, where: String, args: Array<String>) {
         w.rawQuery("SELECT exercise_id, date, weight, reps, distance, duration FROM workout_set WHERE ($where) AND source=?",
@@ -291,5 +353,72 @@ object Workouts {
         }
         w.delete("workout_comment", "date=?", arrayOf(d))
         w.delete("workout_time", "date=?", arrayOf(d))
+    }
+
+    /**
+     * Copies sets from the workout on [from] to [to], as new FitLens sets. [setIds] limits it to those sets;
+     * null copies the whole workout.
+     *
+     * The copies are added to whatever is already on [to] — nothing there is replaced. The originals are left
+     * untouched, so no skip rule is needed. PR flags aren't copied: a copy isn't the day the record was set
+     * (personal records are recalculated by #23). Returns how many sets were copied.
+     */
+    suspend fun copyWorkout(from: String, to: String, setIds: Collection<Long>? = null): Int = write { w ->
+        val f = checkDate(from)
+        val t = checkDate(to)
+        if (setIds != null && setIds.isEmpty()) return@write 0
+        val where = if (setIds == null) "date=?" else "date=? AND id IN (${setIds.joinToString(",")})"
+        val copies = ArrayList<ContentValues>()
+        w.rawQuery(
+            "SELECT exercise_id, weight, reps, distance, duration, comment FROM workout_set WHERE $where ORDER BY id",
+            arrayOf(f)
+        ).use { c ->
+            while (c.moveToNext()) {
+                copies.add(ContentValues().apply {
+                    put("exercise_id", c.lng(0)); put("date", t); put("weight", c.dbl(1)); put("reps", c.int(2))
+                    put("distance", c.dbl(3)); put("duration", c.int(4)); put("is_pr", 0)
+                    put("comment", c.str(5)); put("source", Sources.FITLENS)
+                })
+            }
+        }
+        copies.forEach { w.insertOrThrow("workout_set", null, it) }
+        copies.size
+    }
+
+    /**
+     * Moves a whole workout (its sets, comment and times) from [from] to [to], merging into anything already
+     * there rather than replacing it. Moved rows become FitLens's own, and any FitNotes row that moves leaves a
+     * skip rule behind for its old date so a later import doesn't put the original back. Returns sets moved.
+     */
+    suspend fun moveWorkout(from: String, to: String): Int = write { w ->
+        val f = checkDate(from)
+        val t = checkDate(to)
+        if (f == t) return@write 0
+        w.rawQuery(
+            "SELECT exercise_id, date, weight, reps, distance, duration FROM workout_set WHERE date=? AND source=?",
+            arrayOf(f, Sources.FITNOTES)
+        ).use { c ->
+            while (c.moveToNext()) addSkip(w, RULE_SET, setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5)))
+        }
+        w.rawQuery("SELECT comment FROM workout_comment WHERE date=? AND source=?", arrayOf(f, Sources.FITNOTES)).use { c ->
+            while (c.moveToNext()) addSkip(w, RULE_COMMENT, commentKey(f, c.strOr(0)))
+        }
+        w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(f, Sources.FITNOTES)).use { c ->
+            while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(f, c.str(0), c.str(1)))
+        }
+        val moved = (w.longOrNull("SELECT COUNT(*) FROM workout_set WHERE date=?", f) ?: 0L).toInt()
+        val values = ContentValues().apply { put("date", t); put("source", Sources.FITLENS) }
+        w.update("workout_set", values, "date=?", arrayOf(f))
+        w.update("workout_comment", values, "date=?", arrayOf(f))
+        // Start and finish are full timestamps that begin with the date, so their day part moves with the workout
+        // and the recorded duration stays the same.
+        w.execSQL(
+            "UPDATE workout_time SET date=?, source=?, " +
+                "start = CASE WHEN start IS NULL THEN NULL ELSE ? || substr(start, 11) END, " +
+                "finish = CASE WHEN finish IS NULL THEN NULL ELSE ? || substr(finish, 11) END " +
+                "WHERE date=?",
+            arrayOf<Any>(t, Sources.FITLENS, t, t, f)
+        )
+        moved
     }
 }

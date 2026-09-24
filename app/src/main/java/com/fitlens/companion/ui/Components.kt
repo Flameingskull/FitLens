@@ -49,13 +49,20 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
+/** A message for the snackbar, optionally with one action such as Undo. */
+data class UiMessage(val text: String, val actionLabel: String? = null, val onAction: (() -> Unit)? = null)
+
 /** App-wide transient messages and busy state. */
 object UiEvents {
-    val messages = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 16)
     val busy = MutableStateFlow<String?>(null)
     /** A backup file opened from outside the app, waiting for the Sync tab to confirm the restore. */
     val pendingRestore = MutableStateFlow<android.net.Uri?>(null)
-    fun show(msg: String) { messages.tryEmit(msg) }
+    fun show(msg: String) { messages.tryEmit(UiMessage(msg)) }
+    /** A message the user can act on, e.g. "Set deleted" with Undo. */
+    fun show(msg: String, actionLabel: String, onAction: () -> Unit) {
+        messages.tryEmit(UiMessage(msg, actionLabel, onAction))
+    }
 }
 
 /** Thin gold line that fades out at both ends. */

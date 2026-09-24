@@ -70,7 +70,9 @@ fun LineChart(
     }
     val colors = LocalChartColors.current
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    // The grid is decoration behind the series, so it stays on the quiet hairline rather than the
+    // control-grade outline colour the scheme now uses for borders.
+    val gridColor = Brand.Hairline.copy(alpha = 0.35f)
     val surface = MaterialTheme.colorScheme.background
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 11.sp, color = textColor)
