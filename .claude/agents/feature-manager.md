@@ -67,3 +67,18 @@ under "New requests filed" in your report.
 
 There's no Android SDK on this PC: GitHub Actions compiles every push. Check your Kotlin carefully (imports, types,
 Compose APIs in the BOM version in `app/build.gradle.kts`), because a compile error costs a full build cycle.
+
+## Keep the Nimbalyst tracker in step
+
+`CLAUDE.md` ("Nimbalyst tracker") describes a local mirror of the backlog in Nimbalyst's Trackers mode, with the full
+field mapping. Your part: every request you file must be imported so it appears in the tracker (`tracker_import`,
+provider `github-issues`, external id `Flameingskull/FitLens#N`), and every label change must be mirrored onto the
+item. Find it with `tracker_list` filtered on `githubIssue` (`where: [{field: "githubIssue", op: "=", value: N}]`),
+then `tracker_update` its type (`feature`), status, priority, `area`, `githubIssue` and tags.
+
+When you write a plan that establishes an ordering, record it as `dependsOn` on the dependent item and put a matching
+`Depends on #N` line in the issue body, so the graph and the issue never disagree. `dependsOn` takes tracker item
+**ids** (`import_...`); a `FIL.n` key is stored but never resolves, leaving the item looking unblocked. `tracker_ready`
+is then the honest answer to "what can we start now".
+
+Never quote a `FIL.n` key outside the editor — it is local to this machine, not a shared issue key.

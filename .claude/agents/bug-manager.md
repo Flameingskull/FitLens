@@ -60,3 +60,14 @@ and list it under "New requests filed" in your report.
 
 There's no Android SDK on this PC: GitHub Actions compiles every push. Check your Kotlin carefully (imports, types,
 Compose APIs in the BOM version in `app/build.gradle.kts`), because a compile error costs a full build cycle.
+
+## Keep the Nimbalyst tracker in step
+
+`CLAUDE.md` ("Nimbalyst tracker") describes a local mirror of the backlog in Nimbalyst's Trackers mode, with the full
+field mapping. Your part: whenever you change an issue's labels, make its tracker item agree. Find the item with
+`tracker_list` filtered on `githubIssue` (`where: [{field: "githubIssue", op: "=", value: N}]`), then `tracker_update`
+its type (`bug`), status, priority, `area` and `githubIssue`. When you file a feature request for a gap you noticed,
+import it as well (`tracker_import`, provider `github-issues`, external id `Flameingskull/FitLens#N`).
+
+Never set an item to `done` yourself, and never quote a `FIL.n` key outside the editor — it is local to this machine,
+not a shared issue key. The owner's commit closes the issue and the item with it.

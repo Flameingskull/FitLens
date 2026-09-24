@@ -12,6 +12,8 @@ import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.PhotoImportResult
 import com.fitlens.companion.data.PhotoImporter
 import com.fitlens.companion.data.Poses
+import android.util.Log
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,7 +22,19 @@ import kotlinx.coroutines.launch
 
 /** Scope that outlives individual screens so long imports/exports aren't cancelled by navigation. */
 object AppScope {
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    /**
+     * Reports a failed background job instead of letting it reach the default handler, which kills the process.
+     * `SupervisorJob` stops one failed child cancelling its siblings, but it does not swallow the exception, so
+     * without this every unguarded `AppScope.scope.launch` was one throw away from closing the app (#68).
+     * The busy overlay is cleared too: a job that died on its way to `finally` would otherwise leave it stuck.
+     */
+    private val reportErrors = CoroutineExceptionHandler { _, e ->
+        Log.e("FitLens", "Background job failed", e)
+        UiEvents.busy.value = null
+        UiEvents.show("Something went wrong: ${e.message ?: e::class.java.simpleName}")
+    }
+
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + reportErrors)
 }
 
 suspend fun runPhotoImport(ctx: Context, uris: List<Uri>, forcedDate: String?, pose: String = Poses.NONE): PhotoImportResult {

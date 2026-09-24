@@ -341,6 +341,25 @@ object Workouts {
         }
     }
 
+    /**
+     * Restores every time row for [date] at once. [setWorkoutTime] keeps only one pair, which is right when the
+     * user is editing a single start/finish, but loses rows when undoing a delete on a day that carried several
+     * (an imported day can) (#69). Passing an empty list clears the day's times.
+     */
+    suspend fun setWorkoutTimes(date: String, times: List<WorkoutTime>): Unit = write { w ->
+        val d = checkDate(date)
+        w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
+            while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(d, c.str(0), c.str(1)))
+        }
+        w.delete("workout_time", "date=?", arrayOf(d))
+        times.forEach { t ->
+            w.insert("workout_time", null, ContentValues().apply {
+                put("date", d); put("start", t.start.ifBlank { null }); put("finish", t.end.ifBlank { null })
+                put("source", Sources.FITLENS)
+            })
+        }
+    }
+
     /** Deletes the whole workout on [date]: its sets, comment and times. Measurements and photos are kept. */
     suspend fun deleteWorkout(date: String): Unit = write { w ->
         val d = checkDate(date)

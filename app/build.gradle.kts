@@ -45,11 +45,17 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
     buildFeatures {
         compose = true
+    }
+}
+
+// The Kotlin side of the toolchain. `kotlinOptions { jvmTarget = "17" }` was removed in Kotlin 2.4 and is now a
+// hard error, so the JVM target lives on the `compilerOptions` DSL instead (#67). The Android `compileOptions`
+// block above is a separate, still-current DSL and stays where it is.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 

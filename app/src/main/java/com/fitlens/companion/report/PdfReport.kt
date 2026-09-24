@@ -21,8 +21,6 @@ import com.fitlens.companion.video.FrameRenderer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
-import java.time.Duration
-import java.time.OffsetDateTime
 import kotlin.math.max
 import kotlin.math.min
 
@@ -388,11 +386,7 @@ object PdfReport {
 
     // ---------- Daily log ----------
 
-    private fun workoutSeconds(start: String, end: String): Long = try {
-        max(0L, Duration.between(OffsetDateTime.parse(start), OffsetDateTime.parse(end)).seconds)
-    } catch (e: Exception) {
-        0L
-    }
+    private fun workoutSeconds(start: String, end: String): Long = Dates.secondsBetween(start, end)
 
     private fun daily(w: PageWriter, snap: Snapshot, o: ReportOptions, days: List<String>, progress: (String) -> Unit) {
         w.section("Daily log", if (days.isEmpty()) "Nothing logged in this period." else "${days.size} days")

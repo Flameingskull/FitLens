@@ -1,6 +1,8 @@
 package com.fitlens.companion.data
 
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -155,6 +157,29 @@ object Dates {
     fun monthYearShort(d: LocalDate): String = d.format(monthYearShort)
     fun epochDay(s: String): Long = parse(s)?.toEpochDay() ?: 0L
     fun today(): String = LocalDate.now().format(ISO)
+
+    /**
+     * Parses a workout start/finish stamp. FitNotes writes `yyyy-MM-dd HH:mm:ss` — a space separator and no zone —
+     * which `OffsetDateTime.parse` rejects and `LocalDateTime.parse` only accepts with a `T`. Every caller wrapped
+     * the failure in a catch that returned zero, so workout durations silently never appeared (#72).
+     * Accepts either separator, and ignores a trailing offset if one is ever added.
+     */
+    fun dateTime(s: String?): LocalDateTime? {
+        if (s.isNullOrBlank()) return null
+        val t = s.trim().substringBefore('+').substringBefore('Z').trim().replace(' ', 'T')
+        return try {
+            LocalDateTime.parse(t)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Seconds between two workout stamps, or 0 when either is missing or unparseable. */
+    fun secondsBetween(start: String?, end: String?): Long {
+        val s = dateTime(start) ?: return 0L
+        val e = dateTime(end) ?: return 0L
+        return maxOf(0L, Duration.between(s, e).seconds)
+    }
 }
 
 fun fmtNum(v: Double, maxDecimals: Int = 2): String {

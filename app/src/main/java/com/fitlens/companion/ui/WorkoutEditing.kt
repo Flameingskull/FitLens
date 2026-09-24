@@ -106,13 +106,15 @@ fun WorkoutCommentDialog(snap: Snapshot, date: String, onDismiss: () -> Unit) {
 fun DeleteWorkoutDialog(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val sets = remember(snap, date) { snap.setsByDate[date].orEmpty() }
     val comment = remember(snap, date) { snap.workoutComments[date]?.joinToString("\n\n") }
-    val time = remember(snap, date) { snap.workoutTimes[date]?.firstOrNull() }
+    // Every time row, not just the first: a day can carry more than one and undo has to put them all back (#69).
+    val times = remember(snap, date) { snap.workoutTimes[date].orEmpty() }
     val exercises = remember(sets) { sets.map { it.exerciseId }.distinct().size }
 
     ConfirmDialog(
         title = "Delete this workout?",
         text = "${sets.size} set${if (sets.size == 1) "" else "s"} across $exercises exercise${if (exercises == 1) "" else "s"}" +
             (if (comment.isNullOrBlank()) "" else ", and the workout comment") +
+            (if (times.isEmpty()) "" else ", and the start and finish times") +
             ", will be removed from ${Dates.medium(date)}. Photos and measurements on this day are kept.",
         onDismiss = onDismiss
     ) {
@@ -120,9 +122,13 @@ fun DeleteWorkoutDialog(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             Workouts.deleteWorkout(date)
             UiEvents.show("Workout deleted", "Undo") {
                 AppScope.scope.launch {
-                    Workouts.addSets(sets)
-                    if (!comment.isNullOrBlank()) Workouts.setWorkoutComment(date, comment)
-                    if (time != null) Workouts.setWorkoutTime(date, time.start, time.end)
+                    try {
+                        Workouts.addSets(sets)
+                        if (!comment.isNullOrBlank()) Workouts.setWorkoutComment(date, comment)
+                        if (times.isNotEmpty()) Workouts.setWorkoutTimes(date, times)
+                    } catch (e: Exception) {
+                        UiEvents.show("Couldn't undo that: ${e.message}")
+                    }
                 }
             }
         }

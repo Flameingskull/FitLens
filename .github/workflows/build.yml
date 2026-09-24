@@ -14,17 +14,17 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
       - name: Build debug APK
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: FitLens-pr-${{ github.event.pull_request.number }}-debug
           path: app/build/outputs/apk/debug/*.apk
@@ -41,7 +41,7 @@ jobs:
       # The build number is the app's versionCode and must only ever increase.
       BUILD_OFFSET: 3
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           # Full history and tags, so the release post can list every commit since the previous build.
           fetch-depth: 0
@@ -62,12 +62,12 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fitlens.keystore"
           echo "FITLENS_KEYSTORE=$RUNNER_TEMP/fitlens.keystore" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Build release APK
         id: build
@@ -92,7 +92,7 @@ jobs:
 
       - name: Keep release files as build artifact
         if: success()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: FitLens-${{ env.VERSION }}
           path: dist/*
@@ -155,7 +155,7 @@ jobs:
 
       - name: Publish release
         if: success()
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ env.FITLENS_BUILD }}
           name: FitLens ${{ env.VERSION }}

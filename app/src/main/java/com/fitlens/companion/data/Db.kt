@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
 
 class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
@@ -57,27 +58,32 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // Migrations run in place so updates (and restores of older backups) keep all existing data.
         if (oldVersion < 2) {
-            db.execSQL("ALTER TABLE measurement ADD COLUMN custom INTEGER NOT NULL DEFAULT 0")
-            db.execSQL("ALTER TABLE measurement ADD COLUMN link TEXT")
+            addColumn(db, "measurement", "custom", "INTEGER NOT NULL DEFAULT 0")
+            addColumn(db, "measurement", "link", "TEXT")
         }
         if (oldVersion < 3) {
             // FitLens-owned workout data (#6). Every workout row that exists before this version came from a FitNotes
             // import, so it is marked 'fitnotes' and keeps its FitNotes id for reference. Nothing is deleted.
             listOf("category", "exercise", "workout_set").forEach { t ->
-                db.execSQL("ALTER TABLE $t ADD COLUMN source TEXT NOT NULL DEFAULT 'fitlens'")
-                db.execSQL("ALTER TABLE $t ADD COLUMN fitnotes_id INTEGER")
-                db.execSQL("UPDATE $t SET source='fitnotes', fitnotes_id=id")
+                if (addColumn(db, t, "source", "TEXT NOT NULL DEFAULT 'fitlens'")) {
+                    addColumn(db, t, "fitnotes_id", "INTEGER")
+                    db.execSQL("UPDATE $t SET source='fitnotes', fitnotes_id=id")
+                }
             }
             // Workout comments and times had no id column. They are rebuilt with a stable id, keeping every row.
-            db.execSQL("ALTER TABLE workout_comment RENAME TO workout_comment_old")
-            db.execSQL(CREATE_COMMENT)
-            db.execSQL("INSERT INTO workout_comment(date, comment, source) SELECT date, comment, 'fitnotes' FROM workout_comment_old ORDER BY rowid")
-            db.execSQL("DROP TABLE workout_comment_old")
-            db.execSQL("ALTER TABLE workout_time RENAME TO workout_time_old")
-            db.execSQL(CREATE_TIME)
-            db.execSQL("INSERT INTO workout_time(date, start, finish, source) SELECT date, start, finish, 'fitnotes' FROM workout_time_old ORDER BY rowid")
-            db.execSQL("DROP TABLE workout_time_old")
-            db.execSQL(CREATE_IMPORT_RULE)
+            if (!hasColumn(db, "workout_comment", "id")) {
+                db.execSQL("ALTER TABLE workout_comment RENAME TO workout_comment_old")
+                db.execSQL(CREATE_COMMENT)
+                db.execSQL("INSERT INTO workout_comment(date, comment, source) SELECT date, comment, 'fitnotes' FROM workout_comment_old ORDER BY rowid")
+                db.execSQL("DROP TABLE workout_comment_old")
+            }
+            if (!hasColumn(db, "workout_time", "id")) {
+                db.execSQL("ALTER TABLE workout_time RENAME TO workout_time_old")
+                db.execSQL(CREATE_TIME)
+                db.execSQL("INSERT INTO workout_time(date, start, finish, source) SELECT date, start, finish, 'fitnotes' FROM workout_time_old ORDER BY rowid")
+                db.execSQL("DROP TABLE workout_time_old")
+            }
+            db.execSQL(CREATE_IMPORT_RULE.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
             // The FitNotes folder sync is now off by default. People who already chose a sync folder and never
             // switched sync off keep it on, so an update doesn't silently stop their sync.
             db.execSQL(
@@ -92,9 +98,43 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             //
             // #13 exercise library: favourite exercises, listed first in the exercise pickers. Existing
             // exercises (imported or FitLens's own) default to not a favourite and are otherwise untouched.
-            db.execSQL("ALTER TABLE exercise ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0")
+            addColumn(db, "exercise", "favourite", "INTEGER NOT NULL DEFAULT 0")
             // (add further 1.0.8 statements here)
         }
+    }
+
+    /**
+     * Installing an older FitLens over a newer one used to be fatal: the default implementation throws
+     * `SQLiteDowngradeFailedException`, which lands in `Store.init` during `Application.onCreate`, so the app
+     * crash-looped and the only way out was uninstalling — taking every workout, photo and measurement with it (#77).
+     *
+     * Every migration this app has ever written only *adds* to the schema, and every read names its columns, so an
+     * older build runs perfectly well against a newer database; it simply ignores what it doesn't know about. Keeping
+     * the data and carrying on is therefore both safe and the only option that doesn't lose the user's history.
+     *
+     * The framework stamps the version down to [newVersion] once this returns, so the newer columns would be offered
+     * to [onUpgrade] a second time on the way back up. That is why every step above is written to replay safely.
+     */
+    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        Log.w("FitLens", "Opening a version $oldVersion database with version $newVersion code. Data is kept as it is.")
+    }
+
+    /** True when [table] already has [column]. Used so a migration step can be replayed without failing. */
+    private fun hasColumn(db: SQLiteDatabase, table: String, column: String): Boolean {
+        db.rawQuery("PRAGMA table_info($table)", null).use { c ->
+            val nameCol = c.getColumnIndex("name")
+            while (c.moveToNext()) {
+                if (c.getString(nameCol).equals(column, ignoreCase = true)) return true
+            }
+        }
+        return false
+    }
+
+    /** Adds [column] unless it is already there. Returns true when it actually added it. */
+    private fun addColumn(db: SQLiteDatabase, table: String, column: String, type: String): Boolean {
+        if (hasColumn(db, table, column)) return false
+        db.execSQL("ALTER TABLE $table ADD COLUMN $column $type")
+        return true
     }
 
     fun getMeta(key: String): String? {

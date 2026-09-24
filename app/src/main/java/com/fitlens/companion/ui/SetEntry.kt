@@ -117,6 +117,11 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     var distance by remember(date, exerciseId) { mutableStateOf("") }
     var duration by remember(date, exerciseId) { mutableStateOf("") }
     var comment by remember(date, exerciseId) { mutableStateOf("") }
+    // The exact kilograms the weight field was filled from, and the text it was filled with. Weights are stored in
+    // kilograms but shown rounded in the user's unit, so converting the displayed text back on every save quietly
+    // rewrote the stored value for anyone using pounds (#75). Only convert when the text has actually been edited.
+    var loadedWeightText by remember(date, exerciseId) { mutableStateOf("") }
+    var loadedWeightKg by remember(date, exerciseId) { mutableStateOf<Double?>(null) }
     var deleting by remember { mutableStateOf<SetRow?>(null) }
     var editExercise by remember { mutableStateOf(false) }
 
@@ -137,6 +142,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
         } else {
             val source = chosen ?: template
             weight = source?.weightKg?.takeIf { it != 0.0 }?.let { fmtNum(snap.weight(it), 2) } ?: ""
+            loadedWeightText = weight
+            loadedWeightKg = source?.weightKg
             reps = source?.reps?.takeIf { it > 0 }?.toString() ?: ""
             distance = source?.distance?.takeIf { it > 0 }?.let { fmtNum(it, 2) } ?: ""
             duration = source?.durationSec?.takeIf { it > 0 }?.let { fmtDuration(it) } ?: ""
@@ -145,7 +152,9 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     }
 
     fun save() {
-        val kg = snap.toKg(num(weight))
+        // Untouched field: keep the stored kilograms exactly as they were, rather than round-tripping the
+        // two-decimal display value back through the unit conversion (#75).
+        val kg = if (weight == loadedWeightText) loadedWeightKg ?: 0.0 else snap.toKg(num(weight))
         val r = reps.trim().toIntOrNull() ?: 0
         val dist = num(distance)
         val dur = parseDuration(duration)
@@ -310,7 +319,15 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                 Workouts.deleteSet(s.id)
                 UiEvents.show("Set deleted", "Undo") {
                     AppScope.scope.launch {
-                        Workouts.addSet(s.exerciseId, s.date, s.weightKg, s.reps, s.distance, s.durationSec, s.comment)
+                        try {
+                            // isPr is carried back so undoing a delete doesn't quietly drop a record (#69).
+                            Workouts.addSet(
+                                s.exerciseId, s.date, s.weightKg, s.reps, s.distance, s.durationSec, s.comment,
+                                isPr = s.isPr
+                            )
+                        } catch (e: Exception) {
+                            UiEvents.show("Couldn't undo that: ${e.message}")
+                        }
                     }
                 }
             }

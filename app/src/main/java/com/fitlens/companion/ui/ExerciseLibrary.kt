@@ -367,12 +367,14 @@ fun ExerciseEditorDialog(
                     Workouts.updateExercise(existing.id, n, c, t, note)
                     existing.id
                 }
-                onSaved(id)
                 if (keepOpen) {
+                    // "Save & new" keeps the editor open for the next exercise. onSaved is what the picker uses to
+                    // choose the exercise and move on, so firing it here closed the dialog instead (#71).
                     name = ""
                     notes = ""
                     UiEvents.show("Saved $n")
                 } else {
+                    onSaved(id)
                     onDismiss()
                 }
             } catch (e: WorkoutDataException) {

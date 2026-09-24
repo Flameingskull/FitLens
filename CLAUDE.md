@@ -56,6 +56,39 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
 Shared labels: `needs-triage`, `triaged`, `needs-info`, `ready`, `priority: high|medium|low`.
 The owner files issues from GitHub (issue forms in `.github/ISSUE_TEMPLATE/`) or asks in chat.
 
+## Nimbalyst tracker (local mirror of the backlog)
+
+Nimbalyst's **Trackers** mode mirrors the GitHub backlog so the owner can see it, and its dependency graph, inside
+the editor. GitHub issues stay the source of truth; the tracker is a read-model plus a dependency graph. Never create
+a backlog item only in the tracker, and never let the tracker decide what ships.
+
+Every open issue has exactly one tracker item, imported through the `github-issues` importer so it carries an
+`origin` back-link (`tracker_import`, provider `github-issues`, external id `Flameingskull/FitLens#N`). Re-importing
+an issue is safe: it returns the existing item instead of duplicating it.
+
+Field mapping, kept in step by whichever agent changed the labels:
+
+| Tracker field | From the issue |
+| --- | --- |
+| type | `bug` label becomes `bug`, anything else becomes `feature` |
+| status | `ready`, `needs-info` or `triaged` as labelled, otherwise `needs-triage` |
+| priority | the `priority: high\|medium\|low` label |
+| `area` | every `area: X` label |
+| `githubIssue` | the issue number |
+| tags | the `epic` and `accessibility` labels |
+| `dependsOn` | each `Depends on #N` line in the body, counting open issues only |
+
+Two traps worth remembering:
+
+- `dependsOn` takes tracker item **ids** (`import_...`), not `FIL.n` keys. A key is accepted and stored, but never
+  resolves, so the item silently looks unblocked.
+- `FIL.n` keys are local to this machine and are **not** issue keys. Never put one in a commit message, an issue, a
+  release note or anything else another person reads. Refer to work by its GitHub number.
+
+Keeping it in step: after changing an issue's labels, make its item agree; after filing an issue, import it; when an
+issue closes, set the item to `shipped` (features) or `done` (bugs). `tracker_ready` then answers "what can we start
+now", ranked by how much each item unblocks.
+
 **Making a new build:** the owner runs `/new-build` (`.claude/skills/new-build/SKILL.md`). With no arguments it asks
 which items to include; `/new-build auto` builds everything `ready`; `/new-build 12 15` builds those issues.
 The steps it follows are below. Use the same steps if the owner asks for a build in their own words.

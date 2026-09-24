@@ -55,9 +55,7 @@ import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
-import java.time.Duration
 import java.time.LocalTime
-import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 import kotlinx.coroutines.launch
@@ -330,26 +328,18 @@ fun defOrder(snap: Snapshot, name: String): Int =
 
 fun describeSet(snap: Snapshot, weightKg: Double, reps: Int, distance: Double, duration: Int): String {
     val parts = ArrayList<String>()
-    if (weightKg != 0.0 || (reps > 0 && distance == 0.0 && duration == 0)) parts.add("${snap.fmtWeight(weightKg)} ${snap.weightUnit}")
+    // A bodyweight set has no weight to show; "0 kg x 10 reps" read as though the weight had been lost (#74).
+    if (weightKg != 0.0) parts.add("${snap.fmtWeight(weightKg)} ${snap.weightUnit}")
     if (reps > 0) parts.add("$reps reps")
     if (distance > 0) parts.add("${fmtNum(distance)} dist")
     if (duration > 0) parts.add(fmtDuration(duration))
     return parts.joinToString(" × ").ifBlank { "—" }
 }
 
-fun formatTime(iso: String): String? = try {
-    java.time.LocalDateTime.parse(iso).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm"))
-} catch (e: Exception) {
-    null
-}
+fun formatTime(iso: String): String? =
+    Dates.dateTime(iso)?.toLocalTime()?.format(DateTimeFormatter.ofPattern("HH:mm"))
 
-private fun workoutSeconds(start: String, end: String): Long = try {
-    val s = OffsetDateTime.parse(start)
-    val e = OffsetDateTime.parse(end)
-    maxOf(0L, Duration.between(s, e).seconds)
-} catch (e: Exception) {
-    0L
-}
+private fun workoutSeconds(start: String, end: String): Long = Dates.secondsBetween(start, end)
 
 fun nearestPhoto(snap: Snapshot, date: String, windowDays: Int = 30): com.fitlens.companion.data.Photo? {
     val d = Dates.epochDay(date)

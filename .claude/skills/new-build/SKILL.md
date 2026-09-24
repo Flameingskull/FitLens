@@ -29,6 +29,8 @@ Never publish an empty release.
 ## 3. Choose what goes in
 Put both tables together into one plan: bugs first (high → low), then features. Recommend a set for this build:
 all `priority: high` plus `ready` items that fit, leaving out anything `needs-info` or `invalid`.
+Check `tracker_ready` before recommending: it ranks startable work by how much each item unblocks, and will not
+offer anything still blocked. Prefer an item that unblocks several others over an isolated one of equal priority.
 - No arguments: ask the owner with a multi-select question listing the recommended items (pre-described with
   size and summary), plus "Everything recommended" as the first option. Build what they choose.
 - `auto` or issue numbers: skip the question.
@@ -36,6 +38,8 @@ all `priority: high` plus `ready` items that fit, leaving out anything `needs-in
 ## 4. Implement
 Send each agent its chosen issues to implement. Run them in parallel when their changes touch different files;
 otherwise run bug fixes first, then features. The agents edit code only. They don't commit, push or close issues.
+Set each chosen item to `in-progress` in the tracker as you hand it out, and `in-review` once its changes are in
+the working tree (see "Nimbalyst tracker" in `CLAUDE.md`).
 Collect from each agent: `Fixes #N` / `Closes #N` lines, release-note lines, files changed, and test tips.
 
 ## 5. Review
@@ -59,6 +63,9 @@ Fix problems before pushing. Make sure nothing adds a keystore, secret or creden
   (`git fetch origin ci-logs; git show origin/ci-logs:errors.txt`), fix, commit and push again.
   After 3 failed attempts, stop and report the errors to the owner.
 - Confirm the release exists with its APK, source archives and `SHA256SUMS.txt`, and that the issues closed.
+- Now that the push has closed the issues, close their tracker items too: `shipped` for features, `done` for bugs.
+  Re-run the triage agents' import step for any issue opened since the last build, so the tracker still mirrors the
+  whole open backlog.
 
 ## 8. Report to the owner
 Give the release name and link, the issues resolved (with links), anything deferred and why, and what to test on

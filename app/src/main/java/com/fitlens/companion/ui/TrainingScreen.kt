@@ -32,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
@@ -91,7 +90,8 @@ fun TrainingScreen(snap: Snapshot, nav: Nav) {
                         val cat = snap.categories[ex.categoryId]
                         item(key = "c${ex.categoryId}") {
                             Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Dot(if (cat != null) Color(cat.colour) else MaterialTheme.colorScheme.outline, 10.dp)
+                                // categoryColour treats 0 as "no colour chosen"; Color(0) would be fully transparent (#73).
+                                Dot(categoryColour(cat?.colour ?: 0), 10.dp)
                                 Spacer(Modifier.width(8.dp))
                                 Text(cat?.name ?: "Other", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                             }
