@@ -253,7 +253,10 @@ object Workouts {
         distance: Double = 0.0,
         durationSec: Int = 0,
         comment: String? = null,
-        /** Null works it out: the set is a PR when it's heavier than every logged set of at least as many reps (#23). */
+        /**
+         * Null works it out: the set is a PR when it's heavier than every set of at least as many reps logged on or
+         * before its date, the same rule [recalculatePrs] replays (#23).
+         */
         isPr: Boolean? = null
     ): Long = write { w ->
         val d = checkDate(date)
@@ -262,8 +265,8 @@ object Workouts {
         val pr = isPr ?: Records.isNewRecord(
             weightKg, reps,
             w.rawQuery(
-                "SELECT MAX(weight) FROM workout_set WHERE exercise_id=? AND reps>=? AND weight>0",
-                arrayOf(exerciseId.toString(), reps.toString())
+                "SELECT MAX(weight) FROM workout_set WHERE exercise_id=? AND reps>=? AND weight>0 AND substr(date, 1, 10)<=?",
+                arrayOf(exerciseId.toString(), reps.toString(), d)
             ).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getDouble(0) else null }
         )
         w.insertOrThrow("workout_set", null, ContentValues().apply {
@@ -306,7 +309,7 @@ object Workouts {
         var best = DoubleArray(0)
         w.rawQuery(
             "SELECT id, exercise_id, weight, reps, is_pr FROM workout_set WHERE weight>0 AND reps>0 " +
-                "ORDER BY exercise_id, date, id",
+                "ORDER BY exercise_id, substr(date, 1, 10), id",
             null
         ).use { c ->
             while (c.moveToNext()) {

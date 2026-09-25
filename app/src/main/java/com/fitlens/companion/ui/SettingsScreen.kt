@@ -108,6 +108,12 @@ private fun UnitsPage() {
 @Composable
 private fun RecordsPage(snap: Snapshot) {
     var confirmRecalc by remember { mutableStateOf(false) }
+    val prefs by Settings.portable.collectAsState()
+    SectionTitle("Celebrations")
+    ToggleRow("Celebrate new personal records", prefs.celebratePrs) { on ->
+        Settings.updatePortable { it.copy(celebratePrs = on) }
+    }
+    PageHint("When a set you save is a new PR, FitLens gives a short vibration and names the record.")
     SectionTitle("PR marks")
     PageHint(
         "New sets are marked as PRs when you save them. Recalculate rebuilds the PR marks on every " +

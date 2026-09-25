@@ -32,6 +32,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,7 @@ import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
+import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
@@ -143,6 +146,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
         }
     }
 
+    val haptic = LocalHapticFeedback.current
+
     fun save() {
         // Untouched field: keep the stored kilograms exactly as they were, rather than round-tripping the
         // two-decimal display value back through the unit conversion (#75).
@@ -159,7 +164,13 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
         AppScope.scope.launch {
             try {
                 if (chosen == null) {
-                    Workouts.addSet(exerciseId, date, kg, r, dist, dur, note)
+                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note)
+                    // The PR mark was decided as the set was saved; the reloaded snapshot carries it (#23).
+                    val isPr = Store.snapshot.value?.setsByExercise?.get(exerciseId)?.any { it.id == id && it.isPr } == true
+                    if (isPr && Settings.currentPortable().celebratePrs) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        UiEvents.show("New personal record: ${snap.fmtWeight(kg)} ${snap.weightUnit} × $r")
+                    }
                 } else {
                     Workouts.updateSet(
                         chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, comment = note)
