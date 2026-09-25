@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
@@ -63,6 +64,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.fmtNum
 import kotlin.math.atan2
@@ -94,7 +96,11 @@ fun BarChart(
     yFormat: (Double) -> String = { fmtNum(it, 0) },
     unit: String = "",
     viewport: ChartViewport = ChartViewport(),
-    onExpand: (() -> Unit)? = null
+    onExpand: (() -> Unit)? = null,
+    /** A dashed least-squares line through the bars (#51). */
+    showTrend: Boolean = false,
+    /** The last bar is a period still in progress: drawn dimmer, so a partial week doesn't read as a drop (#51). */
+    lastIsPartial: Boolean = false
 ) {
     if (bars.isEmpty()) {
         ChartEmpty(modifier, height)
@@ -111,6 +117,7 @@ fun BarChart(
     val last = (ceil(viewport.to * n).toInt() - 1).coerceIn(first, n - 1)
     val shownBars = first..last
     val maxV = shownBars.maxOf { bars[it].value }.coerceAtLeast(0.0)
+    val trend = if (showTrend) trendOf(bars.mapIndexed { i, b -> ChartPoint(i.toLong(), b.value, "") }) else null
     val step = niceStep(if (maxV > 0) maxV else 1.0)
     val hi = (ceil(maxV / step) * step).coerceAtLeast(step)
 
@@ -167,7 +174,8 @@ fun BarChart(
             val isSel = i == selected
             if (b.value > 0) {
                 val y = py(b.value)
-                drawRect(colors.seriesColor(0), topLeft = Offset(x, y), size = Size(barW, bottom - y))
+                val fill = if (lastIsPartial && i == n - 1) colors.seriesColor(0).copy(alpha = 0.45f) else colors.seriesColor(0)
+                drawRect(fill, topLeft = Offset(x, y), size = Size(barW, bottom - y))
                 if (isSel) drawRect(Brand.GoldLight, topLeft = Offset(x, y), size = Size(barW, bottom - y), style = Stroke(width = 2.dp.toPx()))
             } else {
                 // An empty period: a zero-height bar, shown as a short mark on the axis.
@@ -181,6 +189,17 @@ fun BarChart(
                 val lx = (x + barW / 2f - layout.size.width / 2f).coerceIn(left, right - layout.size.width)
                 drawText(layout, topLeft = Offset(lx, bottom + 5.dp.toPx()))
             }
+        }
+        if (trend != null) {
+            // Through the centres of the first and last bars shown, clipped to the plot.
+            val x0 = left + slot / 2f
+            val x1 = left + (shownBars.count() - 1) * slot + slot / 2f
+            val y0 = py(trend.at(first.toLong()).coerceIn(0.0, hi))
+            val y1 = py(trend.at(last.toLong()).coerceIn(0.0, hi))
+            drawLine(
+                colors.accent, Offset(x0, y0), Offset(x1, y1), strokeWidth = 2.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))
+            )
         }
     }
 }
@@ -211,7 +230,9 @@ fun DonutChart(
     val colors = LocalChartColors.current
     val sel = selected.coerceIn(0, slices.lastIndex)
     fun share(i: Int) = slices[i].value.coerceAtLeast(0.0) / total
-    fun pct(i: Int) = "${(share(i) * 100).roundToInt()}%"
+    // Largest-remainder rounding, so the legend always adds up to 100% (#52).
+    val percents = remember(slices) { Analysis.percents(slices.map { it.value }) }
+    fun pct(i: Int) = "${percents[i]}%"
 
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -414,8 +435,8 @@ fun GraphOptionChips(
     onRange: (Int) -> Unit,
     showTrend: Boolean,
     onTrend: () -> Unit,
-    fromZero: Boolean,
-    onFromZero: () -> Unit
+    fromZero: Boolean = false,
+    onFromZero: (() -> Unit)? = null
 ) {
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
@@ -423,6 +444,6 @@ fun GraphOptionChips(
     ) {
         RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { onRange(i) }, label = { Text(r.first) }) }
         FilterChip(selected = showTrend, onClick = onTrend, label = { Text("Trend") })
-        FilterChip(selected = fromZero, onClick = onFromZero, label = { Text("From zero") })
+        if (onFromZero != null) FilterChip(selected = fromZero, onClick = onFromZero, label = { Text("From zero") })
     }
 }
