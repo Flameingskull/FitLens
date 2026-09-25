@@ -23,6 +23,9 @@ instructions.
 ## 2. Triage (in parallel)
 Launch the **bug-manager** and **feature-manager** agents at the same time. Ask each one to triage its list: label and
 prioritise open issues, flag duplicates, spam and `needs-info`, and return its prioritised table.
+Triage is label and issue work, not code work. Tell them to triage from the issues and `docs/CODEMAP.md` without
+reading code (the agent files explain when a code check is needed), and launch them with `model: "sonnet"`.
+Keep their agent ids: step 4 continues the same agents with `SendMessage`, so they keep what they've already read.
 If both lists have nothing open and nothing `ready`, and no issue numbers were given, tell the owner and stop.
 Never publish an empty release.
 
@@ -36,7 +39,15 @@ offer anything still blocked. Prefer an item that unblocks several others over a
 - `auto` or issue numbers: skip the question.
 
 ## 4. Implement
-Send each agent its chosen issues to implement. Run them in parallel when their changes touch different files;
+Send each agent its chosen issues to implement. Continue the triage agents with `SendMessage` if they're still
+available; a new `Agent` call starts from nothing. Each instruction is a **precise brief**, because what you know
+already saves the agent from re-exploring:
+- the issue numbers, and the acceptance criteria that apply (a slice says which ones);
+- the files, functions and line ranges to change, and the ones to leave alone, from `docs/CODEMAP.md` and your own
+  `grep`;
+- the pattern to copy (an existing function or screen that does the same kind of thing);
+- the constraints that matter here (migration needed or not, brand components from `ui/design/`, no new dependency).
+ Run them in parallel when their changes touch different files;
 otherwise run bug fixes first, then features. The agents edit code only. They don't commit, push or close issues.
 Set each chosen item to `in-progress` in the tracker as you hand it out, and `in-review` once its changes are in
 the working tree (see "Nimbalyst tracker" in `CLAUDE.md`).
@@ -46,6 +57,9 @@ Collect from each agent: `Fixes #N` / `Closes #N` lines, release-note lines, fil
 Read the full diff (`git diff`). There's no Android SDK locally, so CI is the compiler. Check imports, types,
 Compose API usage, database migrations (`Db.VERSION` bump plus `onUpgrade` that keeps data), and the brand theme.
 Fix problems before pushing. Make sure nothing adds a keystore, secret or credential.
+If the build added, moved or renamed a file or changed a pattern, check that `docs/CODEMAP.md` was updated (and its
+"Last updated" version). Check that the agents' notes in `.claude/agent-notes/` gained only short, true, public-safe
+lines.
 
 ## 6. Release notes and commit
 - Rewrite `RELEASE_NOTES.md` for this build only: Overview, then What's new / Improved / Fixed as relevant, then

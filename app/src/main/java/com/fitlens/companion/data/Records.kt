@@ -75,4 +75,8 @@ object Records {
         }.format(Dates.ISO)
         return sets.filter { it.date.take(10) >= from }
     }
+
+    /** The sets dated from [from] to [to] inclusive (ISO dates), for the Records tab's Custom range. */
+    fun between(sets: List<SetRow>, from: String, to: String): List<SetRow> =
+        sets.filter { it.date.take(10) in from..to }
 }

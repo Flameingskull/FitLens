@@ -54,6 +54,9 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
 | `feature-manager` | Feature request list | `enhancement` |
 
 Shared labels: `needs-triage`, `triaged`, `needs-info`, `ready`, `priority: high|medium|low`.
+Agents don't re-read the codebase: they start from `docs/CODEMAP.md` (which file owns what, data flow, conventions)
+and their notes in `.claude/agent-notes/`, then take a precise brief from the main session. Triage works from issues
+and labels, not code. Every build that changes the structure updates the code map in the same commit.
 The owner files issues from GitHub (issue forms in `.github/ISSUE_TEMPLATE/`) or asks in chat.
 
 ## Nimbalyst tracker (local mirror of the backlog)

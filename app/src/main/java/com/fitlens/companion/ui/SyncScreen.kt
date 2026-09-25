@@ -28,8 +28,11 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
+import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.Workouts
+import com.fitlens.companion.ui.design.ConfirmSheet
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -61,6 +64,7 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
     val importPhotos = rememberPhotoImporter()
     val importFolder = rememberFolderPhotoImporter()
 
+    var confirmRecalc by remember { mutableStateOf(false) }
     FitNotesImportHost()
     Column(Modifier.fillMaxSize()) {
         PlainTopBar("Sync & import")
@@ -136,6 +140,39 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            // ---------- Personal records ----------
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Personal records", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "New sets are marked as PRs when you save them. Recalculate rebuilds the PR marks on every " +
+                            "weight-and-reps set, imported ones included, for example after editing old sets.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(onClick = { confirmRecalc = true }, enabled = snap.sets.isNotEmpty()) { Text("Recalculate personal records") }
+                }
+            }
+            if (confirmRecalc) {
+                ConfirmSheet(
+                    title = "Recalculate personal records?",
+                    message = "Every weight-and-reps set gets a PR mark only if it beat all earlier sets of at least as " +
+                        "many reps. PR marks that came from FitNotes are replaced. Timed and cardio sets keep theirs.",
+                    confirmLabel = "Recalculate",
+                    onDismiss = { confirmRecalc = false },
+                    onConfirm = {
+                        runBusy("Recalculating records…") {
+                            val n = Workouts.recalculatePrs()
+                            ImportSummary(
+                                if (n == 0) "Personal records checked. Nothing needed changing."
+                                else "Personal records recalculated. $n ${if (n == 1) "set" else "sets"} updated.",
+                                ok = true
+                            )
+                        }
+                    },
+                    destructive = false
+                )
             }
 
             // ---------- Backups ----------

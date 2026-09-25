@@ -294,6 +294,39 @@ object Workouts {
     suspend fun deleteSet(id: Long): Unit = write { w -> deleteSetsWhere(w, "id=?", arrayOf(id.toString())) }
 
     /**
+     * Rebuilds the PR mark on every weight-and-reps set, imported ones included (#23). Each exercise is replayed in
+     * date order (and log order within a day), and a set is a PR when [Records.isNewRecord] says it beats every
+     * earlier set of at least as many reps. Sets without weight and reps (cardio, timed) keep the mark they have.
+     * Only the mark changes: the set keeps its source, so an imported set stays imported. Returns how many changed.
+     */
+    suspend fun recalculatePrs(): Int = write { w ->
+        val changes = mutableListOf<Pair<Long, Boolean>>()
+        var exercise = -1L
+        // best[r] = heaviest weight so far for at least r reps, for the exercise being replayed.
+        var best = DoubleArray(0)
+        w.rawQuery(
+            "SELECT id, exercise_id, weight, reps, is_pr FROM workout_set WHERE weight>0 AND reps>0 " +
+                "ORDER BY exercise_id, date, id",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                val exId = c.lng(1)
+                if (exId != exercise) { exercise = exId; best = DoubleArray(0) }
+                val weight = c.dbl(2)
+                val reps = c.int(3)
+                if (best.size <= reps) best = best.copyOf(reps + 1)
+                val pr = Records.isNewRecord(weight, reps, best[reps].takeIf { it > 0 })
+                for (r in 1..reps) if (weight > best[r]) best[r] = weight
+                if (pr != (c.int(4) != 0)) changes += c.lng(0) to pr
+            }
+        }
+        changes.forEach { (id, pr) ->
+            w.update("workout_set", ContentValues().apply { put("is_pr", if (pr) 1 else 0) }, "id=?", arrayOf(id.toString()))
+        }
+        changes.size
+    }
+
+    /**
      * Puts whole sets back in one transaction, used to undo a delete. They return as FitLens's own rows on the
      * date they carry; their old ids are not reused. Returns how many were added.
      */

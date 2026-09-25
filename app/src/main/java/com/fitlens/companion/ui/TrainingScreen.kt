@@ -40,6 +40,7 @@ import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.DateRangePickerDialog
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
 fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
@@ -213,9 +214,27 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
 
 @Composable
 private fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean) {
+    // -1 means the Custom range in customFrom..customTo.
     var periodIdx by rememberSaveable { mutableIntStateOf(Records.Period.ALL.ordinal) }
-    val period = Records.Period.entries[periodIdx.coerceIn(0, Records.Period.entries.lastIndex)]
-    val sets = remember(allSets, period) { Records.inPeriod(allSets, period) }
+    var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
+    var customTo by rememberSaveable { mutableStateOf<String?>(null) }
+    var picking by remember { mutableStateOf(false) }
+    val period = Records.Period.entries.getOrNull(periodIdx)
+    val from = customFrom
+    val to = customTo
+    val sets = remember(allSets, period, from, to) {
+        if (period != null) Records.inPeriod(allSets, period)
+        else if (from != null && to != null) Records.between(allSets, from, to)
+        else allSets
+    }
+    if (picking) {
+        DateRangePickerDialog(
+            initialFrom = customFrom,
+            initialTo = customTo,
+            onDismiss = { picking = false },
+            onPicked = { f, t -> customFrom = f; customTo = t; periodIdx = -1 }
+        )
+    }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             Row(
@@ -225,6 +244,8 @@ private fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean
                 Records.Period.entries.forEach { p ->
                     FilterChip(selected = period == p, onClick = { periodIdx = p.ordinal }, label = { Text(p.label) })
                 }
+                val customLabel = if (period == null && from != null && to != null) "${Dates.short(from)} – ${Dates.short(to)}" else "Custom"
+                FilterChip(selected = period == null, onClick = { picking = true }, label = { Text(customLabel) })
             }
         }
         if (sets.isEmpty()) {
