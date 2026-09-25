@@ -145,8 +145,8 @@ fun GoldHairline(modifier: Modifier = Modifier) {
 /** A pushed screen's top bar with a back arrow. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Unit = {}) {
-    FitTopBar(title = title, onBack = onBack, trailing = { actions() })
+fun BackTopBar(title: String, onBack: () -> Unit, backLabel: String = "Back", actions: @Composable () -> Unit = {}) {
+    FitTopBar(title = title, onBack = onBack, backLabel = backLabel, trailing = { actions() })
 }
 
 /** Opens Settings (#38). `AppRoot` provides it, so every tab's top bar shows the gear without wiring each screen. */

@@ -2,6 +2,8 @@ package com.fitlens.companion.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -338,12 +342,14 @@ fun ChartHint(modifier: Modifier = Modifier) {
  * The full-screen viewer every chart can open (#50, #96): the whole screen, landscape allowed, pinch to zoom the time
  * axis, drag to pan, a reset control (or double tap), and the chart's own tap-for-details. [chart] draws the chart for
  * the current zoom at the height available, and gets a reset function to use as its double tap. The zoom survives
- * rotation. TalkBack users get zoom and move actions instead of gestures.
+ * rotation. TalkBack users get zoom and move actions instead of gestures. [controls] sits under the top bar, usually
+ * [GraphOptionChips], so the range and options can change without leaving full screen.
  */
 @Composable
 fun FullScreenChart(
     title: String,
     onDismiss: () -> Unit,
+    controls: @Composable () -> Unit = {},
     footer: @Composable () -> Unit = {},
     chart: @Composable (viewport: ChartViewport, height: Dp, resetZoom: () -> Unit) -> Unit
 ) {
@@ -355,11 +361,12 @@ fun FullScreenChart(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
-                BackTopBar(title, onBack = onDismiss) {
+                BackTopBar(title, onBack = onDismiss, backLabel = "Close full screen") {
                     IconButton(onClick = reset, enabled = !viewport.isFull) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Reset zoom")
                     }
                 }
+                controls()
                 BoxWithConstraints(
                     Modifier
                         .weight(1f)
@@ -393,5 +400,29 @@ fun FullScreenChart(
                 )
             }
         }
+    }
+}
+
+/**
+ * A graph's range and options as one scrolling row of chips: the [RANGES] presets, Trend and From zero. Used inside
+ * [FullScreenChart] (#96), so the view can change without closing it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GraphOptionChips(
+    rangeIdx: Int,
+    onRange: (Int) -> Unit,
+    showTrend: Boolean,
+    onTrend: () -> Unit,
+    fromZero: Boolean,
+    onFromZero: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { onRange(i) }, label = { Text(r.first) }) }
+        FilterChip(selected = showTrend, onClick = onTrend, label = { Text("Trend") })
+        FilterChip(selected = fromZero, onClick = onFromZero, label = { Text("From zero") })
     }
 }

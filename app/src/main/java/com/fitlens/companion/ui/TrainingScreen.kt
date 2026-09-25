@@ -199,6 +199,13 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                         FullScreenChart(
                             "${ex?.name ?: "Exercise"} · ${g.label}",
                             onDismiss = { fullScreen = false },
+                            controls = {
+                                GraphOptionChips(
+                                    rangeIdx, { rangeIdx = it },
+                                    showTrend, { showTrend = !showTrend },
+                                    fromZero, { fromZero = !fromZero }
+                                )
+                            },
                             footer = {
                                 sel?.let { shown.getOrNull(it) }?.let { p ->
                                     Text(

@@ -139,6 +139,13 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                             FullScreenChart(
                                 selectedName,
                                 onDismiss = { fullScreen = false },
+                                controls = {
+                                    GraphOptionChips(
+                                        rangeIdx, { rangeIdx = it },
+                                        showTrend, { showTrend = !showTrend },
+                                        fromZero, { fromZero = !fromZero }
+                                    )
+                                },
                                 footer = {
                                     selectedPoint?.let { points.getOrNull(it) }?.let { p ->
                                         Text(

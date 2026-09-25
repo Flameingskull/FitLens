@@ -62,6 +62,8 @@ fun FitTopBar(
     overflow: List<MenuAction> = emptyList(),
     onSettings: (() -> Unit)? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null,
+    /** What TalkBack reads for the back arrow, e.g. "Close full screen" where Back would mislead (#96). */
+    backLabel: String = "Back",
     trailing: @Composable RowScope.() -> Unit = {}
 ) {
     val colors = TopAppBarDefaults.topAppBarColors(
@@ -93,7 +95,7 @@ fun FitTopBar(
     val navigationContent: @Composable () -> Unit = {
         if (onBack != null) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = backLabel)
             }
         }
     }
