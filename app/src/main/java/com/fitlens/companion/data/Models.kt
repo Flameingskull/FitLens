@@ -65,9 +65,78 @@ data class SetRow(
     val durationSec: Int,
     val isPr: Boolean,
     val comment: String?,
-    val source: String = Sources.FITLENS
+    val source: String = Sources.FITLENS,
+    /** Working, warm-up, drop or failure ([SetTypes], #43). */
+    val setType: Int = SetTypes.WORKING,
+    /** Effort as RPE (1–10, half steps), or null when not recorded (#44). RIR is shown as 10 − RPE. */
+    val rpe: Double? = null
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
+    val isWarmup: Boolean get() = setType == SetTypes.WARMUP
+}
+
+/**
+ * What kind of set a set is (#43). Stored as `workout_set.set_type`; imports and older rows are [WORKING]. Each type
+ * has a one-letter badge, so the meaning never rests on colour alone.
+ */
+object SetTypes {
+    const val WORKING = 0
+    const val WARMUP = 1
+    const val DROP = 2
+    const val FAILURE = 3
+
+    val all = listOf(WORKING, WARMUP, DROP, FAILURE)
+
+    fun label(t: Int): String = when (t) {
+        WARMUP -> "Warm-up"
+        DROP -> "Drop set"
+        FAILURE -> "To failure"
+        else -> "Working"
+    }
+
+    /** The badge letter, or null for a working set (which needs none). */
+    fun badge(t: Int): String? = when (t) {
+        WARMUP -> "W"
+        DROP -> "D"
+        FAILURE -> "F"
+        else -> null
+    }
+
+    /** The CSV value (#31). */
+    fun csv(t: Int): String = when (t) {
+        WARMUP -> "warmup"
+        DROP -> "drop"
+        FAILURE -> "failure"
+        else -> "working"
+    }
+}
+
+/** Effort per set (#44): stored as RPE, entered and shown as RPE or RIR. */
+object Effort {
+    const val OFF = "off"
+    const val RPE = "rpe"
+    const val RIR = "rir"
+
+    /** The RPE choices, in half steps. */
+    val rpeSteps = listOf(6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0)
+
+    /** The RIR choices; "5+" is stored as RPE 5. */
+    val rirSteps = listOf(0, 1, 2, 3, 4, 5)
+
+    fun rpeFromRir(rir: Int): Double = (10 - rir.coerceIn(0, 5)).toDouble()
+
+    fun rirFromRpe(rpe: Double): Int = (10.0 - rpe).toInt().coerceIn(0, 5)
+
+    /** Short text for a set list: "RPE 8.5" or "2 RIR". */
+    fun short(rpe: Double, mode: String): String =
+        if (mode == RIR) { val r = rirFromRpe(rpe); if (r >= 5) "5+ RIR" else "$r RIR" } else "RPE ${fmtNum(rpe, 1)}"
+
+    /** What TalkBack reads: "RPE 8" or "2 reps in reserve". */
+    fun spoken(rpe: Double, mode: String): String =
+        if (mode == RIR) {
+            val r = rirFromRpe(rpe)
+            if (r >= 5) "5 or more reps in reserve" else if (r == 1) "1 rep in reserve" else "$r reps in reserve"
+        } else "RPE ${fmtNum(rpe, 1)}"
 }
 
 data class MeasurementDef(

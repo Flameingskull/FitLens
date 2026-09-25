@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 4
+        const val VERSION = 5
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -39,7 +39,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TABLE exercise(id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0, notes TEXT, " +
                 "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
-                "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
+                "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL)",
             "CREATE INDEX idx_set_date ON workout_set(date)",
             "CREATE INDEX idx_set_ex ON workout_set(exercise_id)",
             "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 999, goal_type INTEGER NOT NULL DEFAULT 0, goal_value REAL NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, custom INTEGER NOT NULL DEFAULT 0, link TEXT)",
@@ -100,6 +100,13 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // exercises (imported or FitLens's own) default to not a favourite and are otherwise untouched.
             addColumn(db, "exercise", "favourite", "INTEGER NOT NULL DEFAULT 0")
             // (add further 1.0.8 statements here)
+        }
+        if (oldVersion < 5) {
+            // ---- 1.0.27: set types (#43) and effort (#44), one step for both --------------------------------
+            // Every existing set becomes a working set with no effort recorded. Both columns are added only if
+            // missing, so the step replays safely after a downgrade (#77) and on restores of older backups.
+            addColumn(db, "workout_set", "set_type", "INTEGER NOT NULL DEFAULT 0")
+            addColumn(db, "workout_set", "rpe", "REAL")
         }
     }
 

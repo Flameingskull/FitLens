@@ -257,15 +257,20 @@ object Workouts {
          * Null works it out: the set is a PR when it's heavier than every set of at least as many reps logged on or
          * before its date, the same rule [recalculatePrs] replays (#23).
          */
-        isPr: Boolean? = null
+        isPr: Boolean? = null,
+        setType: Int = SetTypes.WORKING,
+        rpe: Double? = null
     ): Long = write { w ->
         val d = checkDate(date)
         w.longOrNull("SELECT id FROM exercise WHERE id=?", exerciseId.toString())
             ?: throw WorkoutDataException("That exercise no longer exists.")
-        val pr = isPr ?: Records.isNewRecord(
+        val countWarmups = Settings.currentPortable().warmupsCount
+        // A warm-up is never a record unless warm-ups count, and uncounted warm-ups never set the bar (#43).
+        val pr = if (setType == SetTypes.WARMUP && !countWarmups) false else isPr ?: Records.isNewRecord(
             weightKg, reps,
             w.rawQuery(
-                "SELECT MAX(weight) FROM workout_set WHERE exercise_id=? AND reps>=? AND weight>0 AND substr(date, 1, 10)<=?",
+                "SELECT MAX(weight) FROM workout_set WHERE exercise_id=? AND reps>=? AND weight>0 AND substr(date, 1, 10)<=?" +
+                    if (countWarmups) "" else " AND set_type<>${SetTypes.WARMUP}",
                 arrayOf(exerciseId.toString(), reps.toString(), d)
             ).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getDouble(0) else null }
         )
@@ -273,7 +278,12 @@ object Workouts {
             put("exercise_id", exerciseId); put("date", d); put("weight", weightKg); put("reps", reps)
             put("distance", distance); put("duration", durationSec); put("is_pr", if (pr) 1 else 0)
             put("comment", comment?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
+            put("set_type", setType); putRpe(rpe)
         })
+    }
+
+    private fun ContentValues.putRpe(rpe: Double?) {
+        if (rpe == null) putNull("rpe") else put("rpe", rpe)
     }
 
     /** Saves changes to a set (matched by [SetRow.id]). An edited imported set becomes FitLens's own. */
@@ -291,6 +301,7 @@ object Workouts {
             put("exercise_id", set.exerciseId); put("date", d); put("weight", set.weightKg); put("reps", set.reps)
             put("distance", set.distance); put("duration", set.durationSec); put("is_pr", if (set.isPr) 1 else 0)
             put("comment", set.comment?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
+            put("set_type", set.setType); putRpe(set.rpe)
         }, "id=?", arrayOf(set.id.toString()))
     }
 
@@ -333,14 +344,20 @@ object Workouts {
         var exercise = -1L
         // best[r] = heaviest weight so far for at least r reps, for the exercise being replayed.
         var best = DoubleArray(0)
+        val countWarmups = Settings.currentPortable().warmupsCount
         w.rawQuery(
-            "SELECT id, exercise_id, weight, reps, is_pr FROM workout_set WHERE weight>0 AND reps>0 " +
+            "SELECT id, exercise_id, weight, reps, is_pr, set_type FROM workout_set WHERE weight>0 AND reps>0 " +
                 "ORDER BY exercise_id, substr(date, 1, 10), id",
             null
         ).use { c ->
             while (c.moveToNext()) {
                 val exId = c.lng(1)
                 if (exId != exercise) { exercise = exId; best = DoubleArray(0) }
+                // An uncounted warm-up loses any PR mark and doesn't set the bar for later sets (#43).
+                if (!countWarmups && c.int(5) == SetTypes.WARMUP) {
+                    if (c.int(4) != 0) changes += c.lng(0) to false
+                    continue
+                }
                 val weight = c.dbl(2)
                 val reps = c.int(3)
                 if (best.size <= reps) best = best.copyOf(reps + 1)
@@ -365,7 +382,7 @@ object Workouts {
                 put("exercise_id", s.exerciseId); put("date", s.date.take(10)); put("weight", s.weightKg)
                 put("reps", s.reps); put("distance", s.distance); put("duration", s.durationSec)
                 put("is_pr", if (s.isPr) 1 else 0); put("comment", s.comment?.takeIf { it.isNotBlank() })
-                put("source", Sources.FITLENS)
+                put("source", Sources.FITLENS); put("set_type", s.setType); putRpe(s.rpe)
             })
             // Deleting an imported set left one skip rule; the set is back, so drop one matching rule too (#76).
             if (s.imported) {
@@ -467,7 +484,7 @@ object Workouts {
         val where = if (setIds == null) "date=?" else "date=? AND id IN (${setIds.joinToString(",")})"
         val copies = ArrayList<ContentValues>()
         w.rawQuery(
-            "SELECT exercise_id, weight, reps, distance, duration, comment FROM workout_set WHERE $where ORDER BY id",
+            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe FROM workout_set WHERE $where ORDER BY id",
             arrayOf(f)
         ).use { c ->
             while (c.moveToNext()) {
@@ -475,6 +492,7 @@ object Workouts {
                     put("exercise_id", c.lng(0)); put("date", t); put("weight", c.dbl(1)); put("reps", c.int(2))
                     put("distance", c.dbl(3)); put("duration", c.int(4)); put("is_pr", 0)
                     put("comment", c.str(5)); put("source", Sources.FITLENS)
+                    put("set_type", c.int(6)); if (c.isNull(7)) putNull("rpe") else put("rpe", c.getDouble(7))
                 })
             }
         }

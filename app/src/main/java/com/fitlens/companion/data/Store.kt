@@ -20,10 +20,19 @@ class Snapshot(
     val workoutComments: Map<String, List<String>>,
     val workoutTimes: Map<String, List<WorkoutTime>>,
     val weightUnit: String,
-    val photoDir: File
+    val photoDir: File,
+    /** Count warm-up sets in records and statistics (#43, a setting; off by default). */
+    val countWarmups: Boolean = false
 ) {
     val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
     val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
+
+    /**
+     * The sets that count for records, estimated maxes, graphs and analysis: every set, or every set except warm-ups
+     * unless the setting counts them (#43). Lists and history still show every set.
+     */
+    val statSets: List<SetRow> = if (countWarmups) sets else sets.filter { !it.isWarmup }
+    val statSetsByExercise: Map<Long, List<SetRow>> = statSets.groupBy { it.exerciseId }
 
     // ---- Exercise library (#13) ----
     /** Every category, in the order the library shows them. */
@@ -136,9 +145,12 @@ object Store {
                 Exercise(c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0)
         }
         val sets = ArrayList<SetRow>()
-        r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source FROM workout_set ORDER BY date, id", null).use { c ->
+        r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe FROM workout_set ORDER BY date, id", null).use { c ->
             while (c.moveToNext()) sets.add(
-                SetRow(c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8), c.strOr(9, Sources.FITLENS))
+                SetRow(
+                    c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8),
+                    c.strOr(9, Sources.FITLENS), c.int(10), if (c.isNull(11)) null else c.getDouble(11)
+                )
             )
         }
         val defs = ArrayList<MeasurementDef>()
@@ -174,8 +186,8 @@ object Store {
                 times.getOrPut(d) { ArrayList() }.add(WorkoutTime(d, c.strOr(1), c.strOr(2)))
             }
         }
-        val unit = Settings.currentPortable().weightUnit
-        return Snapshot(categories, exercises, sets, defs, records, photos, comments, times, unit, photoDir)
+        val prefs = Settings.currentPortable()
+        return Snapshot(categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir, prefs.warmupsCount)
     }
 
     // ---------- Photo edits ----------

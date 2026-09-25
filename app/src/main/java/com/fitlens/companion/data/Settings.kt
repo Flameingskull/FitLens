@@ -72,7 +72,15 @@ data class PortableSettings(
     /** After updating a set, select the next one of the day so it can be adjusted and saved in turn (#97). */
     val autoSelectNext: Boolean = false,
     /** Add the date and time to the names of backups saved or shared by hand (#30). Automatic backups always do. */
-    val backupTimestamp: Boolean = true
+    val backupTimestamp: Boolean = true,
+    /** Count warm-up sets in records and statistics (#43). */
+    val warmupsCount: Boolean = false,
+    /** Show the W, D and F badges on sets (#43). */
+    val showSetType: Boolean = true,
+    /** Effort per set (#44): [Effort.OFF], [Effort.RPE] or [Effort.RIR]. */
+    val effortMode: String = Effort.OFF,
+    /** The first day of the week for the calendar and weekly analysis (#7): 1 = Monday … 7 = Sunday (ISO). */
+    val weekStart: Int = 1
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -205,6 +213,10 @@ object Settings {
         db.setMeta(P_AUTOFILL, s.autofillSource.takeIf { it != PortableSettings.AUTOFILL_LAST })
         db.setMeta(P_AUTO_SELECT_NEXT, if (s.autoSelectNext) "1" else null)
         db.setMeta(P_BACKUP_TIMESTAMP, if (s.backupTimestamp) null else "0")
+        db.setMeta(P_WARMUPS_COUNT, if (s.warmupsCount) "1" else null)
+        db.setMeta(P_SHOW_SET_TYPE, if (s.showSetType) null else "0")
+        db.setMeta(P_EFFORT_MODE, s.effortMode.takeIf { it != Effort.OFF })
+        db.setMeta(P_WEEK_START, s.weekStart.takeIf { it != 1 }?.toString())
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -243,6 +255,10 @@ object Settings {
     private const val P_AUTOFILL = "autofill_source"
     private const val P_AUTO_SELECT_NEXT = "auto_select_next"
     private const val P_BACKUP_TIMESTAMP = "backup_timestamp"
+    private const val P_WARMUPS_COUNT = "warmups_count"
+    private const val P_SHOW_SET_TYPE = "show_set_type"
+    private const val P_EFFORT_MODE = "effort_mode"
+    private const val P_WEEK_START = "week_start"
 
     private fun bool(v: String?) = v == "1"
 
@@ -297,7 +313,11 @@ object Settings {
         // An unknown value (say, "routine" from a later build's backup) falls back to the default.
         autofillSource = get(P_AUTOFILL)?.takeIf { it == PortableSettings.AUTOFILL_EMPTY } ?: PortableSettings.AUTOFILL_LAST,
         autoSelectNext = bool(get(P_AUTO_SELECT_NEXT)),
-        backupTimestamp = get(P_BACKUP_TIMESTAMP) != "0"
+        backupTimestamp = get(P_BACKUP_TIMESTAMP) != "0",
+        warmupsCount = bool(get(P_WARMUPS_COUNT)),
+        showSetType = get(P_SHOW_SET_TYPE) != "0",
+        effortMode = get(P_EFFORT_MODE)?.takeIf { it == Effort.RPE || it == Effort.RIR } ?: Effort.OFF,
+        weekStart = get(P_WEEK_START)?.toIntOrNull()?.takeIf { it in 1..7 } ?: 1
     )
 }
 
