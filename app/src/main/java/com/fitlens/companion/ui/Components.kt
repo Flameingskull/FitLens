@@ -46,7 +46,7 @@ import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Photo
 import com.fitlens.companion.data.Snapshot
-import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.Settings
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.Instant
@@ -81,9 +81,6 @@ data class AppResult(val at: Long, val text: String, val level: ResultLevel)
 
 /** App-wide transient messages and busy state. */
 object UiEvents {
-    /** Key in the `meta` key/value table. Not a schema change. */
-    private const val LAST_RESULT = "last_result"
-
     val messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 16)
     val busy = MutableStateFlow<String?>(null)
     /** A backup file opened from outside the app, waiting for the Sync tab to confirm the restore. */
@@ -109,18 +106,18 @@ object UiEvents {
     }
 
     /**
-     * Records a result so it can be re-read. Guarded, because a message can be shown before [Store] is ready and
-     * because the database is briefly closed part-way through a restore.
+     * Records a result so it can be re-read. It's this phone's state, kept in [Settings] (never in a backup).
+     * Guarded, because a message can be shown before the app has finished starting.
      */
     fun keep(r: AppResult) {
         lastResult.value = r
-        runCatching { Store.db.setMeta(LAST_RESULT, "${r.at}|${r.level.name}|${r.text}") }
+        runCatching { Settings.updateDevice { it.copy(lastResult = "${r.at}|${r.level.name}|${r.text}") } }
     }
 
     /** Reads the kept result back after the app was killed. Safe to call more than once. */
     fun loadLastResult() {
         if (lastResult.value != null) return
-        val stored = runCatching { Store.db.getMeta(LAST_RESULT) }.getOrNull() ?: return
+        val stored = runCatching { Settings.current().lastResult }.getOrNull() ?: return
         val at = stored.substringBefore('|').toLongOrNull() ?: return
         val rest = stored.substringAfter('|')
         // The message itself may contain '|', so only the first two fields are split off.
@@ -130,7 +127,7 @@ object UiEvents {
 
     fun clearLastResult() {
         lastResult.value = null
-        runCatching { Store.db.setMeta(LAST_RESULT, null) }
+        runCatching { Settings.updateDevice { it.copy(lastResult = null) } }
     }
 }
 

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12+: no cloud backup (FitLens stays off online services); direct phone-to-phone transfer carries everything. -->
+<!-- Android 12+: no cloud backup (FitLens stays off online services); direct phone-to-phone transfer carries everything.
+     The "file" domain also covers files/datastore/fitlens_device_settings.preferences_pb (#38), so phone-only
+     settings stay out of the cloud too. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="root" path="." />

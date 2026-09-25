@@ -153,9 +153,13 @@ object FitNotesImporter {
                 )
             }
             val plan = lock.withLock { runMerge(staged.file, apply = true) }
-            Store.db.setMeta("last_import_name", staged.name)
-            Store.db.setMeta("last_import_at", System.currentTimeMillis().toString())
-            if (staged.modified > 0) Store.db.setMeta("last_import_modified", staged.modified.toString())
+            Settings.updateDeviceNow {
+                it.copy(
+                    lastImportName = staged.name,
+                    lastImportAt = System.currentTimeMillis(),
+                    lastImportModified = if (staged.modified > 0) staged.modified else it.lastImportModified
+                )
+            }
             Store.reload()
             ImportSummary("Imported ${staged.name}. " + plan.describe(), true)
         } catch (e: Exception) {

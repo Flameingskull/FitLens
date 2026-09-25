@@ -120,6 +120,7 @@ object Store {
     }
 
     suspend fun reload() = withContext(Dispatchers.IO) {
+        Settings.reloadPortable()
         _snapshot.value = load()
     }
 
@@ -173,7 +174,7 @@ object Store {
                 times.getOrPut(d) { ArrayList() }.add(WorkoutTime(d, c.strOr(1), c.strOr(2)))
             }
         }
-        val unit = db.getMeta("weight_unit") ?: "kg"
+        val unit = Settings.currentPortable().weightUnit
         return Snapshot(categories, exercises, sets, defs, records, photos, comments, times, unit, photoDir)
     }
 

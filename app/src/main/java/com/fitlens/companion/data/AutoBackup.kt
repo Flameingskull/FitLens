@@ -48,8 +48,6 @@ import java.util.concurrent.TimeUnit
  */
 object AutoBackup {
 
-    const val AFTER_CHANGES = "auto_backup_on_change"
-    const val DIRTY = "auto_backup_dirty"
     const val KEY_REASON = "reason"
     const val REASON_SCHEDULED = "scheduled"
     const val REASON_CHANGES = "changes"
@@ -65,12 +63,12 @@ object AutoBackup {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    fun afterChangesEnabled(): Boolean = Store.db.getMeta(AFTER_CHANGES) == "1"
-    fun setAfterChanges(on: Boolean) = Store.db.setMeta(AFTER_CHANGES, if (on) "1" else "0")
-    fun isDirty(): Boolean = Store.db.getMeta(DIRTY) == "1"
+    fun afterChangesEnabled(): Boolean = Settings.current().backupAfterChanges
+    fun setAfterChanges(on: Boolean) = Settings.updateDevice { it.copy(backupAfterChanges = on) }
+    fun isDirty(): Boolean = Settings.current().backupDirty
 
     /** Called when a backup to the folder succeeded. */
-    fun markBackedUp() = Store.db.setMeta(DIRTY, null)
+    suspend fun markBackedUp() = Settings.updateDeviceNow { it.copy(backupDirty = false) }
 
     /** Called once per process, from [com.fitlens.companion.App]: keeps the schedule and watches for data changes. */
     fun start(context: Context) {
@@ -84,7 +82,7 @@ object AutoBackup {
             // Every snapshot after the first one means FitLens data changed (imports, edits, photos, restores).
             Store.snapshot.filterNotNull().drop(1).collect {
                 try {
-                    if (!isDirty()) Store.db.setMeta(DIRTY, "1")
+                    if (!isDirty()) Settings.updateDevice { it.copy(backupDirty = true) }
                 } catch (e: Exception) {
                     // Database being replaced by a restore; the next change marks it.
                 }

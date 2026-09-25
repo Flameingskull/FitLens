@@ -43,6 +43,7 @@ import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ImportSummary
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import com.fitlens.companion.report.PdfReport
@@ -71,15 +72,17 @@ private fun Hint(text: String) {
 @Composable
 fun BackupsCard(snap: Snapshot) {
     val ctx = LocalContext.current.applicationContext
-    var autoFolder by remember { mutableStateOf(Backups.autoFolder()) }
-    var autoDays by remember { mutableIntStateOf(Backups.autoDays()) }
-    var keep by remember { mutableIntStateOf(Backups.autoKeep()) }
-    var afterChanges by remember { mutableStateOf(AutoBackup.afterChangesEnabled()) }
+    // Every value here comes from Settings, so the screen follows each change live, including ones a background
+    // backup makes while it's open (#38).
+    val device by Settings.device.collectAsState()
+    val autoFolder = device.autoBackupFolder?.let { Uri.parse(it) }
+    val autoDays = device.autoBackupDays
+    val keep = device.autoBackupKeep
+    val afterChanges = device.backupAfterChanges
     val busy by UiEvents.busy.collectAsState()
-    // Re-read after each backup (the busy overlay closes) and after data changes.
-    val lastAuto = remember(snap, busy, autoFolder) { Backups.lastAutoBackup() }
-    val lastError = remember(snap, busy, autoFolder) { Backups.lastError() }
-    val nextDue = remember(snap, busy, autoFolder, autoDays) { AutoBackup.nextDue() }
+    val lastAuto = device.autoBackupLast
+    val lastError = Backups.parseError(device.autoBackupError)
+    val nextDue = remember(device, busy) { AutoBackup.nextDue() }
     var folderStatus by remember { mutableStateOf<AutoBackup.FolderStatus?>(null) }
     LaunchedEffect(autoFolder, busy) {
         if (busy == null) folderStatus = AutoBackup.folderStatus(ctx)
@@ -99,8 +102,8 @@ fun BackupsCard(snap: Snapshot) {
     var showReport by remember { mutableStateOf(false) }
     var confirmUndo by remember { mutableStateOf(false) }
     // The safety copy (#47) and the last result (#62), re-read whenever a job finishes.
-    val undoAt = remember(snap, busy) { if (Backups.undoAvailable(ctx)) Backups.undoAt() else null }
-    val undoReason = remember(snap, busy) { Backups.undoReason() }
+    val undoAt = remember(device, busy) { if (Backups.undoAvailable(ctx)) device.safetyAt else null }
+    val undoReason = device.safetyReason
     val lastResult by UiEvents.lastResult.collectAsState()
 
     fun undo() = runBusy("Putting your previous data back…") { Backups.undoLastRestore(ctx) }
@@ -130,8 +133,6 @@ fun BackupsCard(snap: Snapshot) {
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
             Backups.setAutoFolder(ctx, uri)
-            autoFolder = uri
-            autoDays = Backups.autoDays()
             AutoBackup.schedule(ctx)
             ensureNotifyPermission()
             runBusy("Saving the first automatic backup…") { Backups.backupToFolder(ctx) }
@@ -178,7 +179,6 @@ fun BackupsCard(snap: Snapshot) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(0 to "Off", 1 to "Daily", 7 to "Weekly").forEach { (d, label) ->
                         FilterChip(selected = autoDays == d, onClick = {
-                            autoDays = d
                             Backups.setAutoDays(d)
                             AutoBackup.schedule(ctx)
                         }, label = { Text(label) })
@@ -187,11 +187,10 @@ fun BackupsCard(snap: Snapshot) {
                 Hint("Keep the newest")
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(3, 5, 10).forEach { n ->
-                        FilterChip(selected = keep == n, onClick = { keep = n; Backups.setAutoKeep(n) }, label = { Text("$n backups") })
+                        FilterChip(selected = keep == n, onClick = { Backups.setAutoKeep(n) }, label = { Text("$n backups") })
                     }
                 }
                 ToggleRow("Back up after changes", afterChanges) {
-                    afterChanges = it
                     AutoBackup.setAfterChanges(it)
                     if (it) ensureNotifyPermission()
                 }

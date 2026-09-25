@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,7 +31,7 @@ import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.Snapshot
-import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.ui.design.ConfirmSheet
 import java.time.Instant
@@ -43,8 +44,9 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
     val ctx = LocalContext.current.applicationContext
     var folder by remember { mutableStateOf(BackupSync.folder()) }
     var autoSync by remember { mutableStateOf(BackupSync.autoSyncEnabled()) }
-    val lastName = remember(snap) { Store.db.getMeta("last_import_name") }
-    val lastAt = remember(snap) { Store.db.getMeta("last_import_at")?.toLongOrNull() }
+    val device by Settings.device.collectAsState()
+    val lastName = device.lastImportName
+    val lastAt = device.lastImportAt
 
     val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) when (FitNotesImporter.sniff(ctx, uri)) {

@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,7 +39,7 @@ import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
-import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
@@ -115,11 +116,12 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     var deleting by remember { mutableStateOf<SetRow?>(null) }
     var editExercise by remember { mutableStateOf(false) }
 
-    val weightStep = remember { Store.db.getMeta("weight_increment")?.toDoubleOrNull() ?: DEFAULT_WEIGHT_STEP }
+    val prefs by Settings.portable.collectAsState()
+    val weightStep = prefs.weightIncrementKg ?: DEFAULT_WEIGHT_STEP
 
-    // "Keep screen on" while logging (#41 gives this a Settings row; the key already works here).
+    // "Keep screen on" while logging (#97 gives this a Settings row; the preference already works here).
     val view = LocalView.current
-    val keepOn = remember { Store.db.getMeta("keep_screen_on") != "0" }
+    val keepOn = prefs.keepScreenOn
     DisposableEffect(view, keepOn) {
         if (keepOn) view.keepScreenOn = true
         onDispose { view.keepScreenOn = false }

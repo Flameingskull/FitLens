@@ -20,7 +20,7 @@ object BackupSync {
 
     data class Found(val uri: Uri, val name: String, val modified: Long)
 
-    fun folder(): Uri? = Store.db.getMeta("backup_folder")?.let { Uri.parse(it) }
+    fun folder(): Uri? = Settings.current().backupFolder?.let { Uri.parse(it) }
 
     fun setFolder(context: Context, uri: Uri) {
         try {
@@ -28,11 +28,11 @@ object BackupSync {
         } catch (e: Exception) {
             // Some providers don't support persisted permissions; sync will ask again when needed.
         }
-        Store.db.setMeta("backup_folder", uri.toString())
+        Settings.updateDevice { it.copy(backupFolder = uri.toString()) }
     }
 
-    fun autoSyncEnabled(): Boolean = Store.db.getMeta("auto_sync") == "1"
-    fun setAutoSync(on: Boolean) = Store.db.setMeta("auto_sync", if (on) "1" else "0")
+    fun autoSyncEnabled(): Boolean = Settings.current().autoSync
+    fun setAutoSync(on: Boolean) = Settings.updateDevice { it.copy(autoSync = on) }
 
     suspend fun newestBackup(context: Context): Found? = withContext(Dispatchers.IO) {
         val tree = folder() ?: return@withContext null
@@ -69,8 +69,9 @@ object BackupSync {
             if (folder() == null) ImportSummary("Choose your FitNotes backup folder first.", false)
             else ImportSummary("No .fitnotes backups found in the chosen folder.", false)
         } else null
-        val last = Store.db.getMeta("last_import_modified")?.toLongOrNull() ?: 0L
-        val lastName = Store.db.getMeta("last_import_name")
+        val settings = Settings.current()
+        val last = settings.lastImportModified ?: 0L
+        val lastName = settings.lastImportName
         if (!force && found.modified <= last && found.name == lastName) return null
         if (!force && found.modified <= last) return null
         return FitNotesImporter.importBackup(context, found.uri, found.modified)

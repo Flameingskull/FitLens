@@ -29,6 +29,7 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -40,7 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
-import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.fmtNum
 import java.time.Instant
 import java.time.ZoneId
@@ -50,8 +51,9 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TimelineScreen(snap: Snapshot, nav: Nav) {
     var filter by rememberSaveable { mutableIntStateOf(0) }
-    val lastImport = remember(snap) { Store.db.getMeta("last_import_name") }
-    val lastImportAt = remember(snap) { Store.db.getMeta("last_import_at")?.toLongOrNull() }
+    val device by Settings.device.collectAsState()
+    val lastImport = device.lastImportName
+    val lastImportAt = device.lastImportAt
     val dates = remember(snap, filter) {
         when (filter) {
             1 -> snap.allDates.filter { snap.photosByDate.containsKey(it) }

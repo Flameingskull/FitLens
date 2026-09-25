@@ -234,14 +234,9 @@ object Backups {
                     if (problem != null) return@withContext ImportSummary(problem, false)
                 }
 
-                // Settings that belong to this phone (folder permissions, the safety copy, the last result the
-                // user has yet to read) are kept, not taken from the backup.
-                val keepMeta = listOf(
-                    "backup_folder", "auto_sync", AUTO_FOLDER, AUTO_DAYS, AUTO_KEEP, AUTO_LAST, AUTO_ERROR,
-                    AutoBackup.AFTER_CHANGES, AutoBackup.DIRTY,
-                    UNDO_AT, UNDO_REASON,
-                    "last_result" // UiEvents.LAST_RESULT: this phone's state, not the backup's
-                ).associateWith { Store.db.getMeta(it) }
+                // Settings that belong to this phone (folders, schedules, the safety copy, the last result) live
+                // in DataStore, outside the database, so the restore can't replace them (#38). Phone-only rows an
+                // older backup still carries in `meta` are ignored.
 
                 replacing = true
                 Store.db.close()
@@ -263,7 +258,6 @@ object Backups {
                 }
 
                 Store.init(context)
-                keepMeta.forEach { (k, v) -> Store.db.setMeta(k, v) }
                 Store.reload()
                 if (dataOnly) ImportSummary("Your previous workouts, measurements and notes are back.", true)
                 else ImportSummary("Backup restored with $photos photos.", true)
@@ -310,18 +304,16 @@ object Backups {
     const val UNDO_DAYS = 7
     private const val SAFETY_DIR = "safety"
     private const val SAFETY_FILE = "safety_copy.$EXTENSION"
-    private const val UNDO_AT = "safety_at"
-    private const val UNDO_REASON = "safety_reason"
 
     private fun safetyDir(context: Context): File = File(context.filesDir, SAFETY_DIR).apply { mkdirs() }
 
     private fun safetyFile(context: Context): File = File(safetyDir(context), SAFETY_FILE)
 
     /** When the safety copy was taken, or null when there isn't one to go back to. */
-    fun undoAt(): Long? = Store.db.getMeta(UNDO_AT)?.toLongOrNull()
+    fun undoAt(): Long? = Settings.current().safetyAt
 
     /** What the safety copy was taken before, e.g. "Before restoring a backup". */
-    fun undoReason(): String? = Store.db.getMeta(UNDO_REASON)
+    fun undoReason(): String? = Settings.current().safetyReason
 
     /** The record and the file have to agree: a record without a file would offer an Undo that can't happen. */
     fun undoAvailable(context: Context): Boolean = undoAt() != null && safetyFile(context).exists()
@@ -379,8 +371,7 @@ object Backups {
                 "Couldn't finish the safety copy of your current data."
             } else {
                 previous.delete()
-                Store.db.setMeta(UNDO_AT, System.currentTimeMillis().toString())
-                Store.db.setMeta(UNDO_REASON, reason)
+                Settings.updateDevice { it.copy(safetyAt = System.currentTimeMillis(), safetyReason = reason) }
                 null
             }
         } catch (e: Exception) {
@@ -389,10 +380,7 @@ object Backups {
         }
     }
 
-    private fun clearUndo() {
-        Store.db.setMeta(UNDO_AT, null)
-        Store.db.setMeta(UNDO_REASON, null)
-    }
+    private fun clearUndo() = Settings.updateDevice { it.copy(safetyAt = null, safetyReason = null) }
 
     /**
      * Keeps exactly one safety copy, and only for [UNDO_DAYS]. Called when the app starts, so an archive of a
@@ -440,8 +428,7 @@ object Backups {
                     // Put the copy back, with its original date, so the user can try again.
                     runCatching {
                         if (working.renameTo(safetyFile(context))) {
-                            Store.db.setMeta(UNDO_AT, at.toString())
-                            Store.db.setMeta(UNDO_REASON, reason)
+                            Settings.updateDevice { it.copy(safetyAt = at, safetyReason = reason) }
                         }
                     }
                     r
@@ -452,28 +439,26 @@ object Backups {
 
     // ---------- Automatic backups to a folder the user chooses ----------
 
-    private const val AUTO_FOLDER = "auto_backup_folder"
-    private const val AUTO_DAYS = "auto_backup_days"
-    private const val AUTO_KEEP = "auto_backup_keep"
-    private const val AUTO_LAST = "auto_backup_last"
-    private const val AUTO_ERROR = "auto_backup_error"
-
-    fun autoFolder(): Uri? = Store.db.getMeta(AUTO_FOLDER)?.let { Uri.parse(it) }
+    fun autoFolder(): Uri? = Settings.current().autoBackupFolder?.let { Uri.parse(it) }
     /** 0 = off, 1 = daily, 7 = weekly. */
-    fun autoDays(): Int = Store.db.getMeta(AUTO_DAYS)?.toIntOrNull() ?: 0
-    fun autoKeep(): Int = Store.db.getMeta(AUTO_KEEP)?.toIntOrNull() ?: 5
-    fun lastAutoBackup(): Long? = Store.db.getMeta(AUTO_LAST)?.toLongOrNull()
-    fun setAutoDays(days: Int) = Store.db.setMeta(AUTO_DAYS, days.toString())
-    fun setAutoKeep(n: Int) = Store.db.setMeta(AUTO_KEEP, n.toString())
+    fun autoDays(): Int = Settings.current().autoBackupDays
+    fun autoKeep(): Int = Settings.current().autoBackupKeep
+    fun lastAutoBackup(): Long? = Settings.current().autoBackupLast
+    fun setAutoDays(days: Int) = Settings.updateDevice { it.copy(autoBackupDays = days) }
+    fun setAutoKeep(n: Int) = Settings.updateDevice { it.copy(autoBackupKeep = n) }
 
     /** The last automatic backup that failed since the last one that worked: time and message. */
-    fun lastError(): Pair<Long, String>? = Store.db.getMeta(AUTO_ERROR)?.let { v ->
-        val t = v.substringBefore('|').toLongOrNull() ?: return@let null
-        t to v.substringAfter('|')
+    fun lastError(): Pair<Long, String>? = parseError(Settings.current().autoBackupError)
+
+    /** Reads a stored "time|message" failure. Public so screens can show it from [Settings.device] live. */
+    fun parseError(v: String?): Pair<Long, String>? {
+        if (v == null) return null
+        val t = v.substringBefore('|').toLongOrNull() ?: return null
+        return t to v.substringAfter('|')
     }
 
-    private fun failed(message: String, folderProblem: Boolean): ImportSummary {
-        Store.db.setMeta(AUTO_ERROR, "${System.currentTimeMillis()}|$message")
+    private suspend fun failed(message: String, folderProblem: Boolean): ImportSummary {
+        Settings.updateDeviceNow { it.copy(autoBackupError = "${System.currentTimeMillis()}|$message") }
         return ImportSummary(message, false, folderProblem)
     }
 
@@ -485,8 +470,7 @@ object Backups {
         } catch (e: Exception) {
             // Some providers don't support persisted permissions; the next backup will report it.
         }
-        Store.db.setMeta(AUTO_FOLDER, uri.toString())
-        if (autoDays() == 0) setAutoDays(1)
+        Settings.updateDevice { it.copy(autoBackupFolder = uri.toString(), autoBackupDays = it.autoBackupDays.takeIf { d -> d > 0 } ?: 1) }
     }
 
     /** Runs an automatic backup when one is due. Returns a message, or null when nothing was due. */
@@ -515,8 +499,7 @@ object Backups {
                 val photos = resolver.openOutputStream(doc, "wt")?.use { write(context, it) }
                     ?: return@withContext failed("Couldn't write to the backup folder.", true)
                 DocumentsContract.renameDocument(resolver, doc, name)
-                Store.db.setMeta(AUTO_LAST, System.currentTimeMillis().toString())
-                Store.db.setMeta(AUTO_ERROR, null)
+                Settings.updateDeviceNow { it.copy(autoBackupLast = System.currentTimeMillis(), autoBackupError = null) }
                 AutoBackup.markBackedUp()
                 prune(context, tree)
                 ImportSummary("Automatic backup saved ($photos photos).", true)
