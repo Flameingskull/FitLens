@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.24.
+Last updated: 1.0.26.
 
 ## How data flows
 
@@ -46,6 +46,7 @@ Last updated: 1.0.24.
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
 | `Backups.kt` | `.fitlens` export and restore, `exportForShare` (share sheet), `manualFileName` (timestamp setting), safety copy with Undo, automatic backups to a folder |
+| `Analysis.kt` | The Analysis hub's numbers, pure Kotlin: period totals (`totals`, `Period`, `Metric`, `Filter`), breakdowns (`breakdown`, `windows`, `previousWindow`, `Span`, `Measure`), `percents` (largest remainder). Weeks start on `weekStart` (Monday until #7) |
 | `CsvExport.kt` | Workouts and body data as CSV (#31): documented columns, RFC 4180 quoting, counts for previews |
 | `AutoBackup.kt` | Scheduled backups (`BackupWorker`, JobScheduler), status and failure notifications |
 | `BackupSync.kt` | FitNotes backup-folder auto-sync |
@@ -68,10 +69,13 @@ Last updated: 1.0.24.
 | `SetEntry.kt` | Logging and editing sets for one exercise on one day |
 | `WorkoutEditing.kt` | Workout comment, delete, copy or move dialogs |
 | `ExerciseLibrary.kt` | Exercise library, category manager, editors, `ExercisePickerDialog`, `categoryColour` |
-| `TrainingScreen.kt` | Training tab and `ExerciseDetailScreen` (Graph, History and Records tabs), `e1rm` |
+| `TrainingScreen.kt` | Training tab (Exercises / Analysis switch) and `ExerciseDetailScreen` (Graph, History and Records tabs), `e1rm` |
+| `AnalysisScreen.kt` | `AnalysisHub` (#90): Workouts tab (#51, bar totals), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
+| `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
+| `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
 | `BodyScreen.kt` | Body measurements graphs and stats. Also `RANGES` and `inRange` for charts |
 | `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, gaps, markers), `ChartSelection`, `ChartViewport`, `trendOf`, `rememberChartData` (off-main-thread data) |
-| `ChartViews.kt` | `BarChart`, `DonutChart`, `FullScreenChart` (pinch, pan, reset, TalkBack actions, a `controls` slot), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
+| `ChartViews.kt` | `BarChart` (trend, partial last bar), `DonutChart` (percentages via `Analysis.percents`), `FullScreenChart` (pinch, pan, reset, TalkBack actions, a `controls` slot), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
 | `CalendarScreen.kt` | Month grid |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |
