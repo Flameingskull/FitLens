@@ -363,6 +363,7 @@ fun AddMeasurementDialog(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     var comment by remember { mutableStateOf("") }
     var pickDate by remember { mutableStateOf(false) }
     var theDate by remember { mutableStateOf(date) }
+    var timeText by remember { mutableStateOf(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))) }
     val unit = snap.measurementDefs.firstOrNull { it.name == name }?.unit
         ?: snap.recordsByName[name]?.lastOrNull()?.unit ?: ""
     AlertDialog(
@@ -380,6 +381,10 @@ fun AddMeasurementDialog(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 )
                 OutlinedTextField(value = comment, onValueChange = { comment = it }, label = { Text("Comment (optional)") })
                 TextButton(onClick = { pickDate = true }) { Text("Date: ${Dates.medium(theDate)}") }
+                OutlinedTextField(
+                    value = timeText, onValueChange = { timeText = it }, label = { Text("Time (HH:mm)") },
+                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
                 Text(
                     "Tip: also log it in FitNotes. When a FitNotes backup containing the same value is imported, this entry is merged automatically.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -390,7 +395,10 @@ fun AddMeasurementDialog(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             TextButton(onClick = {
                 val v = value.replace(',', '.').toDoubleOrNull()
                 if (v != null && name.isNotBlank()) {
-                    val time = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+                    // The time typed in, or now when it can't be read.
+                    val time = runCatching { LocalTime.parse(timeText.trim()) }.getOrNull()
+                        ?.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+                        ?: LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
                     val n = name.trim()
                     val c = comment.ifBlank { null }
                     val d = theDate

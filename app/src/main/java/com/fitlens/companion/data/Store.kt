@@ -277,6 +277,38 @@ object Store {
             _snapshot.value = load()
         }
 
+    /** Sets a measurement's goal (#27), and marks it so a FitNotes import keeps the user's choice. */
+    suspend fun setMeasurementGoal(name: String, unit: String, type: Int, value: Double) = withContext(Dispatchers.IO) {
+        val w = db.writableDatabase
+        ensureMeasurement(w, name, unit, 999)
+        w.update("measurement", ContentValues().apply {
+            put("goal_type", type); put("goal_value", value); put("edited", 1)
+        }, "name=?", arrayOf(name))
+        _snapshot.value = load()
+    }
+
+    /** Stores [names] as the measurement order, top first (#27), and marks each as the user's choice. */
+    suspend fun reorderMeasurements(names: List<String>, units: Map<String, String>) = withContext(Dispatchers.IO) {
+        val w = db.writableDatabase
+        w.beginTransaction()
+        try {
+            names.forEachIndexed { i, n ->
+                ensureMeasurement(w, n, units[n] ?: "", i)
+                w.update("measurement", ContentValues().apply { put("sort_order", i); put("edited", 1) }, "name=?", arrayOf(n))
+            }
+            w.setTransactionSuccessful()
+        } finally {
+            w.endTransaction()
+        }
+        _snapshot.value = load()
+    }
+
+    /** A measurement seen only in records has no definition row yet; this adds one so it can hold a goal or order. */
+    private fun ensureMeasurement(w: android.database.sqlite.SQLiteDatabase, name: String, unit: String, order: Int) {
+        val def = ContentValues().apply { put("name", name); put("unit", unit); put("sort_order", order) }
+        w.insertWithOnConflict("measurement", null, def, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
     // ---------- Custom metrics ----------
 
     /**

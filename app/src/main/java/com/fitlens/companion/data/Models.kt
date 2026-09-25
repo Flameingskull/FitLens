@@ -159,6 +159,37 @@ data class MeasurementDef(
     val matchKey: String get() = (link?.takeIf { it.isNotBlank() } ?: name).trim().lowercase()
 }
 
+/**
+ * A measurement's goal direction (#27), stored in `measurement.goal_type` as FitNotes does: none, increase, decrease
+ * or a specific value (`goal_value`). Increase and decrease may also carry a target value.
+ */
+object MeasurementGoals {
+    const val NONE = 0
+    const val INCREASE = 1
+    const val DECREASE = 2
+    const val TARGET = 3
+
+    val all = listOf(NONE, INCREASE, DECREASE, TARGET)
+
+    fun label(t: Int): String = when (t) {
+        INCREASE -> "Increase"
+        DECREASE -> "Decrease"
+        TARGET -> "Specific value"
+        else -> "No goal"
+    }
+
+    /** Whether going from [from] to [to] moves towards the goal, or null when there's no goal or no change. */
+    fun isImprovement(type: Int, target: Double, from: Double, to: Double): Boolean? {
+        if (to == from) return null
+        return when (type) {
+            INCREASE -> to > from
+            DECREASE -> to < from
+            TARGET -> if (target <= 0) null else kotlin.math.abs(to - target) < kotlin.math.abs(from - target)
+            else -> null
+        }
+    }
+}
+
 data class MRecord(
     val id: Long,
     val name: String,

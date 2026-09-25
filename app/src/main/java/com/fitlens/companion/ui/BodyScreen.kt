@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.MRecord
+import com.fitlens.companion.data.MeasurementDef
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
@@ -69,6 +70,8 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     var fullScreen by rememberSaveable { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     var managing by remember { mutableStateOf(false) }
+    var editingGoal by remember { mutableStateOf(false) }
+    var ordering by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         PlainTopBar("Body tracker") {
@@ -91,11 +94,17 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                     FilterChip(selected = m.name == selectedName, onClick = { chosenName = m.name }, label = { Text(m.name) })
                 }
             }
+            val def = measurements.firstOrNull { it.name == selectedName }
+            // The measurement's goal and the order of the chips above (#27).
+            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { editingGoal = true }, enabled = def != null) { Text(goalText(def)) }
+                Spacer(Modifier.weight(1f))
+                if (measurements.size > 1) TextButton(onClick = { ordering = true }) { Text("Reorder") }
+            }
             TabRow(selectedTabIndex = tab) {
                 Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Graph") })
                 Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("History") })
             }
-            val def = measurements.firstOrNull { it.name == selectedName }
             val all = remember(snap, selectedName) { snap.dailySeries(selectedName) }
             val shown = remember(all, rangeIdx) { inRange(all, RANGES[rangeIdx].second) { it.date } }
             if (tab == 0) {
@@ -191,12 +200,15 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                     item { StatsBlock(shown, def?.unit ?: shown.lastOrNull()?.unit ?: "") }
                 }
             } else {
-                HistoryTable(snap, nav, snap.recordsByName[selectedName] ?: emptyList())
+                HistoryTable(snap, nav, snap.recordsByName[selectedName] ?: emptyList(), def)
             }
         }
     }
     if (adding) AddMeasurementDialog(snap, Dates.today()) { adding = false }
     if (managing) CustomMetricsDialog(snap) { managing = false }
+    val goalDef = measurements.firstOrNull { it.name == selectedName }
+    if (editingGoal && goalDef != null) MeasurementGoalSheet(goalDef) { editingGoal = false }
+    if (ordering) MeasurementOrderSheet(measurements) { ordering = false }
 }
 
 @Composable
@@ -252,7 +264,7 @@ private fun StatsBlock(list: List<MRecord>, unit: String) {
 }
 
 @Composable
-private fun HistoryTable(snap: Snapshot, nav: Nav, records: List<MRecord>) {
+private fun HistoryTable(snap: Snapshot, nav: Nav, records: List<MRecord>, def: MeasurementDef?) {
     val rows = records.reversed()
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
@@ -277,7 +289,13 @@ private fun HistoryTable(snap: Snapshot, nav: Nav, records: List<MRecord>) {
                     if (!r.comment.isNullOrBlank()) Text(r.comment, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
                 }
                 Text("${fmtNum(r.value)} ${r.unit}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                Text(prev?.let { fmtSigned(r.value - it.value) } ?: "", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                // Coloured by the goal's direction (#27); the sign keeps the meaning without colour.
+                Text(
+                    prev?.let { fmtSigned(r.value - it.value) } ?: "",
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (prev != null) changeColour(def, prev.value, r.value) else MaterialTheme.colorScheme.onSurface
+                )
                 if (photo != null) PhotoThumb(snap, photo, Modifier.size(width = 36.dp, height = 48.dp), sizePx = 120)
                 else Spacer(Modifier.width(48.dp).height(1.dp))
             }
