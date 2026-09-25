@@ -20,107 +20,33 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
-import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Settings
-import com.fitlens.companion.data.Workouts
-import com.fitlens.companion.ui.design.ConfirmSheet
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+/**
+ * The Sync tab: FitNotes imports and progress photos. Backups, personal records and the other settings live in
+ * Settings (#38) since 1.0.21; #35 later folds this tab into Settings too.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SyncScreen(snap: Snapshot, nav: Nav) {
-    val ctx = LocalContext.current.applicationContext
-    var folder by remember { mutableStateOf(BackupSync.folder()) }
-    var autoSync by remember { mutableStateOf(BackupSync.autoSyncEnabled()) }
-    val device by Settings.device.collectAsState()
-    val lastName = device.lastImportName
-    val lastAt = device.lastImportAt
-
-    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) when (FitNotesImporter.sniff(ctx, uri)) {
-            // A FitNotes backup shows what it adds before anything is imported (FitNotesImportHost).
-            FileKind.FITNOTES_BACKUP -> FitNotesImports.start(ctx, uri)
-            FileKind.BODY_CSV -> runBusy("Importing…") { FitNotesImporter.importBodyCsv(ctx, uri) }
-            else -> UiEvents.show("That isn't a FitNotes backup (.fitnotes) or Body Tracker CSV.")
-        }
-    }
-    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) {
-            BackupSync.setFolder(ctx, uri)
-            folder = uri
-            FitNotesImports.startFromFolder(ctx)
-        }
-    }
     val importPhotos = rememberPhotoImporter()
     val importFolder = rememberFolderPhotoImporter()
 
-    var confirmRecalc by remember { mutableStateOf(false) }
     FitNotesImportHost()
     Column(Modifier.fillMaxSize()) {
         PlainTopBar("Sync & import")
         Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-
-            // ---------- FitNotes ----------
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("FitNotes data", style = MaterialTheme.typography.titleMedium)
-                    val status = if (lastName == null) "Nothing imported yet." else {
-                        val at = lastAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")) } ?: ""
-                        "Last import: $lastName ($at)\n${snap.setsByDate.size} workouts · ${snap.sets.size} sets · ${snap.records.size} body records"
-                    }
-                    Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Import backup file") }
-                        OutlinedButton(onClick = {
-                            if (!BackupSync.launchFitNotes(ctx)) UiEvents.show("FitNotes isn't installed on this phone.")
-                        }) { Text("Open FitNotes") }
-                    }
-                    Text(
-                        "Accepts FitNotes backups (.fitnotes, which include everything) and Body Tracker CSV exports. " +
-                            "You can also share a backup from FitNotes straight to FitLens. Imports merge: you'll see what " +
-                            "will be added first, anything already in FitLens is skipped, and nothing you logged or edited " +
-                            "in FitLens is deleted or changed.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // ---------- Auto sync ----------
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("FitNotes backup folder", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "For moving over from FitNotes gradually. Choose the folder where FitNotes saves its backups, then " +
-                            "tap Sync now to import the newest one. With automatic sync on, FitLens also imports it quietly " +
-                            "each time it opens, if it has changed.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        folder?.let { "Folder: " + (it.lastPathSegment?.substringAfter(':')?.ifBlank { "(root)" } ?: it.toString()) } ?: "No folder chosen",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose folder" else "Change folder") }
-                        if (folder != null) Button(onClick = { FitNotesImports.startFromFolder(ctx) }) { Text("Sync now") }
-                    }
-                    if (folder != null) ToggleRow("Sync automatically when FitLens opens (off by default)", autoSync) {
-                        autoSync = it
-                        BackupSync.setAutoSync(it)
-                    }
-                }
-            }
+            FitNotesCards(snap)
 
             // ---------- Photos ----------
             Card(Modifier.fillMaxWidth()) {
@@ -144,46 +70,102 @@ fun SyncScreen(snap: Snapshot, nav: Nav) {
                 }
             }
 
-            // ---------- Personal records ----------
+            // ---------- Backups moved to Settings ----------
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Personal records", style = MaterialTheme.typography.titleMedium)
+                    Text("Backups", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "New sets are marked as PRs when you save them. Recalculate rebuilds the PR marks on every " +
-                            "weight-and-reps set, imported ones included, for example after editing old sets.",
+                        "Backup files, automatic backups, the safety copy and PDF reports are in Settings, " +
+                            "under the gear at the top of every tab.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    OutlinedButton(onClick = { confirmRecalc = true }, enabled = snap.sets.isNotEmpty()) { Text("Recalculate personal records") }
+                    OutlinedButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Open Backups") }
                 }
             }
-            if (confirmRecalc) {
-                ConfirmSheet(
-                    title = "Recalculate personal records?",
-                    message = "Every weight-and-reps set gets a PR mark only if it beat all earlier sets of at least as " +
-                        "many reps. PR marks that came from FitNotes are replaced. Timed and cardio sets keep theirs.",
-                    confirmLabel = "Recalculate",
-                    onDismiss = { confirmRecalc = false },
-                    onConfirm = {
-                        runBusy("Recalculating records…") {
-                            val n = Workouts.recalculatePrs()
-                            ImportSummary(
-                                if (n == 0) "Personal records checked. Nothing needed changing."
-                                else "Personal records recalculated. $n ${if (n == 1) "set" else "sets"} updated.",
-                                ok = true
-                            )
-                        }
-                    },
-                    destructive = false
-                )
-            }
-
-            // ---------- Backups ----------
-            BackupsCard(snap)
             HorizontalDivider()
             Text(
                 "FitLens never changes your FitNotes data. It only reads FitNotes backups.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Importing from FitNotes: a backup file, or the FitNotes backup folder with optional auto-sync. Shown on the Sync
+ * tab and in Settings → Import & sync. The screen showing it also needs a [FitNotesImportHost].
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun FitNotesCards(snap: Snapshot) {
+    val ctx = LocalContext.current.applicationContext
+    val device by Settings.device.collectAsState()
+    val folder = device.backupFolder?.let { android.net.Uri.parse(it) }
+    val autoSync = device.autoSync
+    val lastName = device.lastImportName
+    val lastAt = device.lastImportAt
+
+    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) when (FitNotesImporter.sniff(ctx, uri)) {
+            // A FitNotes backup shows what it adds before anything is imported (FitNotesImportHost).
+            FileKind.FITNOTES_BACKUP -> FitNotesImports.start(ctx, uri)
+            FileKind.BODY_CSV -> runBusy("Importing…") { FitNotesImporter.importBodyCsv(ctx, uri) }
+            else -> UiEvents.show("That isn't a FitNotes backup (.fitnotes) or Body Tracker CSV.")
+        }
+    }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            BackupSync.setFolder(ctx, uri)
+            FitNotesImports.startFromFolder(ctx)
+        }
+    }
+
+    // ---------- FitNotes ----------
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("FitNotes data", style = MaterialTheme.typography.titleMedium)
+            val status = if (lastName == null) "Nothing imported yet." else {
+                val at = lastAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")) } ?: ""
+                "Last import: $lastName ($at)\n${snap.setsByDate.size} workouts · ${snap.sets.size} sets · ${snap.records.size} body records"
+            }
+            Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Import backup file") }
+                OutlinedButton(onClick = {
+                    if (!BackupSync.launchFitNotes(ctx)) UiEvents.show("FitNotes isn't installed on this phone.")
+                }) { Text("Open FitNotes") }
+            }
+            Text(
+                "Accepts FitNotes backups (.fitnotes, which include everything) and Body Tracker CSV exports. " +
+                    "You can also share a backup from FitNotes straight to FitLens. Imports merge: you'll see what " +
+                    "will be added first, anything already in FitLens is skipped, and nothing you logged or edited " +
+                    "in FitLens is deleted or changed.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+
+    // ---------- Auto sync ----------
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("FitNotes backup folder", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "For moving over from FitNotes gradually. Choose the folder where FitNotes saves its backups, then " +
+                    "tap Sync now to import the newest one. With automatic sync on, FitLens also imports it quietly " +
+                    "each time it opens, if it has changed.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                folder?.let { "Folder: " + (it.lastPathSegment?.substringAfter(':')?.ifBlank { "(root)" } ?: it.toString()) } ?: "No folder chosen",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose folder" else "Change folder") }
+                if (folder != null) Button(onClick = { FitNotesImports.startFromFolder(ctx) }) { Text("Sync now") }
+            }
+            if (folder != null) ToggleRow("Sync automatically when FitLens opens (off by default)", autoSync) {
+                BackupSync.setAutoSync(it)
+            }
         }
     }
 }

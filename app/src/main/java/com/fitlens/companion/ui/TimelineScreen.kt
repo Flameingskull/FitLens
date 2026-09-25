@@ -78,7 +78,7 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
             ) {
                 Button(onClick = { nav.push(Screen.Day(Dates.today())) }) { Text("Log today’s workout") }
                 TextButton(onClick = { nav.tab(Screen.Sync) }) { Text("Import from FitNotes") }
-                TextButton(onClick = { nav.tab(Screen.Sync) }) { Text("Restore from a backup") }
+                TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Restore from a backup") }
             }
         } else {
         if (lastImport != null) {

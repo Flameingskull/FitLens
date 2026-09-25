@@ -39,6 +39,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,6 +80,9 @@ sealed interface Screen {
     data class Compare(val a: Long, val b: Long) : Screen
     data class Slideshow(val ids: List<Long>? = null) : Screen
     data object Review : Screen
+    /** The main Settings screen, opened from the gear on every tab (#38). */
+    data object SettingsHome : Screen
+    data class SettingsPage(val section: SettingsSection) : Screen
 }
 
 class Nav {
@@ -110,7 +114,7 @@ class MainActivity : ComponentActivity() {
         setContent { FitLensTheme { AppRoot(nav) } }
         lifecycleScope.launch {
             Store.reload()
-            // A result the user hadn't read when the app was closed stays readable in Sync → Backups (#62).
+            // A result the user hadn't read when the app was closed stays readable in Settings → Backups (#62).
             UiEvents.loadLastResult()
             // Safety copies (#47) are kept for a limited time only.
             Backups.pruneSafety(applicationContext)
@@ -150,12 +154,19 @@ class MainActivity : ComponentActivity() {
         AutoBackup.onAppBackground(applicationContext)
     }
 
+    /** Settings → Backups, with Back leading to Settings and then the Log tab. */
+    private fun openBackups() {
+        nav.tab(Screen.Timeline)
+        nav.push(Screen.SettingsHome)
+        nav.push(Screen.SettingsPage(SettingsSection.Backups))
+    }
+
     private suspend fun handleIntent(intent: Intent?) {
         if (intent == null) return
         if (intent.getBooleanExtra(AutoBackup.EXTRA_OPEN_BACKUPS, false)) {
             // Opened from the "backup folder unavailable" notification.
             intent.removeExtra(AutoBackup.EXTRA_OPEN_BACKUPS)
-            nav.tab(Screen.Sync)
+            openBackups()
             return
         }
         val uris = ArrayList<Uri>()
@@ -179,8 +190,8 @@ class MainActivity : ComponentActivity() {
                 FileKind.BODY_CSV -> FitNotesImporter.importBodyCsv(this, u).let { UiEvents.show(it.message, it.level()) }
                 FileKind.WORKOUT_CSV -> UiEvents.show("Workout CSVs aren't needed — share a FitNotes backup (.fitnotes) instead; it contains everything.")
                 FileKind.ARCHIVE -> {
-                    // A .fitlens backup: the Sync tab checks it and asks before restoring.
-                    nav.tab(Screen.Sync)
+                    // A .fitlens backup: Settings → Backups checks it and asks before restoring.
+                    openBackups()
                     UiEvents.pendingRestore.value = u
                 }
                 FileKind.UNKNOWN -> UiEvents.show("FitLens doesn't recognise that file.")
@@ -255,6 +266,8 @@ fun AppRoot(nav: Nav) {
             if (s == null) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             } else {
+                val openSettings = remember(nav) { { nav.push(Screen.SettingsHome) } }
+                CompositionLocalProvider(LocalOpenSettings provides openSettings) {
                 when (top) {
                     Screen.Timeline -> TimelineScreen(s, nav)
                     Screen.Calendar -> CalendarScreen(s, nav)
@@ -270,6 +283,9 @@ fun AppRoot(nav: Nav) {
                     is Screen.Compare -> CompareScreen(s, nav, top.a, top.b)
                     is Screen.Slideshow -> SlideshowScreen(s, nav, top.ids)
                     Screen.Review -> ReviewScreen(s, nav)
+                    Screen.SettingsHome -> SettingsScreen(nav)
+                    is Screen.SettingsPage -> SettingsPageScreen(s, nav, top.section)
+                }
                 }
             }
             if (busy != null) {

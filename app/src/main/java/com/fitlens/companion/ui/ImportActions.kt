@@ -50,7 +50,7 @@ suspend fun runPhotoImport(ctx: Context, uris: List<Uri>, forcedDate: String?, p
 
 /**
  * Runs a long task with the busy overlay and shows its result message: a failure as a dialog the user has to
- * acknowledge, a success as a snackbar that is also kept for Sync → Backups (#62).
+ * acknowledge, a success as a snackbar that is also kept for Settings → Backups (#62).
  */
 fun runBusy(label: String, block: suspend () -> ImportSummary?) {
     AppScope.scope.launch {

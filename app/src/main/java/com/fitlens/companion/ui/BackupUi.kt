@@ -67,7 +67,7 @@ private fun Hint(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-/** Backups section of the Sync tab: backup files, automatic backups and PDF reports. Everything stays on the device. */
+/** Settings → Backups: backup files, automatic backups and PDF reports. Everything stays on the device. */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun BackupsCard(snap: Snapshot) {

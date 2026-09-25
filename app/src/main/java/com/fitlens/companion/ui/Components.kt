@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -148,11 +149,14 @@ fun BackTopBar(title: String, onBack: () -> Unit, actions: @Composable () -> Uni
     FitTopBar(title = title, onBack = onBack, trailing = { actions() })
 }
 
+/** Opens Settings (#38). `AppRoot` provides it, so every tab's top bar shows the gear without wiring each screen. */
+val LocalOpenSettings = staticCompositionLocalOf<(() -> Unit)?> { null }
+
 /** A tab screen's top bar, left-aligned as before. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlainTopBar(title: String, actions: @Composable () -> Unit = {}) {
-    FitTopBar(title = title, centered = false, trailing = { actions() })
+    FitTopBar(title = title, centered = false, onSettings = LocalOpenSettings.current, trailing = { actions() })
 }
 
 @Composable
@@ -284,7 +288,7 @@ fun PickDateDialog(initial: String?, onDismiss: () -> Unit, onPicked: (String) -
 /**
  * A result the user has to acknowledge (#62). Restore and backup failures used to share a four-second snackbar
  * with "Backup saved with 12 photos"; here they stay on screen until they have been read, keep any action such as
- * Undo, and remain re-readable in Sync → Backups afterwards.
+ * Undo, and remain re-readable in Settings → Backups afterwards.
  */
 @Composable
 fun ResultDialog(m: UiMessage, onDismiss: () -> Unit) {
