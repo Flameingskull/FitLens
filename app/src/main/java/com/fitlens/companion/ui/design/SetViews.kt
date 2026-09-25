@@ -158,20 +158,6 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
  * - TalkBack reads the row as one sentence, for example "Set 2, 100 kg × 5 reps, personal record".
  * - [done] is null when the screen has no done state; otherwise a checkbox is shown and [onDoneChange] is called.
  */
-/** The small gold letter that marks a warm-up, drop or failure set (#43). The letter carries the meaning. */
-@Composable
-fun SetTypeBadge(letter: String) {
-    Text(
-        letter,
-        Modifier
-            .border(1.dp, Brand.Gold, RoundedCornerShape(4.dp))
-            .padding(horizontal = 5.dp),
-        style = MaterialTheme.typography.labelSmall,
-        color = Brand.Gold,
-        fontWeight = FontWeight.Bold
-    )
-}
-
 @Composable
 fun SetRow(
     index: Int,
@@ -344,4 +330,18 @@ fun ExerciseCard(
             }
         }
     }
+}
+
+/** The small gold letter that marks a warm-up, drop or failure set (#43). The letter carries the meaning. */
+@Composable
+fun SetTypeBadge(letter: String) {
+    Text(
+        letter,
+        Modifier
+            .border(1.dp, Brand.Gold, RoundedCornerShape(4.dp))
+            .padding(horizontal = 5.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = Brand.Gold,
+        fontWeight = FontWeight.Bold
+    )
 }
