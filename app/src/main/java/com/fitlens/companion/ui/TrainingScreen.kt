@@ -139,6 +139,8 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
     var gIdx by rememberSaveable { mutableIntStateOf(0) }
     var rangeIdx by rememberSaveable { mutableIntStateOf(4) }
     var sel by remember(gIdx, rangeIdx) { mutableStateOf<Int?>(null) }
+    var showTrend by rememberSaveable { mutableStateOf(false) }
+    var fromZero by rememberSaveable { mutableStateOf(false) }
     val g = graphTypes[gIdx.coerceIn(0, graphTypes.lastIndex)]
     val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
 
@@ -161,16 +163,40 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                     Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { rangeIdx = i }, label = { Text(r.first) }) }
                     }
+                    // Graph options (#50): a least-squares trend, and the y axis from zero.
+                    Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
+                        FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
+                    }
                 }
                 item {
-                    val daily = byDate.entries.map { (d, l) ->
-                        val raw = g.fn(l)
-                        ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(raw) else if (g.isTime) raw / 60.0 else raw, d)
-                    }.filter { it.y > 0 }
+                    // Worked out off the main thread, once per snapshot and graph type (#50).
+                    val daily = rememberChartData(byDate, g, snap.weightUnit) {
+                        byDate.entries.map { (d, l) ->
+                            val raw = g.fn(l)
+                            ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(raw) else if (g.isTime) raw / 60.0 else raw, d)
+                        }.filter { it.y > 0 }
+                    } ?: emptyList()
                     val shown = inRange(daily, RANGES[rangeIdx].second) { it.date }
                     val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
-                    LineChart(shown, Modifier.padding(horizontal = 8.dp), photoDays = photoDays, selected = sel, onSelect = { sel = it })
                     val unit = if (g.isWeight) snap.weightUnit else if (g.isTime) "min" else ""
+                    LineChart(
+                        listOf(LineSeries(g.label, shown)),
+                        Modifier.padding(horizontal = 8.dp),
+                        photoDays = photoDays,
+                        selected = sel?.let { ChartSelection(0, it) },
+                        onSelect = { sel = it.index },
+                        unit = unit,
+                        showTrend = showTrend,
+                        yFromZero = fromZero
+                    )
+                    if (showTrend) trendOf(shown)?.let { tr ->
+                        Text(
+                            "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
+                            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     val p = sel?.let { shown.getOrNull(it) }
                     if (p != null) {
                         Text(

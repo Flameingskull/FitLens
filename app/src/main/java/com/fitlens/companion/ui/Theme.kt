@@ -41,7 +41,16 @@ object Brand {
 }
 
 /** Chart colours: gold series, purple photo markers, ivory goal line. */
-data class ChartColors(val series: Color, val accent: Color, val goal: Color)
+/**
+ * Chart colours (#50). [palette] is the series order: gold first, then imperial purple light, ivory and gold light.
+ * Charts with more series reuse it lighter (see `seriesColor` in Charts.kt) and tell series apart by marker shape too.
+ */
+data class ChartColors(
+    val series: Color,
+    val accent: Color,
+    val goal: Color,
+    val palette: List<Color> = listOf(Brand.Gold, Brand.PurpleLight, Brand.Ivory, Brand.GoldLight)
+)
 
 val LocalChartColors = staticCompositionLocalOf { ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory) }
 

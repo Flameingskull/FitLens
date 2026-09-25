@@ -64,6 +64,8 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     var rangeIdx by rememberSaveable { mutableIntStateOf(4) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var selectedPoint by remember(selectedName, rangeIdx) { mutableStateOf<Int?>(null) }
+    var showTrend by rememberSaveable { mutableStateOf(false) }
+    var fromZero by rememberSaveable { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     var managing by remember { mutableStateOf(false) }
 
@@ -105,16 +107,36 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                         }
                     }
                     item {
-                        val points = shown.map { ChartPoint(Dates.epochDay(it.date), it.value, it.date) }
+                        // Graph options (#50): a least-squares trend, and the y axis from zero.
+                        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
+                            FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
+                        }
+                    }
+                    item {
+                        val points = rememberChartData(shown) {
+                            shown.map { ChartPoint(Dates.epochDay(it.date), it.value, it.date) }
+                        } ?: emptyList()
                         val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
+                        val unit = def?.unit ?: shown.lastOrNull()?.unit ?: ""
                         LineChart(
-                            points,
+                            listOf(LineSeries(selectedName, points)),
                             Modifier.padding(horizontal = 8.dp),
                             photoDays = photoDays,
                             goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
-                            selected = selectedPoint,
-                            onSelect = { selectedPoint = it }
+                            selected = selectedPoint?.let { ChartSelection(0, it) },
+                            onSelect = { selectedPoint = it.index },
+                            unit = unit,
+                            showTrend = showTrend,
+                            yFromZero = fromZero
                         )
+                        if (showTrend) trendOf(points)?.let { tr ->
+                            Text(
+                                "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
+                                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Text(
                             "Tap the graph to see that day. Purple ticks and rings mark days with photos.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
