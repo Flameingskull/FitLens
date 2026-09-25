@@ -35,6 +35,7 @@ enum class SettingsSection(val title: String, val summary: String, val group: St
     Backups("Backups", "Backup files, automatic backups, safety copy and PDF reports", "Data, backup & import"),
     // FitNotes imports lived on the Sync tab until #35 moved them here.
     Import("FitNotes import", "Import a FitNotes backup any time, or sync its backup folder", "Data, backup & import"),
+    DataTools("Data tools", "Export to CSV, delete workout history", "Data, backup & import"),
     Units("Units & display", "Kilograms or pounds", "Training"),
     Logging("Workout & logging", "Screen on, filling in new sets, selecting the next set", "Training"),
     Records("Personal records", "PR marks and celebrations", "Training")
@@ -77,6 +78,7 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
             when (section) {
                 SettingsSection.Backups -> BackupsCard(snap)
                 SettingsSection.Import -> FitNotesCards(snap)
+                SettingsSection.DataTools -> DataToolsPage(snap)
                 SettingsSection.Units -> UnitsPage()
                 SettingsSection.Logging -> LoggingPage()
                 SettingsSection.Records -> RecordsPage(snap)

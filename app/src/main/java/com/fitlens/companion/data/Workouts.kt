@@ -302,7 +302,33 @@ object Workouts {
      * earlier set of at least as many reps. Sets without weight and reps (cardio, timed) keep the mark they have.
      * Only the mark changes: the set keeps its source, so an imported set stays imported. Returns how many changed.
      */
-    suspend fun recalculatePrs(): Int = write { w ->
+    suspend fun recalculatePrs(): Int = write { w -> replayPrs(w) }
+
+    /**
+     * Deletes the sets between [from] and [to] (inclusive ISO dates, null for open-ended) for [exerciseIds], or for
+     * every exercise when it's empty (#32). Exercises, categories, workout comments and times, photos and body data
+     * are kept. Imported sets leave a skip rule, like a single delete, so the next FitNotes import doesn't bring them
+     * back. PR marks are replayed in the same transaction, since the deleted sets may have held records.
+     * Returns how many sets were deleted.
+     */
+    suspend fun deleteHistory(from: String?, to: String?, exerciseIds: Set<Long>): Int = write { w ->
+        val clauses = mutableListOf<String>()
+        val args = mutableListOf<String>()
+        if (from != null) { clauses += "substr(date, 1, 10) >= ?"; args += from }
+        if (to != null) { clauses += "substr(date, 1, 10) <= ?"; args += to }
+        if (exerciseIds.isNotEmpty()) clauses += "exercise_id IN (${exerciseIds.joinToString(",")})"
+        val where = clauses.ifEmpty { listOf("1=1") }.joinToString(" AND ")
+        val count = w.rawQuery("SELECT COUNT(*) FROM workout_set WHERE $where", args.toTypedArray()).use { c ->
+            if (c.moveToFirst()) c.getInt(0) else 0
+        }
+        if (count > 0) {
+            deleteSetsWhere(w, where, args.toTypedArray())
+            replayPrs(w)
+        }
+        count
+    }
+
+    private fun replayPrs(w: SQLiteDatabase): Int {
         val changes = mutableListOf<Pair<Long, Boolean>>()
         var exercise = -1L
         // best[r] = heaviest weight so far for at least r reps, for the exercise being replayed.
@@ -326,7 +352,7 @@ object Workouts {
         changes.forEach { (id, pr) ->
             w.update("workout_set", ContentValues().apply { put("is_pr", if (pr) 1 else 0) }, "id=?", arrayOf(id.toString()))
         }
-        changes.size
+        return changes.size
     }
 
     /**
