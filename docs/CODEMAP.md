@@ -5,13 +5,20 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.20.
+Last updated: 1.0.21.
 
 ## How data flows
 
 - **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 4. Schema changes
   bump it and add an `if (oldVersion < N)` block in `onUpgrade` that keeps every row. `.fitlens` restores of older
-  backups go through the same upgrade. `meta(k, v)` holds settings (`Db.getMeta` / `setMeta`).
+  backups go through the same upgrade.
+- **Settings** (#38) go through `data/Settings.kt` only. Phone-only settings (`DeviceSettings`: folders, schedules,
+  last import, safety copy, last result) live in DataStore and never travel in backups. The user's preferences
+  (`PortableSettings`: units, logging, PR celebrations) live in `meta`, so they restore from backups. Both are
+  loaded once at start-up and held in memory: read `Settings.current()` / `currentPortable()`, observe
+  `Settings.device` / `portable` in Compose, and change them with `updateDevice` / `updatePortable` (or
+  `updateDeviceNow` from background work). The only other `meta` writer is the FitNotes importer's weight unit,
+  inside its own transaction; `Store.reload()` re-reads the preferences after it.
 - **Reads:** `data/Store.kt` loads everything into one immutable `Snapshot` and publishes it as
   `Store.snapshot: StateFlow<Snapshot?>`. Screens take `snap: Snapshot` as a parameter. `Snapshot` has the lookups
   (`exercises`, `categories`, `setsByExercise`, `setsByDate`, `photosByDate`, `recordsByName`) and unit helpers
@@ -41,13 +48,15 @@ Last updated: 1.0.20.
 | `BackupSync.kt` | FitNotes backup-folder auto-sync |
 | `PhotoImporter.kt` | Photo import, date detection (EXIF, media store, file name, modified), duplicate hashing |
 | `StarterLibrary.kt` | Optional starter exercise library |
+| `Settings.kt` | The typed settings layer: `DeviceSettings` (DataStore), `PortableSettings` (`meta`), the one-time move from `meta` |
 
 ### `ui/`
 | File | Owns |
 | --- | --- |
-| `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop`), `AppRoot` with the bottom tabs |
+| `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop`), `AppRoot` with the bottom tabs and `LocalOpenSettings` |
+| `SettingsScreen.kt` | Settings (`SettingsSection` rows) and its sub-screens: Backups, Import & sync, Units & display, Personal records |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`. **The only place colours are defined** |
-| `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar`, `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
+| `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (shows the Settings gear), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
 | `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow`, `ExerciseCard`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
 | `TimelineScreen.kt` | Log tab (every day with photos, measurements, workout) |
 | `DayScreen.kt` | One day: photos, measurements, the workout and where logging starts. Also `describeSet`, `defOrder` |
@@ -60,7 +69,8 @@ Last updated: 1.0.20.
 | `CalendarScreen.kt` | Month grid |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |
-| `SyncScreen.kt`, `BackupUi.kt` | Sync tab: FitNotes import, folder sync, photo import, Personal records (recalculate), `BackupsCard` (all settings and data tools live here until #38) |
+| `SyncScreen.kt` | Sync tab: `FitNotesCards` (also used by Settings → Import & sync) and photo import. #35 folds it into Settings |
+| `BackupUi.kt` | `BackupsCard`, shown in Settings → Backups |
 | `FitNotesImportUi.kt`, `ImportActions.kt` | Import hosts and flows, `runBusy`, `AppScope` |
 | `CustomMetrics.kt` | Custom metric dialogs |
 
@@ -89,6 +99,6 @@ Last updated: 1.0.20.
 | Change | Touch |
 | --- | --- |
 | New workout data field | `Db.kt` (VERSION and `onUpgrade`), `Models.kt`, `Store.load`, `Workouts.kt`, and `Backups.kt` if it's a new table |
-| New setting | `Db.getMeta` / `setMeta` today, in `BackupUi.kt` or `SyncScreen.kt` (moves to `data/Settings.kt` with #38). Add phone-only keys to `keepMeta` in `Backups.kt` |
+| New setting | A field in `DeviceSettings` (phone-only) or `PortableSettings` (travels in backups) in `data/Settings.kt`, with its key and default, then a row in the matching `SettingsSection` page |
 | Records or 1RM logic | `data/Records.kt` only. Screens and the PDF call it |
 | New screen | `Screen` and `AppRoot` in `MainActivity.kt`, and a new `ui/XScreen.kt` built from `ui/design/` |

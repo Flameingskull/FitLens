@@ -21,9 +21,8 @@ custom metrics.
   makes slideshows, videos and PDF reports, and backs everything up locally. Every exercise, set and workout records
   whether it came from FitNotes or was created in FitLens, so the two histories sit side by side without colliding.
 - **In progress:** a redesign of every screen into one FitNotes-style structure in the FitLens look
-  ([#79](https://github.com/Flameingskull/FitLens/issues/79)), the rest of the personal-records engine (recalculating
-  records and PR alerts, [#23](https://github.com/Flameingskull/FitLens/issues/23)), a proper Settings screen
-  ([#38](https://github.com/Flameingskull/FitLens/issues/38)), shared charts for a fuller analysis section
+  ([#79](https://github.com/Flameingskull/FitLens/issues/79)), moving imports and data tools into Settings
+  ([#35](https://github.com/Flameingskull/FitLens/issues/35)), shared charts for a fuller analysis section
   ([#50](https://github.com/Flameingskull/FitLens/issues/50)), and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 - **FitNotes stays supported** as an import source. You can import during first-run setup or at any time afterwards.
@@ -44,7 +43,8 @@ custom metrics.
   record each set. The set entry screen shows only the fields that exercise uses (weight and reps, distance and time,
   or just time), pre-fills from the last time you did it, and has steppers for nudging the numbers. Sets can be
   edited, deleted or given their own comment, and a deleted set can be brought straight back with **Undo**. A new set
-  that beats your best weight for that many reps or more is marked as a **personal record** straight away.
+  that beats your best weight for that many reps or more is marked as a **personal record** straight away, with an
+  optional vibration and message. **Settings → Personal records** can recalculate every PR mark from your history.
 - **Exercise library.** Every category and exercise in one place, with quick add, notes, editing and deletion. Star
   the ones you use most and they come first in every picker. Starting without a FitNotes backup, you can add a
   starter library of common exercises — only when you ask, and never on top of exercises you already have.
@@ -69,6 +69,9 @@ custom metrics.
   FitNotes backup, the FitNotes copy is skipped and your entry is kept.
 - **Custom metrics:** create your own measurements, such as calories, sleep or a tape measurement FitNotes doesn't
   have, with their own unit. You can link one to a FitNotes measurement so imports fill it in.
+- **Settings:** the gear at the top of every tab opens Backups, Import & sync, Units & display (kilograms or pounds)
+  and Personal records. Settings that belong to the phone, such as backup folders and schedules, stay on the phone
+  and are never replaced by a restore. Preferences such as your weight unit travel with your backups.
 - **Views:**
   - **Log:** a timeline of every day, with that day's photos, measurements and workout summary.
   - **Day:** everything for one date: the photos, the measurements with the change since the previous entry, and the
@@ -91,7 +94,7 @@ custom metrics.
   rendered on the phone, in Portrait HD, Full HD or Square. Videos are saved to *Movies/FitLens* and can be shared.
 - **PDF report:** a readable report with your photos, measurement charts, training summary and a daily log, in dark
   (as in the app) or light (for printing).
-- **Backups, all on your phone** (on the **Sync** tab, under **Backups**):
+- **Backups, all on your phone** (in **Settings → Backups**, under the gear at the top of every tab):
   - **Backup file:** save everything, photos included, as one `.fitlens` file. Restore it after reinstalling or on a
     new phone, or open it straight from a file manager.
   - **Automatic backups:** daily or weekly to a folder you choose (for example Documents or an SD card), so they
@@ -102,7 +105,7 @@ custom metrics.
     folder's free space. If the folder can't be reached (the SD card was removed or access was lost), a notification
     explains how to fix it.
   - **Safety copy with Undo:** before a restore or a FitNotes import, FitLens keeps a copy of your current data on
-    the phone. For 7 days, **Sync → Backups → Safety copy → Undo** puts it back.
+    the phone. For 7 days, **Settings → Backups → Safety copy → Undo** puts it back.
   - **Phone-to-phone transfer** (Android 12+) carries FitLens data across when you set up a new phone with a cable or
     a direct transfer.
 
@@ -163,17 +166,14 @@ separately ([#78](https://github.com/Flameingskull/FitLens/issues/78)). A higher
    the dates.
 5. Tag poses (Front/Side/Back) while importing, in the photo viewer, or with multi-select. Slideshows and comparisons
    can then use one pose.
-6. **Sync tab → Backups:** choose a backup folder and turn on automatic backups.
+6. **Settings → Backups:** choose a backup folder and turn on automatic backups.
 
 ## Limits
 
-- **PR marks aren't recalculated yet.** New sets earn a PR mark when they're saved, but sets logged before 1.0.19
-  and edited sets keep the mark they had. There's no custom date range on the Records tab or PR alert yet
-  ([#23](https://github.com/Flameingskull/FitLens/issues/23)).
 - **Sets and exercises can't be reordered** within a workout yet
   ([#70](https://github.com/Flameingskull/FitLens/issues/70)), and there's no rest timer, routines or supersets.
-- Settings live on the **Sync** tab for now. A dedicated Settings screen is planned
-  ([#38](https://github.com/Flameingskull/FitLens/issues/38)).
+- FitNotes and photo imports are still on the **Sync** tab. They move into Settings later
+  ([#35](https://github.com/Flameingskull/FitLens/issues/35)).
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So
   FitLens can't pull data out of FitNotes directly or make FitNotes create a backup. Folder sync is the closest to
   automatic that Android allows. It works best if FitNotes saves its backups to one folder on your phone.
@@ -203,7 +203,7 @@ Android 15 (API 35) and runs on Android 10 (API 29) or newer.
 
 Open the project in **Android Studio** and click **Run**, or run `./gradlew assembleDebug`. Your own builds are signed
 with your debug key, so Android won't install them over the official release. Test on an emulator or a spare phone.
-Alternatively, save a backup first (**Sync → Backups → Save backup**) and uninstall the official app.
+Alternatively, save a backup first (**Settings → Backups → Save backup**) and uninstall the official app.
 
 Every push to `main` is built and signed by GitHub Actions and published as a release. Pull requests get a debug
 build only.

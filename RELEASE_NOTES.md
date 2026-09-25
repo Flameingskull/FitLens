@@ -1,25 +1,40 @@
 ## Overview
 
-This build finishes most of FitLens's personal-records work. You can now rebuild every PR mark from your full history,
-imported workouts included, and view your records for any date range you choose. None of your workouts, sets or
-photos change. Only the PR marks can change, and only when you choose to recalculate them.
+FitLens now has a proper **Settings** screen. Tap the gear at the top of any tab to reach backups, FitNotes import,
+units and personal records in one place. Behind it, settings that belong to this phone are now kept apart from your
+training data, so restoring a backup can never overwrite your backup folders or schedules. This build also finishes
+the personal-records work, adding an optional celebration when you set a new PR. Every setting you've already chosen
+carries over when you update.
 
 ## What's new
 
-- **Recalculate personal records.** **Sync → Personal records → Recalculate personal records** replays your whole
-  history, exercise by exercise, and gives a set a PR mark only if it beat every earlier set of at least as many reps.
-  It's useful after editing old sets, and it brings FitNotes imports onto the same rule as sets logged in FitLens.
-  FitLens asks before it starts and then tells you how many sets changed.
-- **Custom date range for records.** The Records tab on each exercise has a **Custom** option next to Workout, Week,
-  Month, Year and All. Pick any start and end date to see the rep maxes, estimates and summary for just that period.
+- **Settings, one tap away from every tab.** The gear in each tab's top bar opens Settings, grouped into **Data**
+  (Backups, and Import & sync) and **Training** (Units & display, and Personal records). Back returns you to
+  Settings, then to where you were.
+- **Choose kilograms or pounds yourself.** **Settings → Units & display** switches how weights are shown and
+  entered. Weights are stored exactly, so switching never changes your data. Once you've chosen, a FitNotes import
+  won't switch it back, and the choice travels with your `.fitlens` backups.
+- **PR celebrations.** When a set you save is a new personal record, FitLens gives a short vibration and names the
+  record, for example "New personal record: 100 kg × 5". You can switch this off in **Settings → Personal records**.
 
 ## Improved
 
-- **One rule for PR marks everywhere.** Recalculation uses the same rule as new sets: a set must be strictly heavier
-  than any earlier set with the same or more reps. A set that only ties a record isn't marked.
+- **Restoring a backup keeps this phone's settings.** Your backup folders, automatic-backup schedule, FitNotes
+  folder and auto-sync, last import and safety copy now belong to the phone, not to the backup. Restoring a backup,
+  including one from another phone or an older version, brings back your data and preferences but leaves these
+  alone.
+- **Settings update as they change.** The Backups page shows a backup that finishes in the background straight
+  away, without leaving and coming back.
+- **Backups moved to Settings.** Backup files, automatic backups, the safety copy with Undo and the PDF report are
+  now in **Settings → Backups**. Opening a `.fitlens` file, or tapping a backup notification, takes you straight
+  there. The Sync tab keeps FitNotes and photo imports and links to it.
+- **PR marks for back-dated sets.** A set logged for an earlier date is now compared only with sets up to that
+  date, the same rule "Recalculate personal records" uses. The two always agree.
 
 ## Known limitations
 
-- Recalculating replaces PR marks that came from FitNotes on weight-and-reps sets. Timed and cardio sets keep their
-  marks.
-- There's no PR celebration or notification yet. It will be a setting, and comes with the new Settings screen.
+- The Sync tab stays for now, for FitNotes and photo imports. It moves into Settings in a later build.
+- Settings has only the options that exist today. Rest timer, logging, privacy and other options arrive with their
+  features.
+- Going back to an older FitLens version after updating keeps your settings from before this update, not changes
+  you've made since.
