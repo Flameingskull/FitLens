@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Photo
+import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
@@ -335,11 +336,7 @@ object PdfReport {
 
     // ---------- Training ----------
 
-    private fun e1rm(s: SetRow): Double = when {
-        s.weightKg <= 0 || s.reps <= 0 -> 0.0
-        s.reps == 1 -> s.weightKg
-        else -> s.weightKg * (1 + s.reps / 30.0)
-    }
+    private fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
 
     private fun training(w: PageWriter, snap: Snapshot, o: ReportOptions) {
         val sets = snap.sets.filter { it.date >= o.from && it.date <= o.to }

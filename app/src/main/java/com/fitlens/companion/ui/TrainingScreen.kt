@@ -35,18 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 
-/** Epley estimated one-rep max (sets above 12 reps are excluded as unreliable). */
-fun e1rm(s: SetRow): Double = when {
-    s.reps <= 0 || s.weightKg <= 0 -> 0.0
-    s.reps == 1 -> s.weightKg
-    s.reps > 12 -> 0.0
-    else -> s.weightKg * (1 + s.reps / 30.0)
-}
+/** Estimated one-rep max in kg (see [Records.factor] for the formula). */
+fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
 
 private fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolean {
     val type = snap.exercises[exId]?.type ?: 0
@@ -216,8 +212,30 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
 }
 
 @Composable
-private fun RecordsTab(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean) {
+private fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean) {
+    var periodIdx by rememberSaveable { mutableIntStateOf(Records.Period.ALL.ordinal) }
+    val period = Records.Period.entries[periodIdx.coerceIn(0, Records.Period.entries.lastIndex)]
+    val sets = remember(allSets, period) { Records.inPeriod(allSets, period) }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+        item {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Records.Period.entries.forEach { p ->
+                    FilterChip(selected = period == p, onClick = { periodIdx = p.ordinal }, label = { Text(p.label) })
+                }
+            }
+        }
+        if (sets.isEmpty()) {
+            item {
+                Text(
+                    "No sets in this period.", Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@LazyColumn
+        }
         item {
             val days = sets.map { it.date }.distinct().sorted()
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -236,7 +254,7 @@ private fun RecordsTab(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean) {
             HorizontalDivider()
         }
         if (!timeBased) {
-            val best = sets.maxOfOrNull { e1rm(it) } ?: 0.0
+            val best = sets.maxOfOrNull { Records.oneRepMax(it) } ?: 0.0
             item {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Text("Reps", Modifier.weight(0.6f), style = MaterialTheme.typography.labelLarge)
@@ -244,13 +262,17 @@ private fun RecordsTab(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean) {
                     Text("Estimated", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
                 }
             }
-            items((1..15).toList()) { r ->
-                val actual = sets.filter { it.reps >= r && it.weightKg > 0 }.maxByOrNull { it.weightKg }
-                val est = if (best > 0) (if (r == 1) best else best / (1 + r / 30.0)) else 0.0
+            items((1..Records.MAX_REPS).toList()) { r ->
+                val actual = Records.repMax(sets, r)
+                val est = Records.weightFor(best, r)
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                     Text("${r}RM", Modifier.weight(0.6f))
                     Text(
-                        actual?.let { "${snap.fmtWeight(it.weightKg)} ${snap.weightUnit} · ${Dates.short(it.date)}" } ?: "—",
+                        actual?.let {
+                            // A record set by a higher-rep set shows its reps, e.g. "100 kg × 5".
+                            val reps = if (it.reps > r) " × ${it.reps}" else ""
+                            "${snap.fmtWeight(it.weightKg)} ${snap.weightUnit}$reps · ${Dates.short(it.date)}"
+                        } ?: "—",
                         Modifier.weight(1.4f)
                     )
                     Text(if (est > 0) "${fmtNum(snap.weight(est), 1)} ${snap.weightUnit}" else "—", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)

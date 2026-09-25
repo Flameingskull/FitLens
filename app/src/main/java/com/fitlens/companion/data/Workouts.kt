@@ -253,14 +253,22 @@ object Workouts {
         distance: Double = 0.0,
         durationSec: Int = 0,
         comment: String? = null,
-        isPr: Boolean = false
+        /** Null works it out: the set is a PR when it's heavier than every logged set of at least as many reps (#23). */
+        isPr: Boolean? = null
     ): Long = write { w ->
         val d = checkDate(date)
         w.longOrNull("SELECT id FROM exercise WHERE id=?", exerciseId.toString())
             ?: throw WorkoutDataException("That exercise no longer exists.")
+        val pr = isPr ?: Records.isNewRecord(
+            weightKg, reps,
+            w.rawQuery(
+                "SELECT MAX(weight) FROM workout_set WHERE exercise_id=? AND reps>=? AND weight>0",
+                arrayOf(exerciseId.toString(), reps.toString())
+            ).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getDouble(0) else null }
+        )
         w.insertOrThrow("workout_set", null, ContentValues().apply {
             put("exercise_id", exerciseId); put("date", d); put("weight", weightKg); put("reps", reps)
-            put("distance", distance); put("duration", durationSec); put("is_pr", if (isPr) 1 else 0)
+            put("distance", distance); put("duration", durationSec); put("is_pr", if (pr) 1 else 0)
             put("comment", comment?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
         })
     }

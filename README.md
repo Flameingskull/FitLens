@@ -20,8 +20,9 @@ custom metrics.
   imports and shows your FitNotes history, manages progress photos, tracks body measurements and custom metrics,
   makes slideshows, videos and PDF reports, and backs everything up locally. Every exercise, set and workout records
   whether it came from FitNotes or was created in FitLens, so the two histories sit side by side without colliding.
-- **In progress:** a personal-records engine so sets logged in FitLens earn PR marks of their own
-  ([#23](https://github.com/Flameingskull/FitLens/issues/23)), a proper Settings screen
+- **In progress:** a redesign of every screen into one FitNotes-style structure in the FitLens look
+  ([#79](https://github.com/Flameingskull/FitLens/issues/79)), the rest of the personal-records engine (recalculating
+  records and PR alerts, [#23](https://github.com/Flameingskull/FitLens/issues/23)), a proper Settings screen
   ([#38](https://github.com/Flameingskull/FitLens/issues/38)), shared charts for a fuller analysis section
   ([#50](https://github.com/Flameingskull/FitLens/issues/50)), and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
@@ -42,7 +43,8 @@ custom metrics.
 - **Logs your workouts.** Open any day — past, present or a day you haven't trained yet — add exercises to it, and
   record each set. The set entry screen shows only the fields that exercise uses (weight and reps, distance and time,
   or just time), pre-fills from the last time you did it, and has steppers for nudging the numbers. Sets can be
-  edited, deleted or given their own comment, and a deleted set can be brought straight back with **Undo**.
+  edited, deleted or given their own comment, and a deleted set can be brought straight back with **Undo**. A new set
+  that beats your best weight for that many reps or more is marked as a **personal record** straight away.
 - **Exercise library.** Every category and exercise in one place, with quick add, notes, editing and deletion. Star
   the ones you use most and they come first in every picker. Starting without a FitNotes backup, you can add a
   starter library of common exercises — only when you ask, and never on top of exercises you already have.
@@ -71,12 +73,16 @@ custom metrics.
   - **Log:** a timeline of every day, with that day's photos, measurements and workout summary.
   - **Day:** everything for one date: the photos, the measurements with the change since the previous entry, and the
     full workout with sets, PRs, comments and duration. This is also where you log: add an exercise, tap it and
-    record your sets. If there's no photo that day, it shows the nearest one.
+    record your sets. If there's no photo that day, it shows the nearest one. The bar under the title steps to the
+    previous or next day with entries (tap the date to jump to any day, long-press it for today).
   - **Calendar:** a month grid with photo thumbnails, and dots for photos, measurements and workout categories.
   - **Body:** for each measurement, a graph (1M/3M/6M/1Y/All), stats (start, latest, change, min, max, weekly rate)
     and a history table. Days with photos are marked on the graph, and tapping a point shows that day's photo.
   - **Training:** exercises grouped by category. Each exercise has graphs (est. 1RM, max weight, volume, reps, time),
-    its history, and rep-max records (actual and estimated).
+    its history, and rep-max records from 1RM to 15RM, actual and estimated, for the last workout, week, month, year
+    or all time. A heavier or equal lift for more reps counts as the record for every lower rep count too.
+    Estimated maxes blend the Epley and Brzycki formulas up to 10 reps and use a gentler curve for 11 to 20 reps, so
+    high-rep sets don't overstate your strength.
   - **Photos:** a gallery you can group by month or by pose, with pose filters and counts. It also has multi-select
     for bulk pose tagging, a full-screen viewer with that day's measurements, and a **before/after compare** you can
     share or save as an image.
@@ -95,6 +101,8 @@ custom metrics.
   - **Status and alerts:** the Backups section shows the last successful backup, the next scheduled one and the
     folder's free space. If the folder can't be reached (the SD card was removed or access was lost), a notification
     explains how to fix it.
+  - **Safety copy with Undo:** before a restore or a FitNotes import, FitLens keeps a copy of your current data on
+    the phone. For 7 days, **Sync → Backups → Safety copy → Undo** puts it back.
   - **Phone-to-phone transfer** (Android 12+) carries FitLens data across when you set up a new phone with a cable or
     a direct transfer.
 
@@ -159,13 +167,11 @@ separately ([#78](https://github.com/Flameingskull/FitLens/issues/78)). A higher
 
 ## Limits
 
-- **Personal records aren't calculated yet.** The "PR" mark currently comes only from imported FitNotes data, so
-  sets you log in FitLens don't earn one. That's the records engine
+- **PR marks aren't recalculated yet.** New sets earn a PR mark when they're saved, but sets logged before 1.0.19
+  and edited sets keep the mark they had. There's no custom date range on the Records tab or PR alert yet
   ([#23](https://github.com/Flameingskull/FitLens/issues/23)).
 - **Sets and exercises can't be reordered** within a workout yet
   ([#70](https://github.com/Flameingskull/FitLens/issues/70)), and there's no rest timer, routines or supersets.
-- **Restoring a backup can't be undone.** A safety copy with Undo is planned
-  ([#47](https://github.com/Flameingskull/FitLens/issues/47)).
 - Settings live on the **Sync** tab for now. A dedicated Settings screen is planned
   ([#38](https://github.com/Flameingskull/FitLens/issues/38)).
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So

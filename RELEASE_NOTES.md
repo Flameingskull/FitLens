@@ -1,23 +1,29 @@
 ## Overview
 
-This build lays the foundation for FitLens's redesigned screens. It adds a shared set of black, purple and gold
-building blocks that every upcoming page will use, so the whole app looks and behaves the same way. You'll see the
-first of them on the day screen and while logging sets. None of your data changes.
+This build brings the first part of FitLens's own personal-records engine. Sets you log in FitLens now earn a PR mark
+when you save them, and every screen uses one improved one-rep-max estimate. The Records tab can show your records for
+the last workout, week, month, year or all time. None of your existing data changes.
+
+## What's new
+
+- **PR marks for sets you log.** A new set gets a PR mark as soon as you save it if it's heavier than anything you've
+  lifted for that many reps or more. Before this build, only sets imported from FitNotes could carry one.
+- **Records by period.** The Records tab on each exercise has a period filter: **Workout** (the most recent session),
+  **Week**, **Month**, **Year** and **All**. The summary and the 1RM to 15RM table follow the period you choose.
 
 ## Improved
 
-- **A new day navigator on the day screen.** The bar under the title steps to the previous or next day with entries.
-  Use the arrows, or swipe across the bar. Tap the date to jump to any day, or long-press it to go back to today.
-- **Dates read naturally.** The day screen says "Today", "Yesterday" or "Tomorrow", with the full date underneath.
-- **Moving between days always works.** On a day with no entries, the arrows now take you to the nearest days that
-  have entries, instead of being greyed out.
-- **Faster set entry.** Hold − or + to keep stepping. Each step gives a light haptic tick, and a press that turns
-  into a scroll no longer changes the value.
-- **Better with TalkBack.** Each logged set is read as one sentence, for example "Set 2, 100 kg × 5 reps, personal
-  record". The stepper buttons announce what they change ("Increase Reps").
+- **A more accurate estimated 1RM.** Up to 10 reps, the estimate is the average of the Epley and Brzycki formulas.
+  From 11 to 20 reps it follows a gentler curve, so a high-rep set no longer overstates your strength. Sets of 13 to 20
+  reps now count towards the estimate, where before anything over 12 reps was ignored. The graphs, the exercise list,
+  the Records tab and the PDF report all use this one estimate.
+- **Rep-max records follow the superseding rule.** A set of equal or heavier weight for more reps counts as the record
+  for every lower rep count too. When that happens, the table shows the reps that set it, for example
+  "100 kg × 5" in the 3RM row.
 
 ## Known limitations
 
-- Only the day screen and set entry use the new building blocks so far. The other screens move over in the coming
-  redesign builds, each together with its features.
-- The day screen's top bar now reads "Day". The date is shown in the navigator bar below it.
+- Sets logged before this build, and sets you edit, keep the PR mark they had. A "Recalculate personal records"
+  option is still to come.
+- There's no custom date range on the Records tab yet, and no PR celebration or notification.
+- Because the estimate changed, estimated 1RM values and graphs will read a little differently from earlier builds.
