@@ -106,7 +106,10 @@ fun trendOf(points: List<ChartPoint>): TrendLine? {
 data class ChartViewport(val from: Float = 0f, val to: Float = 1f) {
     val isFull: Boolean get() = from <= 0f && to >= 1f
 
-    /** Zooms by [zoom] around [centroid] and pans by [pan], both as fractions of the visible width. */
+    /**
+     * Zooms by [zoom] around [centroid] and pans by [pan], both as fractions of the visible width. Dragging right (a
+     * positive [pan]) moves back in time.
+     */
     fun transform(centroid: Float, pan: Float, zoom: Float): ChartViewport {
         val span = to - from
         val c = centroid.coerceIn(0f, 1f)

@@ -66,6 +66,7 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     var selectedPoint by remember(selectedName, rangeIdx) { mutableStateOf<Int?>(null) }
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fromZero by rememberSaveable { mutableStateOf(false) }
+    var fullScreen by rememberSaveable { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     var managing by remember { mutableStateOf(false) }
 
@@ -128,8 +129,25 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                             onSelect = { selectedPoint = it.index },
                             unit = unit,
                             showTrend = showTrend,
-                            yFromZero = fromZero
+                            yFromZero = fromZero,
+                            onExpand = { fullScreen = true }
                         )
+                        if (fullScreen) {
+                            FullScreenChart(selectedName, onDismiss = { fullScreen = false }) { vp, h ->
+                                LineChart(
+                                    listOf(LineSeries(selectedName, points)),
+                                    height = h,
+                                    photoDays = photoDays,
+                                    goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
+                                    selected = selectedPoint?.let { ChartSelection(0, it) },
+                                    onSelect = { selectedPoint = it.index },
+                                    unit = unit,
+                                    showTrend = showTrend,
+                                    yFromZero = fromZero,
+                                    viewport = vp
+                                )
+                            }
+                        }
                         if (showTrend) trendOf(points)?.let { tr ->
                             Text(
                                 "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",

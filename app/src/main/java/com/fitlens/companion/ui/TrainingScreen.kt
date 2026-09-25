@@ -141,6 +141,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
     var sel by remember(gIdx, rangeIdx) { mutableStateOf<Int?>(null) }
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fromZero by rememberSaveable { mutableStateOf(false) }
+    var fullScreen by rememberSaveable { mutableStateOf(false) }
     val g = graphTypes[gIdx.coerceIn(0, graphTypes.lastIndex)]
     val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
 
@@ -188,8 +189,24 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                         onSelect = { sel = it.index },
                         unit = unit,
                         showTrend = showTrend,
-                        yFromZero = fromZero
+                        yFromZero = fromZero,
+                        onExpand = { fullScreen = true }
                     )
+                    if (fullScreen) {
+                        FullScreenChart("${ex?.name ?: "Exercise"} · ${g.label}", onDismiss = { fullScreen = false }) { vp, h ->
+                            LineChart(
+                                listOf(LineSeries(g.label, shown)),
+                                height = h,
+                                photoDays = photoDays,
+                                selected = sel?.let { ChartSelection(0, it) },
+                                onSelect = { sel = it.index },
+                                unit = unit,
+                                showTrend = showTrend,
+                                yFromZero = fromZero,
+                                viewport = vp
+                            )
+                        }
+                    }
                     if (showTrend) trendOf(shown)?.let { tr ->
                         Text(
                             "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
