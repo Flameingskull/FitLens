@@ -53,6 +53,13 @@ object Backups {
     fun fileName(prefix: String = "FitLens_backup_"): String =
         prefix + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm")) + ".$EXTENSION"
 
+    /**
+     * The name for a backup saved or shared by hand: timestamped unless the user turned that off (#30). Automatic
+     * backups keep [fileName], because pruning tells them apart by it.
+     */
+    fun manualFileName(): String =
+        if (Settings.currentPortable().backupTimestamp) fileName() else "FitLens_backup.$EXTENSION"
+
     // ---------- Writing ----------
 
     private fun appVersion(context: Context): String = try {
@@ -120,6 +127,27 @@ object Backups {
             }
         }
     }
+
+    /**
+     * Writes a full backup into the app's share cache for the share sheet (#30), replacing any earlier shared
+     * backup so only one copy ever takes up space. Returns the file, or null with a message on failure.
+     */
+    suspend fun exportForShare(context: Context): Pair<File?, ImportSummary> = withContext(Dispatchers.IO) {
+        lock.withLock {
+            try {
+                val dir = File(context.cacheDir, SHARE_DIR).apply { mkdirs() }
+                dir.listFiles()?.filter { it.name.endsWith(".$EXTENSION") }?.forEach { it.delete() }
+                val file = File(dir, manualFileName())
+                val n = file.outputStream().use { write(context, it) }
+                file to ImportSummary("Backup ready to share with $n photos.", true)
+            } catch (e: Exception) {
+                null to ImportSummary("Couldn't prepare the backup: ${e.message}", false)
+            }
+        }
+    }
+
+    /** The FileProvider's `exports/` cache folder (res/xml/file_paths.xml). */
+    private const val SHARE_DIR = "exports"
 
     // ---------- Inspecting and restoring ----------
 

@@ -68,7 +68,9 @@ data class PortableSettings(
     /** Where a new set's fields come from (#97): [AUTOFILL_LAST] or [AUTOFILL_EMPTY]. Routines (#21) add a third. */
     val autofillSource: String = AUTOFILL_LAST,
     /** After updating a set, select the next one of the day so it can be adjusted and saved in turn (#97). */
-    val autoSelectNext: Boolean = false
+    val autoSelectNext: Boolean = false,
+    /** Add the date and time to the names of backups saved or shared by hand (#30). Automatic backups always do. */
+    val backupTimestamp: Boolean = true
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -200,6 +202,7 @@ object Settings {
         db.setMeta(P_CELEBRATE_PRS, if (s.celebratePrs) null else "0")
         db.setMeta(P_AUTOFILL, s.autofillSource.takeIf { it != PortableSettings.AUTOFILL_LAST })
         db.setMeta(P_AUTO_SELECT_NEXT, if (s.autoSelectNext) "1" else null)
+        db.setMeta(P_BACKUP_TIMESTAMP, if (s.backupTimestamp) null else "0")
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -236,6 +239,7 @@ object Settings {
     private const val P_CELEBRATE_PRS = "celebrate_prs"
     private const val P_AUTOFILL = "autofill_source"
     private const val P_AUTO_SELECT_NEXT = "auto_select_next"
+    private const val P_BACKUP_TIMESTAMP = "backup_timestamp"
 
     private fun bool(v: String?) = v == "1"
 
@@ -287,7 +291,8 @@ object Settings {
         celebratePrs = get(P_CELEBRATE_PRS) != "0",
         // An unknown value (say, "routine" from a later build's backup) falls back to the default.
         autofillSource = get(P_AUTOFILL)?.takeIf { it == PortableSettings.AUTOFILL_EMPTY } ?: PortableSettings.AUTOFILL_LAST,
-        autoSelectNext = bool(get(P_AUTO_SELECT_NEXT))
+        autoSelectNext = bool(get(P_AUTO_SELECT_NEXT)),
+        backupTimestamp = get(P_BACKUP_TIMESTAMP) != "0"
     )
 }
 

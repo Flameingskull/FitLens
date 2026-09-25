@@ -1,6 +1,7 @@
 package com.fitlens.companion.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -75,6 +76,7 @@ fun BackupsCard(snap: Snapshot) {
     // Every value here comes from Settings, so the screen follows each change live, including ones a background
     // backup makes while it's open (#38).
     val device by Settings.device.collectAsState()
+    val prefs by Settings.portable.collectAsState()
     val autoFolder = device.autoBackupFolder?.let { Uri.parse(it) }
     val autoDays = device.autoBackupDays
     val keep = device.autoBackupKeep
@@ -160,8 +162,16 @@ fun BackupsCard(snap: Snapshot) {
                     "to restore after reinstalling FitLens or on a new phone."
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { saveBackup.launch(Backups.fileName()) }) { Text("Save backup") }
+                Button(onClick = { saveBackup.launch(Backups.manualFileName()) }) { Text("Save backup") }
+                OutlinedButton(onClick = { shareBackup(ctx) }, enabled = busy == null) { Text("Share backup") }
                 OutlinedButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Restore backup") }
+            }
+            Hint(
+                "Share sends the backup with an app you already use, such as email, Drive or Dropbox. " +
+                    "FitLens itself never uploads anything."
+            )
+            ToggleRow("Add the date and time to backup file names", prefs.backupTimestamp) { on ->
+                Settings.updatePortable { it.copy(backupTimestamp = on) }
             }
 
             SubHeading("Automatic backups")
@@ -398,4 +408,13 @@ private fun ReportDialog(snap: Snapshot, onDismiss: () -> Unit, onCreate: (Repor
     )
     if (pickFrom) PickDateDialog(from, onDismiss = { pickFrom = false }) { from = it }
     if (pickTo) PickDateDialog(to, onDismiss = { pickTo = false }) { to = it }
+}
+
+/** Makes a backup and opens the share sheet with it (#30). The busy overlay shows while the archive is written. */
+private fun shareBackup(ctx: Context) {
+    AppScope.scope.launch {
+        UiEvents.busy.value = "Preparing backup…"
+        val (file, result) = try { Backups.exportForShare(ctx) } finally { UiEvents.busy.value = null }
+        if (file != null) shareFile(ctx, file, Backups.MIME) else UiEvents.show(result.message, result.level())
+    }
 }

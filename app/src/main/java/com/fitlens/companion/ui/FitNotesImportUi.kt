@@ -137,7 +137,7 @@ fun FitNotesImportHost() {
                     modifier = Modifier.padding(top = 6.dp)
                 )
                 if (!plan.nothingNew) {
-                    OutlinedButton(onClick = { backupFirst.launch(Backups.fileName()) }, modifier = Modifier.padding(top = 4.dp)) {
+                    OutlinedButton(onClick = { backupFirst.launch(Backups.manualFileName()) }, modifier = Modifier.padding(top = 4.dp)) {
                         Text("Save a FitLens backup first")
                     }
                 }
