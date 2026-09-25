@@ -5,11 +5,11 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.26.
+Last updated: 1.0.27.
 
 ## How data flows
 
-- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 4. Schema changes
+- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 5 (v5 added `workout_set.set_type` and `rpe`, #43 and #44). Schema changes
   bump it and add an `if (oldVersion < N)` block in `onUpgrade` that keeps every row. `.fitlens` restores of older
   backups go through the same upgrade.
 - **Settings** (#38) go through `data/Settings.kt` only. Phone-only settings (`DeviceSettings`: folders, schedules,
@@ -40,7 +40,7 @@ Last updated: 1.0.26.
 | File | Owns |
 | --- | --- |
 | `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set/`deleteMeta`, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
-| `Models.kt` | Row types (`Category`, `Exercise`, `SetRow`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes`, `Poses`, `Dates` |
+| `Models.kt` | Row types (`Category`, `Exercise`, `SetRow` with `setType` and `rpe`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes`, `SetTypes` (W/D/F badges), `Effort` (RPE/RIR), `Poses`, `Dates` |
 | `Store.kt` | `Snapshot` and `Store` (load and reload, photo and measurement writes, custom metrics) |
 | `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts, comments, times, undo re-adds, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction) |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
@@ -61,6 +61,7 @@ Last updated: 1.0.26.
 | `SettingsScreen.kt` | Settings (`SettingsSection` rows, grouped, plus "Run setup again") and its sub-screens: Backups, FitNotes import and Data tools (Data, backup & import), Units & display, Workout & logging, Personal records |
 | `DataToolsScreen.kt` | Settings → Data tools: CSV export (save or share) and Delete workout history (safety copy first), each with its own `RangeChips` range |
 | `SetupScreen.kt` | The guided first-run setup (#29): welcome/restore, units, automatic backups, FitNotes import, photos, starter library. Shown once when a phone has no data (`DeviceSettings.setupDone`, checked in `AppRoot`) |
+| `SetMarks.kt` | `setMarks(set)`: a set's type badge and effort text (shown and spoken), following the settings. Every set list uses it |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`. **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (shows the Settings gear), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
 | `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow`, `ExerciseCard`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
@@ -99,6 +100,8 @@ Last updated: 1.0.26.
   Launch writes with `AppScope` / `runBusy`, and report results through `UiEvents`.
 - **Brand:** colours come from `MaterialTheme.colorScheme`, `Brand` or `LocalChartColors`. Never write `Color(0x…)`
   outside `Theme.kt`. Headings are serif, labels letter-spaced, dividers `GoldHairline`.
+- **Stats use `snap.statSets` / `statSetsByExercise`**, which leave out warm-ups unless the setting counts them
+  (#43). Lists and history use `sets`. New records, graphs or analysis must use the stat sets.
 - **Units:** store kg, and show values with `snap.weight(kg)` / `snap.fmtWeight(kg)` plus `snap.weightUnit`.
 - **Comments** explain why and cite the issue (`// … (#69)`), like the code around them.
 - **Toolchain:** Kotlin 2.0.21, Compose with Material 3, `compileSdk` 35, `minSdk` 29. There's no local Android SDK,

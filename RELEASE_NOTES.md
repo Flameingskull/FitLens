@@ -1,43 +1,39 @@
 ## Overview
 
-This build brings the first analysis screens to FitLens. The Training tab now has an **Analysis** side with three
-views: your training totals over time, how your training splits between categories and exercises, and a records
-board across all your lifts. Your data doesn't change. The analysis only reads what you've logged and imported.
+This build makes logging more precise. Sets can now be marked as warm-up, drop or failure sets. Warm-ups stay out
+of your records and statistics unless you choose to count them. You can also record how hard each set felt, as RPE
+or reps in reserve. The calendar and weekly analysis can now start the week on Monday, Saturday or Sunday, and the
+weight buttons can step by the amount you choose.
+
+This update upgrades FitLens's database. Every set you've logged or imported is kept and becomes a working set.
+Backups from earlier versions restore the same way.
 
 ## What's new
 
-- **Exercises | Analysis.** A switch at the top of the Training tab moves between your exercise list and the new
-  Analysis screens.
-- **Workouts: totals over time.** Bars show your workouts, volume, sets, reps or workout duration per week, month or
-  year.
-  - Look at all your training, one category or one exercise, over 1 month to all time.
-  - Tap a bar to see that period's dates, its total and the change from the period before, then open the workouts
-    in it.
-  - A summary gives your average per period and your best period. A dashed **trend** line is optional.
-  - The current week, month or year is drawn lighter and marked "so far", so a week in progress doesn't look like a
-    drop.
-  - The graph opens full screen like every other FitLens graph.
-- **Breakdown: where your training goes.** A donut chart splits your sets, reps, workouts or volume by category or
-  by exercise, for a single workout, a week, a month, a year, all time or dates you choose.
-  - Step back and forward through the periods that have training in them.
-  - The legend lists each group's total and share. Shares always add up to 100%.
-  - Select a slice to compare it with the period before, for example "Legs: +4 sets vs the week before". From there
-    you can open its totals or the exercise itself.
-  - Tiles summarise the period's workouts, sets, reps and volume.
-- **Records: every rep max in one table.** 1RM to 15RM for many exercises side by side, as actual lifts or estimates.
-  - A value set by a lift of exactly that many reps is shown bright. One carried over from a heavier lift at more
-    reps is dimmed and marked with an arrow.
-  - Tap a value to see the set behind it and open that workout.
-  - Filter by category or choose the exercises to compare, and sort by category, name or most recently trained.
-    With TalkBack, every value reads out its exercise, rep max, weight and where it came from.
+- **Set types.** On the set entry screen, choose **Working**, **Warm-up**, **Drop set** or **To failure** for each
+  set. Warm-up, drop and failure sets carry a small gold **W**, **D** or **F** in your set lists and exercise
+  history, and TalkBack reads the type aloud.
+- **Warm-ups out of the numbers.** By default, warm-up sets are left out of personal records, estimated maxes,
+  volume, exercise graphs, the Analysis screens, the records board and the PDF training summary. They always show in
+  your history. **Settings → Workout & logging → Count warm-up sets in records and stats** includes them again, and
+  your PR marks are updated as soon as you switch it.
+- **Effort per set (optional).** Turn on **Settings → Workout & logging → Effort per set** to record **RPE** (6 to
+  10, in half steps) or **RIR** (reps in reserve, 0 to 5+). It appears as large chips on the set entry screen. It's
+  always optional: tap the chosen value again to clear it.
+  - Your sets show it as "RPE 8" or "2 RIR", and TalkBack reads "RPE 8" or "2 reps in reserve".
+  - Effort is stored once, so switching between RPE and RIR, or turning the field off, never changes or deletes
+    what you've recorded.
+- **Week start.** **Settings → Units & display → Week starts on** sets Monday, Saturday or Sunday. It's used by the
+  calendar and by weekly totals and breakdowns. It's also in first-run setup.
+- **Weight step.** **Settings → Units & display → Weight step** sets how much the + and − buttons change the weight,
+  for example 1.25 kg or 5 lbs.
 
 ## Improved
 
-- **Breakdown percentages add up.** The breakdown chart's percentages now always total exactly 100%.
+- **Richer CSV export.** Workout exports gain `set_type` and `RPE` columns.
 
 ## Known limitations
 
-- Weeks run Monday to Sunday until a week-start setting arrives.
-- Duration only counts workouts that have a start and finish time, and says how many that is.
-- The breakdown chart doesn't open full screen yet.
-- Goals and exercise comparison tabs will join Analysis in later builds.
+- Per-exercise and per-measurement units, and distance and length units, are still to come.
+- Effort isn't shown in the PDF report yet.
+- A set's type and effort are chosen as you log. There's no way yet to change several sets at once.
