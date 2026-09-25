@@ -29,7 +29,6 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -41,19 +40,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
-import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.fmtNum
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimelineScreen(snap: Snapshot, nav: Nav) {
     var filter by rememberSaveable { mutableIntStateOf(0) }
-    val device by Settings.device.collectAsState()
-    val lastImport = device.lastImportName
-    val lastImportAt = device.lastImportAt
     val dates = remember(snap, filter) {
         when (filter) {
             1 -> snap.allDates.filter { snap.photosByDate.containsKey(it) }
@@ -81,17 +73,6 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
                 TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Restore from a backup") }
             }
         } else {
-        if (lastImport != null) {
-            val at = lastImportAt?.let {
-                Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM, HH:mm"))
-            } ?: ""
-            Text(
-                "FitNotes data: $lastImport · imported $at",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
