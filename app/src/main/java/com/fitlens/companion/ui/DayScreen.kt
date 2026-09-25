@@ -276,12 +276,17 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                                 )
                             }
                             exSets.forEachIndexed { i, s ->
+                                val marks = setMarks(s)
                                 SetRow(
                                     index = i + 1,
                                     summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
                                     comment = s.comment,
                                     isPr = s.isPr,
-                                    framed = false
+                                    framed = false,
+                                    badge = marks.badge,
+                                    badgeSpoken = marks.badgeSpoken,
+                                    effort = marks.effort,
+                                    effortSpoken = marks.effortSpoken
                                 )
                             }
                         }

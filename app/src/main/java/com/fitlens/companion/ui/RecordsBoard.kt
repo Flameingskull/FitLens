@@ -286,7 +286,7 @@ private fun buildColumns(
     categoryId: Long?,
     chosen: Set<Long>
 ): List<RecordColumn> {
-    val cols = snap.setsByExercise.mapNotNull { (id, all) ->
+    val cols = snap.statSetsByExercise.mapNotNull { (id, all) ->
         val ex = snap.exercises[id] ?: return@mapNotNull null
         if (categoryId != null && ex.categoryId != categoryId) return@mapNotNull null
         if (chosen.isNotEmpty() && id !in chosen) return@mapNotNull null

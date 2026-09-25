@@ -148,6 +148,23 @@ private fun LoggingPage() {
         "Handy for a copied workout: update each set in turn without tapping the next one. " +
             "These preferences travel with your .fitlens backups."
     )
+    SectionTitle("Set types")
+    ToggleRow("Show set type on each set", prefs.showSetType) { on ->
+        Settings.updatePortable { it.copy(showSetType = on) }
+    }
+    PageHint("Warm-up, drop and failure sets carry a small W, D or F. Choose a set's type as you log it.")
+    ToggleRow("Count warm-up sets in records and stats", prefs.warmupsCount) { on ->
+        Settings.updatePortable { it.copy(warmupsCount = on) }
+        // PR marks follow the setting straight away (#43).
+        runBusy("Updating personal records…") {
+            val n = Workouts.recalculatePrs()
+            if (n == 0) null else ImportSummary("Personal records updated: $n ${if (n == 1) "set" else "sets"} changed.", ok = true)
+        }
+    }
+    PageHint(
+        "Off by default: warm-ups are left out of personal records, estimated maxes, volume, graphs, analysis and " +
+            "the PDF report. They always show in your history."
+    )
 }
 
 @Composable

@@ -12,7 +12,7 @@ object CsvExport {
     const val MIME = "text/csv"
 
     fun workoutColumns(unit: String) =
-        listOf("Date", "Exercise", "Category", "Set", "Weight ($unit)", "Reps", "Distance", "Time (seconds)", "PR", "Comment")
+        listOf("Date", "Exercise", "Category", "Set", "Weight ($unit)", "Reps", "Distance", "Time (seconds)", "PR", "Comment", "set_type", "RPE")
 
     val BODY_COLUMNS = listOf("Date", "Time", "Measurement", "Value", "Unit", "Comment")
 
@@ -46,7 +46,9 @@ object CsvExport {
                         if (s.distance > 0) fmtNum(s.distance, 2) else "",
                         if (s.durationSec > 0) s.durationSec.toString() else "",
                         if (s.isPr) "Yes" else "",
-                        s.comment ?: ""
+                        s.comment ?: "",
+                        SetTypes.csv(s.setType),
+                        s.rpe?.let { fmtNum(it, 1) } ?: ""
                     )
                 )
             }

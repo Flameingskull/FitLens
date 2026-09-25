@@ -42,6 +42,7 @@ import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.SegmentedSwitch
+import com.fitlens.companion.ui.design.SetTypeBadge
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
 fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
@@ -110,7 +111,7 @@ fun TrainingScreen(snap: Snapshot, nav: Nav) {
                     item(key = "x${ex.id}") {
                         val sets = snap.setsByExercise[ex.id] ?: emptyList()
                         val days = sets.map { it.date }.distinct()
-                        val best = sets.maxOfOrNull { e1rm(it) } ?: 0.0
+                        val best = snap.statSetsByExercise[ex.id]?.maxOfOrNull { e1rm(it) } ?: 0.0
                         val sub = buildList {
                             add("${days.size} workouts")
                             add("last ${Dates.medium(days.max())}")
@@ -157,6 +158,9 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
     var fullScreen by rememberSaveable { mutableStateOf(false) }
     val g = graphTypes[gIdx.coerceIn(0, graphTypes.lastIndex)]
     val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
+    // Graphs and records leave out warm-ups unless Settings counts them (#43); History shows every set.
+    val statSets = snap.statSetsByExercise[exId] ?: emptyList()
+    val statByDate = remember(statSets) { statSets.groupBy { it.date }.toSortedMap() }
 
     Column(Modifier.fillMaxSize()) {
         BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() })
@@ -187,8 +191,8 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                 }
                 item {
                     // Worked out off the main thread, once per snapshot and graph type (#50).
-                    val daily = rememberChartData(byDate, g, snap.weightUnit) {
-                        byDate.entries.map { (d, l) ->
+                    val daily = rememberChartData(statByDate, g, snap.weightUnit) {
+                        statByDate.entries.map { (d, l) ->
                             val raw = g.fn(l)
                             ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(raw) else if (g.isTime) raw / 60.0 else raw, d)
                         }.filter { it.y > 0 }
@@ -274,9 +278,15 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                                 if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
                             }
                             l.forEachIndexed { i, s ->
-                                Row(Modifier.padding(start = 8.dp, top = 2.dp)) {
+                                val marks = setMarks(s)
+                                Row(Modifier.padding(start = 8.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text("${i + 1}", Modifier.width(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec), Modifier.weight(1f))
+                                    marks.badge?.let { SetTypeBadge(it); Spacer(Modifier.width(6.dp)) }
+                                    Text(
+                                        describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec) +
+                                            (marks.effort?.let { "  ·  $it" } ?: ""),
+                                        Modifier.weight(1f)
+                                    )
                                     if (s.isPr) Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
                                 }
                                 if (!s.comment.isNullOrBlank()) Text("“${s.comment}”", Modifier.padding(start = 32.dp), style = MaterialTheme.typography.bodySmall)
@@ -286,7 +296,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                     }
                 }
             }
-            else -> RecordsTab(snap, sets, timeBased)
+            else -> RecordsTab(snap, statSets, timeBased)
         }
     }
 }

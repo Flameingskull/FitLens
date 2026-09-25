@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
@@ -157,6 +158,20 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
  * - TalkBack reads the row as one sentence, for example "Set 2, 100 kg × 5 reps, personal record".
  * - [done] is null when the screen has no done state; otherwise a checkbox is shown and [onDoneChange] is called.
  */
+/** The small gold letter that marks a warm-up, drop or failure set (#43). The letter carries the meaning. */
+@Composable
+fun SetTypeBadge(letter: String) {
+    Text(
+        letter,
+        Modifier
+            .border(1.dp, Brand.Gold, RoundedCornerShape(4.dp))
+            .padding(horizontal = 5.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = Brand.Gold,
+        fontWeight = FontWeight.Bold
+    )
+}
+
 @Composable
 fun SetRow(
     index: Int,
@@ -169,11 +184,20 @@ fun SetRow(
     done: Boolean? = null,
     onDoneChange: ((Boolean) -> Unit)? = null,
     trailingHint: String? = null,
-    framed: Boolean = true
+    framed: Boolean = true,
+    /** A one-letter set-type badge ("W", "D", "F") and how TalkBack says it ("warm-up"). */
+    badge: String? = null,
+    badgeSpoken: String? = null,
+    /** Effort as shown ("RPE 8") and as spoken ("2 reps in reserve"). */
+    effort: String? = null,
+    effortSpoken: String? = null
 ) {
     val shape = FitShapes.row
     val spoken = buildString {
-        append("Set ").append(index).append(", ").append(summary)
+        append("Set ").append(index).append(", ")
+        if (badgeSpoken != null) append(badgeSpoken).append(", ")
+        append(summary)
+        if (effortSpoken != null) append(", ").append(effortSpoken)
         if (isPr) append(", personal record")
         if (!comment.isNullOrBlank()) append(", comment: ").append(comment)
         if (done == true) append(", done")
@@ -221,7 +245,20 @@ fun SetRow(
         ) {
             Text("$index", Modifier.width(if (framed) 28.dp else 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Column(Modifier.weight(1f)) {
-                Text(summary, style = MaterialTheme.typography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (badge != null) {
+                        SetTypeBadge(badge)
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(summary, style = MaterialTheme.typography.bodyLarge)
+                    if (effort != null) {
+                        Text(
+                            "  ·  $effort",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 if (!comment.isNullOrBlank()) {
                     Text(
                         "“$comment”",

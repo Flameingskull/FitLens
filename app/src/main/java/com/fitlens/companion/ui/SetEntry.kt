@@ -11,10 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +45,7 @@ import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
+import com.fitlens.companion.data.SetTypes
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.Settings
@@ -48,6 +53,7 @@ import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.SetTypeBadge
 import com.fitlens.companion.ui.design.StepperField
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 import kotlin.math.max
@@ -118,6 +124,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     var distance by remember(date, exerciseId) { mutableStateOf("") }
     var duration by remember(date, exerciseId) { mutableStateOf("") }
     var comment by remember(date, exerciseId) { mutableStateOf("") }
+    // Set type (#43): new sets start as working sets; editing a set shows its own type.
+    var setType by remember(date, exerciseId) { mutableIntStateOf(SetTypes.WORKING) }
     // The exact kilograms the weight field was filled from, and the text it was filled with. Weights are stored in
     // kilograms but shown rounded in the user's unit, so converting the displayed text back on every save quietly
     // rewrote the stored value for anyone using pounds (#75). Only convert when the text has actually been edited.
@@ -149,6 +157,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
             distance = source?.distance?.takeIf { it > 0 }?.let { fmtNum(it, 2) } ?: ""
             duration = source?.durationSec?.takeIf { it > 0 }?.let { fmtDuration(it) } ?: ""
             comment = chosen?.comment ?: ""
+            setType = chosen?.setType ?: SetTypes.WORKING
         }
     }
 
@@ -170,7 +179,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
         AppScope.scope.launch {
             try {
                 if (chosen == null) {
-                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note)
+                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note, setType = setType)
                     // The PR mark was decided as the set was saved; the reloaded snapshot carries it (#23).
                     val isPr = Store.snapshot.value?.setsByExercise?.get(exerciseId)?.any { it.id == id && it.isPr } == true
                     if (isPr && Settings.currentPortable().celebratePrs) {
@@ -179,7 +188,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                     }
                 } else {
                     Workouts.updateSet(
-                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, comment = note)
+                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, comment = note, setType = setType)
                     )
                     // With auto-select next on, the following set of the day is selected, ready to adjust (#97).
                     val next = if (Settings.currentPortable().autoSelectNext) {
@@ -257,6 +266,22 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                             keyboard = KeyboardType.Text
                         )
                     }
+                    // Working, warm-up, drop or failure (#43). Warm-ups stay out of records unless Settings counts them.
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        SetTypes.all.forEach { t ->
+                            FilterChip(
+                                selected = setType == t,
+                                onClick = { setType = t },
+                                label = { Text(SetTypes.label(t)) },
+                                leadingIcon = if (SetTypes.badge(t) != null) {
+                                    { SetTypeBadge(SetTypes.badge(t) ?: "") }
+                                } else null
+                            )
+                        }
+                    }
                     OutlinedTextField(
                         value = comment,
                         onValueChange = { comment = it },
@@ -301,11 +326,16 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
             sets.forEachIndexed { i, s ->
                 item(key = "s${s.id}") {
                     val isSelected = selected == s.id
+                    val marks = setMarks(s, prefs)
                     SetRowView(
                         index = i + 1,
                         summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
                         comment = s.comment,
                         isPr = s.isPr,
+                        badge = marks.badge,
+                        badgeSpoken = marks.badgeSpoken,
+                        effort = marks.effort,
+                        effortSpoken = marks.effortSpoken,
                         selected = isSelected,
                         onClick = { selected = if (selected == s.id) null else s.id },
                         trailingHint = if (isSelected) "Selected" else "Edit"

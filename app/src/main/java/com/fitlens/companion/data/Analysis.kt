@@ -89,7 +89,8 @@ object Analysis {
      * with empty periods included as zero so gaps in training show as gaps. Duration is in seconds, volume in kg.
      */
     fun totals(snap: Snapshot, metric: Metric, period: Period, filter: Filter, from: String?): List<PeriodTotal> {
-        val sets = snap.sets.filter { filter.matches(snap, it) }
+        // Warm-ups count only when the setting says so (#43).
+        val sets = snap.statSets.filter { filter.matches(snap, it) }
         if (sets.isEmpty()) return emptyList()
         val byDay = sets.groupBy { it.date.take(10) }
         val today = LocalDate.now()
@@ -167,7 +168,7 @@ object Analysis {
     }
 
     fun setsIn(snap: Snapshot, from: String, to: String): List<SetRow> =
-        snap.sets.filter { val d = it.date.take(10); d >= from && d <= to }
+        snap.statSets.filter { val d = it.date.take(10); d >= from && d <= to }
 
     /**
      * Slices of [m] by [by] for the sets from [from] to [to], largest first. Anything beyond [maxSlices] is grouped as

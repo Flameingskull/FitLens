@@ -339,7 +339,8 @@ object PdfReport {
     private fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
 
     private fun training(w: PageWriter, snap: Snapshot, o: ReportOptions) {
-        val sets = snap.sets.filter { it.date >= o.from && it.date <= o.to }
+        // The training summary leaves out warm-ups unless Settings counts them (#43).
+        val sets = snap.statSets.filter { it.date >= o.from && it.date <= o.to }
         val workouts = sets.map { it.date }.distinct().size
         w.section(
             "Training",
