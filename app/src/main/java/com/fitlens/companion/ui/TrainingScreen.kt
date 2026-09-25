@@ -168,6 +168,8 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                     Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
                         FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
+                        Spacer(Modifier.weight(1f))
+                        ExpandGraphButton { fullScreen = true }
                     }
                 }
                 item {
@@ -186,14 +188,27 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                         Modifier.padding(horizontal = 8.dp),
                         photoDays = photoDays,
                         selected = sel?.let { ChartSelection(0, it) },
-                        onSelect = { sel = it.index },
+                        onSelect = { sel = it.index; ChartHints.tapped() },
                         unit = unit,
                         showTrend = showTrend,
                         yFromZero = fromZero,
-                        onExpand = { fullScreen = true }
+                        onExpand = { ChartHints.expanded(); fullScreen = true }
                     )
+                    ChartHint()
                     if (fullScreen) {
-                        FullScreenChart("${ex?.name ?: "Exercise"} · ${g.label}", onDismiss = { fullScreen = false }) { vp, h ->
+                        FullScreenChart(
+                            "${ex?.name ?: "Exercise"} · ${g.label}",
+                            onDismiss = { fullScreen = false },
+                            footer = {
+                                sel?.let { shown.getOrNull(it) }?.let { p ->
+                                    Text(
+                                        "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
+                                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
+                            }
+                        ) { vp, h, resetZoom ->
                             LineChart(
                                 listOf(LineSeries(g.label, shown)),
                                 height = h,
@@ -203,7 +218,8 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                                 unit = unit,
                                 showTrend = showTrend,
                                 yFromZero = fromZero,
-                                viewport = vp
+                                viewport = vp,
+                                onExpand = resetZoom
                             )
                         }
                     }

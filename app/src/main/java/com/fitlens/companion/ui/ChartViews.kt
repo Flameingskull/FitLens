@@ -49,8 +49,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.materialIcon
+import androidx.compose.material.icons.materialPath
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.fmtNum
 import kotlin.math.atan2
 import kotlin.math.ceil
@@ -282,24 +291,72 @@ fun DonutChart(
     }
 }
 
+/** The Material "fullscreen" glyph (four corners), drawn here because the core icon set doesn't include it. */
+val FullscreenIcon: ImageVector = materialIcon(name = "FitLens.Fullscreen") {
+    materialPath {
+        moveTo(7f, 14f); horizontalLineTo(5f); verticalLineTo(19f); horizontalLineTo(10f); verticalLineTo(17f); horizontalLineTo(7f); close()
+        moveTo(5f, 10f); horizontalLineTo(7f); verticalLineTo(7f); horizontalLineTo(10f); verticalLineTo(5f); horizontalLineTo(5f); close()
+        moveTo(17f, 17f); horizontalLineTo(14f); verticalLineTo(19f); horizontalLineTo(19f); verticalLineTo(14f); horizontalLineTo(17f); close()
+        moveTo(14f, 5f); verticalLineTo(7f); horizontalLineTo(17f); verticalLineTo(10f); horizontalLineTo(19f); verticalLineTo(5f); close()
+    }
+}
+
+/** The visible full-screen button for a graph (#96), placed next to its chips. */
+@Composable
+fun ExpandGraphButton(onClick: () -> Unit) {
+    IconButton(onClick = { ChartHints.expanded(); onClick() }) {
+        Icon(FullscreenIcon, contentDescription = "Show graph full screen", tint = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** Remembers, per phone, whether the user has found tap-for-details and full screen, so the hint can go away. */
+object ChartHints {
+    fun tapped() {
+        if (!Settings.current().chartTapSeen) Settings.updateDevice { it.copy(chartTapSeen = true) }
+    }
+
+    fun expanded() {
+        if (!Settings.current().chartExpandSeen) Settings.updateDevice { it.copy(chartExpandSeen = true) }
+    }
+}
+
+/** "Tap a point for details. Double tap to expand." under a graph, until the user has done both once. */
+@Composable
+fun ChartHint(modifier: Modifier = Modifier) {
+    val device by Settings.device.collectAsState()
+    if (!(device.chartTapSeen && device.chartExpandSeen)) {
+        Text(
+            "Tap a point for details. Double tap to expand.",
+            modifier.padding(horizontal = 16.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 /**
- * The full-screen viewer every chart can open (#50): the whole screen, landscape allowed, pinch to zoom the time
- * axis, drag to pan, a reset control, and the chart's own tap-for-details. [chart] draws the chart for the current
- * zoom at the height available.
+ * The full-screen viewer every chart can open (#50, #96): the whole screen, landscape allowed, pinch to zoom the time
+ * axis, drag to pan, a reset control (or double tap), and the chart's own tap-for-details. [chart] draws the chart for
+ * the current zoom at the height available, and gets a reset function to use as its double tap. The zoom survives
+ * rotation. TalkBack users get zoom and move actions instead of gestures.
  */
 @Composable
 fun FullScreenChart(
     title: String,
     onDismiss: () -> Unit,
     footer: @Composable () -> Unit = {},
-    chart: @Composable (viewport: ChartViewport, height: Dp) -> Unit
+    chart: @Composable (viewport: ChartViewport, height: Dp, resetZoom: () -> Unit) -> Unit
 ) {
-    var viewport by remember { mutableStateOf(ChartViewport()) }
+    var from by rememberSaveable { mutableFloatStateOf(0f) }
+    var to by rememberSaveable { mutableFloatStateOf(1f) }
+    val viewport = ChartViewport(from, to)
+    val set: (ChartViewport) -> Unit = { v -> from = v.from; to = v.to }
+    val reset: () -> Unit = { set(ChartViewport()) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
                 BackTopBar(title, onBack = onDismiss) {
-                    IconButton(onClick = { viewport = ChartViewport() }, enabled = !viewport.isFull) {
+                    IconButton(onClick = reset, enabled = !viewport.isFull) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Reset zoom")
                     }
                 }
@@ -308,15 +365,23 @@ fun FullScreenChart(
                         .weight(1f)
                         .fillMaxWidth()
                         .padding(8.dp)
+                        .semantics {
+                            customActions = listOf(
+                                CustomAccessibilityAction("Zoom in") { set(viewport.transform(0.5f, 0f, 2f)); true },
+                                CustomAccessibilityAction("Zoom out") { set(viewport.transform(0.5f, 0f, 0.5f)); true },
+                                CustomAccessibilityAction("Move earlier") { set(viewport.transform(0.5f, 0.5f, 1f)); true },
+                                CustomAccessibilityAction("Move later") { set(viewport.transform(0.5f, -0.5f, 1f)); true }
+                            )
+                        }
                         .pointerInput(Unit) {
                             detectTransformGestures { centroid, pan, zoom, _ ->
                                 val w = size.width.toFloat().coerceAtLeast(1f)
-                                viewport = viewport.transform(centroid.x / w, pan.x / w, zoom)
+                                set(ChartViewport(from, to).transform(centroid.x / w, pan.x / w, zoom))
                             }
                         }
                 ) {
                     // Leave room for a legend under line charts.
-                    chart(viewport, (maxHeight - 56.dp).coerceAtLeast(160.dp))
+                    chart(viewport, (maxHeight - 56.dp).coerceAtLeast(160.dp), reset)
                 }
                 footer()
                 Text(

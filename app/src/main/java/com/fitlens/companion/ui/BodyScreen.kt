@@ -112,6 +112,8 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                         Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
                             FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
+                            Spacer(Modifier.weight(1f))
+                            ExpandGraphButton { fullScreen = true }
                         }
                     }
                     item {
@@ -126,14 +128,27 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                             photoDays = photoDays,
                             goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
                             selected = selectedPoint?.let { ChartSelection(0, it) },
-                            onSelect = { selectedPoint = it.index },
+                            onSelect = { selectedPoint = it.index; ChartHints.tapped() },
                             unit = unit,
                             showTrend = showTrend,
                             yFromZero = fromZero,
-                            onExpand = { fullScreen = true }
+                            onExpand = { ChartHints.expanded(); fullScreen = true }
                         )
+                        ChartHint()
                         if (fullScreen) {
-                            FullScreenChart(selectedName, onDismiss = { fullScreen = false }) { vp, h ->
+                            FullScreenChart(
+                                selectedName,
+                                onDismiss = { fullScreen = false },
+                                footer = {
+                                    selectedPoint?.let { points.getOrNull(it) }?.let { p ->
+                                        Text(
+                                            "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
+                                            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                }
+                            ) { vp, h, resetZoom ->
                                 LineChart(
                                     listOf(LineSeries(selectedName, points)),
                                     height = h,
@@ -144,7 +159,8 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                                     unit = unit,
                                     showTrend = showTrend,
                                     yFromZero = fromZero,
-                                    viewport = vp
+                                    viewport = vp,
+                                    onExpand = resetZoom
                                 )
                             }
                         }

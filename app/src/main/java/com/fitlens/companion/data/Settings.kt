@@ -45,7 +45,10 @@ data class DeviceSettings(
     val safetyAt: Long? = null,
     val safetyReason: String? = null,
     /** The last important result, as "time|level|text" (see `UiEvents`). */
-    val lastResult: String? = null
+    val lastResult: String? = null,
+    /** The graph hint shows until the user has tapped a point and opened a graph full screen once each (#50). */
+    val chartTapSeen: Boolean = false,
+    val chartExpandSeen: Boolean = false
 )
 
 /**
@@ -191,6 +194,8 @@ object Settings {
     private const val D_SAFETY_AT = "safety_at"
     private const val D_SAFETY_REASON = "safety_reason"
     private const val D_LAST_RESULT = "last_result"
+    private const val D_CHART_TAP = "chart_hint_tap"
+    private const val D_CHART_EXPAND = "chart_hint_expand"
 
     /** Every phone-only key, as it was named in `meta` before 1.0.21. */
     internal val DEVICE_KEYS = listOf(
@@ -222,7 +227,9 @@ object Settings {
         lastImportModified = get(D_IMPORT_MODIFIED)?.toLongOrNull(),
         safetyAt = get(D_SAFETY_AT)?.toLongOrNull(),
         safetyReason = get(D_SAFETY_REASON),
-        lastResult = get(D_LAST_RESULT)
+        lastResult = get(D_LAST_RESULT),
+        chartTapSeen = bool(get(D_CHART_TAP)),
+        chartExpandSeen = bool(get(D_CHART_EXPAND))
     )
 
     private fun DeviceSettings.toMap(): Map<String, String?> = mapOf(
@@ -240,7 +247,9 @@ object Settings {
         D_IMPORT_MODIFIED to lastImportModified?.toString(),
         D_SAFETY_AT to safetyAt?.toString(),
         D_SAFETY_REASON to safetyReason,
-        D_LAST_RESULT to lastResult
+        D_LAST_RESULT to lastResult,
+        D_CHART_TAP to if (chartTapSeen) "1" else null,
+        D_CHART_EXPAND to if (chartExpandSeen) "1" else null
     )
 
     private fun portableFrom(get: (String) -> String?) = PortableSettings(
