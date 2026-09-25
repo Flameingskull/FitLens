@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.23.
+Last updated: 1.0.24.
 
 ## How data flows
 
@@ -42,10 +42,11 @@ Last updated: 1.0.23.
 | `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set/`deleteMeta`, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
 | `Models.kt` | Row types (`Category`, `Exercise`, `SetRow`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes`, `Poses`, `Dates` |
 | `Store.kt` | `Snapshot` and `Store` (load and reload, photo and measurement writes, custom metrics) |
-| `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts, comments, times, undo re-adds, `recalculatePrs` |
+| `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts, comments, times, undo re-adds, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction) |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
-| `Backups.kt` | `.fitlens` export and restore, safety copy with Undo, automatic backups to a folder |
+| `Backups.kt` | `.fitlens` export and restore, `exportForShare` (share sheet), `manualFileName` (timestamp setting), safety copy with Undo, automatic backups to a folder |
+| `CsvExport.kt` | Workouts and body data as CSV (#31): documented columns, RFC 4180 quoting, counts for previews |
 | `AutoBackup.kt` | Scheduled backups (`BackupWorker`, JobScheduler), status and failure notifications |
 | `BackupSync.kt` | FitNotes backup-folder auto-sync |
 | `PhotoImporter.kt` | Photo import, date detection (EXIF, media store, file name, modified), duplicate hashing |
@@ -56,7 +57,9 @@ Last updated: 1.0.23.
 | File | Owns |
 | --- | --- |
 | `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop`), `AppRoot` with the five bottom tabs (Log, Calendar, Body, Training, Photos) and `LocalOpenSettings`. Shared files open their Settings page (`openSettingsPage`) |
-| `SettingsScreen.kt` | Settings (`SettingsSection` rows, grouped) and its sub-screens: Backups and FitNotes import (Data, backup & import), Units & display, Workout & logging, Personal records |
+| `SettingsScreen.kt` | Settings (`SettingsSection` rows, grouped, plus "Run setup again") and its sub-screens: Backups, FitNotes import and Data tools (Data, backup & import), Units & display, Workout & logging, Personal records |
+| `DataToolsScreen.kt` | Settings → Data tools: CSV export (save or share) and Delete workout history (safety copy first), each with its own `RangeChips` range |
+| `SetupScreen.kt` | The guided first-run setup (#29): welcome/restore, units, automatic backups, FitNotes import, photos, starter library. Shown once when a phone has no data (`DeviceSettings.setupDone`, checked in `AppRoot`) |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`. **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (shows the Settings gear), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
 | `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow`, `ExerciseCard`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
@@ -73,7 +76,7 @@ Last updated: 1.0.23.
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |
 | `FitNotesCards.kt` | `FitNotesCards`: FitNotes backup import and the backup-folder sync, shown in Settings → FitNotes import (the Sync tab was removed in 1.0.23, #35). Photo import lives on the Photos tab and the Day screen |
-| `BackupUi.kt` | `BackupsCard`, shown in Settings → Backups |
+| `BackupUi.kt` | `BackupsCard`, shown in Settings → Backups, with Save, Share and Restore and the file-name timestamp toggle |
 | `FitNotesImportUi.kt`, `ImportActions.kt` | Import hosts and flows, `runBusy`, `AppScope` |
 | `CustomMetrics.kt` | Custom metric dialogs |
 

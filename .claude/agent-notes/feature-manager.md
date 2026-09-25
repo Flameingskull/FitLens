@@ -24,3 +24,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   Data-only clean-ups like this don't need a `Db.VERSION` bump. The Sync tab is gone (#35); FitNotes import lives in
   Settings → FitNotes import (`ui/FitNotesCards.kt`), and a new full-screen graph passes `GraphOptionChips` as
   `controls`.
+- 2026-09-25: Shared files for the share sheet go in `cacheDir/exports` (the only FileProvider path) and are
+  sent with `shareFile` (`ui/PhotoViewerScreen.kt`). Delete the previous file of the same kind first (1.0.24).
+- 2026-09-25: Anything that deletes user data in bulk takes `Backups.safetyCopy` first and aborts if it fails, so
+  Settings → Backups → Undo can reverse it (1.0.24, #32). First-run UI keys off `DeviceSettings.setupDone`.

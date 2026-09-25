@@ -1,39 +1,42 @@
 ## Overview
 
-This build tidies the app around one Settings screen. The Sync tab has gone: importing from FitNotes now sits in
-Settings with backups, and photo import is on the Photos tab. A new **Workout & logging** page lets you choose how
-the set entry screen behaves. Full-screen graphs can now change their range and options without closing. None of
-your workouts, photos or measurements change.
+This build completes FitLens's data tools and welcomes new users properly. A fresh install now opens a short guided
+setup. Settings gains **Data tools**, with CSV export and a way to delete workout history safely, and backups can be
+shared straight from the app. The home screen is tidier too. None of your existing data changes.
 
 ## What's new
 
-- **Workout & logging settings.** A new page in Settings (under the gear on every tab) with three options:
-  - **Keep the screen on** while you log sets. This is on by default, as before, and you can now turn it off.
-  - **Fill new sets from** your last workout (as before), or **Leave empty** to start every new set blank.
-  - **Select the next set** after updating one. This helps with a copied workout: adjust and update each set in turn
-    without tapping the next one.
+- **Guided setup.** The first time FitLens opens, a short setup walks you through:
+  - restoring a FitLens backup if you're moving phones;
+  - choosing kilograms or pounds;
+  - picking a folder for automatic backups;
+  - importing a FitNotes backup;
+  - adding your progress photos;
+  - adding the starter exercise library.
 
-  These preferences travel with your `.fitlens` backups.
-- **Range and options in full screen.** Full-screen graphs now show the 1M / 3M / 6M / 1Y / All range chips, plus
-  **Trend** and **From zero**, so you can change the view while you zoom and pan.
+  Every step can be skipped, and **Settings → Run setup again** brings it back at any time. If you already use
+  FitLens, you won't see it unless you open it.
+- **CSV export.** **Settings → Data tools → Export as CSV** writes your workouts or body data for any date range, with
+  weights in kilograms or pounds, to a file or straight to the share sheet. It's ready for Excel or Google Sheets. The
+  page lists the columns. CSV files are for spreadsheets only: FitLens restores from backups, not CSVs.
+- **Delete workout history.** **Settings → Data tools → Delete workout history** removes logged sets by date range,
+  by exercise or both. You see how many sets and workouts will go before you confirm. Your exercises, categories,
+  workout comments, photos and body data are kept, and personal records are worked out again afterwards. FitLens
+  takes a safety copy first, so **Settings → Backups → Undo** can put everything back for 7 days.
+- **Share a backup.** **Settings → Backups → Share backup** makes a full backup and opens the share sheet, so you can
+  send it to email, Drive, Dropbox or any app you already use. FitLens itself still never goes online.
+- **Backup file names.** A new switch in Settings → Backups lets you leave the date and time out of the names of
+  backups you save or share. It's on by default. Automatic backups always include it.
 
 ## Improved
 
-- **One place for your data.** Settings has a **Data, backup & import** group holding **Backups** and
-  **FitNotes import**. FitNotes import works exactly as before: you see what will be added first, and it merges
-  without changing anything you logged in FitLens.
-- **Simpler bottom bar.** The Sync tab is gone, leaving five tabs: Log, Calendar, Body, Training and Photos. Photo
-  import (choose photos, or import a whole folder) is on the Photos tab's **+** button and on each day's screen.
-- **Shared FitNotes backups** now open Settings → FitNotes import, which shows what the backup adds before anything
-  is imported.
-- **Clearer for TalkBack.** The button that leaves a full-screen graph now reads "Close full screen".
-- **Leaner backups.** Old phone-only settings that 1.0.21 moved out of the database are removed from it, so they no
-  longer ride along in new backups. Your folders, schedules and other settings on this phone are kept.
+- **A cleaner home screen.** The line about your last FitNotes import no longer sits at the top of the Log tab. It
+  lives in **Settings → FitNotes import**, next to the import itself, along with the workout and set counts.
+- **FitNotes history stays deleted.** If you delete sets that came from FitNotes, importing the same FitNotes backup
+  again won't bring them back.
 
 ## Known limitations
 
-- Full-screen zoom works on the time axis. The vertical scale fits whatever stretch you're looking at, but you can't
-  zoom it on its own yet.
-- "Fill new sets from" will add routine plans as a third choice once routines arrive.
-- CSV export, deleting history by date range, sharing a backup, and re-running first-run setup will join the
-  Data, backup & import group in later builds.
+- Week start, and choosing a default set of body measurements, will join the setup when those settings arrive.
+- Deleting history removes sets only. A workout's comment and times stay on that day.
+- CSV export covers workouts and body data. Photos are included only in `.fitlens` backups.
