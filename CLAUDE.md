@@ -45,6 +45,12 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
   auto-backup stays disabled (`data_extraction_rules.xml`). Automatic backups go only to a folder the user chooses.
 - Android APKs only for now, working across phone screen sizes. A self-hosted Docker web version may come later.
 - Recommended next build after 1.0.8: #38 and #50, to unblock the settings and analysis groups.
+- **Navigation matches FitNotes (owner decision, 2026-09-26):** no bottom tab bar. The day log is home; its top bar
+  has Calendar, + (the exercise library, whose title switches to each routine) and a ⋮ menu (Analysis, Body tracker,
+  Photos, Settings). See the owner decision comment on #79.
+- **Redesign first (owner decision, 2026-09-26):** builds now follow #79's page bundles: day log (#81, #84, #8), then
+  the library and routine switcher (#83), the exercise screen (#82) and routines (#91, #21, #99). Feature-only builds
+  wait until those land.
 
 ## Backlog agents
 
