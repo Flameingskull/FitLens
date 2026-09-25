@@ -50,7 +50,11 @@ data class Exercise(
     val notes: String?,
     val source: String = Sources.FITLENS,
     /** Starred in the exercise library, so it comes first in the pickers. */
-    val favourite: Boolean = false
+    val favourite: Boolean = false,
+    /** This exercise's + and − step in kg, or null for the global step (#15). */
+    val weightStepKg: Double? = null,
+    /** The graph the exercise opens on, as an index into its graph list, or -1 for the first (#15). */
+    val defaultGraph: Int = -1
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
 }

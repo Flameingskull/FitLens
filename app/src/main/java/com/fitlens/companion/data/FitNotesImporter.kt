@@ -447,6 +447,9 @@ object FitNotesImporter {
             val isCustom = w.rawQuery("SELECT custom FROM measurement WHERE name=?", arrayOf(name)).use { q ->
                 if (q.moveToFirst()) q.getInt(0) else null
             }
+            val edited = w.rawQuery("SELECT edited FROM measurement WHERE name=?", arrayOf(name)).use { q ->
+                q.moveToFirst() && q.getInt(0) != 0
+            }
             val cv = ContentValues().apply {
                 put("unit", unit); put("sort_order", c.int(3)); put("goal_type", c.int(4))
                 put("goal_value", c.dbl(5)); put("enabled", c.int(6))
@@ -456,6 +459,8 @@ object FitNotesImporter {
                 w.insertOrThrow("measurement", null, cv)
                 plan.measurementsAdded++
             } else if (isCustom == 0) {
+                // A goal or order the user set in FitLens wins over FitNotes's (#27); the unit still follows FitNotes.
+                if (edited) { cv.remove("sort_order"); cv.remove("goal_type"); cv.remove("goal_value") }
                 w.update("measurement", cv, "name=?", arrayOf(name))
             }
         }

@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 5
+        const val VERSION = 6
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -25,6 +25,11 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
          * kind 'set' / 'comment' / 'time': key = the imported values the user deleted or edited; one matching row in a
          *   backup is skipped per rule.
          */
+        /** Exercise goals (#25): one row per goal, ordered per exercise by sort_order. */
+        private const val CREATE_GOAL =
+            "CREATE TABLE exercise_goal(id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, kind INTEGER NOT NULL, " +
+                "target REAL NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0)"
+
         private const val CREATE_IMPORT_RULE =
             "CREATE TABLE import_rule(id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, key TEXT NOT NULL, target_id INTEGER)"
     }
@@ -37,17 +42,20 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TABLE category(id INTEGER PRIMARY KEY, name TEXT NOT NULL, colour INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE TABLE exercise(id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0, notes TEXT, " +
-                "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
+                "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, " +
+                "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL)",
             "CREATE INDEX idx_set_date ON workout_set(date)",
             "CREATE INDEX idx_set_ex ON workout_set(exercise_id)",
-            "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 999, goal_type INTEGER NOT NULL DEFAULT 0, goal_value REAL NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, custom INTEGER NOT NULL DEFAULT 0, link TEXT)",
+            "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 999, goal_type INTEGER NOT NULL DEFAULT 0, goal_value REAL NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, custom INTEGER NOT NULL DEFAULT 0, link TEXT, " +
+                "edited INTEGER NOT NULL DEFAULT 0)",
             "CREATE TABLE mrecord(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, unit TEXT NOT NULL DEFAULT '', date TEXT NOT NULL, time TEXT NOT NULL DEFAULT '', value REAL NOT NULL, comment TEXT, source TEXT NOT NULL)",
             "CREATE INDEX idx_mr_date ON mrecord(date)",
             CREATE_COMMENT,
             CREATE_TIME,
             CREATE_IMPORT_RULE,
+            CREATE_GOAL,
             "CREATE TABLE photo(id INTEGER PRIMARY KEY AUTOINCREMENT, file TEXT NOT NULL, date TEXT, taken_at TEXT, date_source TEXT NOT NULL, pose TEXT NOT NULL DEFAULT '', note TEXT, original_name TEXT, hash TEXT UNIQUE, added_at INTEGER NOT NULL DEFAULT 0)",
             "CREATE INDEX idx_photo_date ON photo(date)",
             "CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT)"
@@ -107,6 +115,16 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // missing, so the step replays safely after a downgrade (#77) and on restores of older backups.
             addColumn(db, "workout_set", "set_type", "INTEGER NOT NULL DEFAULT 0")
             addColumn(db, "workout_set", "rpe", "REAL")
+        }
+        if (oldVersion < 6) {
+            // ---- 1.0.28: goals and per-exercise defaults --------------------------------------------------
+            // Exercise goals (#25) get their own table. Exercises gain an optional weight step and default graph
+            // (#15; -1 means automatic). Measurements gain `edited`, set when the user changes a goal or the order
+            // in FitLens, so a FitNotes import stops refreshing them (#27). Every existing row is kept as it is.
+            db.execSQL(CREATE_GOAL.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
+            addColumn(db, "exercise", "weight_step", "REAL")
+            addColumn(db, "exercise", "default_graph", "INTEGER NOT NULL DEFAULT -1")
+            addColumn(db, "measurement", "edited", "INTEGER NOT NULL DEFAULT 0")
         }
     }
 

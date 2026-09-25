@@ -157,6 +157,12 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
     var fromZero by rememberSaveable { mutableStateOf(false) }
     var fullScreen by rememberSaveable { mutableStateOf(false) }
     val g = graphTypes[gIdx.coerceIn(0, graphTypes.lastIndex)]
+    // A goal for this graph can be drawn as a line (#25), in the graph's own unit.
+    var showGoal by rememberSaveable { mutableStateOf(true) }
+    val goalTarget = goalKindForGraph(g.label)?.let { k ->
+        snap.goalsByExercise[exId]?.firstOrNull { it.kind == k }?.let { goalShown(snap, k, it.target) }
+    }
+    val goalLine = if (showGoal) goalTarget else null
     val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
     // Graphs and records leave out warm-ups unless Settings counts them (#43); History shows every set.
     val statSets = snap.statSetsByExercise[exId] ?: emptyList()
@@ -165,7 +171,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
     Column(Modifier.fillMaxSize()) {
         BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() })
         TabRow(selectedTabIndex = tab) {
-            listOf("Graph", "History", "Records").forEachIndexed { i, t ->
+            listOf("Graph", "History", "Records", "Goals").forEachIndexed { i, t ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) })
             }
         }
@@ -185,6 +191,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                     Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
                         FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
+                        if (goalTarget != null) FilterChip(selected = showGoal, onClick = { showGoal = !showGoal }, label = { Text("Goal") })
                         Spacer(Modifier.weight(1f))
                         ExpandGraphButton { fullScreen = true }
                     }
@@ -209,6 +216,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                         unit = unit,
                         showTrend = showTrend,
                         yFromZero = fromZero,
+                        goal = goalLine,
                         onExpand = { ChartHints.expanded(); fullScreen = true }
                     )
                     ChartHint()
@@ -242,6 +250,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                                 unit = unit,
                                 showTrend = showTrend,
                                 yFromZero = fromZero,
+                                goal = goalLine,
                                 viewport = vp,
                                 onExpand = resetZoom
                             )
@@ -296,7 +305,8 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
                     }
                 }
             }
-            else -> RecordsTab(snap, statSets, timeBased)
+            2 -> RecordsTab(snap, statSets, timeBased)
+            else -> GoalsTab(snap, exId, timeBased)
         }
     }
 }

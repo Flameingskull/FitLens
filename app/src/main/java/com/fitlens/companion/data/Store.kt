@@ -24,8 +24,11 @@ class Snapshot(
     /** Count warm-up sets in records and statistics (#43, a setting; off by default). */
     val countWarmups: Boolean = false,
     /** The first day of the week, 1 = Monday … 7 = Sunday (#7). */
-    val weekStart: Int = 1
+    val weekStart: Int = 1,
+    /** Exercise goals (#25), in each exercise's order. */
+    val goals: List<ExerciseGoal> = emptyList()
 ) {
+    val goalsByExercise: Map<Long, List<ExerciseGoal>> = goals.groupBy { it.exerciseId }
     val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
     val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
 
@@ -142,9 +145,12 @@ object Store {
             while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
         }
         val exercises = HashMap<Long, Exercise>()
-        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite FROM exercise", null).use { c ->
+        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph FROM exercise", null).use { c ->
             while (c.moveToNext()) exercises[c.lng(0)] =
-                Exercise(c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0)
+                Exercise(
+                    c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0,
+                    if (c.isNull(7)) null else c.getDouble(7), if (c.isNull(8)) -1 else c.getInt(8)
+                )
         }
         val sets = ArrayList<SetRow>()
         r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe FROM workout_set ORDER BY date, id", null).use { c ->
@@ -188,12 +194,16 @@ object Store {
                 times.getOrPut(d) { ArrayList() }.add(WorkoutTime(d, c.strOr(1), c.strOr(2)))
             }
         }
+        val goals = ArrayList<ExerciseGoal>()
+        r.rawQuery("SELECT id, exercise_id, kind, target, sort_order FROM exercise_goal ORDER BY exercise_id, sort_order, id", null).use { c ->
+            while (c.moveToNext()) goals.add(ExerciseGoal(c.lng(0), c.lng(1), c.int(2), c.dbl(3), c.int(4)))
+        }
         val prefs = Settings.currentPortable()
         // Weekly analysis follows the week-start setting (#7).
         Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
         return Snapshot(
             categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir,
-            prefs.warmupsCount, prefs.weekStart
+            prefs.warmupsCount, prefs.weekStart, goals
         )
     }
 

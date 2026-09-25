@@ -192,6 +192,7 @@ object Workouts {
             w.longOrNull("SELECT 1 FROM workout_set WHERE exercise_id=? AND fitnotes_id IS NOT NULL LIMIT 1", id.toString()) != null ||
             w.longOrNull("SELECT 1 FROM import_rule WHERE kind=? AND target_id=? LIMIT 1", RULE_EXERCISE, id.toString()) != null
         w.delete("workout_set", "exercise_id=?", arrayOf(id.toString()))
+        w.delete("exercise_goal", "exercise_id=?", arrayOf(id.toString()))
         w.delete("exercise", "id=?", arrayOf(id.toString()))
         w.execSQL("UPDATE import_rule SET target_id=NULL WHERE kind=? AND target_id=?", arrayOf<Any>(RULE_EXERCISE, id))
         if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)
