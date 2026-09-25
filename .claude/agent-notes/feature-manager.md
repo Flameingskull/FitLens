@@ -30,3 +30,5 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   Settings → Backups → Undo can reverse it (1.0.24, #32). First-run UI keys off `DeviceSettings.setupDone`.
 - 2026-09-25: Analysis maths lives in `data/Analysis.kt` (pure Kotlin, unit-testable); screens only format. A
   `@Composable` (e.g. `categoryColour`) can't be called inside `remember { }`; build colours from the raw Int there.
+- 2026-09-26: A value the user sets in FitLens on a FitNotes-owned row (e.g. a measurement's goal or order) needs a
+  marker (`measurement.edited`) that the importer checks, or the next import silently overwrites it (1.0.28).

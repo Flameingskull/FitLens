@@ -5,11 +5,11 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.27.
+Last updated: 1.0.28.
 
 ## How data flows
 
-- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 5 (v5 added `workout_set.set_type` and `rpe`, #43 and #44). Schema changes
+- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 6 (v5 added `workout_set.set_type` and `rpe`; v6 added `exercise_goal`, `exercise.weight_step` and `default_graph`, and `measurement.edited`). Schema changes
   bump it and add an `if (oldVersion < N)` block in `onUpgrade` that keeps every row. `.fitlens` restores of older
   backups go through the same upgrade.
 - **Settings** (#38) go through `data/Settings.kt` only. Phone-only settings (`DeviceSettings`: folders, schedules,
@@ -47,6 +47,7 @@ Last updated: 1.0.27.
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
 | `Backups.kt` | `.fitlens` export and restore, `exportForShare` (share sheet), `manualFileName` (timestamp setting), safety copy with Undo, automatic backups to a folder |
 | `Analysis.kt` | The Analysis hub's numbers, pure Kotlin: period totals (`totals`, `Period`, `Metric`, `Filter`), breakdowns (`breakdown`, `windows`, `previousWindow`, `Span`, `Measure`), `percents` (largest remainder). Weeks start on `weekStart` (Monday until #7) |
+| `Goals.kt` | Exercise goals (#25): `ExerciseGoal`, `GoalKinds` (labels, units, `progress`), `Goals` writes (save, delete, reorder) |
 | `CsvExport.kt` | Workouts and body data as CSV (#31): documented columns, RFC 4180 quoting, counts for previews |
 | `AutoBackup.kt` | Scheduled backups (`BackupWorker`, JobScheduler), status and failure notifications |
 | `BackupSync.kt` | FitNotes backup-folder auto-sync |
@@ -61,6 +62,8 @@ Last updated: 1.0.27.
 | `SettingsScreen.kt` | Settings (`SettingsSection` rows, grouped, plus "Run setup again") and its sub-screens: Backups, FitNotes import and Data tools (Data, backup & import), Units & display, Workout & logging, Personal records |
 | `DataToolsScreen.kt` | Settings → Data tools: CSV export (save or share) and Delete workout history (safety copy first), each with its own `RangeChips` range |
 | `SetupScreen.kt` | The guided first-run setup (#29): welcome/restore, units, automatic backups, FitNotes import, photos, starter library. Shown once when a phone has no data (`DeviceSettings.setupDone`, checked in `AppRoot`) |
+| `GoalsTab.kt` | An exercise's Goals tab and goal editor; `goalKindForGraph` and `goalShown` for goal lines on its graphs |
+| `MeasurementGoals.kt` | Body tab: `MeasurementGoalSheet`, `MeasurementOrderSheet`, `changeColour` (by goal direction), `goalText` |
 | `SetMarks.kt` | `setMarks(set)`: a set's type badge and effort text (shown and spoken), following the settings. Every set list uses it |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`. **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (shows the Settings gear), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
