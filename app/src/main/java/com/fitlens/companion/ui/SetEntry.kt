@@ -39,9 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
@@ -126,6 +129,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     var comment by remember(date, exerciseId) { mutableStateOf("") }
     // Set type (#43): new sets start as working sets; editing a set shows its own type.
     var setType by remember(date, exerciseId) { mutableIntStateOf(SetTypes.WORKING) }
+    // Effort (#44), always held as RPE; null means not recorded.
+    var rpe by remember(date, exerciseId) { mutableStateOf<Double?>(null) }
     // The exact kilograms the weight field was filled from, and the text it was filled with. Weights are stored in
     // kilograms but shown rounded in the user's unit, so converting the displayed text back on every save quietly
     // rewrote the stored value for anyone using pounds (#75). Only convert when the text has actually been edited.
@@ -158,6 +163,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
             duration = source?.durationSec?.takeIf { it > 0 }?.let { fmtDuration(it) } ?: ""
             comment = chosen?.comment ?: ""
             setType = chosen?.setType ?: SetTypes.WORKING
+            rpe = chosen?.rpe
         }
     }
 
@@ -179,7 +185,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
         AppScope.scope.launch {
             try {
                 if (chosen == null) {
-                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note, setType = setType)
+                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note, setType = setType, rpe = rpe)
                     // The PR mark was decided as the set was saved; the reloaded snapshot carries it (#23).
                     val isPr = Store.snapshot.value?.setsByExercise?.get(exerciseId)?.any { it.id == id && it.isPr } == true
                     if (isPr && Settings.currentPortable().celebratePrs) {
@@ -188,7 +194,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                     }
                 } else {
                     Workouts.updateSet(
-                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, comment = note, setType = setType)
+                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, comment = note, setType = setType, rpe = rpe)
                     )
                     // With auto-select next on, the following set of the day is selected, ready to adjust (#97).
                     val next = if (Settings.currentPortable().autoSelectNext) {
@@ -280,6 +286,35 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                                     { SetTypeBadge(SetTypes.badge(t) ?: "") }
                                 } else null
                             )
+                        }
+                    }
+                    // Optional effort (#44): large chips, tap the chosen one again to clear it.
+                    if (prefs.effortMode != Effort.OFF) {
+                        val rir = prefs.effortMode == Effort.RIR
+                        Text(
+                            if (rir) "REPS IN RESERVE (OPTIONAL)" else "EFFORT, RPE (OPTIONAL)",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val choices: List<Pair<String, Double>> = if (rir) {
+                                Effort.rirSteps.map { r -> (if (r >= 5) "5+" else "$r") to Effort.rpeFromRir(r) }
+                            } else {
+                                Effort.rpeSteps.map { v -> fmtNum(v, 1) to v }
+                            }
+                            choices.forEach { (label, value) ->
+                                FilterChip(
+                                    selected = rpe == value,
+                                    onClick = { rpe = if (rpe == value) null else value },
+                                    label = { Text(label, style = MaterialTheme.typography.titleMedium) },
+                                    modifier = Modifier
+                                        .height(44.dp)
+                                        .semantics { contentDescription = Effort.spoken(value, prefs.effortMode) }
+                                )
+                            }
                         }
                     }
                     OutlinedTextField(

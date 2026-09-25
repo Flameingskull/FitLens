@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.Settings
@@ -147,6 +148,19 @@ private fun LoggingPage() {
     PageHint(
         "Handy for a copied workout: update each set in turn without tapping the next one. " +
             "These preferences travel with your .fitlens backups."
+    )
+    SectionTitle("Effort per set")
+    SegmentedSwitch(
+        options = listOf("Off", "RPE", "RIR"),
+        selected = when (prefs.effortMode) { Effort.RPE -> 1; Effort.RIR -> 2; else -> 0 },
+        onSelect = { i ->
+            val mode = when (i) { 1 -> Effort.RPE; 2 -> Effort.RIR; else -> Effort.OFF }
+            Settings.updatePortable { it.copy(effortMode = mode) }
+        }
+    )
+    PageHint(
+        "Adds an optional effort field to each set. RPE 10 means no reps left; RIR counts the reps you had left. " +
+            "Effort is stored once, so switching between RPE and RIR, or turning it off, never changes or deletes it."
     )
     SectionTitle("Set types")
     ToggleRow("Show set type on each set", prefs.showSetType) { on ->
