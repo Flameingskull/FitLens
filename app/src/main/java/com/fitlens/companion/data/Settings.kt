@@ -96,6 +96,8 @@ object Settings {
     private val writeLock = Mutex()
     private lateinit var store: DataStore<Preferences>
     private lateinit var loaded: Deferred<Unit>
+    /** True once DataStore has loaded, so its one-time copy from `meta` has run and the old rows can go (#98). */
+    @Volatile private var deviceStoreReady = false
 
     private val _device = MutableStateFlow(DeviceSettings())
     val device: StateFlow<DeviceSettings> = _device
@@ -111,7 +113,9 @@ object Settings {
             runCatching {
                 val prefs = store.data.first()
                 _device.value = deviceFrom { prefs[stringPreferencesKey(it)] }
+                deviceStoreReady = true
             }
+            runCatching { dropLegacyDeviceRows() }
             runCatching { _portable.value = portableFrom(Store.db::getMeta) }
             Unit
         }
@@ -165,6 +169,16 @@ object Settings {
     fun reloadPortable() {
         if (!::loaded.isInitialized || !loaded.isCompleted) return
         _portable.value = portableFrom(Store.db::getMeta)
+    }
+
+    /**
+     * Removes the phone-only rows that `meta` kept after the move to DataStore in 1.0.21 (#98). It only runs once
+     * DataStore has loaded, because loading is what copies them over: someone updating straight from 1.0.20 keeps
+     * every value. It runs at start-up and after a restore, so an older backup's stale rows don't linger either.
+     * No schema change is needed, and an older build simply finds no rows and falls back to its defaults.
+     */
+    fun dropLegacyDeviceRows() {
+        if (deviceStoreReady) Store.db.deleteMeta(DEVICE_KEYS)
     }
 
     private suspend fun saveDevice() = writeLock.withLock {
@@ -278,8 +292,9 @@ object Settings {
 }
 
 /**
- * Copies the phone-only settings from `meta` into DataStore the first time 1.0.21 runs, keeping every value. The
- * `meta` rows stay for one release so going back to an older build still works; a later release removes them.
+ * Copies the phone-only settings from `meta` into DataStore the first time 1.0.21 or later runs, keeping every
+ * value. [Settings.dropLegacyDeviceRows] then removes the rows (#98). Keep this while anyone may still update from
+ * 1.0.20 or earlier.
  */
 private object MetaToDeviceMigration : DataMigration<Preferences> {
     private val MIGRATED = stringPreferencesKey("migrated_from_meta")

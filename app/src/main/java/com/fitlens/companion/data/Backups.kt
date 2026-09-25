@@ -258,6 +258,8 @@ object Backups {
                 }
 
                 Store.init(context)
+                // An older backup's phone-only rows are never used; clear them rather than carry them on (#98).
+                runCatching { Settings.dropLegacyDeviceRows() }
                 Store.reload()
                 if (dataOnly) ImportSummary("Your previous workouts, measurements and notes are back.", true)
                 else ImportSummary("Backup restored with $photos photos.", true)

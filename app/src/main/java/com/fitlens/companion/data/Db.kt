@@ -143,6 +143,19 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
         }
     }
 
+    /** Deletes the given `meta` rows in one transaction. */
+    fun deleteMeta(keys: Collection<String>) {
+        if (keys.isEmpty()) return
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            keys.forEach { db.delete("meta", "k=?", arrayOf(it)) }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
     fun setMeta(key: String, value: String?) {
         val db = writableDatabase
         if (value == null) {
