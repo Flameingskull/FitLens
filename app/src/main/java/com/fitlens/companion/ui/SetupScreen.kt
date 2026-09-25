@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -67,6 +68,7 @@ private enum class SetupStep(val title: String) {
     Exercises("Exercises")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SetupScreen(snap: Snapshot, nav: Nav) {
     var stepIdx by rememberSaveable { mutableIntStateOf(0) }
