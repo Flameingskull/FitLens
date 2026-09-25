@@ -270,7 +270,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                     }
                     else -> {}
                 }
-                if (period == Analysis.Period.Week) AnalysisNote("Weeks run Monday to Sunday.")
+                if (period == Analysis.Period.Week) AnalysisNote("Weeks start on ${Analysis.weekStartName()}, as set in Units & display.")
             }
         }
     }

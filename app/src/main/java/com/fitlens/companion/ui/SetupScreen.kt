@@ -178,6 +178,7 @@ private fun UnitsStep() {
         }
     )
     StepText("Weights are stored exactly, so you can switch at any time in Settings → Units & display.")
+    WeekStartSetting(prefs.weekStart)
 }
 
 @OptIn(ExperimentalLayoutApi::class)

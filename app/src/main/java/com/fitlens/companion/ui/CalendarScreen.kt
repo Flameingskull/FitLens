@@ -66,9 +66,10 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
             }
         }
-        // Weekday header (Monday first)
+        // Weekday header, starting on the chosen first day of the week (#7).
+        val weekStart = DayOfWeek.of(snap.weekStart)
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-            DayOfWeek.values().forEach { d ->
+            (0L until 7L).map { weekStart.plus(it) }.forEach { d ->
                 Text(
                     d.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                     Modifier.weight(1f), textAlign = TextAlign.Center,
@@ -78,7 +79,7 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
         }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 8.dp)) {
             val first = month.atDay(1)
-            val offset = first.dayOfWeek.value - 1
+            val offset = (first.dayOfWeek.value - weekStart.value + 7) % 7
             val days = month.lengthOfMonth()
             val cells = offset + days
             val rows = (cells + 6) / 7

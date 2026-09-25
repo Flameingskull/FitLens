@@ -39,8 +39,11 @@ object Analysis {
         val timed: Int = 0
     )
 
-    /** Weeks start on Monday until the week-start setting (#7) exists. */
-    var weekStart: DayOfWeek = DayOfWeek.MONDAY
+    /** The first day of the week (#7), set from the week-start setting each time the data snapshot loads. */
+    @Volatile var weekStart: DayOfWeek = DayOfWeek.MONDAY
+
+    /** "Monday", "Saturday" or "Sunday", in the phone's language. */
+    fun weekStartName(): String = weekStart.getDisplayName(java.time.format.TextStyle.FULL, Locale.getDefault())
 
     fun periodStart(d: LocalDate, p: Period): LocalDate = when (p) {
         Period.Week -> d.with(TemporalAdjusters.previousOrSame(weekStart))

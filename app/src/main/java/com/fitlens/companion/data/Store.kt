@@ -22,7 +22,9 @@ class Snapshot(
     val weightUnit: String,
     val photoDir: File,
     /** Count warm-up sets in records and statistics (#43, a setting; off by default). */
-    val countWarmups: Boolean = false
+    val countWarmups: Boolean = false,
+    /** The first day of the week, 1 = Monday … 7 = Sunday (#7). */
+    val weekStart: Int = 1
 ) {
     val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
     val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
@@ -187,7 +189,12 @@ object Store {
             }
         }
         val prefs = Settings.currentPortable()
-        return Snapshot(categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir, prefs.warmupsCount)
+        // Weekly analysis follows the week-start setting (#7).
+        Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
+        return Snapshot(
+            categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir,
+            prefs.warmupsCount, prefs.weekStart
+        )
     }
 
     // ---------- Photo edits ----------

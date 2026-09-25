@@ -1,11 +1,15 @@
 package com.fitlens.companion.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -18,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Effort
+import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.Settings
@@ -117,6 +122,49 @@ private fun UnitsPage() {
         "Every weight is stored exactly, so switching only changes how weights are shown and entered. " +
             "This preference travels with your .fitlens backups."
     )
+    WeightStepSetting(prefs.weightUnit, prefs.weightIncrementKg)
+    WeekStartSetting(prefs.weekStart)
+}
+
+/** The + and − step for weights (#7). Stored in kg; the choices follow the display unit. */
+@Composable
+internal fun WeightStepSetting(unit: String, currentKg: Double?) {
+    val lbs = unit == "lbs"
+    val choices = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
+    fun toKg(v: Double) = if (lbs) v / 2.2046226 else v
+    SectionTitle("Weight step")
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        FilterChip(
+            selected = currentKg == null,
+            onClick = { Settings.updatePortable { it.copy(weightIncrementKg = null) } },
+            label = { Text("Default (2.5)") }
+        )
+        choices.forEach { v ->
+            val kg = toKg(v)
+            FilterChip(
+                selected = currentKg != null && kotlin.math.abs(currentKg - kg) < 0.001,
+                onClick = { Settings.updatePortable { it.copy(weightIncrementKg = kg) } },
+                label = { Text("${fmtNum(v, 2)} $unit") }
+            )
+        }
+    }
+    PageHint("How much the + and − buttons change the weight on the set entry screen.")
+}
+
+/** The first day of the week for the calendar and weekly analysis (#7). */
+@Composable
+internal fun WeekStartSetting(weekStart: Int) {
+    val days = listOf(1 to "Monday", 6 to "Saturday", 7 to "Sunday")
+    SectionTitle("Week starts on")
+    SegmentedSwitch(
+        options = days.map { it.second },
+        selected = days.indexOfFirst { it.first == weekStart }.coerceAtLeast(0),
+        onSelect = { i -> Settings.updatePortable { it.copy(weekStart = days[i].first) } }
+    )
+    PageHint("Used by the calendar and by weekly totals and breakdowns.")
 }
 
 @Composable
