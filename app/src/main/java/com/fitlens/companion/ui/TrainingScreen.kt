@@ -128,6 +128,11 @@ fun TrainingScreen(snap: Snapshot, nav: Nav) {
     }
 }
 
+/** The graph names an exercise offers, in order: the same lists [ExerciseDetailScreen] builds (#15 uses the index). */
+fun graphLabels(timeBased: Boolean): List<String> =
+    if (timeBased) listOf("Longest set", "Total time", "Distance")
+    else listOf("Est. 1RM", "Max weight", "Volume", "Total reps", "Max reps")
+
 private data class GraphType(val label: String, val fn: (List<SetRow>) -> Double, val isWeight: Boolean, val isTime: Boolean = false)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,7 +155,8 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
         )
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var gIdx by rememberSaveable { mutableIntStateOf(0) }
+    // Opens on the exercise's default graph when one is set (#15).
+    var gIdx by rememberSaveable { mutableIntStateOf(ex?.defaultGraph?.takeIf { it >= 0 } ?: 0) }
     var rangeIdx by rememberSaveable { mutableIntStateOf(4) }
     var sel by remember(gIdx, rangeIdx) { mutableStateOf<Int?>(null) }
     var showTrend by rememberSaveable { mutableStateOf(false) }

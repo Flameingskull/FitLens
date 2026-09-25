@@ -140,7 +140,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     var editExercise by remember { mutableStateOf(false) }
 
     // The global step from Settings → Units & display (#7) is stored in kg; the field works in the display unit.
-    val weightStep = prefs.weightIncrementKg?.let { snap.weight(it) } ?: DEFAULT_WEIGHT_STEP
+    // This exercise's own step comes first (#15), then the global one.
+    val weightStep = (ex?.weightStepKg ?: prefs.weightIncrementKg)?.let { snap.weight(it) } ?: DEFAULT_WEIGHT_STEP
 
     // "Keep screen on" while logging, switched in Settings → Workout & logging (#97).
     val view = LocalView.current

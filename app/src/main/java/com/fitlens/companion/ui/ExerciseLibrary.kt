@@ -67,6 +67,7 @@ import com.fitlens.companion.data.Category
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Exercise
 import com.fitlens.companion.data.ExerciseTypes
+import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.StarterLibrary
 import com.fitlens.companion.data.WorkoutDataException
@@ -349,6 +350,9 @@ fun ExerciseEditorDialog(
     var type by remember { mutableStateOf(existing?.type ?: ExerciseTypes.WEIGHT_REPS) }
     var notes by remember { mutableStateOf(existing?.notes ?: "") }
     var newCategory by remember { mutableStateOf(false) }
+    // This exercise's defaults (#15): weight step in kg (null = the global step) and the graph it opens on.
+    var stepKg by remember { mutableStateOf(existing?.weightStepKg) }
+    var defaultGraph by remember { mutableStateOf(existing?.defaultGraph ?: -1) }
 
     fun save(keepOpen: Boolean) {
         val n = name.trim()
@@ -359,6 +363,8 @@ fun ExerciseEditorDialog(
         val c = categoryId
         val t = type
         val note = notes.trim().ifBlank { null }
+        val step = stepKg
+        val graph = defaultGraph
         AppScope.scope.launch {
             try {
                 val id = if (existing == null) {
@@ -366,6 +372,9 @@ fun ExerciseEditorDialog(
                 } else {
                     Workouts.updateExercise(existing.id, n, c, t, note)
                     existing.id
+                }
+                if (step != existing?.weightStepKg || graph != (existing?.defaultGraph ?: -1)) {
+                    Workouts.setExerciseDefaults(id, step, graph)
                 }
                 if (keepOpen) {
                     // "Save & new" keeps the editor open for the next exercise. onSaved is what the picker uses to
@@ -411,6 +420,32 @@ fun ExerciseEditorDialog(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ExerciseTypes.all.forEach { t ->
                         FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
+                    }
+                }
+                if (ExerciseTypes.usesWeight(type)) {
+                    val lbs = snap.weightUnit == "lbs"
+                    val steps = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
+                    Text("Weight step", style = MaterialTheme.typography.labelLarge)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = stepKg == null, onClick = { stepKg = null }, label = { Text("As in Settings") })
+                        steps.forEach { v ->
+                            val kg = snap.toKg(v)
+                            FilterChip(
+                                selected = stepKg?.let { kotlin.math.abs(it - kg) < 0.001 } == true,
+                                onClick = { stepKg = kg },
+                                label = { Text("${fmtNum(v, 2)} ${snap.weightUnit}") }
+                            )
+                        }
+                    }
+                }
+                Text("Opens on graph", style = MaterialTheme.typography.labelLarge)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    graphLabels(timeBased = type != ExerciseTypes.WEIGHT_REPS).forEachIndexed { i, label ->
+                        FilterChip(
+                            selected = defaultGraph == i || (defaultGraph < 0 && i == 0),
+                            onClick = { defaultGraph = i },
+                            label = { Text(label) }
+                        )
                     }
                 }
                 OutlinedTextField(

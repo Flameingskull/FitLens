@@ -183,6 +183,17 @@ object Workouts {
         }, "id=?", arrayOf(id.toString()))
     }
 
+    /**
+     * An exercise's own defaults (#15): its weight step in kg (null uses the global step) and the graph it opens on
+     * (-1 for the first). Kept apart from [updateExercise] so a rename never touches them.
+     */
+    suspend fun setExerciseDefaults(id: Long, weightStepKg: Double?, defaultGraph: Int): Unit = write { w ->
+        w.update("exercise", ContentValues().apply {
+            if (weightStepKg == null) putNull("weight_step") else put("weight_step", weightStepKg)
+            put("default_graph", defaultGraph)
+        }, "id=?", arrayOf(id.toString()))
+    }
+
     /** Deletes an exercise and every set logged for it. */
     suspend fun deleteExercise(id: Long): Unit = write { w ->
         val row = w.rawQuery("SELECT name, fitnotes_id FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
