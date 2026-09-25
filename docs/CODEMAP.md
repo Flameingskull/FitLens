@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.21.
+Last updated: 1.0.22.
 
 ## How data flows
 
@@ -43,7 +43,7 @@ Last updated: 1.0.21.
 | `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts, comments, times, undo re-adds, `recalculatePrs` |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
-| `Backups.kt` | `.fitlens` export and restore, safety copy with Undo, the phone-specific `keepMeta` list |
+| `Backups.kt` | `.fitlens` export and restore, safety copy with Undo, automatic backups to a folder |
 | `AutoBackup.kt` | Scheduled backups (`BackupWorker`, JobScheduler), status and failure notifications |
 | `BackupSync.kt` | FitNotes backup-folder auto-sync |
 | `PhotoImporter.kt` | Photo import, date detection (EXIF, media store, file name, modified), duplicate hashing |
@@ -65,7 +65,8 @@ Last updated: 1.0.21.
 | `ExerciseLibrary.kt` | Exercise library, category manager, editors, `ExercisePickerDialog`, `categoryColour` |
 | `TrainingScreen.kt` | Training tab and `ExerciseDetailScreen` (Graph, History and Records tabs), `e1rm` |
 | `BodyScreen.kt` | Body measurements graphs and stats. Also `RANGES` and `inRange` for charts |
-| `Charts.kt` | `LineChart`, `ChartPoint` (#50 will add shared chart components) |
+| `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, gaps, markers), `ChartSelection`, `ChartViewport`, `trendOf`, `rememberChartData` (off-main-thread data) |
+| `ChartViews.kt` | `BarChart`, `DonutChart`, `FullScreenChart` (pinch, pan, reset, TalkBack actions), `ExpandGraphButton`, `ChartHint` |
 | `CalendarScreen.kt` | Month grid |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |
@@ -79,7 +80,7 @@ Last updated: 1.0.21.
 | --- | --- |
 | `report/PdfReport.kt` | The PDF progress report (dark or light), drawn on `android.graphics.pdf` |
 | `video/FrameRenderer.kt`, `video/VideoExporter.kt` | Slideshow frames and MP4 export |
-| `App.kt` | `Application`: initialises `Store` and starts `AutoBackup` |
+| `App.kt` | `Application`: initialises `Store` and `Settings`, then starts `AutoBackup` |
 
 ## Conventions
 
@@ -101,4 +102,5 @@ Last updated: 1.0.21.
 | New workout data field | `Db.kt` (VERSION and `onUpgrade`), `Models.kt`, `Store.load`, `Workouts.kt`, and `Backups.kt` if it's a new table |
 | New setting | A field in `DeviceSettings` (phone-only) or `PortableSettings` (travels in backups) in `data/Settings.kt`, with its key and default, then a row in the matching `SettingsSection` page |
 | Records or 1RM logic | `data/Records.kt` only. Screens and the PDF call it |
+| New graph | Build its points in `rememberChartData(keys) { … }`, draw with `LineChart` / `BarChart` / `DonutChart`, add an `ExpandGraphButton` and a `FullScreenChart` (#96), and a `ChartHint` under it |
 | New screen | `Screen` and `AppRoot` in `MainActivity.kt`, and a new `ui/XScreen.kt` built from `ui/design/` |

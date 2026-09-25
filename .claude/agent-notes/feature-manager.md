@@ -16,3 +16,6 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   one deliberate exception.
 - 2026-09-25: The name `Settings` clashes with `androidx.compose.material.icons.filled.Settings`. Don't import both
   in one file; `FitTopBar(onSettings = …)` already draws the gear.
+- 2026-09-25: Charts (1.0.22, #50): every graph uses `ui/Charts.kt` / `ui/ChartViews.kt`, with colours from
+  `LocalChartColors.palette` via `seriesColor(i)`. `FrameRenderer` has its own unrelated `ChartSeries` (video), so
+  don't reuse that name. #96 still needs Y-axis zoom and the buttons on the redesign's future graph screens.

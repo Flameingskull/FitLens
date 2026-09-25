@@ -1,40 +1,31 @@
 ## Overview
 
-FitLens now has a proper **Settings** screen. Tap the gear at the top of any tab to reach backups, FitNotes import,
-units and personal records in one place. Behind it, settings that belong to this phone are now kept apart from your
-training data, so restoring a backup can never overwrite your backup folders or schedules. This build also finishes
-the personal-records work, adding an optional celebration when you set a new PR. Every setting you've already chosen
-carries over when you update.
+This build rebuilds FitLens's graphs. Every graph can now open full screen, where you can pinch to zoom and drag
+along your history. Graphs can show a trend line and start their scale at zero, and long breaks in training show as
+gaps. The new chart components behind them (lines with several series, bars and donuts) are the foundation for the
+coming analysis screens. None of your data changes.
 
 ## What's new
 
-- **Settings, one tap away from every tab.** The gear in each tab's top bar opens Settings, grouped into **Data**
-  (Backups, and Import & sync) and **Training** (Units & display, and Personal records). Back returns you to
-  Settings, then to where you were.
-- **Choose kilograms or pounds yourself.** **Settings → Units & display** switches how weights are shown and
-  entered. Weights are stored exactly, so switching never changes your data. Once you've chosen, a FitNotes import
-  won't switch it back, and the choice travels with your `.fitlens` backups.
-- **PR celebrations.** When a set you save is a new personal record, FitLens gives a short vibration and names the
-  record, for example "New personal record: 100 kg × 5". You can switch this off in **Settings → Personal records**.
+- **Full-screen graphs.** Tap the new expand button next to a graph's options, or double tap the graph, to open it
+  full screen. It works in landscape too. Pinch to zoom in on a stretch of time, drag to move along it, and double
+  tap or use **Reset zoom** to see everything again. Tapping a point still shows its details, and the zoom is kept
+  when you rotate the phone.
+- **Trend lines.** Switch on **Trend** under an exercise's or a measurement's graph to add a dashed trend line, with
+  its change per month shown underneath, for example "Trend: +2.5 kg per month".
+- **Scale from zero.** **From zero** starts the graph's scale at zero, for an honest sense of how far you've come.
 
 ## Improved
 
-- **Restoring a backup keeps this phone's settings.** Your backup folders, automatic-backup schedule, FitNotes
-  folder and auto-sync, last import and safety copy now belong to the phone, not to the backup. Restoring a backup,
-  including one from another phone or an older version, brings back your data and preferences but leaves these
-  alone.
-- **Settings update as they change.** The Backups page shows a backup that finishes in the background straight
-  away, without leaving and coming back.
-- **Backups moved to Settings.** Backup files, automatic backups, the safety copy with Undo and the PDF report are
-  now in **Settings → Backups**. Opening a `.fitlens` file, or tapping a backup notification, takes you straight
-  there. The Sync tab keeps FitNotes and photo imports and links to it.
-- **PR marks for back-dated sets.** A set logged for an earlier date is now compared only with sets up to that
-  date, the same rule "Recalculate personal records" uses. The two always agree.
+- **Breaks in training show as gaps.** A break of more than eight weeks is no longer drawn as one long straight line.
+- **Clearer axis labels.** Date labels never overlap, however narrow the screen or however far you zoom in.
+- **Smoother with years of history.** Graph data is now worked out in the background and reused, so switching
+  graphs stays quick.
+- **Better with TalkBack.** Each graph reads out its date range with its lowest, highest and latest values. Selecting
+  a point announces it. In full screen, TalkBack offers zoom in, zoom out, move earlier and move later.
+- **A one-time hint.** "Tap a point for details. Double tap to expand." appears under graphs until you've tried both.
 
 ## Known limitations
 
-- The Sync tab stays for now, for FitNotes and photo imports. It moves into Settings in a later build.
-- Settings has only the options that exist today. Rest timer, logging, privacy and other options arrive with their
-  features.
-- Going back to an older FitLens version after updating keeps your settings from before this update, not changes
-  you've made since.
+- Full-screen zoom works on the time axis only. Zooming the vertical axis comes later.
+- The new bar and donut charts will first appear with the analysis screens in upcoming builds.
