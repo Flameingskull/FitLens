@@ -78,7 +78,7 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
         if (measurements.isEmpty()) {
             EmptyState("No body tracker data yet", "Import a FitNotes backup, add a measurement, or create a custom metric.") {
                 Row {
-                    TextButton(onClick = { nav.tab(Screen.Sync) }) { Text("Go to Sync") }
+                    TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
                     TextButton(onClick = { managing = true }) { Text("Custom metrics") }
                 }
             }

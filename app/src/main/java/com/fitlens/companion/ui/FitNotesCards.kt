@@ -6,14 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -33,67 +29,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * The Sync tab: FitNotes imports and progress photos. Backups, personal records and the other settings live in
- * Settings (#38) since 1.0.21; #35 later folds this tab into Settings too.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun SyncScreen(snap: Snapshot, nav: Nav) {
-    val importPhotos = rememberPhotoImporter()
-    val importFolder = rememberFolderPhotoImporter()
-
-    FitNotesImportHost()
-    Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Sync & import")
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            FitNotesCards(snap)
-
-            // ---------- Photos ----------
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Progress photos", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "${snap.photos.size} photos on ${snap.photosByDate.size} days" +
-                            if (snap.reviewPhotos.isNotEmpty()) " · ${snap.reviewPhotos.size} need a date check" else "",
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = importPhotos) { Text("Choose photos") }
-                        OutlinedButton(onClick = importFolder) { Text("Import a folder") }
-                        if (snap.reviewPhotos.isNotEmpty()) OutlinedButton(onClick = { nav.push(Screen.Review) }) { Text("Check dates") }
-                    }
-                    Text(
-                        "Each photo is dated from its camera metadata (EXIF), then the media library, then its file name. " +
-                            "Re-importing the same photo is detected and skipped. You can also share photos from your gallery to FitLens.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            // ---------- Backups moved to Settings ----------
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Backups", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Backup files, automatic backups, the safety copy and PDF reports are in Settings, " +
-                            "under the gear at the top of every tab.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Open Backups") }
-                }
-            }
-            HorizontalDivider()
-            Text(
-                "FitLens never changes your FitNotes data. It only reads FitNotes backups.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-/**
- * Importing from FitNotes: a backup file, or the FitNotes backup folder with optional auto-sync. Shown on the Sync
- * tab and in Settings → Import & sync. The screen showing it also needs a [FitNotesImportHost].
+ * Importing from FitNotes: a backup file, or the FitNotes backup folder with optional auto-sync. Shown in
+ * Settings → FitNotes import, which replaced the Sync tab (#35). The screen showing it also needs a [FitNotesImportHost].
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -168,4 +105,8 @@ fun FitNotesCards(snap: Snapshot) {
             }
         }
     }
+    Text(
+        "FitLens never changes your FitNotes data. It only reads FitNotes backups.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }

@@ -64,7 +64,7 @@ fun TrainingScreen(snap: Snapshot, nav: Nav) {
         if (snap.sets.isEmpty()) {
             EmptyState(
                 "No workouts yet",
-                "Build your exercise library and log your first set, or import a FitNotes backup from the Sync tab."
+                "Build your exercise library and log your first set, or import a FitNotes backup from Settings → FitNotes import."
             ) {
                 Button(onClick = { nav.push(Screen.Library) }) { Text("Open exercise library") }
             }

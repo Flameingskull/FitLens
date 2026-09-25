@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
  * what it adds and skips, can save a FitLens backup first, and then confirms.
  */
 object FitNotesImports {
-    /** A FitNotes backup opened or shared from outside FitLens, waiting for the Sync tab to show its summary. */
+    /** A FitNotes backup opened or shared from outside FitLens, waiting for Settings → FitNotes import to show its summary. */
     val pending = MutableStateFlow<Uri?>(null)
     /** A checked backup waiting for the user to confirm. */
     val staged = MutableStateFlow<FitNotesImporter.StagedImport?>(null)
@@ -75,7 +75,7 @@ object FitNotesImports {
     }
 }
 
-/** Shows the summary for a staged FitNotes import and runs it when confirmed. Placed on the Sync tab. */
+/** Shows the summary for a staged FitNotes import and runs it when confirmed. Placed on Settings → FitNotes import. */
 @Composable
 fun FitNotesImportHost() {
     val ctx = LocalContext.current.applicationContext

@@ -77,7 +77,7 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
                     "FitLens matches each photo to its date automatically."
             ) {
                 Button(onClick = { nav.push(Screen.Day(Dates.today())) }) { Text("Log today’s workout") }
-                TextButton(onClick = { nav.tab(Screen.Sync) }) { Text("Import from FitNotes") }
+                TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
                 TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Restore from a backup") }
             }
         } else {

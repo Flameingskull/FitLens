@@ -149,7 +149,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav) {
         if (snap.exercises.isEmpty()) {
             EmptyState(
                 "Your library is empty",
-                "Add your own exercises, start from FitLens's starter library, or import a FitNotes backup from the Sync tab."
+                "Add your own exercises, start from FitLens's starter library, or import a FitNotes backup from Settings → FitNotes import."
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { seeding = true }) { Text("Add starter library") }

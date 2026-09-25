@@ -31,8 +31,9 @@ import com.fitlens.companion.ui.design.SegmentedSwitch
  * builds add theirs (#7 units, #20 rest timer, #35 data tools and so on).
  */
 enum class SettingsSection(val title: String, val summary: String, val group: String) {
-    Backups("Backups", "Backup files, automatic backups, safety copy and PDF reports", "Data"),
-    Import("Import & sync", "FitNotes backups and the FitNotes backup folder", "Data"),
+    Backups("Backups", "Backup files, automatic backups, safety copy and PDF reports", "Data, backup & import"),
+    // FitNotes imports lived on the Sync tab until #35 moved them here.
+    Import("FitNotes import", "Import a FitNotes backup any time, or sync its backup folder", "Data, backup & import"),
     Units("Units & display", "Kilograms or pounds", "Training"),
     Records("Personal records", "PR marks and celebrations", "Training")
 }

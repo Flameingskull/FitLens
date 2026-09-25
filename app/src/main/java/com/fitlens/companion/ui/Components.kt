@@ -84,7 +84,7 @@ data class AppResult(val at: Long, val text: String, val level: ResultLevel)
 object UiEvents {
     val messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 16)
     val busy = MutableStateFlow<String?>(null)
-    /** A backup file opened from outside the app, waiting for the Sync tab to confirm the restore. */
+    /** A backup file opened from outside the app, waiting for Settings → Backups to confirm the restore. */
     val pendingRestore = MutableStateFlow<android.net.Uri?>(null)
     /** The most recent result above [ResultLevel.Info]. Survives rotation, navigation and process death. */
     val lastResult = MutableStateFlow<AppResult?>(null)

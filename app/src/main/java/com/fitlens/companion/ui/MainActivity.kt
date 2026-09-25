@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,7 +69,6 @@ sealed interface Screen {
     data object Body : Screen
     data object Training : Screen
     data object Photos : Screen
-    data object Sync : Screen
     data class Day(val date: String) : Screen
     data object Library : Screen
     /** Logging sets for one exercise on one day (#16). */
@@ -100,8 +98,7 @@ private val tabs = listOf(
     TabItem(Screen.Calendar, "Calendar", Icons.Filled.DateRange),
     TabItem(Screen.Body, "Body", Icons.Filled.Person),
     TabItem(Screen.Training, "Training", Icons.Filled.Star),
-    TabItem(Screen.Photos, "Photos", Icons.Filled.Face),
-    TabItem(Screen.Sync, "Sync", Icons.Filled.Refresh)
+    TabItem(Screen.Photos, "Photos", Icons.Filled.Face)
 )
 
 class MainActivity : ComponentActivity() {
@@ -154,12 +151,14 @@ class MainActivity : ComponentActivity() {
         AutoBackup.onAppBackground(applicationContext)
     }
 
-    /** Settings → Backups, with Back leading to Settings and then the Log tab. */
-    private fun openBackups() {
+    /** A Settings page, with Back leading to Settings and then the Log tab. */
+    private fun openSettingsPage(section: SettingsSection) {
         nav.tab(Screen.Timeline)
         nav.push(Screen.SettingsHome)
-        nav.push(Screen.SettingsPage(SettingsSection.Backups))
+        nav.push(Screen.SettingsPage(section))
     }
+
+    private fun openBackups() = openSettingsPage(SettingsSection.Backups)
 
     private suspend fun handleIntent(intent: Intent?) {
         if (intent == null) return
@@ -183,8 +182,8 @@ class MainActivity : ComponentActivity() {
             when (FitNotesImporter.sniff(this, u)) {
                 FileKind.IMAGE -> images.add(u)
                 FileKind.FITNOTES_BACKUP -> {
-                    // The Sync tab shows what the backup adds before importing it.
-                    nav.tab(Screen.Sync)
+                    // Settings → FitNotes import shows what the backup adds before importing it (#35).
+                    openSettingsPage(SettingsSection.Import)
                     FitNotesImports.pending.value = u
                 }
                 FileKind.BODY_CSV -> FitNotesImporter.importBodyCsv(this, u).let { UiEvents.show(it.message, it.level()) }
@@ -274,7 +273,6 @@ fun AppRoot(nav: Nav) {
                     Screen.Body -> BodyScreen(s, nav)
                     Screen.Training -> TrainingScreen(s, nav)
                     Screen.Photos -> PhotosScreen(s, nav)
-                    Screen.Sync -> SyncScreen(s, nav)
                     is Screen.Day -> DayScreen(s, nav, top.date)
                     Screen.Library -> ExerciseLibraryScreen(s, nav)
                     is Screen.SetEntry -> SetEntryScreen(s, nav, top.date, top.exerciseId)
