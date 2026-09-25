@@ -59,6 +59,7 @@ import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Store
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -81,6 +82,8 @@ sealed interface Screen {
     /** The main Settings screen, opened from the gear on every tab (#38). */
     data object SettingsHome : Screen
     data class SettingsPage(val section: SettingsSection) : Screen
+    /** The guided setup (#29): first run, or again from Settings. */
+    data object Setup : Screen
 }
 
 class Nav {
@@ -228,6 +231,19 @@ fun AppRoot(nav: Nav) {
             if (result == SnackbarResult.ActionPerformed) m.onAction?.invoke()
         }
     }
+    // First run (#29): a phone with no data yet gets the guided setup once. Anyone updating with data already here
+    // never sees it unasked; it's still in Settings.
+    val loaded = snap != null
+    LaunchedEffect(loaded) {
+        val s = snap ?: return@LaunchedEffect
+        Settings.awaitLoaded()
+        if (Settings.current().setupDone) return@LaunchedEffect
+        if (s.allDates.isEmpty() && s.exercises.isEmpty()) {
+            if (nav.top == Screen.Timeline && nav.stack.size == 1) nav.push(Screen.Setup)
+        } else {
+            Settings.updateDevice { it.copy(setupDone = true) }
+        }
+    }
     val top = nav.top
     val onTab = tabs.any { it.screen == top }
     BackHandler(enabled = nav.stack.size > 1 || top != Screen.Timeline) { nav.pop() }
@@ -283,6 +299,7 @@ fun AppRoot(nav: Nav) {
                     Screen.Review -> ReviewScreen(s, nav)
                     Screen.SettingsHome -> SettingsScreen(nav)
                     is Screen.SettingsPage -> SettingsPageScreen(s, nav, top.section)
+                    Screen.Setup -> SetupScreen(s, nav)
                 }
                 }
             }

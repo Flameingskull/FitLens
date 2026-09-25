@@ -58,6 +58,13 @@ fun SettingsScreen(nav: Nav) {
                     )
                 }
             }
+            SectionTitle("Setup")
+            GoldHairline()
+            ListRowWithMenu(
+                title = "Run setup again",
+                subtitle = "Units, automatic backups, FitNotes import, photos and the starter library",
+                onClick = { nav.push(Screen.Setup) }
+            )
         }
     }
 }

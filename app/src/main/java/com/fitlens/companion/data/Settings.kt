@@ -48,7 +48,9 @@ data class DeviceSettings(
     val lastResult: String? = null,
     /** The graph hint shows until the user has tapped a point and opened a graph full screen once each (#50). */
     val chartTapSeen: Boolean = false,
-    val chartExpandSeen: Boolean = false
+    val chartExpandSeen: Boolean = false,
+    /** The guided setup (#29) has been finished or skipped on this phone, or wasn't needed because data was here. */
+    val setupDone: Boolean = false
 )
 
 /**
@@ -224,6 +226,7 @@ object Settings {
     private const val D_LAST_RESULT = "last_result"
     private const val D_CHART_TAP = "chart_hint_tap"
     private const val D_CHART_EXPAND = "chart_hint_expand"
+    private const val D_SETUP_DONE = "setup_done"
 
     /** Every phone-only key, as it was named in `meta` before 1.0.21. */
     internal val DEVICE_KEYS = listOf(
@@ -260,7 +263,8 @@ object Settings {
         safetyReason = get(D_SAFETY_REASON),
         lastResult = get(D_LAST_RESULT),
         chartTapSeen = bool(get(D_CHART_TAP)),
-        chartExpandSeen = bool(get(D_CHART_EXPAND))
+        chartExpandSeen = bool(get(D_CHART_EXPAND)),
+        setupDone = bool(get(D_SETUP_DONE))
     )
 
     private fun DeviceSettings.toMap(): Map<String, String?> = mapOf(
@@ -280,7 +284,8 @@ object Settings {
         D_SAFETY_REASON to safetyReason,
         D_LAST_RESULT to lastResult,
         D_CHART_TAP to if (chartTapSeen) "1" else null,
-        D_CHART_EXPAND to if (chartExpandSeen) "1" else null
+        D_CHART_EXPAND to if (chartExpandSeen) "1" else null,
+        D_SETUP_DONE to if (setupDone) "1" else null
     )
 
     private fun portableFrom(get: (String) -> String?) = PortableSettings(
