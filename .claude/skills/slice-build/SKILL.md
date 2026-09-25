@@ -1,10 +1,11 @@
 ---
-description: Owner-triggered FitLens build that ships exactly one small item or one complete slice of an issue, with no agents and a hard size cap. The single-slice mode that /safe-build used to be. Run it only when the owner types /slice_build.
+name: slice-build
+description: Owner-triggered FitLens build that ships exactly one small item or one complete slice of an issue, with no agents and a hard size cap. The single-slice mode that /safe-build used to be. Run it only when the owner types /slice-build.
 disable-model-invocation: true
 argument-hint: "[auto | one issue number, e.g. 23]"
 ---
 
-# /slice_build: one slice, one small release
+# /slice-build: one slice, one small release
 
 The owner triggers this by hand when they want the smallest safe release: one item, or one slice of an issue.
 For the largest build that fits within the usage limits, use `/safe-build` instead. Arguments: `$ARGUMENTS`

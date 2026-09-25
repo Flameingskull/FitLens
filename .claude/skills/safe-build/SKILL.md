@@ -87,7 +87,7 @@ edits. Make sure nothing adds a keystore, secret or credential. Set the tracker 
 - **README refresh** (standing rule 7): if it's due, update `README.md` so every section matches the app as released.
   Change only the sections that are out of date since the last refresh (check each release's notes since then).
   Don't rewrite sections that are still accurate. Then move the "last refresh" and "next due" versions in `CLAUDE.md`
-  and in `/new-build` and `/slice_build`.
+  and in `/new-build` and `/slice-build`.
 - **Code map:** if the build added, moved or renamed a file or changed a pattern, update `docs/CODEMAP.md` (and its
   "Last updated" version). Add any reusable lesson to the matching `.claude/agent-notes/` file.
 - Commit these as the final commit, then `git push origin main`. One push is one release.
