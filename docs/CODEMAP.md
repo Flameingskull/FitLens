@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.22.
+Last updated: 1.0.23.
 
 ## How data flows
 
@@ -14,7 +14,9 @@ Last updated: 1.0.22.
   backups go through the same upgrade.
 - **Settings** (#38) go through `data/Settings.kt` only. Phone-only settings (`DeviceSettings`: folders, schedules,
   last import, safety copy, last result) live in DataStore and never travel in backups. The user's preferences
-  (`PortableSettings`: units, logging, PR celebrations) live in `meta`, so they restore from backups. Both are
+  (`PortableSettings`: units, logging (keep screen on, `autofillSource`, `autoSelectNext`), PR celebrations) live in
+  `meta`, so they restore from backups. The old phone-only `meta` rows are deleted once DataStore has loaded, and
+  again after a restore (`Settings.dropLegacyDeviceRows`, #98). Both are
   loaded once at start-up and held in memory: read `Settings.current()` / `currentPortable()`, observe
   `Settings.device` / `portable` in Compose, and change them with `updateDevice` / `updatePortable` (or
   `updateDeviceNow` from background work). The only other `meta` writer is the FitNotes importer's weight unit,
@@ -37,7 +39,7 @@ Last updated: 1.0.22.
 ### `data/`
 | File | Owns |
 | --- | --- |
-| `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
+| `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set/`deleteMeta`, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
 | `Models.kt` | Row types (`Category`, `Exercise`, `SetRow`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes`, `Poses`, `Dates` |
 | `Store.kt` | `Snapshot` and `Store` (load and reload, photo and measurement writes, custom metrics) |
 | `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts, comments, times, undo re-adds, `recalculatePrs` |
@@ -53,8 +55,8 @@ Last updated: 1.0.22.
 ### `ui/`
 | File | Owns |
 | --- | --- |
-| `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop`), `AppRoot` with the bottom tabs and `LocalOpenSettings` |
-| `SettingsScreen.kt` | Settings (`SettingsSection` rows) and its sub-screens: Backups, Import & sync, Units & display, Personal records |
+| `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop`), `AppRoot` with the five bottom tabs (Log, Calendar, Body, Training, Photos) and `LocalOpenSettings`. Shared files open their Settings page (`openSettingsPage`) |
+| `SettingsScreen.kt` | Settings (`SettingsSection` rows, grouped) and its sub-screens: Backups and FitNotes import (Data, backup & import), Units & display, Workout & logging, Personal records |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`. **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (shows the Settings gear), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
 | `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow`, `ExerciseCard`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
@@ -66,11 +68,11 @@ Last updated: 1.0.22.
 | `TrainingScreen.kt` | Training tab and `ExerciseDetailScreen` (Graph, History and Records tabs), `e1rm` |
 | `BodyScreen.kt` | Body measurements graphs and stats. Also `RANGES` and `inRange` for charts |
 | `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, gaps, markers), `ChartSelection`, `ChartViewport`, `trendOf`, `rememberChartData` (off-main-thread data) |
-| `ChartViews.kt` | `BarChart`, `DonutChart`, `FullScreenChart` (pinch, pan, reset, TalkBack actions), `ExpandGraphButton`, `ChartHint` |
+| `ChartViews.kt` | `BarChart`, `DonutChart`, `FullScreenChart` (pinch, pan, reset, TalkBack actions, a `controls` slot), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
 | `CalendarScreen.kt` | Month grid |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |
-| `SyncScreen.kt` | Sync tab: `FitNotesCards` (also used by Settings → Import & sync) and photo import. #35 folds it into Settings |
+| `FitNotesCards.kt` | `FitNotesCards`: FitNotes backup import and the backup-folder sync, shown in Settings → FitNotes import (the Sync tab was removed in 1.0.23, #35). Photo import lives on the Photos tab and the Day screen |
 | `BackupUi.kt` | `BackupsCard`, shown in Settings → Backups |
 | `FitNotesImportUi.kt`, `ImportActions.kt` | Import hosts and flows, `runBusy`, `AppScope` |
 | `CustomMetrics.kt` | Custom metric dialogs |
@@ -102,5 +104,5 @@ Last updated: 1.0.22.
 | New workout data field | `Db.kt` (VERSION and `onUpgrade`), `Models.kt`, `Store.load`, `Workouts.kt`, and `Backups.kt` if it's a new table |
 | New setting | A field in `DeviceSettings` (phone-only) or `PortableSettings` (travels in backups) in `data/Settings.kt`, with its key and default, then a row in the matching `SettingsSection` page |
 | Records or 1RM logic | `data/Records.kt` only. Screens and the PDF call it |
-| New graph | Build its points in `rememberChartData(keys) { … }`, draw with `LineChart` / `BarChart` / `DonutChart`, add an `ExpandGraphButton` and a `FullScreenChart` (#96), and a `ChartHint` under it |
+| New graph | Build its points in `rememberChartData(keys) { … }`, draw with `LineChart` / `BarChart` / `DonutChart`, add an `ExpandGraphButton` and a `FullScreenChart` (#96) with `GraphOptionChips` as its `controls`, and a `ChartHint` under it |
 | New screen | `Screen` and `AppRoot` in `MainActivity.kt`, and a new `ui/XScreen.kt` built from `ui/design/` |
