@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
@@ -98,11 +99,17 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     val showWeight = ExerciseTypes.usesWeight(type) || allSets.any { it.weightKg != 0.0 } ||
         (!showDistance && !showDuration && !showReps)
 
+    val prefs by Settings.portable.collectAsState()
+
     // Auto-fill: what was last logged today, otherwise the first set of the previous workout for this exercise.
-    val template = remember(snap, date, exerciseId) {
-        val today = allSets.lastOrNull { it.date == date }
-        val previousDay = allSets.filter { it.date < date }.maxByOrNull { it.date }?.date
-        today ?: previousDay?.let { d -> allSets.firstOrNull { it.date == d } }
+    // "Leave empty" in Settings → Workout & logging turns it off (#97).
+    val fillFromLast = prefs.autofillSource != PortableSettings.AUTOFILL_EMPTY
+    val template = remember(snap, date, exerciseId, fillFromLast) {
+        if (!fillFromLast) null else {
+            val today = allSets.lastOrNull { it.date == date }
+            val previousDay = allSets.filter { it.date < date }.maxByOrNull { it.date }?.date
+            today ?: previousDay?.let { d -> allSets.firstOrNull { it.date == d } }
+        }
     }
 
     var selected by remember(date, exerciseId) { mutableStateOf<Long?>(null) }
@@ -119,10 +126,9 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
     var deleting by remember { mutableStateOf<SetRow?>(null) }
     var editExercise by remember { mutableStateOf(false) }
 
-    val prefs by Settings.portable.collectAsState()
     val weightStep = prefs.weightIncrementKg ?: DEFAULT_WEIGHT_STEP
 
-    // "Keep screen on" while logging (#97 gives this a Settings row; the preference already works here).
+    // "Keep screen on" while logging, switched in Settings → Workout & logging (#97).
     val view = LocalView.current
     val keepOn = prefs.keepScreenOn
     DisposableEffect(view, keepOn) {
@@ -175,8 +181,12 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                     Workouts.updateSet(
                         chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, comment = note)
                     )
-                    selected = null
-                    UiEvents.show("Set updated")
+                    // With auto-select next on, the following set of the day is selected, ready to adjust (#97).
+                    val next = if (Settings.currentPortable().autoSelectNext) {
+                        sets.getOrNull(sets.indexOfFirst { it.id == chosen.id } + 1)
+                    } else null
+                    selected = next?.id
+                    UiEvents.show(if (next == null) "Set updated" else "Set updated. Next set selected.")
                 }
             } catch (e: WorkoutDataException) {
                 UiEvents.show(e.message ?: "That set couldn't be saved.")
@@ -278,8 +288,11 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
             if (sets.isEmpty()) {
                 item {
                     Text(
-                        if (template == null) "Nothing logged for this exercise yet."
-                        else "No sets yet today — the fields are filled in from last time.",
+                        when {
+                            !fillFromLast -> "No sets yet today."
+                            template == null -> "Nothing logged for this exercise yet."
+                            else -> "No sets yet today — the fields are filled in from last time."
+                        },
                         Modifier.padding(horizontal = 16.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

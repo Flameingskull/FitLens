@@ -64,8 +64,17 @@ data class PortableSettings(
     val weightIncrementKg: Double? = null,
     val keepScreenOn: Boolean = true,
     /** Celebrate a new personal record when a set is saved (#23). */
-    val celebratePrs: Boolean = true
-)
+    val celebratePrs: Boolean = true,
+    /** Where a new set's fields come from (#97): [AUTOFILL_LAST] or [AUTOFILL_EMPTY]. Routines (#21) add a third. */
+    val autofillSource: String = AUTOFILL_LAST,
+    /** After updating a set, select the next one of the day so it can be adjusted and saved in turn (#97). */
+    val autoSelectNext: Boolean = false
+) {
+    companion object {
+        const val AUTOFILL_LAST = "last"
+        const val AUTOFILL_EMPTY = "empty"
+    }
+}
 
 private const val STORE_NAME = "fitlens_device_settings"
 
@@ -175,6 +184,8 @@ object Settings {
         db.setMeta(P_WEIGHT_INCREMENT, s.weightIncrementKg?.toString())
         db.setMeta(P_KEEP_SCREEN_ON, if (s.keepScreenOn) null else "0")
         db.setMeta(P_CELEBRATE_PRS, if (s.celebratePrs) null else "0")
+        db.setMeta(P_AUTOFILL, s.autofillSource.takeIf { it != PortableSettings.AUTOFILL_LAST })
+        db.setMeta(P_AUTO_SELECT_NEXT, if (s.autoSelectNext) "1" else null)
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -209,6 +220,8 @@ object Settings {
     private const val P_WEIGHT_INCREMENT = "weight_increment"
     private const val P_KEEP_SCREEN_ON = "keep_screen_on"
     private const val P_CELEBRATE_PRS = "celebrate_prs"
+    private const val P_AUTOFILL = "autofill_source"
+    private const val P_AUTO_SELECT_NEXT = "auto_select_next"
 
     private fun bool(v: String?) = v == "1"
 
@@ -257,7 +270,10 @@ object Settings {
         weightUnitManual = get(P_WEIGHT_UNIT_MANUAL) != null,
         weightIncrementKg = get(P_WEIGHT_INCREMENT)?.toDoubleOrNull()?.takeIf { it > 0 },
         keepScreenOn = get(P_KEEP_SCREEN_ON) != "0",
-        celebratePrs = get(P_CELEBRATE_PRS) != "0"
+        celebratePrs = get(P_CELEBRATE_PRS) != "0",
+        // An unknown value (say, "routine" from a later build's backup) falls back to the default.
+        autofillSource = get(P_AUTOFILL)?.takeIf { it == PortableSettings.AUTOFILL_EMPTY } ?: PortableSettings.AUTOFILL_LAST,
+        autoSelectNext = bool(get(P_AUTO_SELECT_NEXT))
     )
 }
 

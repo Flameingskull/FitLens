@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.ImportSummary
+import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Workouts
@@ -35,6 +36,7 @@ enum class SettingsSection(val title: String, val summary: String, val group: St
     // FitNotes imports lived on the Sync tab until #35 moved them here.
     Import("FitNotes import", "Import a FitNotes backup any time, or sync its backup folder", "Data, backup & import"),
     Units("Units & display", "Kilograms or pounds", "Training"),
+    Logging("Workout & logging", "Screen on, filling in new sets, selecting the next set", "Training"),
     Records("Personal records", "PR marks and celebrations", "Training")
 }
 
@@ -76,6 +78,7 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
                 SettingsSection.Backups -> BackupsCard(snap)
                 SettingsSection.Import -> FitNotesCards(snap)
                 SettingsSection.Units -> UnitsPage()
+                SettingsSection.Logging -> LoggingPage()
                 SettingsSection.Records -> RecordsPage(snap)
             }
         }
@@ -103,6 +106,38 @@ private fun UnitsPage() {
     PageHint(
         "Every weight is stored exactly, so switching only changes how weights are shown and entered. " +
             "This preference travels with your .fitlens backups."
+    )
+}
+
+@Composable
+private fun LoggingPage() {
+    val prefs by Settings.portable.collectAsState()
+    SectionTitle("While logging")
+    ToggleRow("Keep the screen on", prefs.keepScreenOn) { on ->
+        Settings.updatePortable { it.copy(keepScreenOn = on) }
+    }
+    PageHint("Stops the phone going to sleep on the set entry screen, so it's ready between sets.")
+    SectionTitle("Fill new sets from")
+    // Routine plans join these choices once routines exist (#21).
+    SegmentedSwitch(
+        options = listOf("Last workout", "Leave empty"),
+        selected = if (prefs.autofillSource == PortableSettings.AUTOFILL_EMPTY) 1 else 0,
+        onSelect = { i ->
+            val source = if (i == 1) PortableSettings.AUTOFILL_EMPTY else PortableSettings.AUTOFILL_LAST
+            Settings.updatePortable { it.copy(autofillSource = source) }
+        }
+    )
+    PageHint(
+        "Last workout fills the fields from your latest set today, or from the first set of the last time you did " +
+            "the exercise. Leave empty starts every new set blank."
+    )
+    SectionTitle("After updating a set")
+    ToggleRow("Select the next set", prefs.autoSelectNext) { on ->
+        Settings.updatePortable { it.copy(autoSelectNext = on) }
+    }
+    PageHint(
+        "Handy for a copied workout: update each set in turn without tapping the next one. " +
+            "These preferences travel with your .fitlens backups."
     )
 }
 
