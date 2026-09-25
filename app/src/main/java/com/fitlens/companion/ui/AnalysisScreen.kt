@@ -45,8 +45,9 @@ fun AnalysisHub(snap: Snapshot, nav: Nav) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var filter by remember { mutableStateOf(Analysis.Filter()) }
     Column(Modifier.fillMaxSize()) {
-        FitTabRow(titles = listOf("Workouts", "Breakdown"), selected = tab, onSelect = { tab = it })
+        FitTabRow(titles = listOf("Workouts", "Breakdown", "Records"), selected = tab, onSelect = { tab = it })
         when (tab) {
+            2 -> RecordsBoard(snap, nav)
             1 -> BreakdownTab(snap, nav) { f ->
                 filter = f
                 tab = 0
