@@ -73,7 +73,9 @@ data class SetRow(
     /** Working, warm-up, drop or failure ([SetTypes], #43). */
     val setType: Int = SetTypes.WORKING,
     /** Effort as RPE (1–10, half steps), or null when not recorded (#44). RIR is shown as 10 − RPE. */
-    val rpe: Double? = null
+    val rpe: Double? = null,
+    /** The set's place in its day (#70): sets and exercises are shown in this order. */
+    val position: Long = 0L
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
     val isWarmup: Boolean get() = setType == SetTypes.WARMUP

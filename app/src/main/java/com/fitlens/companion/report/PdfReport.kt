@@ -458,7 +458,7 @@ object PdfReport {
                 comments.forEach { cm ->
                     wrap("“$cm”", italic, CW).forEach { l -> line(12f); w.c.drawText(l, M, w.y + 9f, italic); w.y += 12f }
                 }
-                sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.id } }.forEach { (exId, exSets) ->
+                sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }.forEach { (exId, exSets) ->
                     line(28f)
                     val cat = snap.categoryOf(exId)
                     if (cat != null) w.c.drawCircle(M + 3f, w.y + 6f, 2.4f, fill(cat.colour or 0xFF000000.toInt()))

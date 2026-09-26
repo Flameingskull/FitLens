@@ -166,7 +166,7 @@ object SavedWorkouts {
     /** A logged day as a saved workout's exercises: in the order first logged, each with that day's sets. */
     fun fromDay(snap: Snapshot, date: String, fill: Int): List<PlannedExercise> =
         snap.setsByDate[date].orEmpty()
-            .groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.id } }
+            .groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }
             .map { (exId, sets) -> PlannedExercise(exId, fill, sets.map { it.toPlanned() }) }
 
     private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType)

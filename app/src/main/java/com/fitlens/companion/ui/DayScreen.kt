@@ -256,7 +256,7 @@ private fun DayContent(
     val comments = snap.workoutComments[date].orEmpty()
     var deleteRecord by remember { mutableStateOf<MRecord?>(null) }
     // Exercises in the order they were first logged that day.
-    val byExercise = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.id } } }
+    val byExercise = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } } }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Spacing.xl)) {
         if (photos.isNotEmpty()) {

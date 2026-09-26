@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 8
+        const val VERSION = 9
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -30,6 +30,15 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TABLE exercise_goal(id INTEGER PRIMARY KEY AUTOINCREMENT, exercise_id INTEGER NOT NULL, kind INTEGER NOT NULL, " +
                 "target REAL NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0)"
 
+        /**
+         * The order of sets within a day (#70): a new set takes its own id as its position, so it lands last. The
+         * trigger covers every insert path (logging, copies, saved workouts, FitNotes imports) without each one
+         * having to remember. A position set on insert (an undo putting a set back) is kept.
+         */
+        const val CREATE_POSITION_TRIGGER =
+            "CREATE TRIGGER IF NOT EXISTS set_position AFTER INSERT ON workout_set WHEN NEW.position = 0 " +
+                "BEGIN UPDATE workout_set SET position = NEW.id WHERE id = NEW.id; END"
+
         private const val CREATE_IMPORT_RULE =
             "CREATE TABLE import_rule(id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, key TEXT NOT NULL, target_id INTEGER)"
     }
@@ -45,7 +54,9 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, " +
                 "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
-                "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL)",
+                "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
+                "position INTEGER NOT NULL DEFAULT 0)",
+            CREATE_POSITION_TRIGGER,
             "CREATE INDEX idx_set_date ON workout_set(date)",
             "CREATE INDEX idx_set_ex ON workout_set(exercise_id)",
             "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 999, goal_type INTEGER NOT NULL DEFAULT 0, goal_value REAL NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, custom INTEGER NOT NULL DEFAULT 0, link TEXT, " +
@@ -147,6 +158,15 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             listOf(Routines.CREATE_ROUTINE, Routines.CREATE_DAY, Routines.CREATE_ORIGIN).forEach {
                 db.execSQL(it.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
             }
+        }
+        if (oldVersion < 9) {
+            // ---- 1.0.39: the order of sets and exercises within a workout (#70) ------------------------------
+            // Every existing set takes its id as its position, which is exactly the order it was shown in before,
+            // so nothing moves. The column is only added when missing, so the step replays safely (#77).
+            if (addColumn(db, "workout_set", "position", "INTEGER NOT NULL DEFAULT 0")) {
+                db.execSQL("UPDATE workout_set SET position = id")
+            }
+            db.execSQL(CREATE_POSITION_TRIGGER)
         }
     }
 

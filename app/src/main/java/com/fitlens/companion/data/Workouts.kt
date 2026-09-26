@@ -213,6 +213,16 @@ object Workouts {
     }
 
     /**
+     * Stores the order of a day's sets (#70): [orderedIds] first to last. Exercises follow the order of their first
+     * set, so moving an exercise is moving its sets as a block.
+     */
+    suspend fun reorderDay(orderedIds: List<Long>): Unit = write { w ->
+        orderedIds.forEachIndexed { i, id ->
+            w.update("workout_set", ContentValues().apply { put("position", i + 1) }, "id=?", arrayOf(id.toString()))
+        }
+    }
+
+    /**
      * Saves the categories' order (#83), first to last. A FitNotes import only ever adds categories, never changes
      * one that exists, so the order chosen here is kept.
      */
@@ -476,6 +486,8 @@ object Workouts {
                 put("reps", s.reps); put("distance", s.distance); put("duration", s.durationSec)
                 put("is_pr", if (s.isPr) 1 else 0); put("comment", s.comment?.takeIf { it.isNotBlank() })
                 put("source", Sources.FITLENS); put("set_type", s.setType); putRpe(s.rpe)
+                // Back in its old place (#70); 0 lets the trigger put it last.
+                put("position", s.position)
             })
             // Deleting an imported set left one skip rule; the set is back, so drop one matching rule too (#76).
             if (s.imported) {

@@ -190,7 +190,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
 fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val sets = snap.setsByDate[date].orEmpty()
-    val exercises = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.id } }.map { it.key } }
+    val exercises = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }.map { it.key } }
     var ticked by remember(date) { mutableStateOf(exercises.toSet()) }
     var withDate by remember { mutableStateOf(true) }
     var withDuration by remember { mutableStateOf(true) }

@@ -233,7 +233,7 @@ private fun SelectedDay(snap: Snapshot, date: String, onOpen: () -> Unit) {
     val sets = snap.setsByDate[date].orEmpty()
     val records = snap.recordsByDate[date].orEmpty()
     val photos = snap.photosByDate[date].orEmpty()
-    val byExercise = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.id } } }
+    val byExercise = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } } }
     val secs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
     Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         Text(Dates.long(date), style = MaterialTheme.typography.titleLarge)
