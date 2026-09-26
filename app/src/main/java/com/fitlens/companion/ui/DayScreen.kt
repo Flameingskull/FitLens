@@ -67,6 +67,7 @@ import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.SetRow as LoggedSet
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
@@ -75,6 +76,7 @@ import com.fitlens.companion.ui.design.DayNavigator
 import com.fitlens.companion.ui.design.ExerciseCard
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.MenuAction
+import com.fitlens.companion.ui.design.SearchablePicker
 import com.fitlens.companion.ui.design.SetRow
 import com.fitlens.companion.ui.design.TopBarAction
 import java.time.LocalTime
@@ -429,6 +431,7 @@ private fun ExerciseOnDay(
     val name = snap.exercises[exId]?.name ?: "Exercise #$exId"
     var expanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var swapping by remember { mutableStateOf(false) }
     val limit = if (setsShown == 0 || expanded) exSets.size else minOf(setsShown, exSets.size)
     val colour = if (showCategories) categoryColour(snap.categoryOf(exId)?.colour ?: 0) else Brand.Hairline
     ExerciseCard(
@@ -439,6 +442,7 @@ private fun ExerciseOnDay(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
             MenuAction("History and graph") { nav.push(Screen.SetEntry(date, exId, page = 1)) },
             MenuAction("Records and goals") { nav.push(Screen.ExerciseDetail(exId)) },
+            MenuAction("Swap exercise") { swapping = true },
             MenuAction("Remove from this workout") { confirmDelete = true }
         )
     ) {
@@ -462,6 +466,32 @@ private fun ExerciseOnDay(
                 Text("+$hidden more set${if (hidden == 1) "" else "s"}", style = MaterialTheme.typography.labelMedium)
             }
         }
+    }
+    if (swapping) {
+        // Swaps the exercise for today only: its sets on this day move to the chosen one (#100). A saved workout's
+        // exercise is swapped for good in the workout editor.
+        SearchablePicker(
+            title = "Swap $name for",
+            items = exercisePickerItems(snap).filter { it.id != exId },
+            searchLabel = "Search exercises",
+            onDismiss = { swapping = false },
+            onPick = { ids ->
+                swapping = false
+                ids.firstOrNull()?.let { to ->
+                    val toName = snap.exercises[to]?.name ?: "the new exercise"
+                    AppScope.scope.launch {
+                        try {
+                            val moved = Workouts.swapExercise(date, exId, to)
+                            UiEvents.show("Swapped $name for $toName", "Undo") {
+                                AppScope.scope.launch { Workouts.setExerciseOf(moved, exId) }
+                            }
+                        } catch (e: WorkoutDataException) {
+                            UiEvents.show(e.message ?: "That swap didn't work.")
+                        }
+                    }
+                }
+            }
+        )
     }
     if (confirmDelete) {
         ConfirmDialog(
