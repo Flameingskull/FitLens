@@ -86,7 +86,15 @@ data class PortableSettings(
     /** How many sets each exercise card on the day log shows (#8): 0 for all, otherwise 1–10. */
     val homeSetsShown: Int = 0,
     /** The routine last chosen in the library's switcher (#21), or 0 for All exercises. */
-    val lastRoutineId: Long = 0L
+    val lastRoutineId: Long = 0L,
+    /** Start the workout timer when the first set of today is saved (#12). */
+    val workoutTimerAuto: Boolean = false,
+    /** The rest timer's length in seconds (#20). */
+    val restSeconds: Int = 90,
+    /** Start the rest timer when a set is saved (#20). */
+    val restAutoStart: Boolean = false,
+    /** Vibrate when the rest timer ends (#20). */
+    val restVibrate: Boolean = true
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -226,6 +234,10 @@ object Settings {
         db.setMeta(P_HOME_CATEGORIES, if (s.homeShowCategories) null else "0")
         db.setMeta(P_HOME_SETS, s.homeSetsShown.takeIf { it != 0 }?.toString())
         db.setMeta(P_LAST_ROUTINE, s.lastRoutineId.takeIf { it != 0L }?.toString())
+        db.setMeta(P_TIMER_AUTO, if (s.workoutTimerAuto) "1" else null)
+        db.setMeta(P_REST_SECONDS, s.restSeconds.takeIf { it != 90 }?.toString())
+        db.setMeta(P_REST_AUTO, if (s.restAutoStart) "1" else null)
+        db.setMeta(P_REST_VIBRATE, if (s.restVibrate) null else "0")
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -271,6 +283,10 @@ object Settings {
     private const val P_HOME_CATEGORIES = "home_show_categories"
     private const val P_HOME_SETS = "home_sets_shown"
     private const val P_LAST_ROUTINE = "last_routine"
+    private const val P_TIMER_AUTO = "workout_timer_auto"
+    private const val P_REST_SECONDS = "rest_seconds"
+    private const val P_REST_AUTO = "rest_auto_start"
+    private const val P_REST_VIBRATE = "rest_vibrate"
 
     private fun bool(v: String?) = v == "1"
 
@@ -332,7 +348,11 @@ object Settings {
         weekStart = get(P_WEEK_START)?.toIntOrNull()?.takeIf { it in 1..7 } ?: 1,
         homeShowCategories = get(P_HOME_CATEGORIES) != "0",
         homeSetsShown = get(P_HOME_SETS)?.toIntOrNull()?.takeIf { it in 1..10 } ?: 0,
-        lastRoutineId = get(P_LAST_ROUTINE)?.toLongOrNull() ?: 0L
+        lastRoutineId = get(P_LAST_ROUTINE)?.toLongOrNull() ?: 0L,
+        workoutTimerAuto = bool(get(P_TIMER_AUTO)),
+        restSeconds = get(P_REST_SECONDS)?.toIntOrNull()?.takeIf { it in 5..1800 } ?: 90,
+        restAutoStart = bool(get(P_REST_AUTO)),
+        restVibrate = get(P_REST_VIBRATE) != "0"
     )
 }
 

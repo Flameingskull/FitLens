@@ -256,6 +256,11 @@ private fun LoggingPage() {
         "Off by default: warm-ups are left out of personal records, estimated maxes, volume, graphs, analysis and " +
             "the PDF report. They always show in your history."
     )
+    SectionTitle("Workout timer")
+    ToggleRow("Start the timer with the first set", prefs.workoutTimerAuto) { on ->
+        Settings.updatePortable { it.copy(workoutTimerAuto = on) }
+    }
+    PageHint("Starts timing today's workout when you save its first set. Stop it from the day log's menu, Workout time.")
 }
 
 @Composable

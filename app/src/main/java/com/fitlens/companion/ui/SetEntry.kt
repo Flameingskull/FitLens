@@ -200,7 +200,14 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
         AppScope.scope.launch {
             try {
                 if (chosen == null) {
+                    val firstOfDay = Store.snapshot.value?.setsByDate?.get(date).isNullOrEmpty()
                     val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note, setType = setType, rpe = rpe)
+                    // The first set of today can start the workout timer (#12), unless a time is already recorded.
+                    if (firstOfDay && date == Dates.today() && Settings.currentPortable().workoutTimerAuto &&
+                        Store.snapshot.value?.workoutTimes?.get(date).isNullOrEmpty()
+                    ) {
+                        Workouts.setWorkoutTime(date, WorkoutClock.now(), null)
+                    }
                     // The PR mark was decided as the set was saved; the reloaded snapshot carries it (#23).
                     val isPr = Store.snapshot.value?.setsByExercise?.get(exerciseId)?.any { it.id == id && it.isPr } == true
                     if (isPr && Settings.currentPortable().celebratePrs) {

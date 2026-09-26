@@ -114,6 +114,8 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var addWorkout by remember { mutableStateOf(false) }
     var replaceWorkout by remember { mutableStateOf(false) }
     var saveAsWorkout by remember { mutableStateOf(false) }
+    var editTime by remember { mutableStateOf(false) }
+    val running = WorkoutClock.running(snap, date)
     val importForDay = rememberPhotoImporter(forcedDate = date)
     val hasWorkout = sets.isNotEmpty() || snap.workoutComments.containsKey(date)
     // Remembers which way the last step went, so the page slides in from the matching side.
@@ -140,6 +142,9 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction("Add workout") { addWorkout = true },
                 MenuAction("Replace this workout", enabled = sets.isNotEmpty()) { replaceWorkout = true },
                 MenuAction("Save as a workout", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
+                MenuAction(if (running != null) "Stop workout timer" else "Workout time") {
+                    if (running != null) WorkoutClock.stop(date, running) else editTime = true
+                },
                 MenuAction(if (snap.workoutComments.containsKey(date)) "Edit workout comment" else "Workout comment") { editComment = true },
                 MenuAction("Copy previous workout") { copyPrevious = true },
                 MenuAction("Copy this workout to another day", enabled = sets.isNotEmpty()) { copyToDay = true },
@@ -225,6 +230,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     if (addWorkout) AddWorkoutSheet(snap, nav, date, replace = false) { addWorkout = false }
     if (replaceWorkout) AddWorkoutSheet(snap, nav, date, replace = true) { replaceWorkout = false }
     if (saveAsWorkout) SaveAsWorkoutSheet(snap, date) { saveAsWorkout = false }
+    if (editTime) WorkoutTimeSheet(snap, date) { editTime = false }
 }
 
 /** One day's log: photo strip, body values, the workout summary and its exercise cards, or the empty-day actions. */
@@ -263,12 +269,14 @@ private fun DayContent(
                 )
             }
         }
-        if (sets.isNotEmpty() || comments.isNotEmpty()) {
+        if (sets.isNotEmpty() || comments.isNotEmpty() || WorkoutClock.running(snap, date) != null) {
             item(key = "summary") {
                 val times = snap.workoutTimes[date]
                 val total = times?.sumOf { workoutSeconds(it.start, it.end) } ?: 0L
+                // A running workout timer counts up here once a second (#12).
+                val live = WorkoutClock.running(snap, date)?.let { start -> rememberElapsed(start) }
                 val info = listOfNotNull(
-                    if (total > 0) fmtDuration(total.toInt()) else null,
+                    live?.let { "● ${fmtDuration(it.toInt())}" } ?: if (total > 0) fmtDuration(total.toInt()) else null,
                     "${sets.size} set${if (sets.size == 1) "" else "s"}",
                     "${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0)} ${snap.weightUnit} volume"
                 ).joinToString("  ·  ")
