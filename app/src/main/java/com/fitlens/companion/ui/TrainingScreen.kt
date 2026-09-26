@@ -60,7 +60,7 @@ fun graphLabels(timeBased: Boolean): List<String> =
 private data class GraphType(val label: String, val fn: (List<SetRow>) -> Double, val isWeight: Boolean, val isTime: Boolean = false)
 
 /**
- * An exercise's records and goals (#89). Its graph and history now sit on the exercise screen's tabs (#82), as in
+ * An exercise's records, stats and goals (#89). Its graph and history now sit on the exercise screen's tabs (#82), as in
  * FitNotes; this screen opens from the exercise screen's top bar and the library.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,9 +74,10 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() })
-        FitTabRow(titles = listOf("Records", "Goals"), selected = tab, onSelect = { tab = it })
+        FitTabRow(titles = listOf("Records", "Stats", "Goals"), selected = tab, onSelect = { tab = it })
         when (tab) {
             0 -> RecordsTab(snap, statSets, timeBased)
+            1 -> ExerciseStatsTab(snap, statSets, timeBased)
             else -> GoalsTab(snap, exId, timeBased)
         }
     }
