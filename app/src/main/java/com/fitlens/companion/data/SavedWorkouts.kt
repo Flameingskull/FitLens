@@ -51,7 +51,8 @@ object SavedWorkouts {
             "sort_order INTEGER NOT NULL DEFAULT 0)"
     const val CREATE_EXERCISE =
         "CREATE TABLE saved_workout_exercise(id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, " +
-            "exercise_id INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, fill INTEGER NOT NULL DEFAULT 0)"
+            "exercise_id INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, fill INTEGER NOT NULL DEFAULT 0, " +
+            "superset INTEGER NOT NULL DEFAULT 0)"
     const val CREATE_SET =
         "CREATE TABLE saved_workout_set(id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, " +
             "sort_order INTEGER NOT NULL DEFAULT 0, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, " +

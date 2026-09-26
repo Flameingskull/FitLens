@@ -43,6 +43,35 @@ fun dayExercises(snap: Snapshot, date: String): List<Long> =
     snap.setsByDate[date].orEmpty().groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }.map { it.key }
 
 /**
+ * The day's exercises as they're shown (#18): workout order, except that a superset's exercises sit together where
+ * its first one comes.
+ */
+fun displayOrder(snap: Snapshot, date: String): List<Long> {
+    val sets = snap.setsByDate[date].orEmpty()
+    val groupOf = sets.groupBy { it.exerciseId }.mapValues { e -> e.value.maxOf { it.superset } }
+    val out = ArrayList<Long>()
+    dayExercises(snap, date).forEach { ex ->
+        if (ex in out) return@forEach
+        val g = groupOf[ex] ?: 0
+        if (g == 0) out.add(ex) else dayExercises(snap, date).filter { groupOf[it] == g }.forEach { if (it !in out) out.add(it) }
+    }
+    return out
+}
+
+/** The superset number of [exId] on [date], 0 when none (#18). */
+fun supersetOf(snap: Snapshot, date: String, exId: Long): Int =
+    snap.setsByDate[date].orEmpty().filter { it.exerciseId == exId }.maxOfOrNull { it.superset } ?: 0
+
+/** The day's supersets as letters in the order they're shown: group number to "A", "B"… (#18). */
+fun supersetLetters(snap: Snapshot, date: String): Map<Int, String> =
+    displayOrder(snap, date).map { supersetOf(snap, date, it) }.filter { it > 0 }.distinct()
+        .mapIndexed { i, g -> g to ('A' + i).toString() }.toMap()
+
+/** The exercises of superset [group] on [date], in the order they're shown. */
+fun supersetMembers(snap: Snapshot, date: String, group: Int): List<Long> =
+    if (group == 0) emptyList() else displayOrder(snap, date).filter { supersetOf(snap, date, it) == group }
+
+/**
  * Moves exercise [exId] on [date] one place up ([by] −1) or down (+1), carrying its sets as a block (#70).
  * Stores the whole day's new order in one write.
  */
@@ -91,7 +120,8 @@ fun WorkoutDrawer(
     onDayLog: () -> Unit
 ) {
     val sets = snap.setsByDate[date].orEmpty()
-    val logged = dayExercises(snap, date)
+    val logged = displayOrder(snap, date)
+    val letters = supersetLetters(snap, date)
     // The exercise being logged is listed even before its first set.
     val order = if (current in logged) logged else logged + current
     val secs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
@@ -133,12 +163,14 @@ fun WorkoutDrawer(
                         },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(Modifier.width(4.dp).heightIn(min = Spacing.row).background(categoryColour(snap.categoryOf(exId)?.colour ?: 0)))
+                    val group = supersetOf(snap, date, exId)
+                    Box(Modifier.width(4.dp).heightIn(min = Spacing.row).background(if (group > 0) Brand.Gold else categoryColour(snap.categoryOf(exId)?.colour ?: 0)))
                     Column(Modifier.weight(1f).padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                         Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             color = if (isCurrent) Brand.GoldLight else MaterialTheme.colorScheme.onSurface)
                         Text(
-                            if (hasSets) "$count set${if (count == 1) "" else "s"}" else "No sets yet",
+                            (if (hasSets) "$count set${if (count == 1) "" else "s"}" else "No sets yet") +
+                                (letters[group]?.let { "  ·  Superset $it" } ?: ""),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

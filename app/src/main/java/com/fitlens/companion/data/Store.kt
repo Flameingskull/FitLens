@@ -161,11 +161,11 @@ object Store {
                 )
         }
         val sets = ArrayList<SetRow>()
-        r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position FROM workout_set ORDER BY date, position, id", null).use { c ->
+        r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset FROM workout_set ORDER BY date, position, id", null).use { c ->
             while (c.moveToNext()) sets.add(
                 SetRow(
                     c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8),
-                    c.strOr(9, Sources.FITLENS), c.int(10), if (c.isNull(11)) null else c.getDouble(11), c.lng(12)
+                    c.strOr(9, Sources.FITLENS), c.int(10), if (c.isNull(11)) null else c.getDouble(11), c.lng(12), c.int(13)
                 )
             )
         }

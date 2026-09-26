@@ -256,7 +256,12 @@ private fun DayContent(
     val comments = snap.workoutComments[date].orEmpty()
     var deleteRecord by remember { mutableStateOf<MRecord?>(null) }
     // Exercises in the order they were first logged that day.
-    val byExercise = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } } }
+    // Exercises as shown: workout order, with each superset's exercises together (#18).
+    val byExercise = remember(sets) {
+        val grouped = sets.groupBy { it.exerciseId }
+        displayOrder(snap, date).mapNotNull { ex -> grouped[ex]?.let { ex to it } }
+    }
+    val letters = remember(sets) { supersetLetters(snap, date) }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Spacing.xl)) {
         if (photos.isNotEmpty()) {
@@ -305,6 +310,16 @@ private fun DayContent(
         }
         byExercise.forEach { (exId, exSets) ->
             item(key = "e$exId") {
+                val group = exSets.maxOf { it.superset }
+                val firstOfGroup = group > 0 && byExercise.firstOrNull { (_, s) -> s.maxOf { it.superset } == group }?.first == exId
+                if (firstOfGroup) {
+                    Text(
+                        "SUPERSET ${letters[group] ?: ""}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Brand.Gold,
+                        modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm)
+                    )
+                }
                 ExerciseOnDay(snap, nav, date, exId, exSets, showCategories, setsShown)
             }
         }
@@ -444,8 +459,11 @@ private fun ExerciseOnDay(
     var expanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var swapping by remember { mutableStateOf(false) }
+    var grouping by remember { mutableStateOf(false) }
+    val group = exSets.maxOfOrNull { it.superset } ?: 0
     val limit = if (setsShown == 0 || expanded) exSets.size else minOf(setsShown, exSets.size)
-    val colour = if (showCategories) categoryColour(snap.categoryOf(exId)?.colour ?: 0) else Brand.Hairline
+    // A superset's exercises share a gold bar, as FitNotes colours its groups (#18).
+    val colour = if (group > 0) Brand.Gold else if (showCategories) categoryColour(snap.categoryOf(exId)?.colour ?: 0) else Brand.Hairline
     ExerciseCard(
         name = name,
         categoryColor = colour,
@@ -457,6 +475,10 @@ private fun ExerciseOnDay(
             MenuAction("Move up", enabled = dayExercises(snap, date).indexOf(exId) > 0) { moveExercise(snap, date, exId, -1) },
             MenuAction("Move down", enabled = dayExercises(snap, date).let { it.indexOf(exId) in 0 until it.lastIndex }) {
                 moveExercise(snap, date, exId, 1)
+            },
+            MenuAction("Superset with…", enabled = dayExercises(snap, date).size > 1) { grouping = true },
+            MenuAction("Remove from superset", enabled = group > 0) {
+                AppScope.scope.launch { Workouts.ungroupExercise(date, exId) }
             },
             MenuAction("Swap exercise") { swapping = true },
             MenuAction("Remove from this workout") { confirmDelete = true }
@@ -482,6 +504,18 @@ private fun ExerciseOnDay(
                 Text("+$hidden more set${if (hidden == 1) "" else "s"}", style = MaterialTheme.typography.labelMedium)
             }
         }
+    }
+    if (grouping) {
+        SearchablePicker(
+            title = "Superset $name with",
+            items = exercisePickerItems(snap).filter { it.id != exId && it.id in dayExercises(snap, date) },
+            multiSelect = true,
+            onDismiss = { grouping = false },
+            onPick = { ids ->
+                grouping = false
+                if (ids.isNotEmpty()) AppScope.scope.launch { Workouts.groupExercises(date, ids + exId) }
+            }
+        )
     }
     if (swapping) {
         // Swaps the exercise for today only: its sets on this day move to the chosen one (#100). A saved workout's

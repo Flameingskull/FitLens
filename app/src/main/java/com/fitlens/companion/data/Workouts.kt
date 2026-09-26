@@ -213,6 +213,41 @@ object Workouts {
     }
 
     /**
+     * Puts the exercises [exIds] into one superset on [date] (#18): a new group, or the group one of them is already
+     * in. Returns the group number.
+     */
+    suspend fun groupExercises(date: String, exIds: Collection<Long>): Int = write { w ->
+        val d = checkDate(date)
+        val inList = exIds.joinToString(",")
+        val existing = w.longOrNull(
+            "SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id IN ($inList)", d
+        )?.toInt() ?: 0
+        val group = if (existing > 0) existing else
+            ((w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", d) ?: 0L) + 1).toInt()
+        w.execSQL(
+            "UPDATE workout_set SET superset=? WHERE substr(date, 1, 10)=? AND exercise_id IN ($inList)",
+            arrayOf<Any>(group, d)
+        )
+        group
+    }
+
+    /**
+     * Takes exercise [exId] out of its superset on [date] (#18). A group left with a single exercise is dissolved.
+     */
+    suspend fun ungroupExercise(date: String, exId: Long): Unit = write { w ->
+        val d = checkDate(date)
+        val group = (w.longOrNull(
+            "SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id=?", d, exId.toString()
+        ) ?: 0L).toInt()
+        if (group == 0) return@write
+        w.execSQL("UPDATE workout_set SET superset=0 WHERE substr(date, 1, 10)=? AND exercise_id=?", arrayOf<Any>(d, exId))
+        val left = w.longOrNull(
+            "SELECT COUNT(DISTINCT exercise_id) FROM workout_set WHERE substr(date, 1, 10)=? AND superset=?", d, group.toString()
+        ) ?: 0L
+        if (left < 2) w.execSQL("UPDATE workout_set SET superset=0 WHERE substr(date, 1, 10)=? AND superset=?", arrayOf<Any>(d, group))
+    }
+
+    /**
      * Stores the order of a day's sets (#70): [orderedIds] first to last. Exercises follow the order of their first
      * set, so moving an exercise is moving its sets as a block.
      */

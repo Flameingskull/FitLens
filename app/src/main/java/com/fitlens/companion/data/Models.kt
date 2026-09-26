@@ -75,7 +75,9 @@ data class SetRow(
     /** Effort as RPE (1–10, half steps), or null when not recorded (#44). RIR is shown as 10 − RPE. */
     val rpe: Double? = null,
     /** The set's place in its day (#70): sets and exercises are shown in this order. */
-    val position: Long = 0L
+    val position: Long = 0L,
+    /** The superset (#18) its exercise belongs to on that day; 0 when it isn't in one. */
+    val superset: Int = 0
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
     val isWarmup: Boolean get() = setType == SetTypes.WARMUP

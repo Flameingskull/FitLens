@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 9
+        const val VERSION = 10
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -39,6 +39,16 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TRIGGER IF NOT EXISTS set_position AFTER INSERT ON workout_set WHEN NEW.position = 0 " +
                 "BEGIN UPDATE workout_set SET position = NEW.id WHERE id = NEW.id; END"
 
+        /**
+         * Supersets (#18): a new set joins its exercise's group on that day, so every set of a grouped exercise
+         * carries the same group number whichever way it was added.
+         */
+        const val CREATE_SUPERSET_TRIGGER =
+            "CREATE TRIGGER IF NOT EXISTS set_superset AFTER INSERT ON workout_set WHEN NEW.superset = 0 " +
+                "BEGIN UPDATE workout_set SET superset = IFNULL((SELECT MAX(superset) FROM workout_set " +
+                "WHERE exercise_id = NEW.exercise_id AND substr(date, 1, 10) = substr(NEW.date, 1, 10) AND id <> NEW.id), 0) " +
+                "WHERE id = NEW.id; END"
+
         private const val CREATE_IMPORT_RULE =
             "CREATE TABLE import_rule(id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, key TEXT NOT NULL, target_id INTEGER)"
     }
@@ -55,8 +65,9 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
-                "position INTEGER NOT NULL DEFAULT 0)",
+                "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0)",
             CREATE_POSITION_TRIGGER,
+            CREATE_SUPERSET_TRIGGER,
             "CREATE INDEX idx_set_date ON workout_set(date)",
             "CREATE INDEX idx_set_ex ON workout_set(exercise_id)",
             "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 999, goal_type INTEGER NOT NULL DEFAULT 0, goal_value REAL NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, custom INTEGER NOT NULL DEFAULT 0, link TEXT, " +
@@ -167,6 +178,14 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 db.execSQL("UPDATE workout_set SET position = id")
             }
             db.execSQL(CREATE_POSITION_TRIGGER)
+        }
+        if (oldVersion < 10) {
+            // ---- 1.0.40: supersets (#18) ------------------------------------------------------------------------
+            // A group number on logged sets and on saved workouts' exercises; 0 means not grouped, so everything that
+            // exists stays as it is. Columns are only added when missing, so the step replays safely (#77).
+            addColumn(db, "workout_set", "superset", "INTEGER NOT NULL DEFAULT 0")
+            addColumn(db, "saved_workout_exercise", "superset", "INTEGER NOT NULL DEFAULT 0")
+            db.execSQL(CREATE_SUPERSET_TRIGGER)
         }
     }
 
