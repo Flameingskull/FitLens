@@ -30,7 +30,9 @@ data class PlannedSet(
 data class PlannedExercise(
     val exerciseId: Long,
     val fill: Int = SavedWorkouts.FILL_LAST,
-    val sets: List<PlannedSet> = emptyList()
+    val sets: List<PlannedSet> = emptyList(),
+    /** The superset (#18) it belongs to within the workout; 0 when none. */
+    val superset: Int = 0
 )
 
 /** A saved workout: its name, notes and exercises in order. An [id] of 0 is one not saved yet. */
@@ -71,12 +73,12 @@ object SavedWorkouts {
         }
         val items = HashMap<Long, MutableList<PlannedExercise>>()
         r.rawQuery(
-            "SELECT id, workout_id, exercise_id, fill FROM saved_workout_exercise ORDER BY workout_id, sort_order, id",
+            "SELECT id, workout_id, exercise_id, fill, superset FROM saved_workout_exercise ORDER BY workout_id, sort_order, id",
             null
         ).use { c ->
             while (c.moveToNext()) {
                 items.getOrPut(c.lng(1)) { ArrayList() }
-                    .add(PlannedExercise(c.lng(2), c.int(3), sets[c.lng(0)].orEmpty()))
+                    .add(PlannedExercise(c.lng(2), c.int(3), sets[c.lng(0)].orEmpty(), c.int(4)))
             }
         }
         val out = ArrayList<SavedWorkout>()
@@ -113,6 +115,7 @@ object SavedWorkouts {
         workout.exercises.filter { it.exerciseId in known }.forEachIndexed { i, p ->
             val itemId = w.insertOrThrow("saved_workout_exercise", null, ContentValues().apply {
                 put("workout_id", id); put("exercise_id", p.exerciseId); put("sort_order", i); put("fill", p.fill)
+                put("superset", p.superset)
             })
             p.sets.forEachIndexed { j, s ->
                 w.insertOrThrow("saved_workout_set", null, ContentValues().apply {
@@ -168,7 +171,7 @@ object SavedWorkouts {
     fun fromDay(snap: Snapshot, date: String, fill: Int): List<PlannedExercise> =
         snap.setsByDate[date].orEmpty()
             .groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }
-            .map { (exId, sets) -> PlannedExercise(exId, fill, sets.map { it.toPlanned() }) }
+            .map { (exId, sets) -> PlannedExercise(exId, fill, sets.map { it.toPlanned() }, sets.maxOf { it.superset }) }
 
     private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType)
 

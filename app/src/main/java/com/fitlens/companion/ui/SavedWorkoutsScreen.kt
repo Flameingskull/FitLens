@@ -260,11 +260,29 @@ fun SavedWorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                     val ex = snap.exercises[slot.planned.exerciseId]
                     ListRowWithMenu(
                         title = ex?.name ?: "Exercise",
-                        subtitle = planSummary(snap, slot.planned),
+                        subtitle = planSummary(snap, slot.planned) + if (slot.planned.superset > 0) {
+                            "  ·  Superset " + ('A' + slots.map { it.planned.superset }.filter { it > 0 }.distinct().indexOf(slot.planned.superset))
+                        } else "",
                         leading = { Dot(categoryColour(snap.categoryOf(slot.planned.exerciseId)?.colour ?: 0), Spacing.md) },
                         onClick = { editingSets = slot },
                         menu = listOf(
                             MenuAction("Sets") { editingSets = slot },
+                            MenuAction("Superset with the next exercise", enabled = i < slots.lastIndex) {
+                                val next = slots[i + 1]
+                                val g = slot.planned.superset.takeIf { it > 0 } ?: next.planned.superset.takeIf { it > 0 }
+                                    ?: ((slots.maxOfOrNull { it.planned.superset } ?: 0) + 1)
+                                slots[i] = slot.copy(planned = slot.planned.copy(superset = g))
+                                slots[i + 1] = next.copy(planned = next.planned.copy(superset = g))
+                            },
+                            MenuAction("Remove from superset", enabled = slot.planned.superset > 0) {
+                                val g = slot.planned.superset
+                                slots[i] = slot.copy(planned = slot.planned.copy(superset = 0))
+                                // A group left with one exercise dissolves.
+                                if (slots.count { it.planned.superset == g } < 2) {
+                                    slots.indices.filter { slots[it].planned.superset == g }
+                                        .forEach { j -> slots[j] = slots[j].copy(planned = slots[j].planned.copy(superset = 0)) }
+                                }
+                            },
                             MenuAction("Swap exercise") { swapping = slot },
                             MenuAction("Remove") { slots.remove(slot) }
                         ),
@@ -630,7 +648,10 @@ private fun ReviewWorkoutSheet(
                     if (replace && old.isNotEmpty()) Workouts.deleteHistory(date, date, emptySet())
                     // A workout saved on the spot is saved first, so the day can remember it (#21).
                     val savedId = if (toSave != null) SavedWorkouts.save(toSave) else workout.id
-                    val ids = if (rows.isNotEmpty()) Workouts.logPlanned(date, rows, savedId, routineDayId) else emptyList()
+                    val ids = if (rows.isNotEmpty()) Workouts.logPlanned(
+                        date, rows, savedId, routineDayId,
+                        workout.exercises.filter { it.superset > 0 }.associate { it.exerciseId to it.superset }
+                    ) else emptyList()
                     val label = if (isNew) "Workout" else workout.name
                     UiEvents.show("$label added: ${howMany(ids.size, "set")}", "Undo") {
                         AppScope.scope.launch {

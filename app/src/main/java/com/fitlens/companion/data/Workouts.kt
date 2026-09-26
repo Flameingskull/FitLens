@@ -152,9 +152,13 @@ object Workouts {
         date: String,
         rows: List<Pair<Long, PlannedSet>>,
         workoutId: Long = 0L,
-        routineDayId: Long? = null
+        routineDayId: Long? = null,
+        /** The workout's supersets (#18): exercise id to its group within the workout. */
+        groups: Map<Long, Int> = emptyMap()
     ): List<Long> = write { w ->
         val d = checkDate(date)
+        // The workout's groups become new groups on the day, after any the day already has.
+        val offset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", d) ?: 0L).toInt()
         if (workoutId > 0L) {
             w.insertWithOnConflict("workout_origin", null, ContentValues().apply {
                 put("date", d); put("workout_id", workoutId)
@@ -166,6 +170,8 @@ object Workouts {
                 put("exercise_id", exId); put("date", d); put("weight", s.weightKg); put("reps", s.reps)
                 put("distance", s.distance); put("duration", s.durationSec); put("is_pr", 0)
                 put("source", Sources.FITLENS); put("set_type", s.setType); putNull("rpe")
+                val g = groups[exId] ?: 0
+                if (g > 0) put("superset", g + offset)
             })
         }
         replayPrs(w)
