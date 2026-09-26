@@ -47,6 +47,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -76,6 +79,7 @@ import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.ConfirmSheet
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.FitTopBar
+import com.fitlens.companion.ui.design.ListRowWithMenu
 import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.OverflowMenu
 import com.fitlens.companion.ui.design.TopBarAction
@@ -636,12 +640,37 @@ private fun DeleteExerciseSheet(snap: Snapshot, ex: Exercise, onDismiss: () -> U
 // Categories
 // ---------------------------------------------------------------------------------------------------------
 
-/** Every category with its colour and exercise count, to add, rename, recolour or delete (#83). */
+/**
+ * Every category with its colour and exercise count, to add, rename, recolour, delete or reorder (#83). The order
+ * follows the drag handles at once and is saved when the sheet closes, so a drag doesn't reload the data at every step.
+ */
 @Composable
 fun CategoryManagerSheet(snap: Snapshot, onDismiss: () -> Unit) {
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Category?>(null) }
     var deleting by remember { mutableStateOf<Category?>(null) }
+    val ids = snap.categoriesSorted.map { it.id }
+    val order = remember { mutableStateListOf<Long>().apply { addAll(ids) } }
+    var moved by remember { mutableStateOf(false) }
+    // Categories added or deleted while the sheet is open join or leave the order.
+    LaunchedEffect(ids.toSet()) {
+        val kept = order.filter { it in ids }
+        order.clear()
+        order.addAll(kept + ids.filter { it !in kept })
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            if (moved) {
+                val final = order.toList()
+                AppScope.scope.launch { Workouts.reorderCategories(final) }
+            }
+        }
+    }
+    fun move(from: Int, to: Int) {
+        if (to !in order.indices) return
+        order.add(to, order.removeAt(from))
+        moved = true
+    }
 
     FitSheet(
         title = "Categories",
@@ -654,17 +683,23 @@ fun CategoryManagerSheet(snap: Snapshot, onDismiss: () -> Unit) {
         if (snap.categoriesSorted.isEmpty()) {
             Text("No categories yet.", style = MaterialTheme.typography.bodyMedium)
         }
-        snap.categoriesSorted.forEach { c ->
+        order.forEachIndexed { i, id ->
+            val c = snap.categories[id] ?: return@forEachIndexed
             val count = snap.exercisesSorted.count { it.categoryId == c.id }
-            Row(Modifier.fillMaxWidth().heightIn(min = Spacing.row), verticalAlignment = Alignment.CenterVertically) {
-                Dot(categoryColour(c.colour), 12.dp)
-                Spacer(Modifier.width(Spacing.md))
-                Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
-                    Text(c.name, style = MaterialTheme.typography.titleSmall)
-                    Text(countOf(count, "exercise"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = { editing = c }) { Icon(Icons.Filled.Edit, contentDescription = "Edit ${c.name}") }
-                IconButton(onClick = { deleting = c }) { Icon(Icons.Filled.Delete, contentDescription = "Delete ${c.name}") }
+            // Keyed by id, so a row being dragged stays with its category as the list reorders.
+            key(id) {
+                ListRowWithMenu(
+                    title = c.name,
+                    subtitle = countOf(count, "exercise"),
+                    leading = { Dot(categoryColour(c.colour), 12.dp) },
+                    onClick = { editing = c },
+                    menu = listOf(
+                        MenuAction("Edit") { editing = c },
+                        MenuAction("Delete") { deleting = c }
+                    ),
+                    onMoveUp = if (i > 0) ({ move(i, i - 1) }) else null,
+                    onMoveDown = if (i < order.lastIndex) ({ move(i, i + 1) }) else null
+                )
             }
             GoldHairline()
         }

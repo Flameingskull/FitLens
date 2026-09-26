@@ -142,6 +142,16 @@ object Workouts {
         }, "id=?", arrayOf(id.toString()))
     }
 
+    /**
+     * Saves the categories' order (#83), first to last. A FitNotes import only ever adds categories, never changes
+     * one that exists, so the order chosen here is kept.
+     */
+    suspend fun reorderCategories(ids: List<Long>): Unit = write { w ->
+        ids.forEachIndexed { i, id ->
+            w.update("category", ContentValues().apply { put("sort_order", i + 1) }, "id=?", arrayOf(id.toString()))
+        }
+    }
+
     /** Deletes a category. Its exercises and their history are kept and become uncategorised. */
     suspend fun deleteCategory(id: Long): Unit = write { w ->
         val row = w.rawQuery("SELECT name, fitnotes_id FROM category WHERE id=?", arrayOf(id.toString())).use { c ->
