@@ -256,6 +256,14 @@ private fun LoggingPage() {
         "Off by default: warm-ups are left out of personal records, estimated maxes, volume, graphs, analysis and " +
             "the PDF report. They always show in your history."
     )
+    SectionTitle("Mark sets complete")
+    ToggleRow("Tick sets off as you do them", prefs.markComplete) { on ->
+        Settings.updatePortable { it.copy(markComplete = on) }
+    }
+    PageHint(
+        "Adds a tick box to every set on the day log and the exercise screen, with progress for each exercise and the " +
+            "workout. Handy with saved workouts: add the whole workout, then tick each set off."
+    )
     SectionTitle("Workout timer")
     ToggleRow("Start the timer with the first set", prefs.workoutTimerAuto) { on ->
         Settings.updatePortable { it.copy(workoutTimerAuto = on) }

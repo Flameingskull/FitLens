@@ -218,6 +218,11 @@ object Workouts {
         replayPrs(w)
     }
 
+    /** Ticks a set off, or clears the tick (#19). Nothing else about the set changes. */
+    suspend fun setDone(id: Long, done: Boolean): Unit = write { w ->
+        w.update("workout_set", ContentValues().apply { put("done", if (done) 1 else 0) }, "id=?", arrayOf(id.toString()))
+    }
+
     /**
      * Puts the exercises [exIds] into one superset on [date] (#18): a new group, or the group one of them is already
      * in. Returns the group number.
@@ -527,8 +532,8 @@ object Workouts {
                 put("reps", s.reps); put("distance", s.distance); put("duration", s.durationSec)
                 put("is_pr", if (s.isPr) 1 else 0); put("comment", s.comment?.takeIf { it.isNotBlank() })
                 put("source", Sources.FITLENS); put("set_type", s.setType); putRpe(s.rpe)
-                // Back in its old place (#70); 0 lets the trigger put it last.
-                put("position", s.position)
+                // Back in its old place (#70), group (#18) and tick (#19); 0 lets the triggers decide.
+                put("position", s.position); put("superset", s.superset); put("done", if (s.done) 1 else 0)
             })
             // Deleting an imported set left one skip rule; the set is back, so drop one matching rule too (#76).
             if (s.imported) {

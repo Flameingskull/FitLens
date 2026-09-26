@@ -285,7 +285,8 @@ private fun DayContent(
                 val live = WorkoutClock.running(snap, date)?.let { start -> rememberElapsed(start) }
                 val info = listOfNotNull(
                     live?.let { "● ${fmtDuration(it.toInt())}" } ?: if (total > 0) fmtDuration(total.toInt()) else null,
-                    "${sets.size} set${if (sets.size == 1) "" else "s"}",
+                    if (Settings.currentPortable().markComplete) "${sets.count { it.done }}/${sets.size} sets done"
+                    else "${sets.size} set${if (sets.size == 1) "" else "s"}",
                     "${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0)} ${snap.weightUnit} volume"
                 ).joinToString("  ·  ")
                 Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
@@ -460,6 +461,7 @@ private fun ExerciseOnDay(
     var confirmDelete by remember { mutableStateOf(false) }
     var swapping by remember { mutableStateOf(false) }
     var grouping by remember { mutableStateOf(false) }
+    val markComplete = Settings.portable.collectAsState().value.markComplete
     val group = exSets.maxOfOrNull { it.superset } ?: 0
     val limit = if (setsShown == 0 || expanded) exSets.size else minOf(setsShown, exSets.size)
     // A superset's exercises share a gold bar, as FitNotes colours its groups (#18).
@@ -495,7 +497,18 @@ private fun ExerciseOnDay(
                 badge = marks.badge,
                 badgeSpoken = marks.badgeSpoken,
                 effort = marks.effort,
-                effortSpoken = marks.effortSpoken
+                effortSpoken = marks.effortSpoken,
+                // "Mark sets complete" (#19): a tick box on each set.
+                done = if (markComplete) s.done else null,
+                onDoneChange = if (markComplete) ({ on -> AppScope.scope.launch { Workouts.setDone(s.id, on) } }) else null
+            )
+        }
+        if (markComplete) {
+            Text(
+                "${exSets.count { it.done }}/${exSets.size} DONE",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (exSets.all { it.done }) Brand.Gold else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 18.dp, top = Spacing.xs)
             )
         }
         val hidden = exSets.size - limit

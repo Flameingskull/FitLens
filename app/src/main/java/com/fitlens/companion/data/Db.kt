@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 10
+        const val VERSION = 11
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -65,7 +65,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
-                "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0)",
+                "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0)",
             CREATE_POSITION_TRIGGER,
             CREATE_SUPERSET_TRIGGER,
             "CREATE INDEX idx_set_date ON workout_set(date)",
@@ -186,6 +186,11 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             addColumn(db, "workout_set", "superset", "INTEGER NOT NULL DEFAULT 0")
             addColumn(db, "saved_workout_exercise", "superset", "INTEGER NOT NULL DEFAULT 0")
             db.execSQL(CREATE_SUPERSET_TRIGGER)
+        }
+        if (oldVersion < 11) {
+            // ---- 1.0.41: mark sets complete (#19) ----------------------------------------------------------------
+            // Whether a set has been ticked off. Every existing set starts unticked; the step replays safely (#77).
+            addColumn(db, "workout_set", "done", "INTEGER NOT NULL DEFAULT 0")
         }
     }
 

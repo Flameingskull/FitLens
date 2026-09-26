@@ -94,7 +94,9 @@ data class PortableSettings(
     /** Start the rest timer when a set is saved (#20). */
     val restAutoStart: Boolean = false,
     /** Vibrate when the rest timer ends (#20). */
-    val restVibrate: Boolean = true
+    val restVibrate: Boolean = true,
+    /** "Mark sets complete" mode (#19): tick boxes on sets and progress per exercise and workout. */
+    val markComplete: Boolean = false
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -238,6 +240,7 @@ object Settings {
         db.setMeta(P_REST_SECONDS, s.restSeconds.takeIf { it != 90 }?.toString())
         db.setMeta(P_REST_AUTO, if (s.restAutoStart) "1" else null)
         db.setMeta(P_REST_VIBRATE, if (s.restVibrate) null else "0")
+        db.setMeta(P_MARK_COMPLETE, if (s.markComplete) "1" else null)
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -287,6 +290,7 @@ object Settings {
     private const val P_REST_SECONDS = "rest_seconds"
     private const val P_REST_AUTO = "rest_auto_start"
     private const val P_REST_VIBRATE = "rest_vibrate"
+    private const val P_MARK_COMPLETE = "mark_complete"
 
     private fun bool(v: String?) = v == "1"
 
@@ -352,7 +356,8 @@ object Settings {
         workoutTimerAuto = bool(get(P_TIMER_AUTO)),
         restSeconds = get(P_REST_SECONDS)?.toIntOrNull()?.takeIf { it in 5..1800 } ?: 90,
         restAutoStart = bool(get(P_REST_AUTO)),
-        restVibrate = get(P_REST_VIBRATE) != "0"
+        restVibrate = get(P_REST_VIBRATE) != "0",
+        markComplete = bool(get(P_MARK_COMPLETE))
     )
 }
 
