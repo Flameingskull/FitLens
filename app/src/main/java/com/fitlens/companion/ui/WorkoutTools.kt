@@ -2,12 +2,18 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -21,7 +27,9 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.WorkoutDataException
@@ -170,5 +178,85 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             },
             dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel") } }
         )
+    }
+}
+
+/**
+ * Shares the workout on [date] as plain text through Android's share sheet (#11, #84): a checklist of exercises, all
+ * ticked, and options for the date, duration, comment and PR marks. Body values are never included.
+ */
+@Composable
+fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val sets = snap.setsByDate[date].orEmpty()
+    val exercises = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.id } }.map { it.key } }
+    var ticked by remember(date) { mutableStateOf(exercises.toSet()) }
+    var withDate by remember { mutableStateOf(true) }
+    var withDuration by remember { mutableStateOf(true) }
+    var withComment by remember { mutableStateOf(true) }
+    var withPrs by remember { mutableStateOf(true) }
+
+    fun text(): String = buildString {
+        if (withDate) append("Workout · ").append(Dates.long(date)).append('\n')
+        if (withDuration) {
+            val secs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
+            if (secs > 0) append("Duration ").append(fmtDuration(secs.toInt())).append('\n')
+        }
+        exercises.filter { it in ticked }.forEach { exId ->
+            append('\n').append(snap.exercises[exId]?.name ?: "Exercise").append('\n')
+            sets.filter { it.exerciseId == exId }.forEachIndexed { i, s ->
+                append("  ").append(i + 1).append(". ").append(describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec))
+                if (withPrs && s.isPr) append("  (PR)")
+                if (!s.comment.isNullOrBlank()) append("  “").append(s.comment).append('”')
+                append('\n')
+            }
+        }
+        if (withComment) snap.workoutComments[date]?.forEach { append('\n').append('“').append(it).append("”\n") }
+        append("\nLogged with FitLens")
+    }
+
+    FitSheet(
+        title = "Share workout",
+        onDismiss = onDismiss,
+        confirmLabel = "Share",
+        confirmEnabled = ticked.isNotEmpty(),
+        onConfirm = {
+            val body = text()
+            onDismiss()
+            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_TEXT, body)
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "Workout · ${Dates.long(date)}")
+            }
+            ctx.startActivity(android.content.Intent.createChooser(send, "Share workout"))
+        }
+    ) {
+        Text("INCLUDE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
+        ) {
+            FilterChip(selected = withDate, onClick = { withDate = !withDate }, label = { Text("Date") })
+            FilterChip(selected = withDuration, onClick = { withDuration = !withDuration }, label = { Text("Duration") })
+            FilterChip(selected = withComment, onClick = { withComment = !withComment }, label = { Text("Comment") })
+            FilterChip(selected = withPrs, onClick = { withPrs = !withPrs }, label = { Text("PR marks") })
+        }
+        Text("EXERCISES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        exercises.forEach { exId ->
+            val on = exId in ticked
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Spacing.row)
+                    .toggleable(value = on, role = Role.Checkbox, onValueChange = { ticked = if (it) ticked + exId else ticked - exId }),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(checked = on, onCheckedChange = null)
+                Text(
+                    "${snap.exercises[exId]?.name ?: "Exercise"} · ${sets.count { it.exerciseId == exId }} sets",
+                    Modifier.padding(start = Spacing.sm)
+                )
+            }
+        }
     }
 }

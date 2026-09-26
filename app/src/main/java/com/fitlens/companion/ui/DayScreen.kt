@@ -115,6 +115,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var replaceWorkout by remember { mutableStateOf(false) }
     var saveAsWorkout by remember { mutableStateOf(false) }
     var editTime by remember { mutableStateOf(false) }
+    var share by remember { mutableStateOf(false) }
     val running = WorkoutClock.running(snap, date)
     val importForDay = rememberPhotoImporter(forcedDate = date)
     val hasWorkout = sets.isNotEmpty() || snap.workoutComments.containsKey(date)
@@ -149,6 +150,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction("Copy previous workout") { copyPrevious = true },
                 MenuAction("Copy this workout to another day", enabled = sets.isNotEmpty()) { copyToDay = true },
                 MenuAction("Move this workout to another day", enabled = hasWorkout) { moveToDay = true },
+                MenuAction("Share workout", enabled = sets.isNotEmpty()) { share = true },
                 MenuAction("Delete this workout", enabled = hasWorkout) { deleteWorkout = true },
                 MenuAction("Add photos to this day") { importForDay() },
                 MenuAction("Add measurement") { addMeasurement = true },
@@ -231,6 +233,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     if (replaceWorkout) AddWorkoutSheet(snap, nav, date, replace = true) { replaceWorkout = false }
     if (saveAsWorkout) SaveAsWorkoutSheet(snap, date) { saveAsWorkout = false }
     if (editTime) WorkoutTimeSheet(snap, date) { editTime = false }
+    if (share) ShareWorkoutSheet(snap, date) { share = false }
 }
 
 /** One day's log: photo strip, body values, the workout summary and its exercise cards, or the empty-day actions. */
