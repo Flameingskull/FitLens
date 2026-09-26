@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -72,8 +73,12 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
     // Records leave out warm-ups unless Settings counts them (#43).
     val statSets = snap.statSetsByExercise[exId] ?: emptyList()
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var calculator by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
-        BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() })
+        BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() }) {
+            // The 1RM calculator (#28), starting from the exercise's best estimated set.
+            if (!timeBased) TextButton(onClick = { calculator = true }) { Text("1RM") }
+        }
         FitTabRow(titles = listOf("Records", "Stats", "Goals"), selected = tab, onSelect = { tab = it })
         when (tab) {
             0 -> RecordsTab(snap, statSets, timeBased)
@@ -81,6 +86,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
             else -> GoalsTab(snap, exId, timeBased)
         }
     }
+    if (calculator) OneRepMaxSheet(snap, statSets.maxByOrNull { Records.oneRepMax(it) }) { calculator = false }
 }
 
 /** An exercise's graph: type, range and options, full screen, trend and goal line (#82's Graph tab, #50, #96). */
