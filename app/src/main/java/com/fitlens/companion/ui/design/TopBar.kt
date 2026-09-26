@@ -2,11 +2,15 @@
 
 package com.fitlens.companion.ui.design
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -30,6 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.GoldHairline
+import com.fitlens.companion.ui.Spacing
 
 /** An icon action in a [FitTopBar]. [description] is what TalkBack reads. */
 data class TopBarAction(
@@ -50,6 +55,7 @@ data class MenuAction(val label: String, val enabled: Boolean = true, val onClic
  * - To collapse on scroll, pass a [scrollBehavior] and add `Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)`
  *   to the scrolling content.
  * - [trailing] is a slot for anything the lists can't express, such as an existing dropdown; it sits after [actions].
+ * - [titleMenu] turns the title into a dropdown (with a ▾), as the library's routine switcher does in FitNotes (#21).
  */
 @Composable
 fun FitTopBar(
@@ -64,8 +70,10 @@ fun FitTopBar(
     scrollBehavior: TopAppBarScrollBehavior? = null,
     /** What TalkBack reads for the back arrow, e.g. "Close full screen" where Back would mislead (#96). */
     backLabel: String = "Back",
+    titleMenu: List<MenuAction> = emptyList(),
     trailing: @Composable RowScope.() -> Unit = {}
 ) {
+    var titleOpen by remember { mutableStateOf(false) }
     val colors = TopAppBarDefaults.topAppBarColors(
         containerColor = Brand.Black,
         scrolledContainerColor = Brand.Black,
@@ -75,12 +83,41 @@ fun FitTopBar(
     )
     val titleContent: @Composable () -> Unit = {
         Column(horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
-            Text(
-                title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = if (onBack != null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall
-            )
+            if (titleMenu.isEmpty()) {
+                Text(
+                    title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = if (onBack != null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall
+                )
+            } else {
+                Box {
+                    Row(
+                        Modifier
+                            .heightIn(min = Spacing.touch)
+                            .clickable(onClickLabel = "Switch") { titleOpen = true },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            title,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Brand.Gold)
+                    }
+                    DropdownMenu(expanded = titleOpen, onDismissRequest = { titleOpen = false }) {
+                        titleMenu.forEach { m ->
+                            DropdownMenuItem(
+                                text = { Text(m.label) },
+                                onClick = { titleOpen = false; m.onClick() },
+                                enabled = m.enabled
+                            )
+                        }
+                    }
+                }
+            }
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle.uppercase(),

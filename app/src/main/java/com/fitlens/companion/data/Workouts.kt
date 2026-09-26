@@ -145,10 +145,22 @@ object Workouts {
     /**
      * Logs a saved workout's sets on [date] in one transaction (#100): each pair is an exercise and a prescribed set,
      * added in order as FitLens sets, like FitNotes's "Log All". PR marks are replayed, since a prescribed set can be
-     * a record. Returns the new ids, so the whole workout can be undone.
+     * a record. [workoutId] (and [routineDayId]) record which saved workout the day was started from, for the routine's
+     * next-day suggestion (#21). Returns the new ids, so the whole workout can be undone.
      */
-    suspend fun logPlanned(date: String, rows: List<Pair<Long, PlannedSet>>): List<Long> = write { w ->
+    suspend fun logPlanned(
+        date: String,
+        rows: List<Pair<Long, PlannedSet>>,
+        workoutId: Long = 0L,
+        routineDayId: Long? = null
+    ): List<Long> = write { w ->
         val d = checkDate(date)
+        if (workoutId > 0L) {
+            w.insertWithOnConflict("workout_origin", null, ContentValues().apply {
+                put("date", d); put("workout_id", workoutId)
+                if (routineDayId == null) putNull("routine_day_id") else put("routine_day_id", routineDayId)
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+        }
         val ids = rows.map { (exId, s) ->
             w.insertOrThrow("workout_set", null, ContentValues().apply {
                 put("exercise_id", exId); put("date", d); put("weight", s.weightKg); put("reps", s.reps)
@@ -548,6 +560,7 @@ object Workouts {
         }
         w.delete("workout_comment", "date=?", arrayOf(d))
         w.delete("workout_time", "date=?", arrayOf(d))
+        w.delete("workout_origin", "date=?", arrayOf(d))
     }
 
     /**
@@ -620,6 +633,8 @@ object Workouts {
             while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(f, c.str(0), c.str(1)))
         }
         val moved = (w.longOrNull("SELECT COUNT(*) FROM workout_set WHERE date=?", f) ?: 0L).toInt()
+        // Where the workout came from moves with it (#21), replacing the target day's.
+        w.execSQL("UPDATE OR REPLACE workout_origin SET date=? WHERE date=?", arrayOf<Any>(t, f))
         val values = ContentValues().apply { put("date", t); put("source", Sources.FITLENS) }
         w.update("workout_set", values, "date=?", arrayOf(f))
 

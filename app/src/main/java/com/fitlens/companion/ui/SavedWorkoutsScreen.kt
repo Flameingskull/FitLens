@@ -46,10 +46,13 @@ import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.PlannedExercise
 import com.fitlens.companion.data.PlannedSet
+import com.fitlens.companion.data.RoutineDay
+import com.fitlens.companion.data.Routines
 import com.fitlens.companion.data.SavedWorkout
 import com.fitlens.companion.data.SavedWorkouts
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.SetTypes
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
@@ -460,8 +463,11 @@ private fun SmallField(value: String, label: String, keyboard: KeyboardType, mod
 @Composable
 fun AddWorkoutSheet(snap: Snapshot, nav: Nav, date: String, replace: Boolean, onDismiss: () -> Unit) {
     var chosen by remember { mutableStateOf<SavedWorkout?>(null) }
+    // The routine day chosen, when the workout came from a routine (#21).
+    var chosenDay by remember { mutableStateOf<Long?>(null) }
     var building by remember { mutableStateOf(false) }
     val workout = chosen
+    val routine = snap.routinesById[Settings.currentPortable().lastRoutineId] ?: snap.routines.firstOrNull()
 
     if (building) {
         SearchablePicker(
@@ -486,12 +492,46 @@ fun AddWorkoutSheet(snap: Snapshot, nav: Nav, date: String, replace: Boolean, on
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            // The current routine first, with its next day marked, as FitNotes suggests it (#21).
+            if (routine != null && routine.days.isNotEmpty()) {
+                val next = Routines.nextDay(snap, routine)
+                Text(
+                    "ROUTINE · ${routine.name.uppercase()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                routine.days.forEach { d ->
+                    val w = snap.savedWorkoutsById[d.workoutId]
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = Spacing.row)
+                            .clickable(enabled = w != null, onClickLabel = "Choose ${d.name}") { chosen = w; chosenDay = d.id }
+                            .padding(vertical = Spacing.sm)
+                    ) {
+                        Text(
+                            d.name + if (d.id == next?.id) "  ·  NEXT" else "",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (d.id == next?.id) Brand.Gold else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            w?.let { "${it.name} · ${exerciseLine(snap, it)}" } ?: "No workout chosen for this day yet",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                GoldHairline()
+                Text("SAVED WORKOUTS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
             snap.savedWorkouts.forEach { w ->
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = Spacing.row)
-                        .clickable(onClickLabel = "Choose ${w.name}") { chosen = w }
+                        .clickable(onClickLabel = "Choose ${w.name}") { chosen = w; chosenDay = null }
                         .padding(vertical = Spacing.sm)
                 ) {
                     Text(w.name, style = MaterialTheme.typography.titleMedium)
@@ -523,7 +563,17 @@ fun AddWorkoutSheet(snap: Snapshot, nav: Nav, date: String, replace: Boolean, on
         return
     }
 
-    ReviewWorkoutSheet(snap, nav, date, workout, replace, onBack = { chosen = null }, onDismiss = onDismiss)
+    ReviewWorkoutSheet(snap, nav, date, workout, replace, chosenDay, onBack = { chosen = null; chosenDay = null }, onDismiss = onDismiss)
+}
+
+/**
+ * Starts [day] of a routine on [date] (#21): the same review as Add workout, then everything is logged and the day
+ * remembers the routine day it was, for the next-day suggestion. [onLogged] runs once it's confirmed.
+ */
+@Composable
+fun StartRoutineDaySheet(snap: Snapshot, nav: Nav, date: String, day: RoutineDay, onDismiss: () -> Unit, onLogged: () -> Unit) {
+    val workout = snap.savedWorkoutsById[day.workoutId] ?: return
+    ReviewWorkoutSheet(snap, nav, date, workout, replace = false, routineDayId = day.id, onBack = onDismiss, onDismiss = onDismiss, onLogged = onLogged)
 }
 
 /** The review step: every exercise with the sets it adds, ticked to start with. */
@@ -534,8 +584,10 @@ private fun ReviewWorkoutSheet(
     date: String,
     workout: SavedWorkout,
     replace: Boolean,
+    routineDayId: Long?,
     onBack: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onLogged: () -> Unit = {}
 ) {
     val resolved = remember(snap, workout, date) { workout.exercises.map { it to SavedWorkouts.resolve(snap, it, date) } }
     var ticked by remember(workout) { mutableStateOf(workout.exercises.indices.toSet()) }
@@ -563,8 +615,9 @@ private fun ReviewWorkoutSheet(
             AppScope.scope.launch {
                 try {
                     if (replace && old.isNotEmpty()) Workouts.deleteHistory(date, date, emptySet())
-                    val ids = if (rows.isNotEmpty()) Workouts.logPlanned(date, rows) else emptyList()
-                    if (toSave != null) SavedWorkouts.save(toSave)
+                    // A workout saved on the spot is saved first, so the day can remember it (#21).
+                    val savedId = if (toSave != null) SavedWorkouts.save(toSave) else workout.id
+                    val ids = if (rows.isNotEmpty()) Workouts.logPlanned(date, rows, savedId, routineDayId) else emptyList()
                     val label = if (isNew) "Workout" else workout.name
                     UiEvents.show("$label added: ${howMany(ids.size, "set")}", "Undo") {
                         AppScope.scope.launch {
@@ -581,6 +634,7 @@ private fun ReviewWorkoutSheet(
                 }
             }
             // Exercises with no sets to add open one after another, to be logged by hand.
+            onLogged()
             if (toOpen.isNotEmpty()) nav.push(Screen.SetEntry(date, toOpen.first(), toOpen.drop(1)))
         }
     ) {

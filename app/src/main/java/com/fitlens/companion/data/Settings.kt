@@ -84,7 +84,9 @@ data class PortableSettings(
     /** Show each exercise's category colour on the day log (#8). */
     val homeShowCategories: Boolean = true,
     /** How many sets each exercise card on the day log shows (#8): 0 for all, otherwise 1–10. */
-    val homeSetsShown: Int = 0
+    val homeSetsShown: Int = 0,
+    /** The routine last chosen in the library's switcher (#21), or 0 for All exercises. */
+    val lastRoutineId: Long = 0L
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -223,6 +225,7 @@ object Settings {
         db.setMeta(P_WEEK_START, s.weekStart.takeIf { it != 1 }?.toString())
         db.setMeta(P_HOME_CATEGORIES, if (s.homeShowCategories) null else "0")
         db.setMeta(P_HOME_SETS, s.homeSetsShown.takeIf { it != 0 }?.toString())
+        db.setMeta(P_LAST_ROUTINE, s.lastRoutineId.takeIf { it != 0L }?.toString())
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -267,6 +270,7 @@ object Settings {
     private const val P_WEEK_START = "week_start"
     private const val P_HOME_CATEGORIES = "home_show_categories"
     private const val P_HOME_SETS = "home_sets_shown"
+    private const val P_LAST_ROUTINE = "last_routine"
 
     private fun bool(v: String?) = v == "1"
 
@@ -327,7 +331,8 @@ object Settings {
         effortMode = get(P_EFFORT_MODE)?.takeIf { it == Effort.RPE || it == Effort.RIR } ?: Effort.OFF,
         weekStart = get(P_WEEK_START)?.toIntOrNull()?.takeIf { it in 1..7 } ?: 1,
         homeShowCategories = get(P_HOME_CATEGORIES) != "0",
-        homeSetsShown = get(P_HOME_SETS)?.toIntOrNull()?.takeIf { it in 1..10 } ?: 0
+        homeSetsShown = get(P_HOME_SETS)?.toIntOrNull()?.takeIf { it in 1..10 } ?: 0,
+        lastRoutineId = get(P_LAST_ROUTINE)?.toLongOrNull() ?: 0L
     )
 }
 

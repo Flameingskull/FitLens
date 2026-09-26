@@ -47,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -70,6 +71,10 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Category
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Exercise
+import com.fitlens.companion.data.Routine
+import com.fitlens.companion.data.RoutineDay
+import com.fitlens.companion.data.Routines
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.StarterLibrary
@@ -168,7 +173,15 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
         }
     }
     val showingExercises = category != null || (searching && q.isNotEmpty())
+    // The routine switcher (#21): as in FitNotes, the library's title chooses All exercises or one of your routines,
+    // and remembers the choice.
+    val prefs by Settings.portable.collectAsState()
+    val routine = snap.routinesById[prefs.lastRoutineId]
+    val atTop = picked.isEmpty() && !searching && category == null
+    val routineMode = routine != null && atTop
+    var startDay by remember { mutableStateOf<RoutineDay?>(null) }
     val title = when {
+        routineMode && routine != null -> routine.name
         picked.isNotEmpty() -> "${picked.size} selected"
         category == FAVOURITES -> "Favourites"
         category == Workouts.UNCATEGORISED -> "Uncategorised"
@@ -181,11 +194,19 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
             subtitle = if (picked.isEmpty()) "For ${relativeDayLabel(date)}" else "Tap more, or add them below",
             onBack = { back() },
             backLabel = if (picked.isNotEmpty()) "Clear selection" else "Back",
-            actions = if (picked.isNotEmpty()) emptyList() else listOf(
+            titleMenu = if (!atTop) emptyList() else buildList {
+                add(MenuAction("All exercises") { Settings.updatePortable { it.copy(lastRoutineId = 0L) } })
+                snap.routines.forEach { r -> add(MenuAction(r.name) { Settings.updatePortable { it.copy(lastRoutineId = r.id) } }) }
+                add(MenuAction("New routine") { nav.push(Screen.RoutineEditor(0L)) })
+                if (snap.routines.isNotEmpty()) add(MenuAction("Manage routines") { nav.push(Screen.Routines) })
+            },
+            actions = if (routineMode && routine != null) listOf(
+                TopBarAction(Icons.Filled.Edit, "Edit routine") { nav.push(Screen.RoutineEditor(routine.id)) }
+            ) else if (picked.isNotEmpty()) emptyList() else listOf(
                 TopBarAction(Icons.Filled.Search, "Search exercises") { searching = !searching; if (!searching) query = "" },
                 TopBarAction(Icons.Filled.Add, "New exercise") { creating = true }
             ),
-            overflow = if (picked.isNotEmpty()) emptyList() else listOf(
+            overflow = if (picked.isNotEmpty() || routineMode) emptyList() else listOf(
                 MenuAction("Manage categories") { showCategories = true },
                 MenuAction("Add starter library") { seeding = true }
             )
@@ -212,6 +233,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                         OutlinedButton(onClick = { creating = true }) { Text("Create an exercise") }
                     }
                 }
+                routineMode && routine != null -> RoutineDayList(snap, routine) { startDay = it }
                 showingExercises -> ExerciseList(
                     snap = snap,
                     exercises = listed,
@@ -256,6 +278,61 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
     deleting?.let { ex -> DeleteExerciseSheet(snap, ex) { deleting = null } }
     if (showCategories) CategoryManagerSheet(snap) { showCategories = false }
     if (seeding) StarterLibraryDialog { seeding = false }
+    startDay?.let { d ->
+        // Logging a routine day returns to the day log, like choosing an exercise does.
+        StartRoutineDaySheet(snap, nav, date, d, onDismiss = { startDay = null }, onLogged = { nav.pop() })
+    }
+}
+
+/** A routine's days in order, the suggested next one picked out in gold (#21). Tapping a day starts it. */
+@Composable
+private fun RoutineDayList(snap: Snapshot, routine: Routine, onStart: (RoutineDay) -> Unit) {
+    val next = Routines.nextDay(snap, routine)
+    LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+        if (routine.days.isEmpty()) {
+            item(key = "empty") {
+                Text(
+                    "This routine has no days yet. Tap the pencil to add them.",
+                    Modifier.padding(Spacing.lg),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (!routine.notes.isNullOrBlank()) {
+            item(key = "notes") {
+                Text(routine.notes, Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm), style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        routine.days.forEach { d ->
+            item(key = d.id) {
+                val w = snap.savedWorkoutsById[d.workoutId]
+                val isNext = d.id == next?.id
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.row)
+                        .clickable(enabled = w != null, onClickLabel = "Start ${d.name}") { onStart(d) }
+                        .semantics(mergeDescendants = true) {}
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(d.name, style = MaterialTheme.typography.titleMedium, color = if (isNext) Brand.Gold else MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            w?.let { wk -> wk.name + " · " + wk.exercises.mapNotNull { snap.exercises[it.exerciseId]?.name }.joinToString(", ") }
+                                ?: "No workout chosen yet: edit the routine to pick one",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    if (isNext) Text("NEXT", style = MaterialTheme.typography.labelSmall, color = Brand.Gold)
+                }
+                GoldHairline()
+            }
+        }
+    }
 }
 
 private fun toggle(picked: MutableList<Long>, id: Long) {
