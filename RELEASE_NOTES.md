@@ -1,50 +1,42 @@
 ## Overview
 
-This build rebuilds the two screens you use most when training, following FitNotes. **+** on the day log now opens
-the **exercise library**, which lists your categories first. Tap a category to see its exercises, then tap one to
-log it. The **exercise screen** now has **Track**, **History** and **Graph** tabs, so your sets, your past sessions
-and your progress are one swipe apart.
+This build brings **saved workouts**. A workout is a group of exercises with their sets. You can now save one, such
+as "Push A" or "Leg day", and add the whole workout to any day in one go. As with FitNotes's "Log All", every set
+is logged at once, ready for you to update as you train. You can build a workout from scratch, save a day you've
+already logged, and swap exercises in and out.
 
-Your data isn't touched by this update.
+This update upgrades FitLens's database to add saved workouts. Nothing you've logged, imported or set up changes, and
+backups from earlier versions restore the same way.
 
 ## What's new
 
-- **Exercise library, FitNotes style.**
-  - **+** on the day log (or **Add exercise** on an empty day) opens the library for that day. It lists your
-    categories with their colour and number of exercises, plus Favourites when you have any.
-  - Tap a category to see its exercises. Each shows its type (for timed or distance exercises), when you last did it,
-    and a favourite star.
-  - The search button looks through every exercise, grouped by category.
-  - Tap an exercise to open it and log sets for that day.
-- **Choose several exercises at once.** Long-press an exercise to start choosing, tap more, then tap **Add N
-  exercises**. The first opens straight away, and a **Next exercise** button takes you through the rest in the order
-  you chose them.
-- **Exercise screen with tabs.** Swipe or tap between:
-  - **Track:** the steppers, set type, effort and comment, with **Save** and **Clear** for a new set, and **Update**
-    and **Delete** when you tap a set in the list.
-  - **History:** every day you've done the exercise, newest first. Tap a day to open its log.
-  - **Graph:** the same graphs as before, with range, trend, from-zero and goal options, and full screen.
+- **Saved workouts.** **⋮ → Workouts** lists your saved workouts. Create one with **+**, then:
+  - give it a name and optional notes;
+  - add its exercises with a picker where you can tick several at once, and drag them into order;
+  - tap an exercise to choose its sets: **As last time** (repeats what you did the last time you trained it), or
+    **These sets** (the weights, reps, times or distances you plan);
+  - swap an exercise for another, or remove it.
 
-  The top bar opens the exercise's **records and goals**, and its menu edits the exercise.
-- **Reorder categories.** In the library's menu, **Manage categories** has a drag handle on each category. The
-  order is used everywhere categories are listed.
+  Workouts can be copied and deleted, and a deleted workout can be brought back with **Undo**.
+- **Add a whole workout to a day.** On the day log, **⋮ → Add workout** (or **Add workout** on an empty day) lets you
+  choose a saved workout, or **build a new workout** by ticking several exercises. A review lists every exercise and
+  the sets it will add. Untick any you're skipping today, then add them all at once. Exercises with nothing to repeat
+  yet open one after another so you can log them. A workout you build can be saved for next time, and every addition
+  can be undone.
+- **Save a day as a workout.** **⋮ → Save as a workout** turns a day you've logged into a saved workout, keeping its
+  exercises in order with either those sets or "as last time".
+- **Swap and replace.** An exercise card's menu now has **Swap exercise**, which moves that day's sets to another
+  exercise, with Undo. **⋮ → Replace this workout** swaps the day's sets for a saved workout.
 
 ## Improved
 
-- **Editors are sheets.** New and edit exercise, new and edit category, and delete confirmations now open as sheets
-  in the FitLens style. When creating exercises, **Add another** saves and keeps the sheet open, with the same
-  category chosen, for the next one.
-- **One place for exercises.** The separate Exercises list has gone from the menu. The library is where you find
-  every exercise, and each exercise's history and graph are on its own screen. On the day log, an exercise card's
-  menu offers **History and graph** and **Records and goals**.
-- **Breakdown opens the graph.** In Analysis → Breakdown, **Open exercise** now opens the exercise's graph.
+- **The empty day** now offers **Add workout**, **Add exercise** and **Copy previous workout**.
+- **Deleting an exercise** also removes it from your saved workouts.
 
 ## Known limitations
 
-- Exercises chosen together appear on the day log once you save a set for them. Adding a whole group of exercises
-  with their sets planned comes with saved workouts ([#100](https://github.com/Flameingskull/FitLens/issues/100)).
-- The rest timer isn't on the exercise screen yet
-  ([#20](https://github.com/Flameingskull/FitLens/issues/20)), and sets can't be reordered yet
-  ([#70](https://github.com/Flameingskull/FitLens/issues/70)).
-- The library's title doesn't switch to routines yet. That arrives with routines
+- **Routines**, your saved workouts split into days you name with a suggested next day, come next
   ([#21](https://github.com/Flameingskull/FitLens/issues/21)).
+- A logged workout doesn't yet remember which saved workout it came from. Swapping an exercise on the day log
+  changes that day only; to change a saved workout for good, use the workout editor.
+- Prescribed sets don't include effort (RPE/RIR) or set comments.

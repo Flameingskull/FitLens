@@ -44,3 +44,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   are `ExerciseGraphPane` / `ExerciseHistoryPane` in `ui/TrainingScreen.kt`. A day only shows an exercise once it has
   a set, so "adding several exercises" is a queue until saved workouts (#100) give exercises planned sets. Still open:
   #82 needs the rest timer (#20); #83 needs the unit override (#7) and merge (#57) in the editor and overflow.
+- 2026-09-26: Saved workouts (1.0.33, #100) are database v7 (`data/SavedWorkouts.kt`). Adding one logs every set at
+  once (FitNotes "Log All") via `Workouts.logPlanned`, so it undoes with `deleteSets`. Routines (#21) should reference
+  `saved_workout` ids per day rather than hold exercises. Still missing: a logged day doesn't record which saved
+  workout it came from (needed for "next day" suggestions and "swap for good" from the day log).
