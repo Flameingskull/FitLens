@@ -211,8 +211,16 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                 if (chosen == null) {
                     val firstOfDay = Store.snapshot.value?.setsByDate?.get(date).isNullOrEmpty()
                     val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note, setType = setType, rpe = rpe)
-                    // The rest timer can start with every saved set (#20).
-                    Settings.currentPortable().let { p -> if (p.restAutoStart) RestTimer.start(appContext, p.restSeconds) }
+                    // In a superset, saving a set moves on to the next exercise of the group, round-robin, as FitNotes
+                    // does (#18). The rest timer then starts only after the round's last exercise (#20).
+                    val members = supersetMembers(snap, date, supersetOf(snap, date, exerciseId))
+                    val at = members.indexOf(exerciseId)
+                    val endOfRound = members.size < 2 || at == members.lastIndex
+                    Settings.currentPortable().let { p -> if (p.restAutoStart && endOfRound) RestTimer.start(appContext, p.restSeconds) }
+                    if (members.size > 1 && at >= 0) {
+                        val next = members[(at + 1) % members.size]
+                        if (nav.top is Screen.SetEntry) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
+                    }
                     // The first set of today can start the workout timer (#12), unless a time is already recorded.
                     if (firstOfDay && date == Dates.today() && Settings.currentPortable().workoutTimerAuto &&
                         Store.snapshot.value?.workoutTimes?.get(date).isNullOrEmpty()
@@ -298,6 +306,17 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
         )
         RestTimerStrip { restSheet = true }
+        // Where this exercise sits in its superset (#18).
+        supersetMembers(snap, date, supersetOf(snap, date, exerciseId)).takeIf { it.size > 1 }?.let { members ->
+            Text(
+                "SUPERSET ${supersetLetters(snap, date)[supersetOf(snap, date, exerciseId)] ?: ""}  ·  " +
+                    members.joinToString(" → ") { id -> (snap.exercises[id]?.name ?: "Exercise").let { if (id == exerciseId) it.uppercase() else it } },
+                style = MaterialTheme.typography.labelSmall,
+                color = Brand.Gold,
+                maxLines = 2,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+            )
+        }
         HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { tab ->
         when (tab) {
         1 -> ExerciseHistoryPane(snap, nav, exerciseId)
