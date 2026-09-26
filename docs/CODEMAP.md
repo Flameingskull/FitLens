@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.34.
+Last updated: 1.0.35.
 
 ## How data flows
 
@@ -75,6 +75,8 @@ Last updated: 1.0.34.
 | `SetEntry.kt` | The exercise screen (#82): `SetEntryScreen` with Track (logging and editing sets, Save / Clear, Update / Delete), History and Graph tabs in a `HorizontalPager`; `queue` opens exercises chosen together one after another; `page` picks the opening tab |
 | `SavedWorkoutsScreen.kt` | Saved workouts UI (#100): `SavedWorkoutsScreen`, `SavedWorkoutEditorScreen` (drag order, swap, per-exercise sets sheet), `AddWorkoutSheet` (saved or built on the spot, review, Undo, `replace`), `SaveAsWorkoutSheet`, `exercisePickerItems` for `SearchablePicker` |
 | `RoutinesScreen.kt` | `RoutinesScreen` and `RoutineEditorScreen` (days with drag order, day sheet choosing a saved workout, copy a day to another routine). The switcher lives in the library title (`FitTopBar(titleMenu = …)`); starting a day is `StartRoutineDaySheet` in `SavedWorkoutsScreen.kt` |
+| `WorkoutTools.kt` | Day log tools: `WorkoutClock` (a running timer is a `workout_time` start with no finish; `running`, `stop`), `rememberElapsed`, `WorkoutTimeSheet` (#12, time pickers), `ShareWorkoutSheet` (#11, text) |
+| `RestTimer.kt` | The rest timer (#20): `RestTimer` singleton (runs in `AppScope`, vibrates when done), `rememberRest`, `RestTimerStrip`, `RestTimerSheet`. In-app only; no foreground service yet |
 | `WorkoutEditing.kt` | Workout sheets (#84): `WorkoutCommentSheet`, `DeleteWorkoutSheet`, `CopyOrMoveWorkoutSheet`, `CopyPreviousWorkoutSheet`, each with Undo |
 | `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises, search, long-press multi-select; `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`. `Screen.Library(date)` is also the exercise picker |
 | `TrainingScreen.kt` | `ExerciseDetailScreen` (Records and Goals tabs), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` used by the exercise screen, `graphLabels`, `e1rm` |

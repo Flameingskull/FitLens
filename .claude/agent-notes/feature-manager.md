@@ -52,3 +52,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   (`PortableSettings.lastRoutineId`, also used by Add workout). `workout_origin` (one row per date) drives the
   next-day suggestion; `deleteWorkout` clears it and `moveWorkout` moves it. `Screen.Routines` and
   `Screen.SavedWorkouts` share names with the data objects, so always write `Screen.X` for the destination.
+- 2026-09-26: 1.0.35: workout timer = `workout_time` row with a start and blank finish (`WorkoutClock`); rest timer is
+  the in-app `RestTimer` singleton. Still open: a foreground service + notification so both survive the screen off
+  (#12, #20), per-exercise rest length (#15), share as image (#11). Settings `workoutTimerAuto`, `restSeconds`,
+  `restAutoStart`, `restVibrate` are portable (`meta`). The manifest now has VIBRATE.

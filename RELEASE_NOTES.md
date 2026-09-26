@@ -1,42 +1,36 @@
 ## Overview
 
-This build brings **routines**. A routine is your saved workouts split into days you name, such as Push, Pull and
-Legs, or Day A and Day B. As in FitNotes, the exercise library's title now switches between all your exercises and
-your routines. A routine lists its days, marks the one that comes next, and logs that day's whole workout when you
-tap it.
+This build adds three FitNotes tools you use during a workout. You can **time your workout** from the day log,
+**share it** as text, and run a **rest timer** between sets on the exercise screen.
 
-This update upgrades FitLens's database to add routines. Nothing you've logged, imported or set up changes, and
-backups from earlier versions restore the same way.
+Your data isn't touched by this update.
 
 ## What's new
 
-- **Routines.** **⋮ → Routines** lists them. Create one with **+**, then:
-  - name it, and add notes if you like;
-  - add a day for each workout, name it, and choose the saved workout it uses;
-  - drag days into order, edit or remove them, and copy a day into another routine.
+- **Workout time and timer.** On the day log, **⋮ → Workout time** opens a sheet with the workout's start and finish.
+  - Set either time with a time picker, and see the duration as you change them.
+  - On today, **Start timer now** starts timing. While it runs, the day's summary counts up and the menu offers
+    **Stop workout timer**, with Undo.
+  - **Clear the time** removes it.
+  - **Settings → Workout & logging → Start the timer with the first set** starts it for you when you save today's
+    first set.
+- **Share a workout.** **⋮ → Share workout** lists the day's exercises, all ticked, with options for the date,
+  duration, comment and PR marks. Untick anything you'd rather keep to yourself, then share the workout as text with
+  any app. Body values are never included.
+- **Rest timer.** The bell in the exercise screen's top bar opens the rest timer:
+  - a large gold countdown, with **−15 s**, **+15 s**, **Pause**, **Restart** and **Stop**;
+  - choose the rest length (30 seconds to 5 minutes);
+  - **Start after saving a set** starts it every time you save a set;
+  - **Vibrate when rest is over**, which is on by default.
 
-  Routines can be duplicated (for example "PPL v2" from "PPL") and deleted, and a deleted routine can be brought
-  back with **Undo**.
-- **The routine switcher.** Tap the title of the exercise library (the **+** on the day log) to choose **All
-  exercises**, one of your routines, or **New routine**. FitLens remembers your choice. A routine shows its days,
-  with the next one marked in gold. Tap a day to review its exercises and sets, then log the whole workout at once,
-  with Undo.
-- **The next day, suggested.** FitLens remembers which saved workout, and which routine day, each logged day was
-  started from, and suggests the day after the last one you did. **Add workout** on the day log now shows your
-  current routine's days first, with the next one marked.
-- **Save a day into a routine.** **⋮ → Save as a workout** can now replace one of your saved workouts instead of
-  adding a new one. It can also put the workout straight into a routine, as a new day or in place of an existing
-  day's workout. **Undo** puts everything back.
-
-## Improved
-
-- **Moving a workout** to another day keeps track of the saved workout it came from, and deleting a workout clears
-  it, so the next-day suggestion stays right.
+  While it runs, a slim bar under the tabs shows the time left, on every exercise, so it keeps going as you move
+  through your workout.
 
 ## Known limitations
 
-- A day in a routine uses one saved workout. Supersets and circuits within a workout come later
-  ([#18](https://github.com/Flameingskull/FitLens/issues/18)).
-- Routines from FitNotes backups aren't imported.
-- If you delete a saved workout that a routine day uses, that day shows "No workout chosen yet" until you pick
-  another.
+- The rest timer and workout timer run while FitLens is open. A notification that keeps them running with the screen
+  off comes later ([#20](https://github.com/Flameingskull/FitLens/issues/20),
+  [#12](https://github.com/Flameingskull/FitLens/issues/12)).
+- Each exercise doesn't have its own rest length yet. There's one length for all.
+- Sharing a workout as a branded image comes later ([#11](https://github.com/Flameingskull/FitLens/issues/11)).
+- A day with several time ranges from FitNotes is replaced by a single range when you save its time.
