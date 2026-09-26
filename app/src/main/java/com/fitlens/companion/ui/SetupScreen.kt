@@ -77,14 +77,14 @@ fun SetupScreen(snap: Snapshot, nav: Nav) {
 
     fun finish() {
         Settings.updateDevice { it.copy(setupDone = true) }
-        nav.tab(Screen.Timeline)
+        nav.home()
     }
 
     val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             Settings.updateDevice { it.copy(setupDone = true) }
             // Settings → Backups inspects the file and asks before restoring (BackupsCard).
-            nav.tab(Screen.Timeline)
+            nav.home()
             nav.push(Screen.SettingsHome)
             nav.push(Screen.SettingsPage(SettingsSection.Backups))
             UiEvents.pendingRestore.value = uri
@@ -270,7 +270,7 @@ private fun PhotosStep(snap: Snapshot) {
         Button(onClick = importPhotos) { Text("Choose photos") }
         OutlinedButton(onClick = importFolder) { Text("Import a folder") }
     }
-    StepText("You can add more at any time with the + on the Photos tab.")
+    StepText("You can add more at any time with the + on the Photos screen (in the day log's ⋮ menu).")
 }
 
 @Composable
@@ -283,6 +283,6 @@ private fun ExercisesStep(snap: Snapshot) {
     )
     if (snap.exercises.isNotEmpty()) StepStatus("${snap.exercises.size} exercises in your library.")
     Button(onClick = { starter = true }) { Text("Add the starter library") }
-    StepText("You can add, rename or delete exercises any time from the library on the Log tab.")
+    StepText("You can add, rename or delete exercises any time from the Exercise library in the day log's ⋮ menu.")
     if (starter) StarterLibraryDialog(onDismiss = { starter = false })
 }

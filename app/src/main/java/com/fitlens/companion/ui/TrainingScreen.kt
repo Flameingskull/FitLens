@@ -41,7 +41,6 @@ import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
-import com.fitlens.companion.ui.design.SegmentedSwitch
 import com.fitlens.companion.ui.design.SetTypeBadge
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
@@ -56,15 +55,13 @@ private fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolean
 @Composable
 fun TrainingScreen(snap: Snapshot, nav: Nav) {
     var query by rememberSaveable { mutableStateOf("") }
-    // Exercises (the list below) or the Analysis hub (#90).
-    var analysis by rememberSaveable { mutableStateOf(false) }
     val rows = remember(snap, query) {
         snap.setsByExercise.keys.mapNotNull { snap.exercises[it] }
             .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
             .sortedWith(compareBy({ snap.categories[it.categoryId]?.sortOrder ?: 99 }, { snap.categories[it.categoryId]?.name ?: "" }, { it.categoryId }, { it.name }))
     }
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Training") { LibraryAction(nav) }
+        PlainTopBar("Exercises") { LibraryAction(nav) }
         if (snap.sets.isEmpty()) {
             EmptyState(
                 "No workouts yet",
@@ -73,16 +70,6 @@ fun TrainingScreen(snap: Snapshot, nav: Nav) {
                 Button(onClick = { nav.push(Screen.Library) }) { Text("Open exercise library") }
             }
         } else {
-            SegmentedSwitch(
-                options = listOf("Exercises", "Analysis"),
-                selected = if (analysis) 1 else 0,
-                onSelect = { analysis = it == 1 },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-            )
-        }
-        if (snap.sets.isNotEmpty() && analysis) {
-            AnalysisHub(snap, nav)
-        } else if (snap.sets.isNotEmpty()) {
             val workoutDays = snap.setsByDate.size
             Text(
                 "$workoutDays workouts · ${snap.sets.size} sets · ${snap.setsByExercise.size} exercises",

@@ -37,7 +37,23 @@ import com.fitlens.companion.ui.design.SegmentedSwitch
 import java.time.LocalDate
 
 /**
- * The Analysis side of the Training tab (#90, the #58 hub): Workouts (#51), Breakdown (#52) and Records (#54).
+ * Analysis (#90), opened from the day log's menu. FitNotes-style navigation (#79) made it its own destination
+ * rather than one side of the old Training tab.
+ */
+@Composable
+fun AnalysisScreen(snap: Snapshot, nav: Nav) {
+    Column(Modifier.fillMaxSize()) {
+        PlainTopBar("Analysis")
+        if (snap.sets.isEmpty()) {
+            EmptyState("Nothing to analyse yet", "Log a workout, or import a FitNotes backup from Settings, and your training totals, breakdown and records appear here.")
+        } else {
+            AnalysisHub(snap, nav)
+        }
+    }
+}
+
+/**
+ * The Analysis hub (#90, the #58 hub): Workouts (#51), Breakdown (#52) and Records (#54).
  * The filter is held here so the Breakdown can open a category or exercise in Workouts.
  */
 @Composable

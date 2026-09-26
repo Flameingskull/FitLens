@@ -42,7 +42,7 @@ enum class SettingsSection(val title: String, val summary: String, val group: St
     // FitNotes imports lived on the Sync tab until #35 moved them here.
     Import("FitNotes import", "Import a FitNotes backup any time, or sync its backup folder", "Data, backup & import"),
     DataTools("Data tools", "Export to CSV, delete workout history", "Data, backup & import"),
-    Units("Units & display", "Kilograms or pounds", "Training"),
+    Units("Units & display", "Kilograms or pounds, week start and the day log", "Training"),
     Logging("Workout & logging", "Screen on, filling in new sets, selecting the next set", "Training"),
     Records("Personal records", "PR marks and celebrations", "Training")
 }
@@ -124,6 +124,35 @@ private fun UnitsPage() {
     )
     WeightStepSetting(prefs.weightUnit, prefs.weightIncrementKg)
     WeekStartSetting(prefs.weekStart)
+    DayLogSettings(prefs.homeShowCategories, prefs.homeSetsShown)
+}
+
+/** How the day log (home) shows each exercise (#8). */
+@Composable
+private fun DayLogSettings(showCategories: Boolean, setsShown: Int) {
+    SectionTitle("Day log")
+    ToggleRow("Show categories", showCategories) { on ->
+        Settings.updatePortable { it.copy(homeShowCategories = on) }
+    }
+    Text(
+        "SETS SHOWN PER EXERCISE",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, top = 12.dp)
+    )
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        (listOf(0) + (1..10)).forEach { n ->
+            FilterChip(
+                selected = setsShown == n,
+                onClick = { Settings.updatePortable { it.copy(homeSetsShown = n) } },
+                label = { Text(if (n == 0) "All" else "$n") }
+            )
+        }
+    }
+    PageHint("A card with more sets than this ends with \"+N more sets\"; tap it to see them all.")
 }
 
 /** The + and − step for weights (#7). Stored in kg; the choices follow the display unit. */

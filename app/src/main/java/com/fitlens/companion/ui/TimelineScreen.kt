@@ -56,8 +56,8 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
         }
     }
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("FitLens") {
-            IconButton(onClick = { nav.push(Screen.Day(Dates.today())) }) {
+        PlainTopBar("All days") {
+            IconButton(onClick = { nav.home() }) {
                 Icon(Icons.Filled.Add, contentDescription = "Log today’s workout")
             }
             LibraryAction(nav)
@@ -68,7 +68,7 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
                 "Log your first workout, or import your FitNotes backup and bulk-import your progress photos. " +
                     "FitLens matches each photo to its date automatically."
             ) {
-                Button(onClick = { nav.push(Screen.Day(Dates.today())) }) { Text("Log today’s workout") }
+                Button(onClick = { nav.home() }) { Text("Log today’s workout") }
                 TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
                 TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Restore from a backup") }
             }

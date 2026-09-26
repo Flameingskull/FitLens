@@ -91,9 +91,10 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                             if (dayNum in 1..days) {
                                 val date = month.atDay(dayNum).format(Dates.ISO)
                                 // Any day opens, whether or not it has data: that's how a workout gets logged on
-                                // a day FitLens hasn't seen before (#10).
+                                // a day FitLens hasn't seen before (#10). As in FitNotes, it opens the day log
+                                // itself on that date rather than another screen on top (#79).
                                 DayCell(snap, date, dayNum, colors.accent, colors.series) {
-                                    nav.push(Screen.Day(date))
+                                    nav.home(date)
                                 }
                             }
                         }

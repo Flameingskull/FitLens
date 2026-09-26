@@ -149,14 +149,16 @@ fun BackTopBar(title: String, onBack: () -> Unit, backLabel: String = "Back", ac
     FitTopBar(title = title, onBack = onBack, backLabel = backLabel, trailing = { actions() })
 }
 
-/** Opens Settings (#38). `AppRoot` provides it, so every tab's top bar shows the gear without wiring each screen. */
-val LocalOpenSettings = staticCompositionLocalOf<(() -> Unit)?> { null }
+/**
+ * Goes back one screen. `AppRoot` provides it, so the screens that were tabs before FitNotes-style navigation (#79)
+ * get a back arrow without wiring each one.
+ */
+val LocalNavBack = staticCompositionLocalOf<(() -> Unit)?> { null }
 
-/** A tab screen's top bar, left-aligned as before. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
-@OptIn(ExperimentalMaterial3Api::class)
+/** The top bar for the screens reached from the day log's menu (Calendar, Body tracker, Photos, Analysis…). */
 @Composable
 fun PlainTopBar(title: String, actions: @Composable () -> Unit = {}) {
-    FitTopBar(title = title, centered = false, onSettings = LocalOpenSettings.current, trailing = { actions() })
+    FitTopBar(title = title, onBack = LocalNavBack.current, trailing = { actions() })
 }
 
 @Composable

@@ -17,20 +17,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -50,12 +41,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.BackupSync
+import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
@@ -64,12 +55,21 @@ import com.fitlens.companion.data.Store
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+/**
+ * Destinations. Navigation follows FitNotes (#79): the day log ([Day]) is home and the root of the stack, and
+ * everything else is pushed on top of it and returns with Back. There is no bottom tab bar.
+ */
 sealed interface Screen {
+    /** Every day with photos, measurements or a workout (the old Log tab), from the day log's menu. */
     data object Timeline : Screen
     data object Calendar : Screen
     data object Body : Screen
+    /** The exercises with history, each opening its details. */
     data object Training : Screen
+    /** The Analysis hub (#90). */
+    data object Analysis : Screen
     data object Photos : Screen
+    /** The day log (#81). At the root of the stack it is the home screen. */
     data class Day(val date: String) : Screen
     data object Library : Screen
     /** Logging sets for one exercise on one day (#16). */
@@ -79,7 +79,7 @@ sealed interface Screen {
     data class Compare(val a: Long, val b: Long) : Screen
     data class Slideshow(val ids: List<Long>? = null) : Screen
     data object Review : Screen
-    /** The main Settings screen, opened from the gear on every tab (#38). */
+    /** The main Settings screen, opened from the day log's menu (#38). */
     data object SettingsHome : Screen
     data class SettingsPage(val section: SettingsSection) : Screen
     /** The guided setup (#29): first run, or again from Settings. */
@@ -87,22 +87,14 @@ sealed interface Screen {
 }
 
 class Nav {
-    val stack = mutableStateListOf<Screen>(Screen.Timeline)
+    val stack = mutableStateListOf<Screen>(Screen.Day(Dates.today()))
     val top: Screen get() = stack.last()
+    val atHome: Boolean get() = stack.size == 1
     fun push(s: Screen) { stack.add(s) }
-    fun pop() { if (stack.size > 1) stack.removeAt(stack.lastIndex) else if (top != Screen.Timeline) tab(Screen.Timeline) }
-    fun tab(s: Screen) { stack.clear(); stack.add(s) }
+    fun pop() { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
+    /** Clears the stack back to the day log (home), showing [date]. */
+    fun home(date: String = Dates.today()) { stack.clear(); stack.add(Screen.Day(date)) }
 }
-
-private data class TabItem(val screen: Screen, val label: String, val icon: ImageVector)
-
-private val tabs = listOf(
-    TabItem(Screen.Timeline, "Log", Icons.Filled.Home),
-    TabItem(Screen.Calendar, "Calendar", Icons.Filled.DateRange),
-    TabItem(Screen.Body, "Body", Icons.Filled.Person),
-    TabItem(Screen.Training, "Training", Icons.Filled.Star),
-    TabItem(Screen.Photos, "Photos", Icons.Filled.Face)
-)
 
 class MainActivity : ComponentActivity() {
 
@@ -154,9 +146,9 @@ class MainActivity : ComponentActivity() {
         AutoBackup.onAppBackground(applicationContext)
     }
 
-    /** A Settings page, with Back leading to Settings and then the Log tab. */
+    /** A Settings page, with Back leading to Settings and then the day log. */
     private fun openSettingsPage(section: SettingsSection) {
-        nav.tab(Screen.Timeline)
+        nav.home()
         nav.push(Screen.SettingsHome)
         nav.push(Screen.SettingsPage(section))
     }
@@ -201,7 +193,7 @@ class MainActivity : ComponentActivity() {
         }
         if (images.isNotEmpty()) {
             // Shared photos ask for their pose first (PhotoImportHost), then import.
-            PhotoImports.request(PendingPhotoImport(images) { r -> if (r.needsReview > 0) nav.tab(Screen.Photos) })
+            PhotoImports.request(PendingPhotoImport(images) { r -> if (r.needsReview > 0) { nav.home(); nav.push(Screen.Photos) } })
         }
     }
 }
@@ -239,55 +231,33 @@ fun AppRoot(nav: Nav) {
         Settings.awaitLoaded()
         if (Settings.current().setupDone) return@LaunchedEffect
         if (s.allDates.isEmpty() && s.exercises.isEmpty()) {
-            if (nav.top == Screen.Timeline && nav.stack.size == 1) nav.push(Screen.Setup)
+            if (nav.atHome) nav.push(Screen.Setup)
         } else {
             Settings.updateDevice { it.copy(setupDone = true) }
         }
     }
     val top = nav.top
-    val onTab = tabs.any { it.screen == top }
-    BackHandler(enabled = nav.stack.size > 1 || top != Screen.Timeline) { nav.pop() }
+    // At the root, Back leaves the app as it does in FitNotes.
+    BackHandler(enabled = !nav.atHome) { nav.pop() }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (onTab) {
-                Column {
-                    GoldHairline()
-                    NavigationBar(containerColor = Brand.Black) {
-                        tabs.forEach { t ->
-                            NavigationBarItem(
-                                selected = top == t.screen,
-                                onClick = { nav.tab(t.screen) },
-                                icon = { Icon(t.icon, contentDescription = t.label) },
-                                label = { Text(t.label.uppercase(), maxLines = 1, style = MaterialTheme.typography.labelSmall) },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = Brand.GoldLight,
-                                    selectedTextColor = Brand.Gold,
-                                    indicatorColor = Brand.ImperialPurple,
-                                    unselectedIconColor = Brand.Muted,
-                                    unselectedTextColor = Brand.Muted
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        snackbarHost = { SnackbarHost(snackbar) }
     ) { inner ->
-        Box(Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner)) {
+        // With no bottom bar any more, the content keeps itself clear of the navigation bar (edge-to-edge, #81).
+        Box(Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).navigationBarsPadding()) {
             val s = snap
             if (s == null) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             } else {
-                val openSettings = remember(nav) { { nav.push(Screen.SettingsHome) } }
-                CompositionLocalProvider(LocalOpenSettings provides openSettings) {
+                val back = remember(nav) { { nav.pop() } }
+                CompositionLocalProvider(LocalNavBack provides back) {
                 when (top) {
                     Screen.Timeline -> TimelineScreen(s, nav)
                     Screen.Calendar -> CalendarScreen(s, nav)
                     Screen.Body -> BodyScreen(s, nav)
                     Screen.Training -> TrainingScreen(s, nav)
+                    Screen.Analysis -> AnalysisScreen(s, nav)
                     Screen.Photos -> PhotosScreen(s, nav)
                     is Screen.Day -> DayScreen(s, nav, top.date)
                     Screen.Library -> ExerciseLibraryScreen(s, nav)
