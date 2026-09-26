@@ -507,7 +507,26 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                         effortSpoken = marks.effortSpoken,
                         selected = isSelected,
                         onClick = { selected = if (selected == s.id) null else s.id },
-                        trailingHint = if (isSelected) "Selected" else "Edit"
+                        trailingHint = if (isSelected) "Selected" else if (prefs.markComplete) null else "Edit",
+                        // "Mark sets complete" (#19). Ticking the last set offers the next exercise, respecting
+                        // supersets and the workout's order.
+                        done = if (prefs.markComplete) s.done else null,
+                        onDoneChange = if (prefs.markComplete) ({ on ->
+                            AppScope.scope.launch {
+                                Workouts.setDone(s.id, on)
+                                if (on && sets.all { it.id == s.id || it.done }) {
+                                    val order = displayOrder(snap, date)
+                                    val next = order.getOrNull(order.indexOf(exerciseId) + 1)
+                                    if (next != null) {
+                                        UiEvents.show("${ex?.name ?: "Exercise"} done", "Next: ${snap.exercises[next]?.name ?: "exercise"}") {
+                                            if (nav.top is Screen.SetEntry) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
+                                        }
+                                    } else {
+                                        UiEvents.show("Every exercise in this workout is done")
+                                    }
+                                }
+                            }
+                        }) else null
                     )
                 }
             }

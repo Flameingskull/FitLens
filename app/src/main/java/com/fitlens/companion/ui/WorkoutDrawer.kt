@@ -169,7 +169,10 @@ fun WorkoutDrawer(
                         Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             color = if (isCurrent) Brand.GoldLight else MaterialTheme.colorScheme.onSurface)
                         Text(
-                            (if (hasSets) "$count set${if (count == 1) "" else "s"}" else "No sets yet") +
+                            (if (!hasSets) "No sets yet"
+                            else if (com.fitlens.companion.data.Settings.currentPortable().markComplete)
+                                "${sets.count { it.exerciseId == exId && it.done }}/$count sets done"
+                            else "$count set${if (count == 1) "" else "s"}") +
                                 (letters[group]?.let { "  ·  Superset $it" } ?: ""),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
