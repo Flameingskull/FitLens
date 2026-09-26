@@ -21,8 +21,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -248,12 +253,38 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
         setType = SetTypes.WORKING; rpe = null
     }
 
+    // The workout drawer (#85): opened from the top bar. Its edge swipe is off while closed, so it never fights the
+    // Track / History / Graph pager.
+    val drawer = rememberDrawerState(DrawerValue.Closed)
+    ModalNavigationDrawer(
+        drawerState = drawer,
+        gesturesEnabled = drawer.isOpen,
+        drawerContent = {
+            ModalDrawerSheet(drawerContainerColor = Brand.Onyx, drawerContentColor = Brand.Ivory) {
+                WorkoutDrawer(
+                    snap = snap,
+                    date = date,
+                    current = exerciseId,
+                    onOpen = { id ->
+                        scope.launch { drawer.close() }
+                        if (id != exerciseId) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, id)
+                    },
+                    onAddExercise = { scope.launch { drawer.close() }; nav.push(Screen.Library(date)) },
+                    onDayLog = {
+                        scope.launch { drawer.close() }
+                        while (nav.stack.size > 1 && nav.top !is Screen.Day) nav.pop()
+                    }
+                )
+            }
+        }
+    ) {
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
             title = ex?.name ?: "Exercise",
             subtitle = relativeDayLabel(date),
             onBack = { nav.pop() },
             actions = listOf(
+                TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } },
                 TopBarAction(Icons.Filled.Notifications, "Rest timer") { restSheet = true },
                 TopBarAction(Icons.Filled.List, "Records and goals", enabled = allSets.isNotEmpty()) {
                     nav.push(Screen.ExerciseDetail(exerciseId))
@@ -462,6 +493,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
         }
         }
         }
+    }
     }
 
     deleting?.let { s ->
