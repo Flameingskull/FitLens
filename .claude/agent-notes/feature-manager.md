@@ -56,3 +56,5 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   the in-app `RestTimer` singleton. Still open: a foreground service + notification so both survive the screen off
   (#12, #20), per-exercise rest length (#15), share as image (#11). Settings `workoutTimerAuto`, `restSeconds`,
   `restAutoStart`, `restVibrate` are portable (`meta`). The manifest now has VIBRATE.
+- 2026-09-26: 1.0.36: timers survive the screen off via `ui/TimerService.kt` (FGS type specialUse; never start it from
+  the background, `refresh` updates a running instance instead). README refreshed at 1.0.36, next due 1.0.41.

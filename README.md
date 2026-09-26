@@ -17,16 +17,14 @@ is to record workouts the way FitNotes does, plus what FitNotes can't: photos, p
 custom metrics.
 
 - **Today:** FitLens opens on today's training log and moves around the way FitNotes does. It logs your workouts
-  (an exercise library, set-by-set entry with set types and effort, and workout editing), analyses your training,
-  tracks goals, and imports and shows your FitNotes history. It also manages progress photos, tracks body
+  (an exercise library, set-by-set entry with set types and effort, saved workouts and routines, a workout timer
+  and a rest timer), analyses your training, tracks goals, and imports and shows your FitNotes history. It also manages progress photos, tracks body
   measurements and custom metrics, makes slideshows, videos and PDF reports, and backs everything up locally. Every
   exercise, set and workout records whether it came from FitNotes or was created in FitLens, so the two histories sit
   side by side without colliding.
 - **In progress:** the rest of the FitNotes-style redesign in the FitLens look
-  ([#79](https://github.com/Flameingskull/FitLens/issues/79)): the exercise library, the exercise screen, and then
-  **saved workouts and routines**
-  ([#100](https://github.com/Flameingskull/FitLens/issues/100), [#21](https://github.com/Flameingskull/FitLens/issues/21)).
-  After those come a rest timer, the rest of FitNotes parity
+  ([#79](https://github.com/Flameingskull/FitLens/issues/79)): the body tracker, the analysis hub, the settings
+  screens and the photo screens. After those come supersets, the rest of FitNotes parity
   ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 - **FitNotes stays supported** as an import source. You can import during first-run setup or at any time afterwards.
@@ -36,10 +34,8 @@ custom metrics.
 
 - An **exercise** is one movement, such as Bench Press, kept in the exercise library.
 - A **workout** is a group of exercises with their sets (weight, reps and so on). A **logged workout** is what you
-  recorded on a day. A **saved workout** (coming in [#100](https://github.com/Flameingskull/FitLens/issues/100)) is a
-  named one you can reuse, change, copy and add to any day in one go.
-- A **routine** (coming in [#21](https://github.com/Flameingskull/FitLens/issues/21)) is your own list of saved
-  workouts, split into days you name.
+  recorded on a day. A **saved workout** is a named one you can reuse, change, copy and add to any day in one go.
+- A **routine** is your own list of saved workouts, split into days you name. FitLens suggests the next day each time.
 
 ### Principles
 
@@ -69,7 +65,18 @@ custom metrics.
   ask and never on top of exercises you already have.
 - **Workout editing.** Add exercises to a day, and write, edit or delete the workout comment. Copy a logged workout
   to another day (leaving out any exercises you choose), move it, copy a previous workout into today, or delete it.
-  Each of these opens as a sheet, and the result can be undone.
+  Each of these opens as a sheet, and the result can be undone. **Share workout** sends a workout as text to any app,
+  with a checklist of what to include.
+- **Saved workouts.** **⋮ → Workouts** holds named workouts: their exercises in order, each with prescribed sets or
+  "as last time". **Add workout** on the day log adds a whole one at once (like FitNotes's "Log All"), after a
+  review, with Undo, or builds a new one on the spot from several exercises. **Save as a workout** turns a logged day
+  into one. Exercises can be swapped on a day or for good.
+- **Routines.** **⋮ → Routines** splits saved workouts into days you name (Push, Pull, Legs…). The exercise
+  library's title switches between All exercises and your routines; a routine lists its days with the next one
+  marked in gold, and a tap logs that day's workout.
+- **Timers.** **⋮ → Workout time** sets a workout's start and finish, or runs a workout timer (optionally started by
+  the first set). The exercise screen has a **rest timer** with −15 s / +15 s, pause, a length you choose, auto-start
+  after each set and vibration. Both keep running with the screen off, in a notification with its own buttons.
 - **Goals.** Each exercise has a **Goals** tab for targets such as max weight, estimated 1RM, reps, or volume in a
   set or workout, with progress bars and an optional goal line on its graph. Body measurements can have a goal too:
   increase, decrease or a specific value.
@@ -107,16 +114,18 @@ custom metrics.
     categories, photos and body data are kept, personal records are worked out again, and deleted FitNotes sets stay
     deleted on the next import. A safety copy is taken first, so it can be undone.
 - **Getting around:** as in FitNotes, there's no tab bar. The **day log** is home, and its top bar has **Calendar**,
-  **+** (the exercise library) and a **⋮** menu for Analysis, Body tracker, Photos, All days, the exercise library
-  and Settings. Each of those opens on top of the log, and Back returns you to it.
+  **+** (the exercise library and routine switcher) and a **⋮** menu for Workouts, Routines, Analysis, Body tracker,
+  Photos, All days, the exercise library and Settings. Each of those opens on top of the log, and Back returns you to it.
 - **Views:**
   - **Day log (home):** opens on today. Swipe or use the arrows to move one day at a time, empty days included, and
     tap the date to jump to any day. It shows the day's progress photos in a strip, a card with the body values logged
     that day, the workout's duration, sets, volume and comment, and a card for each exercise with its sets, PRs and
-    comments. Tap an exercise to log its sets. An empty day offers **Add exercise** and **Copy previous workout**.
+    comments. Tap an exercise to log its sets. An empty day offers **Add workout**, **Add exercise** and **Copy
+    previous workout**.
   - **All days:** a timeline of every day, with that day's photos, measurements and workout summary.
-  - **Calendar:** a month grid with photo thumbnails, and dots for photos, measurements and workout categories. Tap a
-    day to open its log.
+  - **Calendar:** as in FitNotes, a month grid (swipe between months) with category dots, photo and measurement
+    dots, today in gold and the selected day in purple. The selected day's workout shows below the grid; **Open day**
+    (or a second tap) opens its log.
   - **Body tracker:** for each measurement, a graph (1M/3M/6M/1Y/All), stats (start, latest, change, min, max, weekly
     rate) and a history table coloured by whether each change moved you towards your goal. Days with photos are
     marked on the graph, and tapping a point shows that day's photo. Measurements can be put in your own order.
@@ -163,7 +172,8 @@ FitLens only *reads* FitNotes backups and never changes your FitNotes data. FitL
 FitLens only.
 
 **Permissions:** the only one FitLens asks for is notifications (Android 13+), and only when you set up automatic
-backups. Photos and folders are accessed through Android's file pickers, and only the ones you choose.
+backups or first start a timer. It also uses vibration and a foreground service for the timers, which Android grants
+without asking. Photos and folders are accessed through Android's file pickers, and only the ones you choose.
 
 ## FitNotes imports and your FitLens data
 
@@ -207,9 +217,9 @@ always the newer build.
 The first time FitLens opens, a short guided setup walks through the steps below. Every step can be skipped, and
 **Settings → Run setup again** brings it back. To do it by hand:
 
-0. **Just want to start logging?** FitLens opens on today's log: tap **Add exercise** (or **+**), pick an exercise
-   and record your sets. The exercise library in the **⋮** menu is where you add the exercises you use. You don't need FitNotes at all — steps 1 and 2 are only for bringing an
-   existing FitNotes history across.
+0. **Just want to start logging?** FitLens opens on today's log: tap **+**, pick a category and an exercise, and
+   record your sets. Save a day you like as a workout, and group workouts into a routine, to add them in one go next
+   time. You don't need FitNotes at all: steps 1 and 2 are only for bringing an existing FitNotes history across.
 1. **Settings → FitNotes import → Import backup file**, then choose your latest `FitNotes_Backup_….fitnotes`.
 2. Optional, if you keep using FitNotes for a while: **Settings → FitNotes import → FitNotes backup folder → Choose
    folder** and pick the folder where FitNotes saves its backups. Tap **Sync now** after making a backup in FitNotes, or turn on
@@ -225,9 +235,8 @@ The first time FitLens opens, a short guided setup walks through the steps below
 ## Limits
 
 - **Sets and exercises can't be reordered** within a workout yet
-  ([#70](https://github.com/Flameingskull/FitLens/issues/70)). Saved workouts, routines, supersets, a workout timer
-  and a rest timer are still to come, so for now a workout is built one exercise at a time or copied from a previous
-  day.
+  ([#70](https://github.com/Flameingskull/FitLens/issues/70)), and supersets and circuits are still to come
+  ([#18](https://github.com/Flameingskull/FitLens/issues/18)). Routines from FitNotes backups aren't imported.
 - Full-screen graphs zoom along the time axis only; the vertical scale fits the stretch in view
   ([#96](https://github.com/Flameingskull/FitLens/issues/96)).
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So

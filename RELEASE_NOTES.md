@@ -1,36 +1,37 @@
 ## Overview
 
-This build adds three FitNotes tools you use during a workout. You can **time your workout** from the day log,
-**share it** as text, and run a **rest timer** between sets on the exercise screen.
+This build lets your timers keep going with the screen off, and it rebuilds the calendar after FitNotes's. The rest
+timer and workout timer now run in a notification with their own buttons, and an alert tells you when rest is over,
+even when the phone is locked. The calendar shows the selected day's workout below the month, so you can look back
+through your training without leaving it.
 
 Your data isn't touched by this update.
 
 ## What's new
 
-- **Workout time and timer.** On the day log, **⋮ → Workout time** opens a sheet with the workout's start and finish.
-  - Set either time with a time picker, and see the duration as you change them.
-  - On today, **Start timer now** starts timing. While it runs, the day's summary counts up and the menu offers
-    **Stop workout timer**, with Undo.
-  - **Clear the time** removes it.
-  - **Settings → Workout & logging → Start the timer with the first set** starts it for you when you save today's
-    first set.
-- **Share a workout.** **⋮ → Share workout** lists the day's exercises, all ticked, with options for the date,
-  duration, comment and PR marks. Untick anything you'd rather keep to yourself, then share the workout as text with
-  any app. Body values are never included.
-- **Rest timer.** The bell in the exercise screen's top bar opens the rest timer:
-  - a large gold countdown, with **−15 s**, **+15 s**, **Pause**, **Restart** and **Stop**;
-  - choose the rest length (30 seconds to 5 minutes);
-  - **Start after saving a set** starts it every time you save a set;
-  - **Vibrate when rest is over**, which is on by default.
+- **Timers with the screen off.** While the rest timer or workout timer runs, a notification shows the countdown or
+  elapsed time.
+  - The rest timer's notification has **Pause/Resume**, **+15 s** and **Stop rest**.
+  - The workout timer's notification has **Stop workout**.
+  - When rest is over, a **Rest over** alert vibrates and appears even with the phone locked. The **Vibrate when rest
+    is over** setting still decides whether it vibrates.
+  - The notification goes away by itself when no timer is running. FitLens asks for permission to show
+    notifications the first time you start a timer (Android 13 and newer).
+- **A FitNotes-style calendar.**
+  - It opens on this month. Swipe or use the arrows for other months, and the header counts the month's workouts.
+  - Each day shows up to three category dots, plus dots for photos and measurements. Today has a gold ring, and the
+    day you select is filled purple.
+  - Below the grid, the selected day's exercises, sets, body values and photos, with **Open day**. Tapping the
+    selected day again opens it too.
+  - The top bar has **Today** and a **list** of every day.
 
-  While it runs, a slim bar under the tabs shows the time left, on every exercise, so it keeps going as you move
-  through your workout.
+## Improved
+
+- **The README** has been brought up to date with saved workouts, routines, the timers, sharing and the new
+  calendar.
 
 ## Known limitations
 
-- The rest timer and workout timer run while FitLens is open. A notification that keeps them running with the screen
-  off comes later ([#20](https://github.com/Flameingskull/FitLens/issues/20),
-  [#12](https://github.com/Flameingskull/FitLens/issues/12)).
-- Each exercise doesn't have its own rest length yet. There's one length for all.
-- Sharing a workout as a branded image comes later ([#11](https://github.com/Flameingskull/FitLens/issues/11)).
-- A day with several time ranges from FitNotes is replaced by a single range when you save its time.
+- Each exercise doesn't have its own rest length yet, and the alert has no sound choice.
+- The calendar can't yet highlight the days of one category.
+- Workout duration graphs are still to come ([#12](https://github.com/Flameingskull/FitLens/issues/12)).
