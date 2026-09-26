@@ -107,8 +107,8 @@ custom metrics.
     categories, photos and body data are kept, personal records are worked out again, and deleted FitNotes sets stay
     deleted on the next import. A safety copy is taken first, so it can be undone.
 - **Getting around:** as in FitNotes, there's no tab bar. The **day log** is home, and its top bar has **Calendar**,
-  **+** (add an exercise) and a **⋮** menu for Analysis, Exercise history, Body tracker, Photos, All days, the
-  exercise library and Settings. Each of those opens on top of the log, and Back returns you to it.
+  **+** (the exercise library) and a **⋮** menu for Analysis, Body tracker, Photos, All days, the exercise library
+  and Settings. Each of those opens on top of the log, and Back returns you to it.
 - **Views:**
   - **Day log (home):** opens on today. Swipe or use the arrows to move one day at a time, empty days included, and
     tap the date to jump to any day. It shows the day's progress photos in a strip, a card with the body values logged
@@ -120,15 +120,17 @@ custom metrics.
   - **Body tracker:** for each measurement, a graph (1M/3M/6M/1Y/All), stats (start, latest, change, min, max, weekly
     rate) and a history table coloured by whether each change moved you towards your goal. Days with photos are
     marked on the graph, and tapping a point shows that day's photo. Measurements can be put in your own order.
-  - **Exercise history:** exercises grouped by category. Each exercise has graphs (est. 1RM, max weight, volume,
-    reps, time), its history, goals, and rep-max records from 1RM to 15RM, actual and estimated, for the last
-    workout, week, month, year or all time. A heavier or equal lift for more reps counts as the record for every
+  - **Exercise library:** as in FitNotes, your categories first, then a category's exercises, with a search across
+    all of them. Tap an exercise to log it, or long-press to choose several and go through them in turn.
+  - **Exercise screen:** **Track** (log sets), **History** (every day you've done it) and **Graph** (est. 1RM, max
+    weight, volume, reps, time) tabs. Its top bar opens goals and rep-max records from 1RM to 15RM, actual and
+    estimated, for the last workout, week, month, year or all time. A heavier or equal lift for more reps counts as the record for every
     lower rep count too. Estimated maxes blend the Epley and Brzycki formulas up to 10 reps and use a gentler curve
     for 11 to 20 reps, so high-rep sets don't overstate your strength. Records can also cover a date range you choose.
   - **Analysis:** **Workouts** shows your workouts, volume, sets, reps or duration per week, month or year, for all
     training, a category or an exercise. **Breakdown** splits your training by category or exercise in a donut chart,
     with a comparison to the period before. **Records** puts 1RM to 15RM for many exercises side by side.
-  - **Graphs** (Body tracker, Exercise history and Analysis) can add a dashed **trend line** with its change per month, start their scale **from
+  - **Graphs** (Body tracker, exercise screen and Analysis) can add a dashed **trend line** with its change per month, start their scale **from
     zero**, and show long breaks in training as gaps. Every graph opens **full screen** (the expand button or a double
     tap), where you can pinch to zoom, drag along your history, and change the range and options. TalkBack reads each
     graph's range and values and offers zoom and move actions.

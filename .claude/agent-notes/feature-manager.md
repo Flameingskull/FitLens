@@ -39,3 +39,8 @@ that stop being true. The repository is public: no personal data, secrets or `FI
 - 2026-09-26: Vocabulary (owner decision on #79): exercise = one movement; workout = a group of exercises with
   prescribed sets (saved workout #100, logged workout = one date); routine = saved workouts split into user-named days
   (#21, rewritten on top of #100). Write issues in these terms, and never label a single-exercise action as a workout.
+- 2026-09-26: 1.0.32 (#83, #82 partly): + opens `Screen.Library(date)`, which is the picker too; tapping an exercise
+  replaces the library with `Screen.SetEntry` so Back returns to the day log. The exercise screen's History and Graph
+  are `ExerciseGraphPane` / `ExerciseHistoryPane` in `ui/TrainingScreen.kt`. A day only shows an exercise once it has
+  a set, so "adding several exercises" is a queue until saved workouts (#100) give exercises planned sets. Still open:
+  #82 needs the rest timer (#20); #83 needs the unit override (#7) and merge (#57) in the editor and overflow.
