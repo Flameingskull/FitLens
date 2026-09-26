@@ -32,3 +32,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   `@Composable` (e.g. `categoryColour`) can't be called inside `remember { }`; build colours from the raw Int there.
 - 2026-09-26: A value the user sets in FitLens on a FitNotes-owned row (e.g. a measurement's goal or order) needs a
   marker (`measurement.edited`) that the importer checks, or the next import silently overwrites it (1.0.28).
+- 2026-09-26: Navigation is FitNotes-style since 1.0.29 (#79, #81): no bottom bar, `Screen.Day` is the root, and new
+  destinations go in the day log's ⋮ menu (`DayScreen`), not a tab. `PlainTopBar` takes its back arrow from
+  `LocalNavBack`. Workout dialogs are sheets in `ui/WorkoutEditing.kt`; undo a copy with the ids `copyWorkout`
+  returns (`Workouts.deleteSets`). Still open from bundle 3: workout time (#12), share (#11) and the rest-timer sheet.
