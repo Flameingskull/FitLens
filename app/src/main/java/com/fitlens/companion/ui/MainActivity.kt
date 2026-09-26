@@ -64,16 +64,19 @@ sealed interface Screen {
     data object Timeline : Screen
     data object Calendar : Screen
     data object Body : Screen
-    /** The exercises with history, each opening its details. */
-    data object Training : Screen
     /** The Analysis hub (#90). */
     data object Analysis : Screen
     data object Photos : Screen
     /** The day log (#81). At the root of the stack it is the home screen. */
     data class Day(val date: String) : Screen
-    data object Library : Screen
-    /** Logging sets for one exercise on one day (#16). */
-    data class SetEntry(val date: String, val exerciseId: Long) : Screen
+    /** The exercise library (#83), choosing exercises to log on [date] (null: today). */
+    data class Library(val date: String? = null) : Screen
+    /**
+     * The exercise screen (#16, #82): Track, History and Graph for one exercise on one day. [queue] holds the exercises
+     * chosen together in the library (#83), opened one after another with "Next exercise". [page] is the tab it opens
+     * on: 0 Track, 1 History, 2 Graph.
+     */
+    data class SetEntry(val date: String, val exerciseId: Long, val queue: List<Long> = emptyList(), val page: Int = 0) : Screen
     data class ExerciseDetail(val id: Long) : Screen
     data class PhotoViewer(val ids: List<Long>, val index: Int) : Screen
     data class Compare(val a: Long, val b: Long) : Screen
@@ -256,12 +259,11 @@ fun AppRoot(nav: Nav) {
                     Screen.Timeline -> TimelineScreen(s, nav)
                     Screen.Calendar -> CalendarScreen(s, nav)
                     Screen.Body -> BodyScreen(s, nav)
-                    Screen.Training -> TrainingScreen(s, nav)
                     Screen.Analysis -> AnalysisScreen(s, nav)
                     Screen.Photos -> PhotosScreen(s, nav)
                     is Screen.Day -> DayScreen(s, nav, top.date)
-                    Screen.Library -> ExerciseLibraryScreen(s, nav)
-                    is Screen.SetEntry -> SetEntryScreen(s, nav, top.date, top.exerciseId)
+                    is Screen.Library -> ExerciseLibraryScreen(s, nav, top.date)
+                    is Screen.SetEntry -> SetEntryScreen(s, nav, top.date, top.exerciseId, top.queue, top.page)
                     is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, top.id)
                     is Screen.PhotoViewer -> PhotoViewerScreen(s, nav, top.ids, top.index)
                     is Screen.Compare -> CompareScreen(s, nav, top.a, top.b)

@@ -41,6 +41,7 @@ import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
+import com.fitlens.companion.ui.design.FitTabRow
 import com.fitlens.companion.ui.design.SetTypeBadge
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
@@ -51,70 +52,6 @@ private fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolean
     return type != 0 && sets.all { it.weightKg == 0.0 && it.reps == 0 }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TrainingScreen(snap: Snapshot, nav: Nav) {
-    var query by rememberSaveable { mutableStateOf("") }
-    val rows = remember(snap, query) {
-        snap.setsByExercise.keys.mapNotNull { snap.exercises[it] }
-            .filter { query.isBlank() || it.name.contains(query, ignoreCase = true) }
-            .sortedWith(compareBy({ snap.categories[it.categoryId]?.sortOrder ?: 99 }, { snap.categories[it.categoryId]?.name ?: "" }, { it.categoryId }, { it.name }))
-    }
-    Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Exercise history") { LibraryAction(nav) }
-        if (snap.sets.isEmpty()) {
-            EmptyState(
-                "No workouts yet",
-                "Build your exercise library and log your first set, or import a FitNotes backup from Settings → FitNotes import."
-            ) {
-                Button(onClick = { nav.push(Screen.Library) }) { Text("Open exercise library") }
-            }
-        } else {
-            val workoutDays = snap.setsByDate.size
-            Text(
-                "$workoutDays workouts · ${snap.sets.size} sets · ${snap.setsByExercise.size} exercises",
-                Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            OutlinedTextField(
-                value = query, onValueChange = { query = it }, singleLine = true,
-                label = { Text("Search exercises") },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)
-            )
-            LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                var lastCat: Long? = null
-                rows.forEach { ex ->
-                    if (ex.categoryId != lastCat) {
-                        lastCat = ex.categoryId
-                        val cat = snap.categories[ex.categoryId]
-                        item(key = "c${ex.categoryId}") {
-                            Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                // categoryColour treats 0 as "no colour chosen"; Color(0) would be fully transparent (#73).
-                                Dot(categoryColour(cat?.colour ?: 0), 10.dp)
-                                Spacer(Modifier.width(8.dp))
-                                Text(cat?.name ?: "Other", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                    item(key = "x${ex.id}") {
-                        val sets = snap.setsByExercise[ex.id] ?: emptyList()
-                        val days = sets.map { it.date }.distinct()
-                        val best = snap.statSetsByExercise[ex.id]?.maxOfOrNull { e1rm(it) } ?: 0.0
-                        val sub = buildList {
-                            add("${days.size} workouts")
-                            add("last ${Dates.medium(days.max())}")
-                            if (best > 0) add("est. 1RM ${snap.fmtWeight(best)} ${snap.weightUnit}")
-                        }.joinToString(" · ")
-                        Column(Modifier.fillMaxWidth().clickable { nav.push(Screen.ExerciseDetail(ex.id)) }.padding(horizontal = 34.dp, vertical = 8.dp)) {
-                            Text(ex.name, style = MaterialTheme.typography.bodyLarge)
-                            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 /** The graph names an exercise offers, in order: the same lists [ExerciseDetailScreen] builds (#15 uses the index). */
 fun graphLabels(timeBased: Boolean): List<String> =
     if (timeBased) listOf("Longest set", "Total time", "Distance")
@@ -122,9 +59,32 @@ fun graphLabels(timeBased: Boolean): List<String> =
 
 private data class GraphType(val label: String, val fn: (List<SetRow>) -> Double, val isWeight: Boolean, val isTime: Boolean = false)
 
+/**
+ * An exercise's records and goals (#89). Its graph and history now sit on the exercise screen's tabs (#82), as in
+ * FitNotes; this screen opens from the exercise screen's top bar and the library.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
+    val ex = snap.exercises[exId]
+    val sets = snap.setsByExercise[exId] ?: emptyList()
+    val timeBased = isTimeBased(snap, exId, sets)
+    // Records leave out warm-ups unless Settings counts them (#43).
+    val statSets = snap.statSetsByExercise[exId] ?: emptyList()
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    Column(Modifier.fillMaxSize()) {
+        BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() })
+        FitTabRow(titles = listOf("Records", "Goals"), selected = tab, onSelect = { tab = it })
+        when (tab) {
+            0 -> RecordsTab(snap, statSets, timeBased)
+            else -> GoalsTab(snap, exId, timeBased)
+        }
+    }
+}
+
+/** An exercise's graph: type, range and options, full screen, trend and goal line (#82's Graph tab, #50, #96). */
+@Composable
+fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     val ex = snap.exercises[exId]
     val sets = snap.setsByExercise[exId] ?: emptyList()
     val timeBased = isTimeBased(snap, exId, sets)
@@ -141,7 +101,6 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
             GraphType("Max reps", { l -> l.maxOf { it.reps }.toDouble() }, false)
         )
     }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
     // Opens on the exercise's default graph when one is set (#15).
     var gIdx by rememberSaveable { mutableIntStateOf(ex?.defaultGraph?.takeIf { it >= 0 } ?: 0) }
     var rangeIdx by rememberSaveable { mutableIntStateOf(4) }
@@ -156,150 +115,152 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
         snap.goalsByExercise[exId]?.firstOrNull { it.kind == k }?.let { goalShown(snap, k, it.target) }
     }
     val goalLine = if (showGoal) goalTarget else null
-    val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
-    // Graphs and records leave out warm-ups unless Settings counts them (#43); History shows every set.
+    // Graphs leave out warm-ups unless Settings counts them (#43); History shows every set.
     val statSets = snap.statSetsByExercise[exId] ?: emptyList()
     val statByDate = remember(statSets) { statSets.groupBy { it.date }.toSortedMap() }
 
-    Column(Modifier.fillMaxSize()) {
-        BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() })
-        TabRow(selectedTabIndex = tab) {
-            listOf("Graph", "History", "Records", "Goals").forEachIndexed { i, t ->
-                Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) })
+    if (statSets.isEmpty()) {
+        EmptyState("No graph yet", "Log a set of this exercise and its progress appears here.")
+        return
+    }
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+        item {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                graphTypes.forEachIndexed { i, t -> FilterChip(selected = gIdx == i, onClick = { gIdx = i }, label = { Text(t.label) }) }
+            }
+            Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { rangeIdx = i }, label = { Text(r.first) }) }
+            }
+            // Graph options (#50): a least-squares trend, and the y axis from zero.
+            Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
+                FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
+                if (goalTarget != null) FilterChip(selected = showGoal, onClick = { showGoal = !showGoal }, label = { Text("Goal") })
+                Spacer(Modifier.weight(1f))
+                ExpandGraphButton { fullScreen = true }
             }
         }
-        when (tab) {
-            0 -> LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                item {
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        graphTypes.forEachIndexed { i, t -> FilterChip(selected = gIdx == i, onClick = { gIdx = i }, label = { Text(t.label) }) }
+        item {
+            // Worked out off the main thread, once per snapshot and graph type (#50).
+            val daily = rememberChartData(statByDate, g, snap.weightUnit) {
+                statByDate.entries.map { (d, l) ->
+                    val raw = g.fn(l)
+                    ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(raw) else if (g.isTime) raw / 60.0 else raw, d)
+                }.filter { it.y > 0 }
+            } ?: emptyList()
+            val shown = inRange(daily, RANGES[rangeIdx].second) { it.date }
+            val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
+            val unit = if (g.isWeight) snap.weightUnit else if (g.isTime) "min" else ""
+            LineChart(
+                listOf(LineSeries(g.label, shown)),
+                Modifier.padding(horizontal = 8.dp),
+                photoDays = photoDays,
+                selected = sel?.let { ChartSelection(0, it) },
+                onSelect = { sel = it.index; ChartHints.tapped() },
+                unit = unit,
+                showTrend = showTrend,
+                yFromZero = fromZero,
+                goal = goalLine,
+                onExpand = { ChartHints.expanded(); fullScreen = true }
+            )
+            ChartHint()
+            if (fullScreen) {
+                FullScreenChart(
+                    "${ex?.name ?: "Exercise"} · ${g.label}",
+                    onDismiss = { fullScreen = false },
+                    controls = {
+                        GraphOptionChips(
+                            rangeIdx, { rangeIdx = it },
+                            showTrend, { showTrend = !showTrend },
+                            fromZero, { fromZero = !fromZero }
+                        )
+                    },
+                    footer = {
+                        sel?.let { shown.getOrNull(it) }?.let { p ->
+                            Text(
+                                "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
                     }
-                    Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { rangeIdx = i }, label = { Text(r.first) }) }
-                    }
-                    // Graph options (#50): a least-squares trend, and the y axis from zero.
-                    Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
-                        FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
-                        if (goalTarget != null) FilterChip(selected = showGoal, onClick = { showGoal = !showGoal }, label = { Text("Goal") })
-                        Spacer(Modifier.weight(1f))
-                        ExpandGraphButton { fullScreen = true }
-                    }
-                }
-                item {
-                    // Worked out off the main thread, once per snapshot and graph type (#50).
-                    val daily = rememberChartData(statByDate, g, snap.weightUnit) {
-                        statByDate.entries.map { (d, l) ->
-                            val raw = g.fn(l)
-                            ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(raw) else if (g.isTime) raw / 60.0 else raw, d)
-                        }.filter { it.y > 0 }
-                    } ?: emptyList()
-                    val shown = inRange(daily, RANGES[rangeIdx].second) { it.date }
-                    val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
-                    val unit = if (g.isWeight) snap.weightUnit else if (g.isTime) "min" else ""
+                ) { vp, h, resetZoom ->
                     LineChart(
                         listOf(LineSeries(g.label, shown)),
-                        Modifier.padding(horizontal = 8.dp),
+                        height = h,
                         photoDays = photoDays,
                         selected = sel?.let { ChartSelection(0, it) },
-                        onSelect = { sel = it.index; ChartHints.tapped() },
+                        onSelect = { sel = it.index },
                         unit = unit,
                         showTrend = showTrend,
                         yFromZero = fromZero,
                         goal = goalLine,
-                        onExpand = { ChartHints.expanded(); fullScreen = true }
+                        viewport = vp,
+                        onExpand = resetZoom
                     )
-                    ChartHint()
-                    if (fullScreen) {
-                        FullScreenChart(
-                            "${ex?.name ?: "Exercise"} · ${g.label}",
-                            onDismiss = { fullScreen = false },
-                            controls = {
-                                GraphOptionChips(
-                                    rangeIdx, { rangeIdx = it },
-                                    showTrend, { showTrend = !showTrend },
-                                    fromZero, { fromZero = !fromZero }
-                                )
-                            },
-                            footer = {
-                                sel?.let { shown.getOrNull(it) }?.let { p ->
-                                    Text(
-                                        "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
-                                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                }
-                            }
-                        ) { vp, h, resetZoom ->
-                            LineChart(
-                                listOf(LineSeries(g.label, shown)),
-                                height = h,
-                                photoDays = photoDays,
-                                selected = sel?.let { ChartSelection(0, it) },
-                                onSelect = { sel = it.index },
-                                unit = unit,
-                                showTrend = showTrend,
-                                yFromZero = fromZero,
-                                goal = goalLine,
-                                viewport = vp,
-                                onExpand = resetZoom
+                }
+            }
+            if (showTrend) trendOf(shown)?.let { tr ->
+                Text(
+                    "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
+                    Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            val p = sel?.let { shown.getOrNull(it) }
+            if (p != null) {
+                Text(
+                    "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit  ·  open day →",
+                    Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(p.date)) }.padding(16.dp),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            } else if (shown.isNotEmpty()) {
+                Text(
+                    "${g.label}: ${fmtNum(shown.first().y, 1)} → ${fmtNum(shown.last().y, 1)} $unit (best ${fmtNum(shown.maxOf { it.y }, 1)})",
+                    Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+/** An exercise's history, newest day first, each day opening its log (#82's History tab). */
+@Composable
+fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
+    val sets = snap.setsByExercise[exId] ?: emptyList()
+    val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
+    if (sets.isEmpty()) {
+        EmptyState("No history yet", "Every day you log this exercise appears here, newest first.")
+        return
+    }
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+        byDate.entries.reversed().forEach { (d, l) ->
+            item(key = d) {
+                Column(Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(d)) }.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(Dates.long(d), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
+                    }
+                    l.forEachIndexed { i, s ->
+                        val marks = setMarks(s)
+                        Row(Modifier.padding(start = 8.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${i + 1}", Modifier.width(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            marks.badge?.let { SetTypeBadge(it); Spacer(Modifier.width(6.dp)) }
+                            Text(
+                                describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec) +
+                                    (marks.effort?.let { "  ·  $it" } ?: ""),
+                                Modifier.weight(1f)
                             )
+                            if (s.isPr) Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
                         }
-                    }
-                    if (showTrend) trendOf(shown)?.let { tr ->
-                        Text(
-                            "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
-                            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    val p = sel?.let { shown.getOrNull(it) }
-                    if (p != null) {
-                        Text(
-                            "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit  ·  open day →",
-                            Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(p.date)) }.padding(16.dp),
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    } else if (shown.isNotEmpty()) {
-                        Text(
-                            "${g.label}: ${fmtNum(shown.first().y, 1)} → ${fmtNum(shown.last().y, 1)} $unit (best ${fmtNum(shown.maxOf { it.y }, 1)})",
-                            Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge
-                        )
+                        if (!s.comment.isNullOrBlank()) Text("“${s.comment}”", Modifier.padding(start = 32.dp), style = MaterialTheme.typography.bodySmall)
                     }
                 }
+                HorizontalDivider()
             }
-            1 -> LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                byDate.entries.reversed().forEach { (d, l) ->
-                    item(key = d) {
-                        Column(Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(d)) }.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(Dates.long(d), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                                if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
-                            }
-                            l.forEachIndexed { i, s ->
-                                val marks = setMarks(s)
-                                Row(Modifier.padding(start = 8.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Text("${i + 1}", Modifier.width(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    marks.badge?.let { SetTypeBadge(it); Spacer(Modifier.width(6.dp)) }
-                                    Text(
-                                        describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec) +
-                                            (marks.effort?.let { "  ·  $it" } ?: ""),
-                                        Modifier.weight(1f)
-                                    )
-                                    if (s.isPr) Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
-                                }
-                                if (!s.comment.isNullOrBlank()) Text("“${s.comment}”", Modifier.padding(start = 32.dp), style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                        HorizontalDivider()
-                    }
-                }
-            }
-            2 -> RecordsTab(snap, statSets, timeBased)
-            else -> GoalsTab(snap, exId, timeBased)
         }
     }
 }

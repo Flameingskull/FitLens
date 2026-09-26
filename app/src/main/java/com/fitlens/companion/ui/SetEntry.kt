@@ -1,8 +1,13 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class
+)
 
 package com.fitlens.companion.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -34,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -56,15 +62,22 @@ import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.FitTabRow
+import com.fitlens.companion.ui.design.FitTopBar
+import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.SetTypeBadge
+import com.fitlens.companion.ui.design.TopBarAction
+import com.fitlens.companion.ui.design.relativeDayLabel
 import com.fitlens.companion.ui.design.StepperField
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 import kotlin.math.max
 import kotlinx.coroutines.launch
 
 /**
- * Logging sets for one exercise on one day (#16): fields that follow the exercise type, +/- steppers, auto-fill
- * from last time, per-set comments, and Save / Update / Delete with an undo.
+ * The exercise screen (#16, laid out after FitNotes in #82): TRACK, HISTORY and GRAPH tabs for one exercise on one
+ * day. Track has fields that follow the exercise type, +/- steppers, auto-fill from last time, per-set comments, and
+ * Save / Clear, or Update / Delete for a selected set, with an undo. Exercises chosen together in the library (#83)
+ * arrive as a [queue] and are opened one after another.
  *
  * Deferred on purpose: drag to reorder needs a stored position that `workout_set` doesn't have yet, and the gold
  * PR trophy waits for #23 — nothing here writes `is_pr`, so an imported FitNotes flag is still the only one shown.
@@ -94,7 +107,7 @@ private fun parseDuration(s: String): Int {
 }
 
 @Composable
-fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
+fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, queue: List<Long> = emptyList(), page: Int = 0) {
     val ex = snap.exercises[exerciseId]
     val allSets = snap.setsByExercise[exerciseId] ?: emptyList()
     val sets = remember(snap, date, exerciseId) { allSets.filter { it.date == date } }
@@ -211,16 +224,39 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() }) {
-            IconButton(onClick = { editExercise = true }) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit this exercise")
-            }
-            IconButton(onClick = { nav.push(Screen.ExerciseDetail(exerciseId)) }, enabled = allSets.isNotEmpty()) {
-                Icon(Icons.Filled.List, contentDescription = "History and graphs")
-            }
-        }
+    val pager = rememberPagerState(initialPage = page.coerceIn(0, 2), pageCount = { 3 })
+    val scope = rememberCoroutineScope()
+    val next = queue.firstOrNull()?.let { snap.exercises[it] }
 
+    fun clear() {
+        selected = null
+        weight = ""; reps = ""; distance = ""; duration = ""; comment = ""
+        loadedWeightText = ""; loadedWeightKg = null
+        setType = SetTypes.WORKING; rpe = null
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        FitTopBar(
+            title = ex?.name ?: "Exercise",
+            subtitle = relativeDayLabel(date),
+            onBack = { nav.pop() },
+            actions = listOf(
+                TopBarAction(Icons.Filled.List, "Records and goals", enabled = allSets.isNotEmpty()) {
+                    nav.push(Screen.ExerciseDetail(exerciseId))
+                }
+            ),
+            overflow = listOf(MenuAction("Edit exercise") { editExercise = true })
+        )
+        FitTabRow(
+            titles = listOf("Track", "History", "Graph"),
+            selected = pager.currentPage,
+            onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
+        )
+        HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { tab ->
+        when (tab) {
+        1 -> ExerciseHistoryPane(snap, nav, exerciseId)
+        2 -> ExerciseGraphPane(snap, nav, exerciseId)
+        else ->
         LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
             item {
                 Text(
@@ -326,9 +362,13 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    // As in FitNotes: Save and Clear for a new set, Update and Delete for the selected one.
                     if (selected == null) {
-                        Button(onClick = { save() }, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                            Text("Save set", style = MaterialTheme.typography.labelLarge)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) {
+                                Text("Save", style = MaterialTheme.typography.labelLarge)
+                            }
+                            OutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Clear") }
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -340,6 +380,19 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                         }
                         TextButton(onClick = { selected = null }, modifier = Modifier.fillMaxWidth()) {
                             Text("New set instead")
+                        }
+                    }
+                    if (next != null) {
+                        // The next of the exercises chosen together in the library (#83).
+                        OutlinedButton(
+                            onClick = { nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next.id, queue.drop(1)) },
+                            modifier = Modifier.fillMaxWidth().height(52.dp)
+                        ) {
+                            Text(
+                                "Next exercise: ${next.name}" + if (queue.size > 1) " (${queue.size - 1} more after)" else "",
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
@@ -392,6 +445,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
                 }
             }
         }
+        }
+        }
     }
 
     deleting?.let { s ->
@@ -418,6 +473,6 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long) {
         }
     }
     if (editExercise && ex != null) {
-        ExerciseEditorDialog(snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editExercise = false })
+        ExerciseEditorSheet(snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editExercise = false })
     }
 }

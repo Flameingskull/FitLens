@@ -28,6 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +56,7 @@ import com.fitlens.companion.ui.Spacing
  * button row. The confirm button appears when both [confirmLabel] and [onConfirm] are given; use a specific verb
  * ("Save set", "Delete workout"), never "OK". [destructive] colours the confirm button as an error action.
  * The caller closes the sheet (usually inside [onConfirm]); [onDismiss] runs on Cancel, back or a tap outside.
+ * [secondaryLabel] and [onSecondary] add an outlined button before the confirm button, such as "Save and add another".
  */
 @Composable
 fun FitSheet(
@@ -66,6 +68,8 @@ fun FitSheet(
     confirmEnabled: Boolean = true,
     dismissLabel: String = "Cancel",
     destructive: Boolean = false,
+    secondaryLabel: String? = null,
+    onSecondary: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -95,6 +99,10 @@ fun FitSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onDismiss) { Text(dismissLabel) }
+                val secondary = onSecondary
+                if (secondary != null && secondaryLabel != null) {
+                    OutlinedButton(onClick = secondary, enabled = confirmEnabled) { Text(secondaryLabel) }
+                }
                 val confirm = onConfirm
                 if (confirm != null && confirmLabel != null) {
                     Button(

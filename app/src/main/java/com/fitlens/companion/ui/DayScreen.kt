@@ -103,7 +103,6 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     val older = snap.allDates.firstOrNull { it < date }
     val newer = snap.allDates.lastOrNull { it > date }
     var addMeasurement by remember { mutableStateOf(false) }
-    var pickExercise by remember { mutableStateOf(false) }
     var editComment by remember { mutableStateOf(false) }
     var copyPrevious by remember { mutableStateOf(false) }
     var copyToDay by remember { mutableStateOf(false) }
@@ -129,7 +128,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             centered = false,
             actions = listOf(
                 TopBarAction(Icons.Filled.DateRange, "Calendar") { nav.push(Screen.Calendar) },
-                TopBarAction(Icons.Filled.Add, "Add exercise") { pickExercise = true }
+                TopBarAction(Icons.Filled.Add, "Add exercise") { nav.push(Screen.Library(date)) }
             ),
             overflow = listOf(
                 MenuAction(if (snap.workoutComments.containsKey(date)) "Edit workout comment" else "Workout comment") { editComment = true },
@@ -142,11 +141,10 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction("Previous day with data", enabled = older != null) { older?.let { go(it) } },
                 MenuAction("Next day with data", enabled = newer != null) { newer?.let { go(it) } },
                 MenuAction("Analysis") { nav.push(Screen.Analysis) },
-                MenuAction("Exercise history") { nav.push(Screen.Training) },
                 MenuAction("Body tracker") { nav.push(Screen.Body) },
                 MenuAction("Photos") { nav.push(Screen.Photos) },
                 MenuAction("All days") { nav.push(Screen.Timeline) },
-                MenuAction("Exercise library") { nav.push(Screen.Library) },
+                MenuAction("Exercise library") { nav.push(Screen.Library(date)) },
                 MenuAction("Settings") { nav.push(Screen.SettingsHome) }
             )
         )
@@ -199,7 +197,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                     setsShown = prefs.homeSetsShown,
                     onAddPhoto = importForDay,
                     onEditComment = { editComment = true },
-                    onAddExercise = { pickExercise = true },
+                    onAddExercise = { nav.push(Screen.Library(date)) },
                     onCopyPrevious = { copyPrevious = true }
                 )
             }
@@ -207,12 +205,6 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     }
 
     if (addMeasurement) AddMeasurementDialog(snap, date) { addMeasurement = false }
-    if (pickExercise) {
-        ExercisePickerDialog(snap, onDismiss = { pickExercise = false }) { exId ->
-            pickExercise = false
-            nav.push(Screen.SetEntry(date, exId))
-        }
-    }
     if (editComment) WorkoutCommentSheet(snap, date) { editComment = false }
     if (copyPrevious) CopyPreviousWorkoutSheet(snap, date) { copyPrevious = false }
     if (copyToDay) CopyOrMoveWorkoutSheet(snap, date, move = false) { copyToDay = false }
@@ -430,7 +422,8 @@ private fun ExerciseOnDay(
         onClick = { nav.push(Screen.SetEntry(date, exId)) },
         menu = listOf(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
-            MenuAction("History, graph and records") { nav.push(Screen.ExerciseDetail(exId)) },
+            MenuAction("History and graph") { nav.push(Screen.SetEntry(date, exId, page = 1)) },
+            MenuAction("Records and goals") { nav.push(Screen.ExerciseDetail(exId)) },
             MenuAction("Remove from this workout") { confirmDelete = true }
         )
     ) {

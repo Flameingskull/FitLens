@@ -160,7 +160,7 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
                         )
                     }) { Text("Totals for ${slice.label}") }
                     if (group == Analysis.GroupBy.Exercise) {
-                        TextButton(onClick = { nav.push(Screen.ExerciseDetail(slice.id)) }) { Text("Open exercise") }
+                        TextButton(onClick = { nav.push(Screen.SetEntry(Dates.today(), slice.id, page = 2)) }) { Text("Open exercise") }
                     }
                 }
             }
