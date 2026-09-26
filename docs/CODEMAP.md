@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.29.
+Last updated: 1.0.31.
 
 ## How data flows
 
@@ -73,7 +73,7 @@ Last updated: 1.0.29.
 | `SetEntry.kt` | Logging and editing sets for one exercise on one day |
 | `WorkoutEditing.kt` | Workout sheets (#84): `WorkoutCommentSheet`, `DeleteWorkoutSheet`, `CopyOrMoveWorkoutSheet`, `CopyPreviousWorkoutSheet`, each with Undo |
 | `ExerciseLibrary.kt` | Exercise library, category manager, editors, `ExercisePickerDialog`, `categoryColour` |
-| `TrainingScreen.kt` | Exercises (every exercise with history) and `ExerciseDetailScreen` (Graph, History and Records tabs), `e1rm` |
+| `TrainingScreen.kt` | Exercise history (every exercise with history) and `ExerciseDetailScreen` (Graph, History and Records tabs), `e1rm` |
 | `AnalysisScreen.kt` | `AnalysisScreen` and `AnalysisHub` (#90): Workouts tab (#51, bar totals), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
 | `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
@@ -96,6 +96,10 @@ Last updated: 1.0.29.
 | `App.kt` | `Application`: initialises `Store` and `Settings`, then starts `AutoBackup` |
 
 ## Conventions
+
+- **Vocabulary** (owner decision on #79): an *exercise* is one movement; a *workout* is a group of exercises with
+  prescribed sets (a *saved workout* is reusable, #100; a *logged workout* is one date's sets); a *routine* is saved
+  workouts split into user-named days (#21). A control that adds one exercise says "Add exercise", never "workout".
 
 - **Screens** are `@Composable fun XScreen(snap: Snapshot, nav: Nav, …)`. To add a destination, add it to `Screen` in
   `MainActivity.kt` and to the `when` in `AppRoot`, and reach it from the day log's ⋮ menu (`DayScreen`) or another

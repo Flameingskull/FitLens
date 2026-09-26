@@ -36,3 +36,6 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   destinations go in the day log's ⋮ menu (`DayScreen`), not a tab. `PlainTopBar` takes its back arrow from
   `LocalNavBack`. Workout dialogs are sheets in `ui/WorkoutEditing.kt`; undo a copy with the ids `copyWorkout`
   returns (`Workouts.deleteSets`). Still open from bundle 3: workout time (#12), share (#11) and the rest-timer sheet.
+- 2026-09-26: Vocabulary (owner decision on #79): exercise = one movement; workout = a group of exercises with
+  prescribed sets (saved workout #100, logged workout = one date); routine = saved workouts split into user-named days
+  (#21, rewritten on top of #100). Write issues in these terms, and never label a single-exercise action as a workout.

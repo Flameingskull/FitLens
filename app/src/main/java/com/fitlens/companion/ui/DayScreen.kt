@@ -134,15 +134,15 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             overflow = listOf(
                 MenuAction(if (snap.workoutComments.containsKey(date)) "Edit workout comment" else "Workout comment") { editComment = true },
                 MenuAction("Copy previous workout") { copyPrevious = true },
-                MenuAction("Copy workout to another day", enabled = sets.isNotEmpty()) { copyToDay = true },
-                MenuAction("Move workout to another day", enabled = hasWorkout) { moveToDay = true },
-                MenuAction("Delete workout", enabled = hasWorkout) { deleteWorkout = true },
+                MenuAction("Copy this workout to another day", enabled = sets.isNotEmpty()) { copyToDay = true },
+                MenuAction("Move this workout to another day", enabled = hasWorkout) { moveToDay = true },
+                MenuAction("Delete this workout", enabled = hasWorkout) { deleteWorkout = true },
                 MenuAction("Add photos to this day") { importForDay() },
                 MenuAction("Add measurement") { addMeasurement = true },
                 MenuAction("Previous day with data", enabled = older != null) { older?.let { go(it) } },
                 MenuAction("Next day with data", enabled = newer != null) { newer?.let { go(it) } },
                 MenuAction("Analysis") { nav.push(Screen.Analysis) },
-                MenuAction("Exercises") { nav.push(Screen.Training) },
+                MenuAction("Exercise history") { nav.push(Screen.Training) },
                 MenuAction("Body tracker") { nav.push(Screen.Body) },
                 MenuAction("Photos") { nav.push(Screen.Photos) },
                 MenuAction("All days") { nav.push(Screen.Timeline) },
@@ -199,7 +199,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                     setsShown = prefs.homeSetsShown,
                     onAddPhoto = importForDay,
                     onEditComment = { editComment = true },
-                    onStartWorkout = { pickExercise = true },
+                    onAddExercise = { pickExercise = true },
                     onCopyPrevious = { copyPrevious = true }
                 )
             }
@@ -230,7 +230,7 @@ private fun DayContent(
     setsShown: Int,
     onAddPhoto: () -> Unit,
     onEditComment: () -> Unit,
-    onStartWorkout: () -> Unit,
+    onAddExercise: () -> Unit,
     onCopyPrevious: () -> Unit
 ) {
     val photos = snap.photosByDate[date] ?: emptyList()
@@ -282,7 +282,7 @@ private fun DayContent(
             }
         }
         if (sets.isEmpty()) {
-            item(key = "empty") { EmptyDay(onStartWorkout, onCopyPrevious) }
+            item(key = "empty") { EmptyDay(onAddExercise, onCopyPrevious) }
         }
         byExercise.forEach { (exId, exSets) ->
             item(key = "e$exId") {
@@ -377,26 +377,30 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: () ->
     }
 }
 
-/** The empty day (#81): a quiet message and the two ways to start, as in FitNotes. */
+/**
+ * The empty day (#81): a quiet message and the ways to start. Adding one exercise is never labelled as starting a
+ * workout: a workout is a group of exercises (owner decision on #79). "Add workout" joins these with saved workouts
+ * (#100).
+ */
 @Composable
-private fun EmptyDay(onStartWorkout: () -> Unit, onCopyPrevious: () -> Unit) {
+private fun EmptyDay(onAddExercise: () -> Unit, onCopyPrevious: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = Spacing.xl, vertical = Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        Text("Workout log empty", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Text("No workout logged", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Text(
-            "Start a workout for this day, or copy one you've done before.",
+            "Add exercises one at a time, or copy a workout you've logged before.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(Spacing.sm))
-        Button(onClick = onStartWorkout, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
+        Button(onClick = onAddExercise, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
             Icon(Icons.Filled.Add, contentDescription = null)
             Spacer(Modifier.width(Spacing.sm))
-            Text("Start new workout")
+            Text("Add exercise")
         }
         OutlinedButton(onClick = onCopyPrevious, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
             Text("Copy previous workout")
@@ -427,7 +431,7 @@ private fun ExerciseOnDay(
         menu = listOf(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
             MenuAction("History, graph and records") { nav.push(Screen.ExerciseDetail(exId)) },
-            MenuAction("Delete this exercise's sets") { confirmDelete = true }
+            MenuAction("Remove from this workout") { confirmDelete = true }
         )
     ) {
         exSets.take(limit).forEachIndexed { i, s ->
@@ -453,14 +457,16 @@ private fun ExerciseOnDay(
     }
     if (confirmDelete) {
         ConfirmDialog(
-            "Delete these sets?",
-            "${exSets.size} set${if (exSets.size == 1) "" else "s"} of $name will be removed from ${Dates.medium(date)}.",
+            "Remove $name from this workout?",
+            "Its ${exSets.size} set${if (exSets.size == 1) "" else "s"} on ${Dates.medium(date)} will be deleted. " +
+                "The exercise stays in your library.",
+            confirm = "Remove",
             onDismiss = { confirmDelete = false }
         ) {
             val removed = exSets
             AppScope.scope.launch {
                 Workouts.deleteHistory(date, date, setOf(exId))
-                UiEvents.show("$name deleted", "Undo") {
+                UiEvents.show("$name removed from this workout", "Undo") {
                     AppScope.scope.launch {
                         try {
                             Workouts.addSets(removed)

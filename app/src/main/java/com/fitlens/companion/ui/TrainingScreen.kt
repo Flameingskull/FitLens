@@ -61,7 +61,7 @@ fun TrainingScreen(snap: Snapshot, nav: Nav) {
             .sortedWith(compareBy({ snap.categories[it.categoryId]?.sortOrder ?: 99 }, { snap.categories[it.categoryId]?.name ?: "" }, { it.categoryId }, { it.name }))
     }
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Exercises") { LibraryAction(nav) }
+        PlainTopBar("Exercise history") { LibraryAction(nav) }
         if (snap.sets.isEmpty()) {
             EmptyState(
                 "No workouts yet",

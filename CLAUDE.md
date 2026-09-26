@@ -29,7 +29,7 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    API level Google Play then requires, raising AGP and Gradle with it, and review that version's behaviour changes.
    Never let an update touch `applicationId`, the signing setup, the signing secrets or `BUILD_OFFSET`.
 7. **Refresh the README every 5 releases**, both on GitHub and locally. Rewrite `README.md` so it matches the app as
-   released, its purpose and direction, and every other section. Last refresh: **1.0.25**. Next due: **1.0.30**.
+   released, its purpose and direction, and every other section. Last refresh: **1.0.31**. Next due: **1.0.36**.
    The `/new-build`, `/safe-build` and `/slice-build` skills check this in their release-notes step.
 
 ## Product direction (owner decisions, 2026-09-23)
@@ -48,6 +48,11 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
 - **Navigation matches FitNotes (owner decision, 2026-09-26):** no bottom tab bar. The day log is home; its top bar
   has Calendar, + (the exercise library, whose title switches to each routine) and a ⋮ menu (Analysis, Body tracker,
   Photos, Settings). See the owner decision comment on #79.
+- **Exercises, workouts and routines (owner decision, 2026-09-26):** an **exercise** is one movement. A
+  **workout** is a group of exercises with prescribed sets: a **saved workout** is named and reusable (#100), and a
+  **logged workout** is what was recorded on a date. A **routine** is saved workouts split into user-named days (#21).
+  Adding a workout adds a whole group of exercises; a control that adds one exercise always says "Add exercise". See
+  the decision comment on #79.
 - **Redesign first (owner decision, 2026-09-26):** builds now follow #79's page bundles: day log (#81, #84, #8), then
   the library and routine switcher (#83), the exercise screen (#82) and routines (#91, #21, #99). Feature-only builds
   wait until those land.
