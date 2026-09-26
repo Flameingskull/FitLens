@@ -108,6 +108,10 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var copyToDay by remember { mutableStateOf(false) }
     var moveToDay by remember { mutableStateOf(false) }
     var deleteWorkout by remember { mutableStateOf(false) }
+    // Saved workouts (#100): add one (or replace the day's with one), or save this day as one.
+    var addWorkout by remember { mutableStateOf(false) }
+    var replaceWorkout by remember { mutableStateOf(false) }
+    var saveAsWorkout by remember { mutableStateOf(false) }
     val importForDay = rememberPhotoImporter(forcedDate = date)
     val hasWorkout = sets.isNotEmpty() || snap.workoutComments.containsKey(date)
     // Remembers which way the last step went, so the page slides in from the matching side.
@@ -131,6 +135,9 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 TopBarAction(Icons.Filled.Add, "Add exercise") { nav.push(Screen.Library(date)) }
             ),
             overflow = listOf(
+                MenuAction("Add workout") { addWorkout = true },
+                MenuAction("Replace this workout", enabled = sets.isNotEmpty()) { replaceWorkout = true },
+                MenuAction("Save as a workout", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
                 MenuAction(if (snap.workoutComments.containsKey(date)) "Edit workout comment" else "Workout comment") { editComment = true },
                 MenuAction("Copy previous workout") { copyPrevious = true },
                 MenuAction("Copy this workout to another day", enabled = sets.isNotEmpty()) { copyToDay = true },
@@ -199,6 +206,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                     onAddPhoto = importForDay,
                     onEditComment = { editComment = true },
                     onAddExercise = { nav.push(Screen.Library(date)) },
+                    onAddWorkout = { addWorkout = true },
                     onCopyPrevious = { copyPrevious = true }
                 )
             }
@@ -211,6 +219,9 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     if (copyToDay) CopyOrMoveWorkoutSheet(snap, date, move = false) { copyToDay = false }
     if (moveToDay) CopyOrMoveWorkoutSheet(snap, date, move = true) { moveToDay = false }
     if (deleteWorkout) DeleteWorkoutSheet(snap, date) { deleteWorkout = false }
+    if (addWorkout) AddWorkoutSheet(snap, nav, date, replace = false) { addWorkout = false }
+    if (replaceWorkout) AddWorkoutSheet(snap, nav, date, replace = true) { replaceWorkout = false }
+    if (saveAsWorkout) SaveAsWorkoutSheet(snap, date) { saveAsWorkout = false }
 }
 
 /** One day's log: photo strip, body values, the workout summary and its exercise cards, or the empty-day actions. */
@@ -224,6 +235,7 @@ private fun DayContent(
     onAddPhoto: () -> Unit,
     onEditComment: () -> Unit,
     onAddExercise: () -> Unit,
+    onAddWorkout: () -> Unit,
     onCopyPrevious: () -> Unit
 ) {
     val photos = snap.photosByDate[date] ?: emptyList()
@@ -275,7 +287,7 @@ private fun DayContent(
             }
         }
         if (sets.isEmpty()) {
-            item(key = "empty") { EmptyDay(onAddExercise, onCopyPrevious) }
+            item(key = "empty") { EmptyDay(onAddWorkout, onAddExercise, onCopyPrevious) }
         }
         byExercise.forEach { (exId, exSets) ->
             item(key = "e$exId") {
@@ -372,11 +384,10 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: () ->
 
 /**
  * The empty day (#81): a quiet message and the ways to start. Adding one exercise is never labelled as starting a
- * workout: a workout is a group of exercises (owner decision on #79). "Add workout" joins these with saved workouts
- * (#100).
+ * workout: a workout is a group of exercises (owner decision on #79), so "Add workout" adds a saved one (#100).
  */
 @Composable
-private fun EmptyDay(onAddExercise: () -> Unit, onCopyPrevious: () -> Unit) {
+private fun EmptyDay(onAddWorkout: () -> Unit, onAddExercise: () -> Unit, onCopyPrevious: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = Spacing.xl, vertical = Spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -384,15 +395,18 @@ private fun EmptyDay(onAddExercise: () -> Unit, onCopyPrevious: () -> Unit) {
     ) {
         Text("No workout logged", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         Text(
-            "Add exercises one at a time, or copy a workout you've logged before.",
+            "Add a saved workout, add exercises one at a time, or copy a workout you've logged before.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(Spacing.sm))
-        Button(onClick = onAddExercise, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
+        Button(onClick = onAddWorkout, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
             Icon(Icons.Filled.Add, contentDescription = null)
             Spacer(Modifier.width(Spacing.sm))
+            Text("Add workout")
+        }
+        OutlinedButton(onClick = onAddExercise, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
             Text("Add exercise")
         }
         OutlinedButton(onClick = onCopyPrevious, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
