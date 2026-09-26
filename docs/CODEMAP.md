@@ -5,11 +5,11 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.33.
+Last updated: 1.0.34.
 
 ## How data flows
 
-- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 7 (v5 added `workout_set.set_type` and `rpe`; v6 added `exercise_goal`, `exercise.weight_step` and `default_graph`, and `measurement.edited`; v7 added `saved_workout`, `saved_workout_exercise` and `saved_workout_set`). Schema changes
+- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 8 (v5 added `workout_set.set_type` and `rpe`; v6 added `exercise_goal`, `exercise.weight_step` and `default_graph`, and `measurement.edited`; v7 added `saved_workout`, `saved_workout_exercise` and `saved_workout_set`; v8 added `routine`, `routine_day` and `workout_origin`). Schema changes
   bump it and add an `if (oldVersion < N)` block in `onUpgrade` that keeps every row. `.fitlens` restores of older
   backups go through the same upgrade.
 - **Settings** (#38) go through `data/Settings.kt` only. Phone-only settings (`DeviceSettings`: folders, schedules,
@@ -48,6 +48,7 @@ Last updated: 1.0.33.
 | `Backups.kt` | `.fitlens` export and restore, `exportForShare` (share sheet), `manualFileName` (timestamp setting), safety copy with Undo, automatic backups to a folder |
 | `Analysis.kt` | The Analysis hub's numbers, pure Kotlin: period totals (`totals`, `Period`, `Metric`, `Filter`), breakdowns (`breakdown`, `windows`, `previousWindow`, `Span`, `Measure`), `percents` (largest remainder). Weeks start on `weekStart` (Monday until #7) |
 | `SavedWorkouts.kt` | Saved workouts (#100): `SavedWorkout`, `PlannedExercise` (`fill`: as last time or planned), `PlannedSet`; `load`, `save` (rewrites a workout whole), `delete`, `reorder`, `resolve` (the sets an exercise adds on a date), `fromDay`, `describe`. Logging goes through `Workouts.logPlanned` |
+| `Routines.kt` | Routines (#21): `Routine`, `RoutineDay` (uses a saved workout), `WorkoutOrigin` (which saved workout / routine day a logged date came from); `save` (keeps day ids), `copy`, `addDay`, `deleteDay`, `setDayWorkout`, `nextDay`. `Workouts.logPlanned` writes the origin |
 | `Goals.kt` | Exercise goals (#25): `ExerciseGoal`, `GoalKinds` (labels, units, `progress`), `Goals` writes (save, delete, reorder) |
 | `CsvExport.kt` | Workouts and body data as CSV (#31): documented columns, RFC 4180 quoting, counts for previews |
 | `AutoBackup.kt` | Scheduled backups (`BackupWorker`, JobScheduler), status and failure notifications |
@@ -73,6 +74,7 @@ Last updated: 1.0.33.
 | `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the ⋮ menu to every screen), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet`, `defOrder`, `AddMeasurementDialog` |
 | `SetEntry.kt` | The exercise screen (#82): `SetEntryScreen` with Track (logging and editing sets, Save / Clear, Update / Delete), History and Graph tabs in a `HorizontalPager`; `queue` opens exercises chosen together one after another; `page` picks the opening tab |
 | `SavedWorkoutsScreen.kt` | Saved workouts UI (#100): `SavedWorkoutsScreen`, `SavedWorkoutEditorScreen` (drag order, swap, per-exercise sets sheet), `AddWorkoutSheet` (saved or built on the spot, review, Undo, `replace`), `SaveAsWorkoutSheet`, `exercisePickerItems` for `SearchablePicker` |
+| `RoutinesScreen.kt` | `RoutinesScreen` and `RoutineEditorScreen` (days with drag order, day sheet choosing a saved workout, copy a day to another routine). The switcher lives in the library title (`FitTopBar(titleMenu = …)`); starting a day is `StartRoutineDaySheet` in `SavedWorkoutsScreen.kt` |
 | `WorkoutEditing.kt` | Workout sheets (#84): `WorkoutCommentSheet`, `DeleteWorkoutSheet`, `CopyOrMoveWorkoutSheet`, `CopyPreviousWorkoutSheet`, each with Undo |
 | `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises, search, long-press multi-select; `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`. `Screen.Library(date)` is also the exercise picker |
 | `TrainingScreen.kt` | `ExerciseDetailScreen` (Records and Goals tabs), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` used by the exercise screen, `graphLabels`, `e1rm` |

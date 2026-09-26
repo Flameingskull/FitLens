@@ -1,42 +1,42 @@
 ## Overview
 
-This build brings **saved workouts**. A workout is a group of exercises with their sets. You can now save one, such
-as "Push A" or "Leg day", and add the whole workout to any day in one go. As with FitNotes's "Log All", every set
-is logged at once, ready for you to update as you train. You can build a workout from scratch, save a day you've
-already logged, and swap exercises in and out.
+This build brings **routines**. A routine is your saved workouts split into days you name, such as Push, Pull and
+Legs, or Day A and Day B. As in FitNotes, the exercise library's title now switches between all your exercises and
+your routines. A routine lists its days, marks the one that comes next, and logs that day's whole workout when you
+tap it.
 
-This update upgrades FitLens's database to add saved workouts. Nothing you've logged, imported or set up changes, and
+This update upgrades FitLens's database to add routines. Nothing you've logged, imported or set up changes, and
 backups from earlier versions restore the same way.
 
 ## What's new
 
-- **Saved workouts.** **⋮ → Workouts** lists your saved workouts. Create one with **+**, then:
-  - give it a name and optional notes;
-  - add its exercises with a picker where you can tick several at once, and drag them into order;
-  - tap an exercise to choose its sets: **As last time** (repeats what you did the last time you trained it), or
-    **These sets** (the weights, reps, times or distances you plan);
-  - swap an exercise for another, or remove it.
+- **Routines.** **⋮ → Routines** lists them. Create one with **+**, then:
+  - name it, and add notes if you like;
+  - add a day for each workout, name it, and choose the saved workout it uses;
+  - drag days into order, edit or remove them, and copy a day into another routine.
 
-  Workouts can be copied and deleted, and a deleted workout can be brought back with **Undo**.
-- **Add a whole workout to a day.** On the day log, **⋮ → Add workout** (or **Add workout** on an empty day) lets you
-  choose a saved workout, or **build a new workout** by ticking several exercises. A review lists every exercise and
-  the sets it will add. Untick any you're skipping today, then add them all at once. Exercises with nothing to repeat
-  yet open one after another so you can log them. A workout you build can be saved for next time, and every addition
-  can be undone.
-- **Save a day as a workout.** **⋮ → Save as a workout** turns a day you've logged into a saved workout, keeping its
-  exercises in order with either those sets or "as last time".
-- **Swap and replace.** An exercise card's menu now has **Swap exercise**, which moves that day's sets to another
-  exercise, with Undo. **⋮ → Replace this workout** swaps the day's sets for a saved workout.
+  Routines can be duplicated (for example "PPL v2" from "PPL") and deleted, and a deleted routine can be brought
+  back with **Undo**.
+- **The routine switcher.** Tap the title of the exercise library (the **+** on the day log) to choose **All
+  exercises**, one of your routines, or **New routine**. FitLens remembers your choice. A routine shows its days,
+  with the next one marked in gold. Tap a day to review its exercises and sets, then log the whole workout at once,
+  with Undo.
+- **The next day, suggested.** FitLens remembers which saved workout, and which routine day, each logged day was
+  started from, and suggests the day after the last one you did. **Add workout** on the day log now shows your
+  current routine's days first, with the next one marked.
+- **Save a day into a routine.** **⋮ → Save as a workout** can now replace one of your saved workouts instead of
+  adding a new one. It can also put the workout straight into a routine, as a new day or in place of an existing
+  day's workout. **Undo** puts everything back.
 
 ## Improved
 
-- **The empty day** now offers **Add workout**, **Add exercise** and **Copy previous workout**.
-- **Deleting an exercise** also removes it from your saved workouts.
+- **Moving a workout** to another day keeps track of the saved workout it came from, and deleting a workout clears
+  it, so the next-day suggestion stays right.
 
 ## Known limitations
 
-- **Routines**, your saved workouts split into days you name with a suggested next day, come next
-  ([#21](https://github.com/Flameingskull/FitLens/issues/21)).
-- A logged workout doesn't yet remember which saved workout it came from. Swapping an exercise on the day log
-  changes that day only; to change a saved workout for good, use the workout editor.
-- Prescribed sets don't include effort (RPE/RIR) or set comments.
+- A day in a routine uses one saved workout. Supersets and circuits within a workout come later
+  ([#18](https://github.com/Flameingskull/FitLens/issues/18)).
+- Routines from FitNotes backups aren't imported.
+- If you delete a saved workout that a routine day uses, that day shows "No workout chosen yet" until you pick
+  another.

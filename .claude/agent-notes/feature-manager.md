@@ -48,3 +48,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   once (FitNotes "Log All") via `Workouts.logPlanned`, so it undoes with `deleteSets`. Routines (#21) should reference
   `saved_workout` ids per day rather than hold exercises. Still missing: a logged day doesn't record which saved
   workout it came from (needed for "next day" suggestions and "swap for good" from the day log).
+- 2026-09-26: Routines (1.0.34, #21) are database v8 (`data/Routines.kt`). The library title is the routine switcher
+  (`PortableSettings.lastRoutineId`, also used by Add workout). `workout_origin` (one row per date) drives the
+  next-day suggestion; `deleteWorkout` clears it and `moveWorkout` moves it. `Screen.Routines` and
+  `Screen.SavedWorkouts` share names with the data objects, so always write `Screen.X` for the destination.
