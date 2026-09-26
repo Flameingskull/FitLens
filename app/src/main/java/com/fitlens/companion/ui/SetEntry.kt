@@ -424,6 +424,20 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                                 modifier = Modifier.weight(1f).height(52.dp)
                             ) { Text("Delete") }
                         }
+                        // Move the selected set within this exercise (#70).
+                        val at = sets.indexOfFirst { it.id == selected }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(
+                                onClick = { selected?.let { moveSet(snap, date, it, -1) } },
+                                enabled = at > 0,
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Move set up") }
+                            TextButton(
+                                onClick = { selected?.let { moveSet(snap, date, it, 1) } },
+                                enabled = at in 0 until sets.lastIndex,
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Move set down") }
+                        }
                         TextButton(onClick = { selected = null }, modifier = Modifier.fillMaxWidth()) {
                             Text("New set instead")
                         }

@@ -58,6 +58,25 @@ fun moveExercise(snap: Snapshot, date: String, exId: Long, by: Int) {
 }
 
 /**
+ * Moves set [setId] one place up ([by] −1) or down (+1) among its exercise's sets on [date] (#70). Returns false when
+ * it's already at that end.
+ */
+fun moveSet(snap: Snapshot, date: String, setId: Long, by: Int): Boolean {
+    val day = snap.setsByDate[date].orEmpty().toMutableList()
+    val at = day.indexOfFirst { it.id == setId }
+    if (at < 0) return false
+    val ex = day[at].exerciseId
+    val mine = day.indices.filter { day[it].exerciseId == ex }
+    val k = mine.indexOf(at) + by
+    if (k !in mine.indices) return false
+    val other = mine[k]
+    val tmp = day[at]; day[at] = day[other]; day[other] = tmp
+    val ids = day.map { it.id }
+    AppScope.scope.launch { Workouts.reorderDay(ids) }
+    return true
+}
+
+/**
  * The workout drawer (#85, #17), FitNotes's training navigation panel: the day's summary and every exercise in
  * workout order with its set count, the current one picked out. Tap an exercise to jump to it, move it up or down,
  * add another, or go back to the day log.
