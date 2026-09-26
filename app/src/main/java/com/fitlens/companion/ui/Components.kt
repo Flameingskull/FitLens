@@ -156,6 +156,7 @@ fun BackTopBar(title: String, onBack: () -> Unit, backLabel: String = "Back", ac
 val LocalNavBack = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 /** The top bar for the screens reached from the day log's menu (Calendar, Body tracker, Photos, Analysis…). */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlainTopBar(title: String, actions: @Composable () -> Unit = {}) {
     FitTopBar(title = title, onBack = LocalNavBack.current, trailing = { actions() })

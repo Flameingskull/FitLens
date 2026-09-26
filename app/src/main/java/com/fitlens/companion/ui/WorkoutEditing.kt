@@ -30,8 +30,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.WorkoutDataException
+import com.fitlens.companion.data.WorkoutTime
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.ui.design.ConfirmSheet
 import com.fitlens.companion.ui.design.FitSheet
@@ -120,19 +122,23 @@ fun DeleteWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             (if (times.isEmpty()) "" else ", and the start and finish times") +
             ", will be removed from ${Dates.medium(date)}. Photos and measurements on this day are kept.",
         confirmLabel = "Delete workout",
-        onDismiss = onDismiss
-    ) {
-        AppScope.scope.launch {
-            Workouts.deleteWorkout(date)
-            UiEvents.show("Workout deleted", "Undo") {
-                AppScope.scope.launch {
-                    try {
-                        Workouts.addSets(sets)
-                        if (!comment.isNullOrBlank()) Workouts.setWorkoutComment(date, comment)
-                        if (times.isNotEmpty()) Workouts.setWorkoutTimes(date, times)
-                    } catch (e: Exception) {
-                        UiEvents.show("Couldn't undo that: ${e.message}")
-                    }
+        onDismiss = onDismiss,
+        onConfirm = { deleteWithUndo(date, sets, comment, times) }
+    )
+}
+
+/** Deletes the workout on [date], then offers to put back its sets, comment and times. */
+private fun deleteWithUndo(date: String, sets: List<SetRow>, comment: String?, times: List<WorkoutTime>) {
+    AppScope.scope.launch {
+        Workouts.deleteWorkout(date)
+        UiEvents.show("Workout deleted", "Undo") {
+            AppScope.scope.launch {
+                try {
+                    Workouts.addSets(sets)
+                    if (!comment.isNullOrBlank()) Workouts.setWorkoutComment(date, comment)
+                    if (times.isNotEmpty()) Workouts.setWorkoutTimes(date, times)
+                } catch (e: Exception) {
+                    UiEvents.show("Couldn't undo that: ${e.message}")
                 }
             }
         }
