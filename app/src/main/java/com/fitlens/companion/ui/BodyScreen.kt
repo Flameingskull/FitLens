@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,6 +41,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.MRecord
@@ -46,6 +50,7 @@ import com.fitlens.companion.data.MeasurementDef
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
+import com.fitlens.companion.ui.design.FitTabRow
 
 val RANGES = listOf("1M" to 30L, "3M" to 91L, "6M" to 182L, "1Y" to 365L, "All" to 0L)
 
@@ -63,7 +68,9 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     var chosenName by rememberSaveable { mutableStateOf(snap.bodyweightName ?: "") }
     val selectedName = if (measurements.none { it.name == chosenName } && measurements.isNotEmpty()) measurements.first().name else chosenName
     var rangeIdx by rememberSaveable { mutableIntStateOf(4) }
+    // Track, History and Graph, as in FitNotes's body tracker (#88).
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var logName by remember { mutableStateOf<String?>(null) }
     var selectedPoint by remember(selectedName, rangeIdx) { mutableStateOf<Int?>(null) }
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fromZero by rememberSaveable { mutableStateOf(false) }
@@ -77,6 +84,7 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
         PlainTopBar("Body tracker") {
             IconButton(onClick = { managing = true }) { Icon(Icons.Filled.Edit, contentDescription = "Custom metrics") }
             IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add measurement") }
+            if (measurements.size > 1) IconButton(onClick = { ordering = true }) { Icon(Icons.Filled.Menu, contentDescription = "Reorder measurements") }
         }
         if (measurements.isEmpty()) {
             EmptyState("No body tracker data yet", "Import a FitNotes backup, add a measurement, or create a custom metric.") {
@@ -86,8 +94,13 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                 }
             }
         } else {
+            FitTabRow(titles = listOf("Track", "History", "Graph"), selected = tab, onSelect = { tab = it })
+        }
+        if (measurements.isNotEmpty() && tab == 0) {
+            TrackList(snap, measurements) { logName = it }
+        } else if (measurements.isNotEmpty()) {
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 measurements.forEach { m ->
@@ -98,16 +111,10 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
             // The measurement's goal and the order of the chips above (#27).
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { editingGoal = true }, enabled = def != null) { Text(goalText(def)) }
-                Spacer(Modifier.weight(1f))
-                if (measurements.size > 1) TextButton(onClick = { ordering = true }) { Text("Reorder") }
-            }
-            TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Graph") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("History") })
             }
             val all = remember(snap, selectedName) { snap.dailySeries(selectedName) }
             val shown = remember(all, rangeIdx) { inRange(all, RANGES[rangeIdx].second) { it.date } }
-            if (tab == 0) {
+            if (tab == 2) {
                 LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                     item {
                         Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -205,10 +212,64 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
         }
     }
     if (adding) AddMeasurementDialog(snap, Dates.today()) { adding = false }
+    logName?.let { n -> AddMeasurementDialog(snap, Dates.today(), initialName = n) { logName = null } }
     if (managing) CustomMetricsDialog(snap) { managing = false }
     val goalDef = measurements.firstOrNull { it.name == selectedName }
     if (editingGoal && goalDef != null) MeasurementGoalSheet(goalDef) { editingGoal = false }
     if (ordering) MeasurementOrderSheet(measurements) { ordering = false }
+}
+
+/**
+ * The Track tab (#88): every measurement with its latest value, the change since the entry before (an arrow and a
+ * sign, coloured by the goal's direction, so colour is never the only cue) and its goal. Tapping one logs a new value.
+ */
+@Composable
+private fun TrackList(snap: Snapshot, measurements: List<MeasurementDef>, onLog: (String) -> Unit) {
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+        items(measurements, key = { it.name }) { m ->
+            val recs = snap.recordsByName[m.name].orEmpty()
+            val last = recs.lastOrNull()
+            val prev = recs.getOrNull(recs.size - 2)
+            val unit = m.unit.ifBlank { last?.unit.orEmpty() }
+            val change = if (last != null && prev != null) last.value - prev.value else null
+            val spoken = buildString {
+                append(m.name).append(", ")
+                if (last != null) append(fmtNum(last.value)).append(' ').append(unit).append(" on ").append(Dates.medium(last.date))
+                else append("nothing logged yet")
+                if (change != null) append(", ").append(if (change >= 0) "up " else "down ").append(fmtNum(kotlin.math.abs(change))).append(' ').append(unit)
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Spacing.row)
+                    .clickable(onClickLabel = "Log ${m.name}") { onLog(m.name) }
+                    .semantics(mergeDescendants = true) { contentDescription = spoken }
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(m.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        listOfNotNull(last?.let { Dates.medium(it.date) } ?: "Tap to log the first value", goalText(m).takeIf { m.goalType != 0 })
+                            .joinToString("  ·  "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(last?.let { "${fmtNum(it.value)} $unit" } ?: "—", style = MaterialTheme.typography.titleMedium)
+                    if (change != null && prev != null && last != null) {
+                        Text(
+                            (if (change > 0) "▲ " else if (change < 0) "▼ " else "") + fmtSigned(change),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = changeColour(m, prev.value, last.value)
+                        )
+                    }
+                }
+            }
+            GoldHairline()
+        }
+    }
 }
 
 @Composable

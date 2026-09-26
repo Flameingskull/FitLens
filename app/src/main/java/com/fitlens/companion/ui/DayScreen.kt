@@ -556,11 +556,11 @@ fun nearestPhoto(snap: Snapshot, date: String, windowDays: Int = 30): com.fitlen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddMeasurementDialog(snap: Snapshot, date: String, onDismiss: () -> Unit) {
+fun AddMeasurementDialog(snap: Snapshot, date: String, initialName: String? = null, onDismiss: () -> Unit) {
     val names = remember(snap) {
         (snap.usedMeasurements.map { it.name } + snap.measurementDefs.filter { it.enabled }.map { it.name }).distinct()
     }
-    var name by remember { mutableStateOf(names.firstOrNull() ?: "Bodyweight") }
+    var name by remember { mutableStateOf(initialName ?: names.firstOrNull() ?: "Bodyweight") }
     var value by remember { mutableStateOf("") }
     var comment by remember { mutableStateOf("") }
     var pickDate by remember { mutableStateOf(false) }
