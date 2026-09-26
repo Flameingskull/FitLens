@@ -1,37 +1,29 @@
 ## Overview
 
-This build lets your timers keep going with the screen off, and it rebuilds the calendar after FitNotes's. The rest
-timer and workout timer now run in a notification with their own buttons, and an alert tells you when rest is over,
-even when the phone is locked. The calendar shows the selected day's workout below the month, so you can look back
-through your training without leaving it.
+This build redesigns two more screens after FitNotes. The **body tracker** now opens on a Track list showing every
+measurement's latest value at a glance. **Exercise details** gains a Stats tab and a **1RM calculator**.
 
 Your data isn't touched by this update.
 
 ## What's new
 
-- **Timers with the screen off.** While the rest timer or workout timer runs, a notification shows the countdown or
-  elapsed time.
-  - The rest timer's notification has **Pause/Resume**, **+15 s** and **Stop rest**.
-  - The workout timer's notification has **Stop workout**.
-  - When rest is over, a **Rest over** alert vibrates and appears even with the phone locked. The **Vibrate when rest
-    is over** setting still decides whether it vibrates.
-  - The notification goes away by itself when no timer is running. FitLens asks for permission to show
-    notifications the first time you start a timer (Android 13 and newer).
-- **A FitNotes-style calendar.**
-  - It opens on this month. Swipe or use the arrows for other months, and the header counts the month's workouts.
-  - Each day shows up to three category dots, plus dots for photos and measurements. Today has a gold ring, and the
-    day you select is filled purple.
-  - Below the grid, the selected day's exercises, sets, body values and photos, with **Open day**. Tapping the
-    selected day again opens it too.
-  - The top bar has **Today** and a **list** of every day.
-
-## Improved
-
-- **The README** has been brought up to date with saved workouts, routines, the timers, sharing and the new
-  calendar.
+- **Body tracker: Track, History and Graph.**
+  - **Track** lists every measurement with its latest value and date, and the change since the previous entry. An
+    arrow and a + or − sign show the direction, and the colour shows whether it moved towards your goal. Tap a
+    measurement to log a new value, with that measurement already chosen.
+  - **History** and **Graph** keep the measurement chips and goal. Graph has the chart, trend, stats and full screen.
+  - Reordering your measurements is now a button in the top bar.
+- **Exercise stats.** Open an exercise's records (the list button on the exercise screen) and choose **Stats**. You
+  see its heaviest weight, best estimated 1RM, best set, best workout volume, totals, number of workouts, sets per
+  workout, and first and last logged, each with its date. Choose All, 1Y, 3M or 1M. Timed and distance exercises
+  show their longest set and most distance instead.
+- **1RM calculator.** The **1RM** button on exercise details opens a calculator that starts from your best set.
+  Adjust the weight and reps to get an estimated one-rep max, with your rep maxes from 1RM to 12RM and 100% to 50%
+  of it.
 
 ## Known limitations
 
-- Each exercise doesn't have its own rest length yet, and the alert has no sound choice.
-- The calendar can't yet highlight the days of one category.
-- Workout duration graphs are still to come ([#12](https://github.com/Flameingskull/FitLens/issues/12)).
+- The calculator uses FitLens's own 1RM formula. Choosing another formula is still to come
+  ([#42](https://github.com/Flameingskull/FitLens/issues/42)).
+- Measurement entries can't be edited yet: delete one and add it again.
+- The plate calculator is still to come.
