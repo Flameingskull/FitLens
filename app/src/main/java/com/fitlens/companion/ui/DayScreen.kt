@@ -140,6 +140,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction("Add measurement") { addMeasurement = true },
                 MenuAction("Previous day with data", enabled = older != null) { older?.let { go(it) } },
                 MenuAction("Next day with data", enabled = newer != null) { newer?.let { go(it) } },
+                MenuAction("Workouts") { nav.push(Screen.SavedWorkouts) },
                 MenuAction("Analysis") { nav.push(Screen.Analysis) },
                 MenuAction("Body tracker") { nav.push(Screen.Body) },
                 MenuAction("Photos") { nav.push(Screen.Photos) },

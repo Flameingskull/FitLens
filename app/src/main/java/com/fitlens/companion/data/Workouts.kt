@@ -143,6 +143,64 @@ object Workouts {
     }
 
     /**
+     * Logs a saved workout's sets on [date] in one transaction (#100): each pair is an exercise and a prescribed set,
+     * added in order as FitLens sets, like FitNotes's "Log All". PR marks are replayed, since a prescribed set can be
+     * a record. Returns the new ids, so the whole workout can be undone.
+     */
+    suspend fun logPlanned(date: String, rows: List<Pair<Long, PlannedSet>>): List<Long> = write { w ->
+        val d = checkDate(date)
+        val ids = rows.map { (exId, s) ->
+            w.insertOrThrow("workout_set", null, ContentValues().apply {
+                put("exercise_id", exId); put("date", d); put("weight", s.weightKg); put("reps", s.reps)
+                put("distance", s.distance); put("duration", s.durationSec); put("is_pr", 0)
+                put("source", Sources.FITLENS); put("set_type", s.setType); putNull("rpe")
+            })
+        }
+        replayPrs(w)
+        ids
+    }
+
+    /**
+     * Swaps exercise [from] for [to] on [date] (#100): the day's sets move to the new exercise and become FitLens's own.
+     * An imported set that moves leaves a skip rule, so the next import doesn't bring the original back. PR marks are
+     * replayed. Returns the moved sets' ids, for [setExerciseOf] to undo it.
+     */
+    suspend fun swapExercise(date: String, from: Long, to: Long): List<Long> = write { w ->
+        val d = checkDate(date)
+        if (from == to) return@write emptyList()
+        w.longOrNull("SELECT id FROM exercise WHERE id=?", to.toString())
+            ?: throw WorkoutDataException("That exercise no longer exists.")
+        val ids = ArrayList<Long>()
+        w.rawQuery(
+            "SELECT id, exercise_id, date, weight, reps, distance, duration, source FROM workout_set " +
+                "WHERE substr(date, 1, 10)=? AND exercise_id=?",
+            arrayOf(d, from.toString())
+        ).use { c ->
+            while (c.moveToNext()) {
+                ids.add(c.lng(0))
+                if (c.strOr(7) == Sources.FITNOTES) {
+                    addSkip(w, RULE_SET, setKey(c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6)))
+                }
+            }
+        }
+        if (ids.isNotEmpty()) {
+            w.execSQL(
+                "UPDATE workout_set SET exercise_id=?, source=? WHERE id IN (${ids.joinToString(",")})",
+                arrayOf<Any>(to, Sources.FITLENS)
+            )
+            replayPrs(w)
+        }
+        ids
+    }
+
+    /** Puts the sets with these ids under [exerciseId], used to undo [swapExercise]. */
+    suspend fun setExerciseOf(ids: Collection<Long>, exerciseId: Long): Unit = write { w ->
+        if (ids.isEmpty()) return@write
+        w.update("workout_set", ContentValues().apply { put("exercise_id", exerciseId) }, "id IN (${ids.joinToString(",")})", null)
+        replayPrs(w)
+    }
+
+    /**
      * Saves the categories' order (#83), first to last. A FitNotes import only ever adds categories, never changes
      * one that exists, so the order chosen here is kept.
      */
@@ -214,6 +272,7 @@ object Workouts {
             w.longOrNull("SELECT 1 FROM import_rule WHERE kind=? AND target_id=? LIMIT 1", RULE_EXERCISE, id.toString()) != null
         w.delete("workout_set", "exercise_id=?", arrayOf(id.toString()))
         w.delete("exercise_goal", "exercise_id=?", arrayOf(id.toString()))
+        SavedWorkouts.forgetExercise(w, id)
         w.delete("exercise", "id=?", arrayOf(id.toString()))
         w.execSQL("UPDATE import_rule SET target_id=NULL WHERE kind=? AND target_id=?", arrayOf<Any>(RULE_EXERCISE, id))
         if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)

@@ -26,8 +26,11 @@ class Snapshot(
     /** The first day of the week, 1 = Monday … 7 = Sunday (#7). */
     val weekStart: Int = 1,
     /** Exercise goals (#25), in each exercise's order. */
-    val goals: List<ExerciseGoal> = emptyList()
+    val goals: List<ExerciseGoal> = emptyList(),
+    /** Saved workouts (#100), in the user's order. */
+    val savedWorkouts: List<SavedWorkout> = emptyList()
 ) {
+    val savedWorkoutsById: Map<Long, SavedWorkout> = savedWorkouts.associateBy { it.id }
     val goalsByExercise: Map<Long, List<ExerciseGoal>> = goals.groupBy { it.exerciseId }
     val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
     val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
@@ -203,7 +206,7 @@ object Store {
         Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
         return Snapshot(
             categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir,
-            prefs.warmupsCount, prefs.weekStart, goals
+            prefs.warmupsCount, prefs.weekStart, goals, SavedWorkouts.load(r)
         )
     }
 

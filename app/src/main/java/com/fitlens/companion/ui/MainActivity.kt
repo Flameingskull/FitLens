@@ -64,6 +64,10 @@ sealed interface Screen {
     data object Timeline : Screen
     data object Calendar : Screen
     data object Body : Screen
+    /** Saved workouts (#100): named groups of exercises with their sets. */
+    data object SavedWorkouts : Screen
+    /** Creating ([id] 0) or editing a saved workout (#100). */
+    data class SavedWorkoutEditor(val id: Long) : Screen
     /** The Analysis hub (#90). */
     data object Analysis : Screen
     data object Photos : Screen
@@ -260,6 +264,8 @@ fun AppRoot(nav: Nav) {
                     Screen.Calendar -> CalendarScreen(s, nav)
                     Screen.Body -> BodyScreen(s, nav)
                     Screen.Analysis -> AnalysisScreen(s, nav)
+                    Screen.SavedWorkouts -> SavedWorkoutsScreen(s, nav)
+                    is Screen.SavedWorkoutEditor -> SavedWorkoutEditorScreen(s, nav, top.id)
                     Screen.Photos -> PhotosScreen(s, nav)
                     is Screen.Day -> DayScreen(s, nav, top.date)
                     is Screen.Library -> ExerciseLibraryScreen(s, nav, top.date)

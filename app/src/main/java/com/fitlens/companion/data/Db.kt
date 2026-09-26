@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 6
+        const val VERSION = 7
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -56,6 +56,9 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             CREATE_TIME,
             CREATE_IMPORT_RULE,
             CREATE_GOAL,
+            SavedWorkouts.CREATE_WORKOUT,
+            SavedWorkouts.CREATE_EXERCISE,
+            SavedWorkouts.CREATE_SET,
             "CREATE TABLE photo(id INTEGER PRIMARY KEY AUTOINCREMENT, file TEXT NOT NULL, date TEXT, taken_at TEXT, date_source TEXT NOT NULL, pose TEXT NOT NULL DEFAULT '', note TEXT, original_name TEXT, hash TEXT UNIQUE, added_at INTEGER NOT NULL DEFAULT 0)",
             "CREATE INDEX idx_photo_date ON photo(date)",
             "CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT)"
@@ -125,6 +128,14 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             addColumn(db, "exercise", "weight_step", "REAL")
             addColumn(db, "exercise", "default_graph", "INTEGER NOT NULL DEFAULT -1")
             addColumn(db, "measurement", "edited", "INTEGER NOT NULL DEFAULT 0")
+        }
+        if (oldVersion < 7) {
+            // ---- 1.0.33: saved workouts (#100) -----------------------------------------------------------
+            // Three new tables and nothing else: no existing row or column changes. IF NOT EXISTS lets the step
+            // replay safely after a downgrade (#77) and on restores of older backups.
+            listOf(SavedWorkouts.CREATE_WORKOUT, SavedWorkouts.CREATE_EXERCISE, SavedWorkouts.CREATE_SET).forEach {
+                db.execSQL(it.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
+            }
         }
     }
 
