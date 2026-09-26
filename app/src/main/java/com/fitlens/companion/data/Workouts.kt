@@ -487,12 +487,12 @@ object Workouts {
      *
      * The copies are added to whatever is already on [to] — nothing there is replaced. The originals are left
      * untouched, so no skip rule is needed. PR flags aren't copied: a copy isn't the day the record was set
-     * (personal records are recalculated by #23). Returns how many sets were copied.
+     * (personal records are recalculated by #23). Returns the new sets' ids, so the copy can be undone (#84).
      */
-    suspend fun copyWorkout(from: String, to: String, setIds: Collection<Long>? = null): Int = write { w ->
+    suspend fun copyWorkout(from: String, to: String, setIds: Collection<Long>? = null): List<Long> = write { w ->
         val f = checkDate(from)
         val t = checkDate(to)
-        if (setIds != null && setIds.isEmpty()) return@write 0
+        if (setIds != null && setIds.isEmpty()) return@write emptyList()
         val where = if (setIds == null) "date=?" else "date=? AND id IN (${setIds.joinToString(",")})"
         val copies = ArrayList<ContentValues>()
         w.rawQuery(
@@ -508,8 +508,25 @@ object Workouts {
                 })
             }
         }
-        copies.forEach { w.insertOrThrow("workout_set", null, it) }
-        copies.size
+        copies.map { w.insertOrThrow("workout_set", null, it) }
+    }
+
+    /**
+     * Deletes the sets with these ids in one transaction, used to undo a copy (#84). Imported sets leave a skip rule
+     * like any other delete, and PR marks are replayed since a deleted set may have held one.
+     */
+    suspend fun deleteSets(ids: Collection<Long>): Int = write { w ->
+        if (ids.isEmpty()) return@write 0
+        deleteSetsWhere(w, "id IN (${ids.joinToString(",")})", emptyArray())
+        replayPrs(w)
+        ids.size
+    }
+
+    /** Moves the sets with these ids to [to], keeping them otherwise as they are. Used to undo a move (#84). */
+    suspend fun moveSets(ids: Collection<Long>, to: String): Unit = write { w ->
+        val t = checkDate(to)
+        if (ids.isEmpty()) return@write
+        w.update("workout_set", ContentValues().apply { put("date", t) }, "id IN (${ids.joinToString(",")})", null)
     }
 
     /**

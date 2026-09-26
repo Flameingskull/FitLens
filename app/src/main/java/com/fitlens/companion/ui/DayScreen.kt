@@ -213,11 +213,11 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             nav.push(Screen.SetEntry(date, exId))
         }
     }
-    if (editComment) WorkoutCommentDialog(snap, date) { editComment = false }
-    if (copyPrevious) CopyPreviousWorkoutDialog(snap, date) { copyPrevious = false }
-    if (copyToDay) CopyOrMoveWorkoutDialog(date, move = false) { copyToDay = false }
-    if (moveToDay) CopyOrMoveWorkoutDialog(date, move = true) { moveToDay = false }
-    if (deleteWorkout) DeleteWorkoutDialog(snap, date) { deleteWorkout = false }
+    if (editComment) WorkoutCommentSheet(snap, date) { editComment = false }
+    if (copyPrevious) CopyPreviousWorkoutSheet(snap, date) { copyPrevious = false }
+    if (copyToDay) CopyOrMoveWorkoutSheet(snap, date, move = false) { copyToDay = false }
+    if (moveToDay) CopyOrMoveWorkoutSheet(snap, date, move = true) { moveToDay = false }
+    if (deleteWorkout) DeleteWorkoutSheet(snap, date) { deleteWorkout = false }
 }
 
 /** One day's log: photo strip, body values, the workout summary and its exercise cards, or the empty-day actions. */
