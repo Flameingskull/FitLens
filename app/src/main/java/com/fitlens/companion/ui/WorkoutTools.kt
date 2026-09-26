@@ -103,6 +103,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val e = end
     val liveSecs = if (s != null && e == null && isToday) rememberElapsed(s) else null
     val secs = liveSecs ?: if (s != null && e != null) Dates.secondsBetween(s, e) else 0L
+    val askNotify = rememberNotificationAsk()
 
     fun save(newStart: String?, newEnd: String?) {
         onDismiss()
@@ -139,7 +140,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         if (isToday) {
             when {
                 s == null || e != null -> Button(
-                    onClick = { save(WorkoutClock.now(), null); UiEvents.show("Workout timer started") },
+                    onClick = { askNotify(); save(WorkoutClock.now(), null); UiEvents.show("Workout timer started") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
                 ) { Text("Start timer now") }
                 else -> Button(

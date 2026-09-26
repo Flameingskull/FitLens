@@ -2,9 +2,13 @@
 
 package com.fitlens.companion.ui
 
+import android.Manifest
 import android.content.Context
+import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,9 +47,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The rest timer (#20), shared by every exercise screen so it keeps counting as you move between exercises. It runs
- * while FitLens is open; when it ends it vibrates (a setting) and says so. Running with the screen off needs a
- * foreground service, which is still to come.
+ * The rest timer (#20), shared by every exercise screen so it keeps counting as you move between exercises. While it
+ * runs, [TimerService] keeps it going with the screen off and shows it in a notification. When it ends it alerts
+ * (vibrating, a setting) and says so.
  */
 object RestTimer {
     /** [endAt] is the wall-clock end in ms while running; [pausedLeft] the seconds left while paused. */
@@ -75,6 +79,7 @@ object RestTimer {
         val p = s.pausedLeft
         if (p != null) {
             _state.value = s.copy(pausedLeft = max(0, p + seconds), total = max(s.total, p + seconds))
+            changed()
         } else {
             val end = max(now(), s.endAt + seconds * 1000L)
             schedule(s.copy(endAt = end, total = max(s.total, left(s) + seconds)))
@@ -86,6 +91,7 @@ object RestTimer {
         if (!s.active || s.paused) return
         job?.cancel()
         _state.value = s.copy(endAt = 0L, pausedLeft = left(s))
+        changed()
     }
 
     fun resume() {
@@ -97,6 +103,11 @@ object RestTimer {
     fun stop() {
         job?.cancel()
         _state.value = State()
+        changed()
+    }
+
+    private fun changed() {
+        appContext?.let { TimerService.refresh(it) }
     }
 
     private fun schedule(s: State) {
@@ -106,12 +117,17 @@ object RestTimer {
             delay(max(0L, s.endAt - now()))
             finish()
         }
+        changed()
     }
 
     private fun finish() {
         _state.value = State()
+        changed()
         val ctx = appContext
-        if (ctx != null && Settings.currentPortable().restVibrate) {
+        // With notifications allowed, the "Rest over" alert vibrates and wakes the screen; otherwise vibrate here.
+        if (ctx != null && Settings.currentPortable().restVibrate && TimerService.canNotify(ctx)) {
+            TimerService.alertRestOver(ctx)
+        } else if (ctx != null && Settings.currentPortable().restVibrate) {
             try {
                 ctx.getSystemService(Vibrator::class.java)
                     ?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 400, 200, 400), -1))
@@ -120,6 +136,19 @@ object RestTimer {
             }
         }
         UiEvents.show("Rest over. Time for your next set.")
+    }
+}
+
+/**
+ * Asks once for the notification permission (Android 13+), which the timers' notification needs. Returns a function
+ * to call when a timer is started by hand.
+ */
+@Composable
+fun rememberNotificationAsk(): () -> Unit {
+    val ctx = LocalContext.current
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    return {
+        if (!TimerService.canNotify(ctx) && Build.VERSION.SDK_INT >= 33) ask.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 }
 
@@ -177,6 +206,7 @@ fun RestTimerSheet(onDismiss: () -> Unit) {
     val ctx = LocalContext.current
     val prefs by Settings.portable.collectAsState()
     val (st, left) = rememberRest()
+    val askNotify = rememberNotificationAsk()
     FitSheet(title = "Rest timer", onDismiss = onDismiss, dismissLabel = "Close") {
         Text(
             fmtDuration(if (st.active) left else prefs.restSeconds),
@@ -205,7 +235,7 @@ fun RestTimerSheet(onDismiss: () -> Unit) {
             }
         } else {
             Button(
-                onClick = { RestTimer.start(ctx, prefs.restSeconds) },
+                onClick = { askNotify(); RestTimer.start(ctx, prefs.restSeconds) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
             ) { Text("Start ${fmtDuration(prefs.restSeconds)} rest") }
         }
@@ -220,10 +250,13 @@ fun RestTimerSheet(onDismiss: () -> Unit) {
                 )
             }
         }
-        ToggleRow("Start after saving a set", prefs.restAutoStart) { on -> Settings.updatePortable { it.copy(restAutoStart = on) } }
+        ToggleRow("Start after saving a set", prefs.restAutoStart) { on ->
+            if (on) askNotify()
+            Settings.updatePortable { it.copy(restAutoStart = on) }
+        }
         ToggleRow("Vibrate when rest is over", prefs.restVibrate) { on -> Settings.updatePortable { it.copy(restVibrate = on) } }
         Text(
-            "The timer keeps running as you move between exercises while FitLens is open.",
+            "The timer keeps running as you move between exercises, and with the screen off, where a notification shows it.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
