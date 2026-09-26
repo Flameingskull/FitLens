@@ -4,6 +4,8 @@ package com.fitlens.companion.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -78,6 +81,16 @@ import kotlinx.coroutines.launch
  */
 
 private fun howMany(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
+
+/** A row of single-choice chips that scrolls sideways, for picking one of [options] (id to label). */
+@Composable
+private fun ChoiceChips(options: List<Pair<Long, String>>, selected: Long, onSelect: (Long) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        options.forEach { (id, label) ->
+            FilterChip(selected = id == selected, onClick = { onSelect(id) }, label = { Text(label, maxLines = 1) })
+        }
+    }
+}
 
 /** Every exercise as a picker row, filed under its category. */
 @Composable
@@ -697,36 +710,93 @@ private fun ReviewWorkoutSheet(
 // Saving a logged day
 // ---------------------------------------------------------------------------------------------------------
 
-/** Saves the workout logged on [date] as a saved workout (#100), with these sets or "as last time". */
+/**
+ * Saves the workout logged on [date] as a saved workout (#100), with these sets or "as last time". It can be a new
+ * workout or replace one already saved, and can go straight into a routine as a new day or as an existing day's
+ * workout (#99). Everything can be undone.
+ */
 @Composable
 fun SaveAsWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val weekday = Dates.parse(date)?.dayOfWeek?.getDisplayName(TextStyle.FULL, Locale.getDefault()) ?: "My"
     var name by remember { mutableStateOf("$weekday workout") }
     var fill by remember { mutableStateOf(SavedWorkouts.FILL_PLANNED) }
     val exercises = remember(snap, date) { SavedWorkouts.fromDay(snap, date, SavedWorkouts.FILL_PLANNED) }
+    // 0 saves a new workout; otherwise the saved workout it replaces.
+    var replaceId by remember { mutableStateOf(0L) }
+    // 0 for no routine; otherwise the routine it joins, as a new day (dayId 0) or in place of a day's workout.
+    var routineId by remember { mutableStateOf(0L) }
+    var dayId by remember { mutableStateOf(0L) }
+    var dayName by remember { mutableStateOf(weekday) }
+    val target = snap.routinesById[routineId]
 
     FitSheet(
         title = "Save as a workout",
         onDismiss = onDismiss,
-        confirmLabel = "Save workout",
+        confirmLabel = if (replaceId > 0L) "Replace workout" else "Save workout",
         confirmEnabled = name.isNotBlank() && exercises.isNotEmpty(),
         onConfirm = {
-            val w = SavedWorkout(0L, name, exercises = exercises.map { it.copy(fill = fill) })
+            val old = snap.savedWorkoutsById[replaceId]
+            val w = SavedWorkout(old?.id ?: 0L, name, old?.notes, old?.sortOrder ?: 0, exercises.map { it.copy(fill = fill) })
+            val intoRoutine = target
+            val intoDay = intoRoutine?.days?.firstOrNull { it.id == dayId }
+            val newDayName = dayName
             onDismiss()
             AppScope.scope.launch {
                 try {
                     val id = SavedWorkouts.save(w)
-                    UiEvents.show("Saved ${w.name.trim()}", "Undo") { AppScope.scope.launch { SavedWorkouts.delete(id) } }
+                    val addedDay = if (intoRoutine != null && intoDay == null) Routines.addDay(intoRoutine.id, newDayName, id) else 0L
+                    if (intoDay != null) Routines.setDayWorkout(intoDay.id, id)
+                    val where = when {
+                        intoRoutine == null -> ""
+                        intoDay != null -> " for ${intoDay.name} in ${intoRoutine.name}"
+                        else -> " and added to ${intoRoutine.name}"
+                    }
+                    UiEvents.show("Saved ${w.name.trim()}$where", "Undo") {
+                        AppScope.scope.launch {
+                            if (addedDay > 0L) Routines.deleteDay(addedDay)
+                            if (intoDay != null) Routines.setDayWorkout(intoDay.id, intoDay.workoutId)
+                            if (old != null) SavedWorkouts.save(old) else SavedWorkouts.delete(id)
+                        }
+                    }
                 } catch (e: WorkoutDataException) {
                     UiEvents.show(e.message ?: "That workout couldn't be saved.")
                 }
             }
         }
     ) {
+        if (snap.savedWorkouts.isNotEmpty()) {
+            SegmentedSwitch(
+                options = listOf("New workout", "Replace one"),
+                selected = if (replaceId > 0L) 1 else 0,
+                onSelect = { i ->
+                    replaceId = if (i == 1) snap.savedWorkouts.first().id else 0L
+                    if (i == 1) name = snap.savedWorkouts.first().name
+                }
+            )
+            if (replaceId > 0L) {
+                ChoiceChips(snap.savedWorkouts.map { it.id to it.name }, replaceId) { id ->
+                    replaceId = id
+                    name = snap.savedWorkoutsById[id]?.name ?: name
+                }
+            }
+        }
         OutlinedTextField(
             value = name, onValueChange = { name = it }, label = { Text("Workout name") },
             singleLine = true, modifier = Modifier.fillMaxWidth()
         )
+        if (snap.routines.isNotEmpty()) {
+            Text("ADD TO A ROUTINE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ChoiceChips(listOf(0L to "No") + snap.routines.map { it.id to it.name }, routineId) { routineId = it; dayId = 0L }
+            if (target != null) {
+                ChoiceChips(listOf(0L to "As a new day") + target.days.map { it.id to "Instead of ${it.name}" }, dayId) { dayId = it }
+                if (dayId == 0L) {
+                    OutlinedTextField(
+                        value = dayName, onValueChange = { dayName = it }, label = { Text("Day name") },
+                        singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
         Text("NEXT TIME, EACH EXERCISE USES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         SegmentedSwitch(
             options = listOf("These sets", "As last time"),

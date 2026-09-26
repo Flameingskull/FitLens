@@ -103,14 +103,19 @@ object Routines {
     suspend fun copy(routine: Routine, name: String): Long =
         save(routine.copy(id = 0L, name = name, days = routine.days.map { it.copy(id = 0L) }))
 
-    /** Adds a day using [workoutId] to the end of routine [routineId] (#99). */
-    suspend fun addDay(routineId: Long, name: String, workoutId: Long): Unit = write { w ->
+    /** Adds a day using [workoutId] to the end of routine [routineId] (#99). Returns the new day's id. */
+    suspend fun addDay(routineId: Long, name: String, workoutId: Long): Long = write { w ->
         val next = w.rawQuery("SELECT IFNULL(MAX(sort_order), -1) + 1 FROM routine_day WHERE routine_id=?", arrayOf(routineId.toString()))
             .use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
         w.insertOrThrow("routine_day", null, ContentValues().apply {
             put("routine_id", routineId); put("name", name.trim().ifBlank { "Day ${next + 1}" })
             put("workout_id", workoutId); put("sort_order", next)
         })
+    }
+
+    /** Removes one routine day, used to undo [addDay]. */
+    suspend fun deleteDay(dayId: Long): Unit = write { w ->
+        w.delete("routine_day", "id=?", arrayOf(dayId.toString()))
     }
 
     /** Points routine day [dayId] at [workoutId] (#99). */
