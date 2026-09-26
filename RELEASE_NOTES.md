@@ -1,29 +1,31 @@
 ## Overview
 
-This build redesigns two more screens after FitNotes. The **body tracker** now opens on a Track list showing every
-measurement's latest value at a glance. **Exercise details** gains a Stats tab and a **1RM calculator**.
+This build lets you put a workout in the order you trained it, and adds FitNotes's **workout drawer** to the exercise
+screen, so you can move between exercises without going back to the day log. Exercises can be moved up and down on
+the day log and in the drawer, and sets can be moved within an exercise.
 
-Your data isn't touched by this update.
+This update upgrades FitLens's database to remember the order of your sets. Everything you've logged keeps the order
+it already had, and backups from earlier versions restore the same way.
 
 ## What's new
 
-- **Body tracker: Track, History and Graph.**
-  - **Track** lists every measurement with its latest value and date, and the change since the previous entry. An
-    arrow and a + or − sign show the direction, and the colour shows whether it moved towards your goal. Tap a
-    measurement to log a new value, with that measurement already chosen.
-  - **History** and **Graph** keep the measurement chips and goal. Graph has the chart, trend, stats and full screen.
-  - Reordering your measurements is now a button in the top bar.
-- **Exercise stats.** Open an exercise's records (the list button on the exercise screen) and choose **Stats**. You
-  see its heaviest weight, best estimated 1RM, best set, best workout volume, totals, number of workouts, sets per
-  workout, and first and last logged, each with its date. Choose All, 1Y, 3M or 1M. Timed and distance exercises
-  show their longest set and most distance instead.
-- **1RM calculator.** The **1RM** button on exercise details opens a calculator that starts from your best set.
-  Adjust the weight and reps to get an estimated one-rep max, with your rep maxes from 1RM to 12RM and 100% to 50%
-  of it.
+- **Workout drawer.** The menu button on the exercise screen opens a panel listing the day's exercises in order, each
+  with its category and set count, and the one you're on picked out. The panel also shows the day's totals. From
+  there you can:
+  - tap an exercise to go straight to it;
+  - move exercises up or down;
+  - **Add exercise**;
+  - go **Back to the day log**.
+- **Reorder exercises.** An exercise card's menu on the day log has **Move up** and **Move down**. An exercise's sets
+  move with it.
+- **Reorder sets.** On the exercise screen, tap a set, then use **Move set up** or **Move set down**.
+
+## Improved
+
+- **The order sticks.** The day log, calendar, sharing, the PDF report and Save as a workout all follow the order
+  you set. New sets always go to the end, and a set you delete and bring back with **Undo** returns to its old place.
 
 ## Known limitations
 
-- The calculator uses FitLens's own 1RM formula. Choosing another formula is still to come
-  ([#42](https://github.com/Flameingskull/FitLens/issues/42)).
-- Measurement entries can't be edited yet: delete one and add it again.
-- The plate calculator is still to come.
+- Reordering uses buttons and TalkBack actions. Dragging items into place is still to come.
+- Supersets and circuits aren't available yet ([#18](https://github.com/Flameingskull/FitLens/issues/18)).
