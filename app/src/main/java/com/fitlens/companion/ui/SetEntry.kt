@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -43,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -183,6 +185,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
     }
 
     val haptic = LocalHapticFeedback.current
+    val appContext = LocalContext.current.applicationContext
+    var restSheet by remember { mutableStateOf(false) }
 
     fun save() {
         // Untouched field: keep the stored kilograms exactly as they were, rather than round-tripping the
@@ -202,6 +206,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                 if (chosen == null) {
                     val firstOfDay = Store.snapshot.value?.setsByDate?.get(date).isNullOrEmpty()
                     val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note, setType = setType, rpe = rpe)
+                    // The rest timer can start with every saved set (#20).
+                    Settings.currentPortable().let { p -> if (p.restAutoStart) RestTimer.start(appContext, p.restSeconds) }
                     // The first set of today can start the workout timer (#12), unless a time is already recorded.
                     if (firstOfDay && date == Dates.today() && Settings.currentPortable().workoutTimerAuto &&
                         Store.snapshot.value?.workoutTimes?.get(date).isNullOrEmpty()
@@ -248,6 +254,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             subtitle = relativeDayLabel(date),
             onBack = { nav.pop() },
             actions = listOf(
+                TopBarAction(Icons.Filled.Notifications, "Rest timer") { restSheet = true },
                 TopBarAction(Icons.Filled.List, "Records and goals", enabled = allSets.isNotEmpty()) {
                     nav.push(Screen.ExerciseDetail(exerciseId))
                 }
@@ -259,6 +266,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             selected = pager.currentPage,
             onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
         )
+        RestTimerStrip { restSheet = true }
         HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { tab ->
         when (tab) {
         1 -> ExerciseHistoryPane(snap, nav, exerciseId)
@@ -479,6 +487,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             }
         }
     }
+    if (restSheet) RestTimerSheet { restSheet = false }
     if (editExercise && ex != null) {
         ExerciseEditorSheet(snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editExercise = false })
     }

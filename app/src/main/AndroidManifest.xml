@@ -4,6 +4,9 @@
     <!-- Android 13+: tells the user when an automatic backup can't reach its folder. Asked for when first needed. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- The rest timer vibrates when rest is over (#20). A normal permission: granted at install, never asked. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- Lets the app see and launch FitNotes on Android 11+ -->
     <queries>
         <package android:name="com.github.jamesgay.fitnotes" />
