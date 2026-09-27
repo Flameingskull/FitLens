@@ -1,6 +1,7 @@
 package com.fitlens.companion.data
 
 import java.time.LocalDate
+import kotlin.math.exp
 import kotlin.math.pow
 
 /**
@@ -11,11 +12,38 @@ object Records {
     /** The Records tab lists rep maxes from 1RM to this. */
     const val MAX_REPS = 15
 
-    /** Sets above this many reps are too far from a single to estimate from. */
+    /** Sets above this many reps are too far from a single to estimate from, whatever the formula. */
     const val MAX_ESTIMATE_REPS = 20
 
     /**
-     * How many times heavier a one-rep max is than [reps] reps at a given weight, or 0 when it can't be estimated.
+     * The estimated-1RM formulas the user can choose from (#42), each with the most reps it's valid for: sets above
+     * that aren't estimated. [key] is what's stored in `meta` (`PortableSettings.e1rmFormula`).
+     * - Automatic: FitLens's blend by rep range, see [factor].
+     * - Epley (1985): 1 + r/30. Widely used; a little high at low reps.
+     * - Brzycki (1993): 36 / (37 − r). Accurate to about 10 reps, then climbs steeply.
+     * - Lombardi (1989): r^0.10. A flat curve, conservative at higher reps.
+     * - O'Conner et al. (1989): 1 + 0.025 r. The most conservative of the linear formulas.
+     * - Wathan (1994): 100 / (48.8 + 53.8 e^(−0.075 r)). Fits well up to about 15 reps.
+     */
+    enum class Formula(val key: String, val label: String, val maxReps: Int) {
+        AUTO("auto", "Automatic (recommended)", MAX_ESTIMATE_REPS),
+        EPLEY("epley", "Epley", 12),
+        BRZYCKI("brzycki", "Brzycki", 10),
+        LOMBARDI("lombardi", "Lombardi", 12),
+        OCONNER("oconner", "O'Conner", 12),
+        WATHAN("wathan", "Wathan", 15);
+
+        companion object {
+            fun of(key: String?): Formula = entries.firstOrNull { it.key == key } ?: AUTO
+        }
+    }
+
+    /** The formula chosen in Settings → Personal records (#42). */
+    fun chosen(): Formula = Formula.of(Settings.currentPortable().e1rmFormula)
+
+    /**
+     * How many times heavier a one-rep max is than [reps] reps at a given weight, or 0 when it can't be estimated,
+     * using [formula] (the user's choice by default, #42). Automatic works like this:
      * - 1 rep: the weight itself.
      * - 2 to 10 reps: the mean of Epley (1 + r/30) and Brzycki (36 / (37 - r)). The two agree closely here, and the
      *   mean evens out Epley's slight overestimate at low reps.
@@ -24,21 +52,31 @@ object Records {
      *   doesn't, and starting from the 10-rep value keeps the estimate continuous and rising with reps.
      * - More than 20 reps: not estimated.
      */
-    fun factor(reps: Int): Double = when {
-        reps <= 0 || reps > MAX_ESTIMATE_REPS -> 0.0
+    fun factor(reps: Int, formula: Formula = chosen()): Double = when {
+        reps <= 0 || reps > formula.maxReps -> 0.0
         reps == 1 -> 1.0
-        reps <= 10 -> (1 + reps / 30.0 + 36.0 / (37 - reps)) / 2
-        else -> factor(10) * (reps / 10.0).pow(0.1)
+        else -> when (formula) {
+            Formula.AUTO -> {
+                if (reps <= 10) (1 + reps / 30.0 + 36.0 / (37 - reps)) / 2
+                else factor(10, Formula.AUTO) * (reps / 10.0).pow(0.1)
+            }
+            Formula.EPLEY -> 1 + reps / 30.0
+            Formula.BRZYCKI -> 36.0 / (37 - reps)
+            Formula.LOMBARDI -> reps.toDouble().pow(0.1)
+            Formula.OCONNER -> 1 + 0.025 * reps
+            Formula.WATHAN -> 100.0 / (48.8 + 53.8 * exp(-0.075 * reps))
+        }
     }
 
     /** Estimated one-rep max in kg for [weightKg] × [reps], or 0 when it can't be estimated. */
-    fun oneRepMax(weightKg: Double, reps: Int): Double = if (weightKg <= 0) 0.0 else weightKg * factor(reps)
+    fun oneRepMax(weightKg: Double, reps: Int, formula: Formula = chosen()): Double =
+        if (weightKg <= 0) 0.0 else weightKg * factor(reps, formula)
 
     fun oneRepMax(s: SetRow): Double = oneRepMax(s.weightKg, s.reps)
 
     /** The weight in kg a lifter with [oneRepMaxKg] should manage for [reps] reps, or 0 when it can't be estimated. */
-    fun weightFor(oneRepMaxKg: Double, reps: Int): Double {
-        val f = factor(reps)
+    fun weightFor(oneRepMaxKg: Double, reps: Int, formula: Formula = chosen()): Double {
+        val f = factor(reps, formula)
         return if (oneRepMaxKg <= 0 || f <= 0) 0.0 else oneRepMaxKg / f
     }
 

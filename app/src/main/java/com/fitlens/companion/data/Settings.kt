@@ -80,6 +80,8 @@ data class PortableSettings(
     val backupTimestamp: Boolean = true,
     /** Count warm-up sets in records and statistics (#43). */
     val warmupsCount: Boolean = false,
+    /** The estimated-1RM formula's key (`Records.Formula`), used everywhere an estimate appears (#42). */
+    val e1rmFormula: String = "auto",
     /** Show the W, D and F badges on sets (#43). */
     val showSetType: Boolean = true,
     /** Effort per set (#44): [Effort.OFF], [Effort.RPE] or [Effort.RIR]. */
@@ -239,6 +241,7 @@ object Settings {
         db.setMeta(P_AUTO_SELECT_NEXT, if (s.autoSelectNext) "1" else null)
         db.setMeta(P_BACKUP_TIMESTAMP, if (s.backupTimestamp) null else "0")
         db.setMeta(P_WARMUPS_COUNT, if (s.warmupsCount) "1" else null)
+        db.setMeta(P_E1RM_FORMULA, s.e1rmFormula.takeIf { it != "auto" })
         db.setMeta(P_SHOW_SET_TYPE, if (s.showSetType) null else "0")
         db.setMeta(P_EFFORT_MODE, s.effortMode.takeIf { it != Effort.OFF })
         db.setMeta(P_WEEK_START, s.weekStart.takeIf { it != 1 }?.toString())
@@ -293,6 +296,7 @@ object Settings {
     private const val P_AUTO_SELECT_NEXT = "auto_select_next"
     private const val P_BACKUP_TIMESTAMP = "backup_timestamp"
     private const val P_WARMUPS_COUNT = "warmups_count"
+    private const val P_E1RM_FORMULA = "e1rm_formula"
     private const val P_SHOW_SET_TYPE = "show_set_type"
     private const val P_EFFORT_MODE = "effort_mode"
     private const val P_WEEK_START = "week_start"
@@ -366,6 +370,8 @@ object Settings {
         autoSelectNext = bool(get(P_AUTO_SELECT_NEXT)),
         backupTimestamp = get(P_BACKUP_TIMESTAMP) != "0",
         warmupsCount = bool(get(P_WARMUPS_COUNT)),
+        // An unknown formula (from a later build's backup) falls back to Automatic.
+        e1rmFormula = Records.Formula.of(get(P_E1RM_FORMULA)).key,
         showSetType = get(P_SHOW_SET_TYPE) != "0",
         effortMode = get(P_EFFORT_MODE)?.takeIf { it == Effort.RPE || it == Effort.RIR } ?: Effort.OFF,
         weekStart = get(P_WEEK_START)?.toIntOrNull()?.takeIf { it in 1..7 } ?: 1,

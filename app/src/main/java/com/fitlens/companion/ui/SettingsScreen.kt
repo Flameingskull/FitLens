@@ -3,6 +3,15 @@ package com.fitlens.companion.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.Records
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
@@ -280,6 +289,7 @@ private fun RecordsPage(snap: Snapshot) {
         Settings.updatePortable { it.copy(celebratePrs = on) }
     }
     PageHint("When a set you save is a new PR, FitLens gives a short vibration and names the record.")
+    FormulaChoice(snap, Records.Formula.of(prefs.e1rmFormula))
     SectionTitle("PR marks")
     PageHint(
         "New sets are marked as PRs when you save them. Recalculate rebuilds the PR marks on every " +
@@ -305,5 +315,48 @@ private fun RecordsPage(snap: Snapshot) {
             },
             destructive = false
         )
+    }
+}
+
+/**
+ * Settings → Personal records → Estimated 1RM (#42): one row per formula with a worked example from the user's best
+ * recent set, so the difference shows before choosing. Stored sets never change; estimates follow at once.
+ */
+@Composable
+private fun FormulaChoice(snap: Snapshot, chosen: Records.Formula) {
+    // The best recent set to show the formulas on: the last 90 days, 2 to 10 reps, highest automatic estimate.
+    val example = remember(snap) {
+        val from = java.time.LocalDate.now().minusDays(90).format(Dates.ISO)
+        val recent = snap.statSets.filter { it.weightKg > 0 && it.reps in 2..10 }
+        (recent.filter { it.date.take(10) >= from }.ifEmpty { recent })
+            .maxByOrNull { Records.oneRepMax(it.weightKg, it.reps, Records.Formula.AUTO) }
+    }
+    SectionTitle("Estimated 1RM")
+    PageHint(
+        "Used for estimated 1RM, rep maxes, graphs, records, goals, the calculators and the PDF report. Automatic " +
+            "picks the most accurate formula for each rep range. Your logged sets never change."
+    )
+    Records.Formula.entries.forEach { f ->
+        val line = if (example == null) "Up to ${f.maxReps} reps" else {
+            val est = Records.oneRepMax(example.weightKg, example.reps, f)
+            "${snap.fmtWeight(example.weightKg)} ${snap.weightUnit} × ${example.reps} → " +
+                (if (est > 0) "${snap.fmtWeight(est)} ${snap.weightUnit}" else "not estimated") + "  ·  up to ${f.maxReps} reps"
+        }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = Spacing.row)
+                .selectable(selected = f == chosen, role = Role.RadioButton) {
+                    Settings.updatePortable { it.copy(e1rmFormula = f.key) }
+                },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(selected = f == chosen, onClick = null)
+            Spacer(Modifier.width(Spacing.md))
+            Column(Modifier.weight(1f)) {
+                Text(f.label, style = MaterialTheme.typography.bodyLarge)
+                Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
