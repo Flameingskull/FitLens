@@ -474,8 +474,8 @@ private fun ExerciseOnDay(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
             MenuAction("History and graph") { nav.push(Screen.SetEntry(date, exId, page = 1)) },
             MenuAction("Records and goals") { nav.push(Screen.ExerciseDetail(exId)) },
-            MenuAction("Move up", enabled = dayExercises(snap, date).indexOf(exId) > 0) { moveExercise(snap, date, exId, -1) },
-            MenuAction("Move down", enabled = dayExercises(snap, date).let { it.indexOf(exId) in 0 until it.lastIndex }) {
+            MenuAction("Move up", enabled = displayOrder(snap, date).indexOf(exId) > 0) { moveExercise(snap, date, exId, -1) },
+            MenuAction("Move down", enabled = displayOrder(snap, date).let { it.indexOf(exId) in 0 until it.lastIndex }) {
                 moveExercise(snap, date, exId, 1)
             },
             MenuAction("Superset with…", enabled = dayExercises(snap, date).size > 1) { grouping = true },

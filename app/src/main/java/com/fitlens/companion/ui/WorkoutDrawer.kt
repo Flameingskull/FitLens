@@ -2,6 +2,7 @@ package com.fitlens.companion.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,21 +11,27 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -36,6 +43,7 @@ import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /** The day's exercises in workout order (by their first set's position, #70). */
@@ -72,18 +80,45 @@ fun supersetMembers(snap: Snapshot, date: String, group: Int): List<Long> =
     if (group == 0) emptyList() else displayOrder(snap, date).filter { supersetOf(snap, date, it) == group }
 
 /**
- * Moves exercise [exId] on [date] one place up ([by] −1) or down (+1), carrying its sets as a block (#70).
- * Stores the whole day's new order in one write.
+ * [order] (the day's exercises as shown) with the one at [at] moved one place up ([by] −1) or down (+1) (#85). Within
+ * a superset it swaps with the neighbouring member. Otherwise its block (its whole superset, or just itself) passes
+ * the neighbouring block, so a move never splits a superset or drops an exercise into one.
  */
-fun moveExercise(snap: Snapshot, date: String, exId: Long, by: Int) {
-    val order = dayExercises(snap, date).toMutableList()
-    val at = order.indexOf(exId)
+fun moveInOrder(order: List<Long>, groupOf: (Long) -> Int, at: Int, by: Int): List<Long> {
     val to = at + by
-    if (at < 0 || to !in order.indices) return
-    order.add(to, order.removeAt(at))
+    if (at !in order.indices || to !in order.indices) return order
+    val g = groupOf(order[at])
+    if (g > 0 && groupOf(order[to]) == g) {
+        return order.toMutableList().also { it[at] = order[to]; it[to] = order[at] }
+    }
+    fun blockAt(i: Int): IntRange {
+        val bg = groupOf(order[i])
+        if (bg == 0) return i..i
+        var start = i
+        while (start > 0 && groupOf(order[start - 1]) == bg) start--
+        var end = i
+        while (end < order.lastIndex && groupOf(order[end + 1]) == bg) end++
+        return start..end
+    }
+    val mine = blockAt(at)
+    val other = blockAt(to)
+    val first = if (by < 0) other else mine
+    val second = if (by < 0) mine else other
+    return order.subList(0, first.first) + order.slice(second) + order.slice(first) + order.subList(second.last + 1, order.size)
+}
+
+/** Stores [order] (exercises on [date]) as the day's order in one write, each exercise's sets as a block (#70). */
+fun saveExerciseOrder(snap: Snapshot, date: String, order: List<Long>): Job {
     val sets = snap.setsByDate[date].orEmpty()
     val ids = order.flatMap { ex -> sets.filter { it.exerciseId == ex }.map { it.id } }
-    AppScope.scope.launch { Workouts.reorderDay(ids) }
+    return AppScope.scope.launch { Workouts.reorderDay(ids) }
+}
+
+/** Moves exercise [exId] on [date] one place up ([by] −1) or down (+1) as shown, keeping supersets together. */
+fun moveExercise(snap: Snapshot, date: String, exId: Long, by: Int) {
+    val order = displayOrder(snap, date)
+    val moved = moveInOrder(order, { supersetOf(snap, date, it) }, order.indexOf(exId), by)
+    if (moved != order) saveExerciseOrder(snap, date, moved)
 }
 
 /**
@@ -107,8 +142,8 @@ fun moveSet(snap: Snapshot, date: String, setId: Long, by: Int): Boolean {
 
 /**
  * The workout drawer (#85, #17), FitNotes's training navigation panel: the day's summary and every exercise in
- * workout order with its set count, the current one picked out. Tap an exercise to jump to it, move it up or down,
- * add another, or go back to the day log.
+ * workout order with its set count, the current one picked out. Tap an exercise to jump to it, drag its handle to
+ * reorder (TalkBack: Move up / Move down), add another, or go back to the day log.
  */
 @Composable
 fun WorkoutDrawer(
@@ -120,7 +155,22 @@ fun WorkoutDrawer(
     onDayLog: () -> Unit
 ) {
     val sets = snap.setsByDate[date].orEmpty()
-    val logged = displayOrder(snap, date)
+    val shown = displayOrder(snap, date)
+    // While a handle is dragged the rows follow this local order; it's saved once, when the finger lifts (#85).
+    var dragOrder by remember { mutableStateOf<List<Long>?>(null) }
+    LaunchedEffect(shown) { dragOrder = null }
+    val logged = dragOrder ?: shown
+    val groups = remember(sets) { sets.groupBy { it.exerciseId }.mapValues { e -> e.value.maxOf { it.superset } } }
+    val groupOf: (Long) -> Int = { groups[it] ?: 0 }
+    fun dragStep(exId: Long, by: Int) {
+        val cur = dragOrder ?: shown
+        dragOrder = moveInOrder(cur, groupOf, cur.indexOf(exId), by)
+    }
+    fun dragEnd() {
+        val final = dragOrder ?: return
+        if (final == shown) dragOrder = null
+        else saveExerciseOrder(snap, date, final).invokeOnCompletion { dragOrder = null }
+    }
     val letters = supersetLetters(snap, date)
     // The exercise being logged is listed even before its first set.
     val order = if (current in logged) logged else logged + current
@@ -179,12 +229,6 @@ fun WorkoutDrawer(
                         )
                     }
                     if (hasSets) {
-                        IconButton(onClick = { moveExercise(snap, date, exId, -1) }, enabled = canUp) {
-                            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move $name up")
-                        }
-                        IconButton(onClick = { moveExercise(snap, date, exId, 1) }, enabled = canDown) {
-                            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move $name down")
-                        }
                         // Supersets from the drawer (#18): join the next exercise, or leave the group.
                         val nextEx = logged.getOrNull(logged.indexOf(exId) + 1)
                         com.fitlens.companion.ui.design.OverflowMenu(
@@ -198,6 +242,7 @@ fun WorkoutDrawer(
                             ),
                             description = "Superset options for $name"
                         )
+                        if (logged.size > 1) DragHandle(name, onStep = { by -> dragStep(exId, by) }, onEnd = { dragEnd() })
                     }
                 }
             }
@@ -211,6 +256,43 @@ fun WorkoutDrawer(
         TextButton(onClick = onDayLog, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(horizontal = Spacing.sm)) {
             Text("Back to the day log", modifier = Modifier.weight(1f))
         }
+    }
+}
+
+/**
+ * A 48dp drag handle (#85): dragging it by a row's height calls [onStep] with −1 (up) or +1 (down), and [onEnd] when
+ * the finger lifts or the drag is cancelled. TalkBack users move rows with the row's custom actions instead.
+ */
+@Composable
+private fun DragHandle(name: String, onStep: (Int) -> Unit, onEnd: () -> Unit) {
+    val step by rememberUpdatedState(onStep)
+    val end by rememberUpdatedState(onEnd)
+    Box(
+        Modifier
+            .size(Spacing.touch)
+            .semantics { contentDescription = "Drag to reorder $name" }
+            .pointerInput(Unit) {
+                var total = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = { total = 0f; end() },
+                    onDragCancel = { total = 0f; end() }
+                ) { change, dragAmount ->
+                    change.consume()
+                    total += dragAmount
+                    val stepPx = Spacing.row.toPx()
+                    if (total <= -stepPx) {
+                        step(-1)
+                        total += stepPx
+                    } else if (total >= stepPx) {
+                        step(1)
+                        total -= stepPx
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Filled.Menu, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
