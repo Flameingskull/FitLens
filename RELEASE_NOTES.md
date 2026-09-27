@@ -1,33 +1,39 @@
 ## Overview
 
-This build adds FitNotes's **mark sets complete** mode. Turn it on to tick off each set as you do it, see how far
-through each exercise and the workout you are, and be offered the next exercise when one is finished. It also rounds
-off supersets: you can now build them from the workout drawer, and they come along when you copy or move a workout.
+This build tidies up your exercise library and finishes the workout drawer. Duplicate exercises, such as
+"Bench Press" and "Barbell Bench Press", can now be merged into one, with their full history. Exercises in the
+workout drawer can be dragged into a new order. The Analysis breakdown chart can also open full screen, like every
+other graph in FitLens.
 
-This update upgrades FitLens's database to remember which sets you've ticked. Nothing you've logged changes, and
-backups from earlier versions restore the same way.
+There's no database change in this update, and nothing you've logged changes when you install it.
 
 ## What's new
 
-- **Mark sets complete.** Turn on **Settings → Workout & logging → Tick sets off as you do them**. Then:
-  - every set on the day log and the exercise screen has a tick box;
-  - each exercise card shows how many of its sets are done, and the day's summary shows the whole workout's progress;
-  - ticking an exercise's last set offers **Next** in the message that follows, straight to the next exercise in the
-    workout (supersets kept together), or tells you the workout is done;
-  - the workout drawer shows each exercise's progress.
-
-  It works well with saved workouts: add the whole workout, then tick each set off as you go.
-- **Supersets from the drawer.** Each exercise in the workout drawer has a menu with **Superset with the next
-  exercise** and **Remove from superset**.
+- **Merge duplicate exercises.** In the exercise library, open an exercise's menu and choose **Merge into…**, then
+  pick the exercise to keep. Everything moves across: every set with its date, place, superset and tick, its goals,
+  and its places in saved workouts and routines. The kept exercise keeps its name, category and settings. It takes
+  the other exercise's notes and favourite star only if it has none of its own.
+  - Personal records are worked out again across the joined history.
+  - Later FitNotes imports respect the merge: the old name's history is added to the kept exercise instead of
+    coming back as a duplicate, and sets you deleted stay deleted.
+  - A safety copy is taken first, so you can undo a merge from **Settings → Backups** for 7 days.
+- **Drag to reorder in the workout drawer.** Each exercise in the drawer on the exercise screen has a drag handle.
+  The list follows your finger, and the new order is saved when you let go.
+- **Full-screen breakdown chart.** **Analysis → Breakdown** has a full-screen button (or double-tap the chart). Full
+  screen gives the chart more room. Turn the phone sideways and the legend sits beside the chart.
 
 ## Improved
 
-- **Supersets travel with a workout.** Copying a workout to another day brings its supersets. Moving one keeps its
-  groups without mixing them into the target day's.
-- **Undo puts a set back exactly.** A deleted set restored with Undo keeps its tick, its place and its superset.
-- **The README** has been brought up to date with everything since 1.0.36.
+- **Moving exercises keeps supersets together.** Moving an exercise up or down, whether you drag it in the drawer or
+  use Move up and Move down on the day log, swaps it with the neighbouring exercise within its superset. Outside a
+  superset, it moves past the neighbouring superset as a whole, so a superset is never split.
+- **Workouts and routines are complete.** Saved workouts, the workout editor, routines and their days, and adding a
+  workout to a day, all in the new design.
 
 ## Known limitations
 
-- Ticks can't be added to sets in a saved workout before it's logged. Add the workout to a day first.
-- Exercises and sets are reordered with buttons rather than by dragging.
+- An exercise can only be merged into another of the same type (weight and reps, distance and time, or time), so
+  weights never mix with distances or times.
+- The workout drawer opens from the menu button on the exercise screen. It doesn't open with a swipe from the left
+  edge, because Android uses that swipe as its back gesture.
+- Full-screen graphs zoom and pan along the timeline only. Zooming the vertical scale will come in a later build.

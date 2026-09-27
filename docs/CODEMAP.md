@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.41.
+Last updated: 1.0.42.
 
 ## How data flows
 
@@ -42,7 +42,7 @@ Last updated: 1.0.41.
 | `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set/`deleteMeta`, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
 | `Models.kt` | Row types (`Category`, `Exercise`, `SetRow` with `setType` and `rpe`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes`, `SetTypes` (W/D/F badges), `Effort` (RPE/RIR), `Poses`, `Dates` |
 | `Store.kt` | `Snapshot` and `Store` (load and reload, photo and measurement writes, custom metrics) |
-| `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts (`copyWorkout` returns the new ids), comments, times, undo helpers (`addSets`, `deleteSets`, `moveSets`), `reorderCategories`, `logPlanned` (a saved workout's sets, PR replay), `swapExercise` / `setExerciseOf`, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction) |
+| `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts (`copyWorkout` returns the new ids), comments, times, undo helpers (`addSets`, `deleteSets`, `moveSets`), `reorderCategories`, `logPlanned` (a saved workout's sets, PR replay), `swapExercise` / `setExerciseOf`, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction), `mergeExercises` (#57: moves sets, goals and saved-workout entries, re-points import rules and re-keys set skips, PR replay) |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
 | `Backups.kt` | `.fitlens` export and restore, `exportForShare` (share sheet), `manualFileName` (timestamp setting), safety copy with Undo, automatic backups to a folder |
@@ -76,11 +76,11 @@ Last updated: 1.0.41.
 | `SavedWorkoutsScreen.kt` | Saved workouts UI (#100): `SavedWorkoutsScreen`, `SavedWorkoutEditorScreen` (drag order, swap, per-exercise sets sheet), `AddWorkoutSheet` (saved or built on the spot, review, Undo, `replace`), `SaveAsWorkoutSheet`, `exercisePickerItems` for `SearchablePicker` |
 | `RoutinesScreen.kt` | `RoutinesScreen` and `RoutineEditorScreen` (days with drag order, day sheet choosing a saved workout, copy a day to another routine). The switcher lives in the library title (`FitTopBar(titleMenu = …)`); starting a day is `StartRoutineDaySheet` in `SavedWorkoutsScreen.kt` |
 | `WorkoutTools.kt` | Day log tools: `WorkoutClock` (a running timer is a `workout_time` start with no finish; `running`, `stop`), `rememberElapsed`, `WorkoutTimeSheet` (#12, time pickers), `ShareWorkoutSheet` (#11, text) |
-| `WorkoutDrawer.kt` | The workout drawer (#85), ordering helpers (#70: `dayExercises`, `moveExercise`, `moveSet`) and supersets (#18: `displayOrder`, `supersetOf`, `supersetLetters`, `supersetMembers`; writes are `Workouts.groupExercises` / `ungroupExercise`) |
+| `WorkoutDrawer.kt` | The workout drawer (#85), ordering helpers (#70: `dayExercises`, `moveExercise`, `moveSet`; #85: `moveInOrder` keeps supersets together, `saveExerciseOrder`, the drawer's drag handle saves once on release) and supersets (#18: `displayOrder`, `supersetOf`, `supersetLetters`, `supersetMembers`; writes are `Workouts.groupExercises` / `ungroupExercise`) |
 | `RestTimer.kt` | The rest timer (#20): `RestTimer` singleton (runs in `AppScope`), `rememberRest`, `RestTimerStrip`, `RestTimerSheet`, `rememberNotificationAsk` |
 | `TimerService.kt` | Foreground service (type specialUse) with one ongoing notification for the rest and workout timers (system chronometer, action buttons), the "Rest over" alert; `refresh` on every timer change, `watch` (from `App`) follows the workout timer |
 | `WorkoutEditing.kt` | Workout sheets (#84): `WorkoutCommentSheet`, `DeleteWorkoutSheet`, `CopyOrMoveWorkoutSheet`, `CopyPreviousWorkoutSheet`, each with Undo |
-| `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises, search, long-press multi-select; `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`. `Screen.Library(date)` is also the exercise picker |
+| `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises, search, long-press multi-select; `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`, `MergeExerciseFlow` (#57: pick, confirm, safety copy, merge). `Screen.Library(date)` is also the exercise picker |
 | `ExerciseStats.kt` | `ExerciseStatsTab` (#24: tiles by period) and `OneRepMaxSheet` (#28: rep maxes and percentages) |
 | `TrainingScreen.kt` | `ExerciseDetailScreen` (Records, Stats and Goals tabs, 1RM button), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` used by the exercise screen, `graphLabels`, `e1rm` |
 | `AnalysisScreen.kt` | `AnalysisScreen` and `AnalysisHub` (#90): Workouts tab (#51, bar totals), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
@@ -88,7 +88,7 @@ Last updated: 1.0.41.
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
 | `BodyScreen.kt` | Body tracker (#88): Track (latest value, change, goal; tap logs via `AddMeasurementDialog(initialName)`), History and Graph tabs. Also `RANGES` and `inRange` for charts |
 | `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, gaps, markers), `ChartSelection`, `ChartViewport`, `trendOf`, `rememberChartData` (off-main-thread data) |
-| `ChartViews.kt` | `BarChart` (trend, partial last bar), `DonutChart` (percentages via `Analysis.percents`), `FullScreenChart` (pinch, pan, reset, TalkBack actions, a `controls` slot), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
+| `ChartViews.kt` | `BarChart` (trend, partial last bar), `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch, pan, reset, TalkBack actions, a `controls` slot), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
 | `CalendarScreen.kt` | FitNotes-style calendar (#87): month grid with swipe, category dots, selected day below with Open day (`nav.home(date)`) |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |

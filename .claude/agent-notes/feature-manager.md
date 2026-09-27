@@ -58,3 +58,8 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   `restAutoStart`, `restVibrate` are portable (`meta`). The manifest now has VIBRATE.
 - 2026-09-26: 1.0.36: timers survive the screen off via `ui/TimerService.kt` (FGS type specialUse; never start it from
   the background, `refresh` updates a running instance instead). README refreshed at 1.0.36, next due 1.0.41.
+- Anything that re-points data from one exercise id to another (merge, #57) must also re-point `import_rule`
+  exercise links and re-key `set` skip rules (their key starts with the exercise id), or the next FitNotes import
+  brings back duplicates or deleted sets. `Workouts.mergeExercises` is the reference.
+- A left-edge swipe to open a drawer conflicts with Android's gesture-navigation back swipe. Open drawers from a
+  button instead (1.0.42, #17).
