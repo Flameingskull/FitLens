@@ -23,8 +23,8 @@ custom metrics.
   exercise, set and workout records whether it came from FitNotes or was created in FitLens, so the two histories sit
   side by side without colliding.
 - **In progress:** the rest of the FitNotes-style redesign in the FitLens look
-  ([#79](https://github.com/Flameingskull/FitLens/issues/79)): the body tracker, the analysis hub, the settings
-  screens and the photo screens. After those come supersets, the rest of FitNotes parity
+  ([#79](https://github.com/Flameingskull/FitLens/issues/79)): the analysis hub, the settings screens and the photo
+  screens. After those come the rest of FitNotes parity
   ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 - **FitNotes stays supported** as an import source. You can import during first-run setup or at any time afterwards.
@@ -77,6 +77,11 @@ custom metrics.
 - **Timers.** **⋮ → Workout time** sets a workout's start and finish, or runs a workout timer (optionally started by
   the first set). The exercise screen has a **rest timer** with −15 s / +15 s, pause, a length you choose, auto-start
   after each set and vibration. Both keep running with the screen off, in a notification with its own buttons.
+- **Reorder, supersets and ticking sets off.** Move exercises and sets up or down within a workout. Group
+  exercises into **supersets**: they sit together with a gold bar, and saving a set moves you round-robin to the next
+  exercise in the group, with the rest timer starting after each round. Saved workouts keep their supersets. With
+  **Settings → Workout & logging → Tick sets off as you do them**, every set gets a tick box, each exercise and the
+  workout show their progress, and finishing an exercise offers the next one.
 - **Goals.** Each exercise has a **Goals** tab for targets such as max weight, estimated 1RM, reps, or volume in a
   set or workout, with progress bars and an optional goal line on its graph. Body measurements can have a goal too:
   increase, decrease or a specific value.
@@ -126,14 +131,17 @@ custom metrics.
   - **Calendar:** as in FitNotes, a month grid (swipe between months) with category dots, photo and measurement
     dots, today in gold and the selected day in purple. The selected day's workout shows below the grid; **Open day**
     (or a second tap) opens its log.
-  - **Body tracker:** for each measurement, a graph (1M/3M/6M/1Y/All), stats (start, latest, change, min, max, weekly
-    rate) and a history table coloured by whether each change moved you towards your goal. Days with photos are
-    marked on the graph, and tapping a point shows that day's photo. Measurements can be put in your own order.
+  - **Body tracker:** **Track** lists every measurement with its latest value, the change since the entry before
+    (coloured by your goal) and its goal; tap one to log a new value. **History** is a table for each measurement, and
+    **Graph** has the graph (1M/3M/6M/1Y/All) and stats (start, latest, change, min, max, weekly rate). Days with
+    photos are marked on the graph. Measurements can be put in your own order.
   - **Exercise library:** as in FitNotes, your categories first, then a category's exercises, with a search across
     all of them. Tap an exercise to log it, or long-press to choose several and go through them in turn.
   - **Exercise screen:** **Track** (log sets), **History** (every day you've done it) and **Graph** (est. 1RM, max
-    weight, volume, reps, time) tabs. Its top bar opens goals and rep-max records from 1RM to 15RM, actual and
-    estimated, for the last workout, week, month, year or all time. A heavier or equal lift for more reps counts as the record for every
+    weight, volume, reps, time) tabs. Its menu button opens the **workout drawer**: the day's exercises in order,
+    to jump between, reorder, group into supersets or add to. Its top bar also has the rest timer, and opens
+    **Records**, **Stats** (bests, totals and first and last logged, by period), **Goals** and a **1RM calculator**.
+    Rep-max records run from 1RM to 15RM, actual and estimated, for the last workout, week, month, year or all time. A heavier or equal lift for more reps counts as the record for every
     lower rep count too. Estimated maxes blend the Epley and Brzycki formulas up to 10 reps and use a gentler curve
     for 11 to 20 reps, so high-rep sets don't overstate your strength. Records can also cover a date range you choose.
   - **Analysis:** **Workouts** shows your workouts, volume, sets, reps or duration per week, month or year, for all
@@ -234,9 +242,8 @@ The first time FitLens opens, a short guided setup walks through the steps below
 
 ## Limits
 
-- **Sets and exercises can't be reordered** within a workout yet
-  ([#70](https://github.com/Flameingskull/FitLens/issues/70)), and supersets and circuits are still to come
-  ([#18](https://github.com/Flameingskull/FitLens/issues/18)). Routines from FitNotes backups aren't imported.
+- Exercises and sets are reordered with buttons (and TalkBack actions), not by dragging. Routines from FitNotes
+  backups aren't imported.
 - Full-screen graphs zoom along the time axis only; the vertical scale fits the stretch in view
   ([#96](https://github.com/Flameingskull/FitLens/issues/96)).
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So
