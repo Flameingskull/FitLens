@@ -38,6 +38,10 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.SetRow
+import kotlinx.coroutines.launch
+import com.fitlens.companion.data.WorkoutDataException
+import com.fitlens.companion.data.Workouts
+import androidx.compose.foundation.layout.heightIn
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
@@ -251,6 +255,12 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                         Text(Dates.long(d), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                         if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
                     }
+                    // The day's totals (#22): volume and reps for strength, distance and time for cardio.
+                    Text(
+                        dayTotals(snap, l).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     l.forEachIndexed { i, s ->
                         val marks = setMarks(s)
                         Row(Modifier.padding(start = 8.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -265,9 +275,44 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                         }
                         if (!s.comment.isNullOrBlank()) Text("“${s.comment}”", Modifier.padding(start = 32.dp), style = MaterialTheme.typography.bodySmall)
                     }
+                    // Repeat this day's sets today (#22), with Undo.
+                    val today = Dates.today()
+                    if (d.take(10) != today) {
+                        TextButton(onClick = { copyToToday(d, l.map { it.id }) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                            Text("Copy to today")
+                        }
+                    }
                 }
                 HorizontalDivider()
             }
+        }
+    }
+}
+
+/** One day's totals for an exercise's history: sets, then reps and volume, or distance and time (#22). */
+private fun dayTotals(snap: Snapshot, sets: List<SetRow>): String {
+    val parts = mutableListOf("${sets.size} set${if (sets.size == 1) "" else "s"}")
+    val reps = sets.sumOf { it.reps }
+    val volume = sets.sumOf { it.weightKg * it.reps }
+    val distance = sets.sumOf { it.distance }
+    val time = sets.sumOf { it.durationSec }
+    if (reps > 0) parts += "$reps reps"
+    if (volume > 0) parts += "${fmtNum(snap.weight(volume), 0)} ${snap.weightUnit} volume"
+    if (distance > 0) parts += "${fmtNum(distance)} distance"
+    if (time > 0) parts += fmtDuration(time)
+    return parts.joinToString("  ·  ")
+}
+
+/** Copies [ids] (one day's sets of an exercise) from [date] to today, and offers Undo (#22). */
+private fun copyToToday(date: String, ids: List<Long>) {
+    AppScope.scope.launch {
+        try {
+            val copies = Workouts.copyWorkout(date, Dates.today(), ids)
+            UiEvents.show("Copied ${copies.size} set${if (copies.size == 1) "" else "s"} to today", "Undo") {
+                AppScope.scope.launch { Workouts.deleteSets(copies) }
+            }
+        } catch (e: WorkoutDataException) {
+            UiEvents.show(e.message ?: "Couldn't copy those sets.")
         }
     }
 }
