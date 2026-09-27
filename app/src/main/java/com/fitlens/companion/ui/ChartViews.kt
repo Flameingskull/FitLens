@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -220,7 +222,8 @@ fun DonutChart(
     modifier: Modifier = Modifier,
     diameter: Dp = 220.dp,
     valueFormat: (Double) -> String = { fmtNum(it, 0) },
-    onExpand: (() -> Unit)? = null
+    onExpand: (() -> Unit)? = null,
+    legend: Boolean = true
 ) {
     val total = slices.sumOf { it.value.coerceAtLeast(0.0) }
     if (slices.isEmpty() || total <= 0) {
@@ -294,7 +297,25 @@ fun DonutChart(
             }
             TextButton(onClick = { onSelect((sel + 1) % slices.size) }) { Text("Next") }
         }
-        // The legend, kept in step with the selection.
+        if (legend) DonutLegend(slices, sel, onSelect, valueFormat)
+    }
+}
+
+/** A donut's legend (#52), kept in step with the selection: colour, label, value and share. Tap a row to select it. */
+@Composable
+fun DonutLegend(
+    slices: List<DonutSlice>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    valueFormat: (Double) -> String = { fmtNum(it, 0) },
+    modifier: Modifier = Modifier
+) {
+    if (slices.isEmpty()) return
+    val colors = LocalChartColors.current
+    val sel = selected.coerceIn(0, slices.lastIndex)
+    val percents = remember(slices) { Analysis.percents(slices.map { it.value }) }
+    fun pct(i: Int) = "${percents[i]}%"
+    Column(modifier) {
         slices.forEachIndexed { i, s ->
             Row(
                 Modifier
@@ -419,6 +440,46 @@ fun FullScreenChart(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The full-screen view of a donut (#96). A donut has no timeline to zoom, so this gives it room instead: in portrait
+ * it grows to the screen's width with its legend below, and in landscape its legend sits beside it.
+ */
+@Composable
+fun FullScreenDonut(
+    title: String,
+    slices: List<DonutSlice>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+    valueFormat: (Double) -> String = { fmtNum(it, 0) }
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.fillMaxSize()) {
+                BackTopBar(title, onBack = onDismiss, backLabel = "Close full screen")
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(8.dp)) {
+                    // The Previous and Next buttons either side of the donut take about 150dp of the width.
+                    if (maxWidth > maxHeight) {
+                        val d = minOf(maxHeight - 16.dp, maxWidth / 2 - 150.dp).coerceAtLeast(140.dp)
+                        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                            DonutChart(slices, selected, onSelect, Modifier.weight(1f), diameter = d, valueFormat = valueFormat, legend = false)
+                            DonutLegend(
+                                slices, selected, onSelect, valueFormat,
+                                Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())
+                            )
+                        }
+                    } else {
+                        val d = (maxWidth - 150.dp).coerceIn(140.dp, 400.dp)
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                            DonutChart(slices, selected, onSelect, diameter = d, valueFormat = valueFormat)
+                        }
+                    }
+                }
             }
         }
     }

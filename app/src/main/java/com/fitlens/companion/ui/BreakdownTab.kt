@@ -46,6 +46,7 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
     var windowIdx by remember { mutableIntStateOf(0) }
     var custom by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pickingCustom by remember { mutableStateOf(false) }
+    var fullScreen by rememberSaveable { mutableStateOf(false) }
     val measure = Analysis.Measure.entries[measureIdx]
     val group = Analysis.GroupBy.entries[groupIdx]
     val span = Analysis.Span.entries[spanIdx]
@@ -126,16 +127,32 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
                 else "No training in this period."
             )
         } else {
+            val donut = slices.map { DonutSlice(it.label, shown(it.value)) }
+            val donutFormat: (Double) -> String = { v ->
+                if (measure == Analysis.Measure.Volume) "${fmtNum(v, 0)} ${snap.weightUnit}"
+                else "${fmtNum(v, 0)} ${if (v == 1.0) measure.unitOne else measure.unitMany}"
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End) {
+                ExpandGraphButton { fullScreen = true }
+            }
             DonutChart(
-                slices.map { DonutSlice(it.label, shown(it.value)) },
+                donut,
                 selected = sel,
                 onSelect = { sel = it },
-                modifier = Modifier.padding(vertical = 8.dp),
-                valueFormat = { v ->
-                    if (measure == Analysis.Measure.Volume) "${fmtNum(v, 0)} ${snap.weightUnit}"
-                    else "${fmtNum(v, 0)} ${if (v == 1.0) measure.unitOne else measure.unitMany}"
-                }
+                modifier = Modifier.padding(bottom = 8.dp),
+                valueFormat = donutFormat,
+                onExpand = { ChartHints.expanded(); fullScreen = true }
             )
+            if (fullScreen) {
+                FullScreenDonut(
+                    "${measure.label} by ${group.label.lowercase()} · ${window.label}",
+                    donut,
+                    selected = sel,
+                    onSelect = { sel = it },
+                    onDismiss = { fullScreen = false },
+                    valueFormat = donutFormat
+                )
+            }
 
             // The selected slice against the same period before it (a FitLens extra, to spot imbalances).
             val slice = slices.getOrNull(sel)
