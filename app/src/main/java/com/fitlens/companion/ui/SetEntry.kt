@@ -64,6 +64,7 @@ import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.SetTypes
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
@@ -158,6 +159,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
     var loadedWeightKg by remember(date, exerciseId) { mutableStateOf<Double?>(null) }
     var deleting by remember { mutableStateOf<SetRow?>(null) }
     var editExercise by remember { mutableStateOf(false) }
+    var calculator by remember { mutableStateOf<String?>(null) }
 
     // The global step from Settings → Units & display (#7) is stored in kg; the field works in the display unit.
     // This exercise's own step comes first (#15), then the global one.
@@ -301,7 +303,12 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     nav.push(Screen.ExerciseDetail(exerciseId))
                 }
             ),
-            overflow = listOf(MenuAction("Edit exercise") { editExercise = true })
+            overflow = listOfNotNull(
+                MenuAction("Edit exercise") { editExercise = true },
+                // The calculators (#28) fill in this set's weight.
+                if (showWeight) MenuAction("Set calculator") { calculator = "set" } else null,
+                if (showWeight) MenuAction("Plate calculator") { calculator = "plate" } else null
+            )
         )
         FitTabRow(
             titles = listOf("Track", "History", "Graph"),
@@ -575,6 +582,17 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
         }
     }
     if (restSheet) RestTimerSheet(ex) { restSheet = false }
+    when (calculator) {
+        "set" -> SetCalculatorSheet(
+            snap,
+            bestOneRmKg = snap.statSetsByExercise[exerciseId].orEmpty().maxOfOrNull { Records.oneRepMax(it) } ?: 0.0,
+            targetText = weight,
+            stepShown = weightStep,
+            onUse = { w, r -> weight = w; if (r != null) reps = r.toString() },
+            onDismiss = { calculator = null }
+        )
+        "plate" -> PlateCalculatorSheet(snap, weight, onUse = { w -> weight = w }, onDismiss = { calculator = null })
+    }
     if (editExercise && ex != null) {
         ExerciseEditorSheet(snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editExercise = false })
     }

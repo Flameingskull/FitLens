@@ -82,6 +82,12 @@ data class PortableSettings(
     val warmupsCount: Boolean = false,
     /** The estimated-1RM formula's key (`Records.Formula`), used everywhere an estimate appears (#42). */
     val e1rmFormula: String = "auto",
+    /** The plate calculator's bar in kg, or null for a standard bar in the display unit (#28). */
+    val barKg: Double? = null,
+    /** The plate calculator counts the bar in the target weight (#28). */
+    val countBar: Boolean = true,
+    /** The plates on hand in the display unit, comma-separated, or null for the standard set (#28). */
+    val plates: String? = null,
     /** Show the W, D and F badges on sets (#43). */
     val showSetType: Boolean = true,
     /** Effort per set (#44): [Effort.OFF], [Effort.RPE] or [Effort.RIR]. */
@@ -242,6 +248,9 @@ object Settings {
         db.setMeta(P_BACKUP_TIMESTAMP, if (s.backupTimestamp) null else "0")
         db.setMeta(P_WARMUPS_COUNT, if (s.warmupsCount) "1" else null)
         db.setMeta(P_E1RM_FORMULA, s.e1rmFormula.takeIf { it != "auto" })
+        db.setMeta(P_BAR_KG, s.barKg?.toString())
+        db.setMeta(P_COUNT_BAR, if (s.countBar) null else "0")
+        db.setMeta(P_PLATES, s.plates)
         db.setMeta(P_SHOW_SET_TYPE, if (s.showSetType) null else "0")
         db.setMeta(P_EFFORT_MODE, s.effortMode.takeIf { it != Effort.OFF })
         db.setMeta(P_WEEK_START, s.weekStart.takeIf { it != 1 }?.toString())
@@ -297,6 +306,9 @@ object Settings {
     private const val P_BACKUP_TIMESTAMP = "backup_timestamp"
     private const val P_WARMUPS_COUNT = "warmups_count"
     private const val P_E1RM_FORMULA = "e1rm_formula"
+    private const val P_BAR_KG = "bar_kg"
+    private const val P_COUNT_BAR = "count_bar"
+    private const val P_PLATES = "plates"
     private const val P_SHOW_SET_TYPE = "show_set_type"
     private const val P_EFFORT_MODE = "effort_mode"
     private const val P_WEEK_START = "week_start"
@@ -372,6 +384,9 @@ object Settings {
         warmupsCount = bool(get(P_WARMUPS_COUNT)),
         // An unknown formula (from a later build's backup) falls back to Automatic.
         e1rmFormula = Records.Formula.of(get(P_E1RM_FORMULA)).key,
+        barKg = get(P_BAR_KG)?.toDoubleOrNull()?.takeIf { it >= 0 },
+        countBar = get(P_COUNT_BAR) != "0",
+        plates = get(P_PLATES)?.takeIf { it.isNotBlank() },
         showSetType = get(P_SHOW_SET_TYPE) != "0",
         effortMode = get(P_EFFORT_MODE)?.takeIf { it == Effort.RPE || it == Effort.RIR } ?: Effort.OFF,
         weekStart = get(P_WEEK_START)?.toIntOrNull()?.takeIf { it in 1..7 } ?: 1,
