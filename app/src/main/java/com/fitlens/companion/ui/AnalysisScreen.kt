@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
+import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
 import com.fitlens.companion.ui.design.FitTabRow
@@ -162,6 +163,8 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fullScreen by remember { mutableStateOf(false) }
     var showDays by remember { mutableStateOf(false) }
+    // Duration as the period's total, or as the average length of its timed workouts (#12).
+    var durationAvg by rememberSaveable { mutableStateOf(false) }
     val period = Analysis.Period.entries[periodIdx]
     val metric = Analysis.Metric.entries[metricIdx]
     val days = RANGES[rangeIdx].second
@@ -171,21 +174,26 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     val totals = rememberChartData(snap, metric, period, filter, from) {
         Analysis.totals(snap, metric, period, filter, from)
     }
-    // Volume in the display unit, duration in hours; counts as they are.
-    fun shown(v: Double): Double = when (metric) {
-        Analysis.Metric.Volume -> snap.weight(v)
-        Analysis.Metric.Duration -> v / 3600.0
+    val avgDuration = metric == Analysis.Metric.Duration && durationAvg
+    // A period's value: its total, or for average duration the total over its timed workouts (#12).
+    fun valueOf(t: Analysis.PeriodTotal): Double = if (avgDuration) (if (t.timed > 0) t.value / t.timed else 0.0) else t.value
+    // Volume in the display unit, total duration in hours and average duration in minutes; counts as they are.
+    fun shown(v: Double): Double = when {
+        metric == Analysis.Metric.Volume -> snap.weight(v)
+        avgDuration -> v / 60.0
+        metric == Analysis.Metric.Duration -> v / 3600.0
         else -> v
     }
-    val unit = when (metric) {
-        Analysis.Metric.Volume -> snap.weightUnit
-        Analysis.Metric.Duration -> "h"
+    val unit = when {
+        metric == Analysis.Metric.Volume -> snap.weightUnit
+        avgDuration -> "min"
+        metric == Analysis.Metric.Duration -> "h"
         else -> ""
     }
-    val fmt: (Double) -> String = if (metric == Analysis.Metric.Duration) { v -> fmtNum(v, 1) } else { v -> fmtNum(v, 0) }
+    val fmt: (Double) -> String = if (metric == Analysis.Metric.Duration && !avgDuration) { v -> fmtNum(v, 1) } else { v -> fmtNum(v, 0) }
     fun withUnit(v: Double) = fmt(v) + if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
-    val bars = remember(totals, metric, snap.weightUnit) {
-        totals.orEmpty().map { BarDatum(Analysis.shortLabel(it, period), shown(it.value)) }
+    val bars = remember(totals, metric, snap.weightUnit, avgDuration) {
+        totals.orEmpty().map { BarDatum(Analysis.shortLabel(it, period), shown(valueOf(it))) }
     }
     val partial = totals?.lastOrNull()?.current == true
 
@@ -204,6 +212,14 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 FilterChip(selected = metricIdx == i, onClick = { metricIdx = i }, label = { Text(m.label) })
             }
         }
+        if (metric == Analysis.Metric.Duration) {
+            SegmentedSwitch(
+                options = listOf("Total", "Average per workout"),
+                selected = if (durationAvg) 1 else 0,
+                onSelect = { durationAvg = it == 1 },
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
         AnalysisFilterChips(snap, filter, onFilter)
         Row(Modifier.padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -214,7 +230,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
 
         when {
             totals == null -> AnalysisNote("Working it out…")
-            totals.all { it.value <= 0 } -> EmptyState(
+            totals.all { valueOf(it) <= 0 } -> EmptyState(
                 "Nothing to show",
                 "No ${metric.label.lowercase()} for ${filterLabel(snap, filter).lowercase()} in this range. " +
                     "Try a longer range or another filter."
@@ -244,10 +260,10 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         style = MaterialTheme.typography.titleMedium
                     )
                     val change = prev?.let {
-                        " · ${fmtSigned(shown(t.value) - shown(it.value), if (metric == Analysis.Metric.Duration) 1 else 0)} " +
+                        " · ${fmtSigned(shown(valueOf(t)) - shown(valueOf(it)), if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0)} " +
                             "vs the ${period.name.lowercase()} before"
                     } ?: ""
-                    AnalysisNote(withUnit(shown(t.value)) + change)
+                    AnalysisNote(withUnit(shown(valueOf(t))) + change)
                     if (t.days.isNotEmpty()) {
                         TextButton(onClick = { showDays = !showDays }, modifier = Modifier.padding(horizontal = 4.dp)) {
                             Text(if (showDays) "Hide workouts" else "Open ${t.days.size} ${if (t.days.size == 1) "workout" else "workouts"}")
@@ -265,13 +281,13 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 // Summary: the average over complete periods, and the best period.
                 val complete = totals.filter { !it.current }
                 val avgOver = complete.ifEmpty { totals }
-                val avg = avgOver.sumOf { shown(it.value) } / avgOver.size
-                val best = totals.maxBy { it.value }
+                val avg = avgOver.sumOf { shown(valueOf(it)) } / avgOver.size
+                val best = totals.maxBy { valueOf(it) }
                 SectionTitle("Summary")
                 AnalysisNote(
                     "Average ${withUnit(avg)} per ${period.name.lowercase()}" +
                         (if (complete.size < totals.size) " (not counting this ${period.name.lowercase()}, still in progress)" else "") +
-                        ". Best: ${Analysis.longLabel(best, period)}, ${withUnit(shown(best.value))}."
+                        ". Best: ${Analysis.longLabel(best, period)}, ${withUnit(shown(valueOf(best)))}."
                 )
                 if (showTrend) trendOf(bars.mapIndexed { i, b -> ChartPoint(i.toLong(), b.value, "") })?.let { tr ->
                     AnalysisNote("Trend: ${fmtSigned(tr.slope, 1)} ${if (unit.isEmpty()) metric.label.lowercase() else unit} per ${period.name.lowercase()}.")
@@ -283,6 +299,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         val all = totals.sumOf { it.days.size }
                         val timed = totals.sumOf { it.timed }
                         AnalysisNote("Only workouts with a start and finish time count: $timed of $all here.")
+                        DurationPerWorkout(snap, filter, from)
                     }
                     else -> {}
                 }
@@ -299,7 +316,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             footer = {
                 sel?.let { totals.getOrNull(it) }?.let { t ->
                     Text(
-                        "${Analysis.longLabel(t, period)}: ${withUnit(shown(t.value))}",
+                        "${Analysis.longLabel(t, period)}: ${withUnit(shown(valueOf(t)))}",
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -317,6 +334,78 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 onExpand = resetZoom,
                 showTrend = showTrend,
                 lastIsPartial = partial
+            )
+        }
+    }
+}
+
+/**
+ * Every timed workout's length in minutes as a line over the range (#12), under Analysis → Workouts → Duration: the
+ * per-workout graph FitNotes has, with the usual trend, full screen and tap for details.
+ */
+@Composable
+private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: String?) {
+    var showTrend by rememberSaveable { mutableStateOf(false) }
+    var fromZero by rememberSaveable { mutableStateOf(false) }
+    var fullScreen by remember { mutableStateOf(false) }
+    var sel by remember(filter, from) { mutableStateOf<Int?>(null) }
+    val points = rememberChartData(snap, filter, from) {
+        snap.setsByDate.entries
+            .filter { (d, sets) -> (from == null || d >= from) && sets.any { filter.matches(snap, it) } }
+            .mapNotNull { (d, _) ->
+                val secs = Analysis.workoutSeconds(snap, d)
+                if (secs > 0) ChartPoint(Dates.epochDay(d), secs / 60.0, d) else null
+            }
+            .sortedBy { it.x }
+    } ?: emptyList()
+    val series = listOf(LineSeries("Workout length", points))
+    SectionTitle("Each workout")
+    Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
+        Text(" ")
+        FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
+        Text(" ", Modifier.weight(1f))
+        ExpandGraphButton { fullScreen = true }
+    }
+    LineChart(
+        series,
+        Modifier.padding(horizontal = 8.dp),
+        selected = sel?.let { ChartSelection(0, it) },
+        onSelect = { sel = it.index; ChartHints.tapped() },
+        yFormat = { fmtNum(it, 0) },
+        unit = "min",
+        showTrend = showTrend,
+        yFromZero = fromZero,
+        onExpand = { ChartHints.expanded(); fullScreen = true }
+    )
+    val picked = sel?.let { points.getOrNull(it) }
+    if (picked != null) AnalysisNote("${Dates.long(picked.date)}: ${fmtDuration((picked.y * 60).toInt())}.")
+    else if (points.isNotEmpty()) AnalysisNote("${points.size} timed workouts, ${fmtDuration((points.sumOf { it.y } / points.size * 60).toInt())} on average.")
+    if (fullScreen) {
+        FullScreenChart(
+            "Workout length · ${filterLabel(snap, filter)}",
+            onDismiss = { fullScreen = false },
+            footer = {
+                sel?.let { points.getOrNull(it) }?.let { p ->
+                    Text(
+                        "${Dates.long(p.date)}: ${fmtDuration((p.y * 60).toInt())}",
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+        ) { vp, h, resetZoom ->
+            LineChart(
+                series,
+                height = h,
+                selected = sel?.let { ChartSelection(0, it) },
+                onSelect = { sel = it.index },
+                yFormat = { fmtNum(it, 0) },
+                unit = "min",
+                showTrend = showTrend,
+                yFromZero = fromZero,
+                viewport = vp,
+                onExpand = resetZoom
             )
         }
     }
