@@ -733,17 +733,16 @@ private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Uni
     var into by remember { mutableStateOf<Exercise?>(null) }
     val target = into
     if (target == null) {
-        val items = remember(snap, ex.id) {
-            snap.exercisesSorted.filter { it.id != ex.id && it.type == ex.type }.map { other ->
-                val cat = snap.categories[other.categoryId]
-                PickerItem(
-                    id = other.id,
-                    title = other.name,
-                    subtitle = countOf(snap.setsByExercise[other.id]?.size ?: 0, "set"),
-                    section = cat?.name ?: "Uncategorised",
-                    color = categoryColour(cat?.colour ?: 0)
-                )
-            }
+        // Built in composition, because categoryColour reads the theme.
+        val items = snap.exercisesSorted.filter { it.id != ex.id && it.type == ex.type }.map { other ->
+            val cat = snap.categories[other.categoryId]
+            PickerItem(
+                id = other.id,
+                title = other.name,
+                subtitle = countOf(snap.setsByExercise[other.id]?.size ?: 0, "set"),
+                section = cat?.name ?: "Uncategorised",
+                color = categoryColour(cat?.colour ?: 0)
+            )
         }
         SearchablePicker(
             title = "Merge ${ex.name} into",
