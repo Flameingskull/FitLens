@@ -1,39 +1,40 @@
 ## Overview
 
-This build tidies up your exercise library and finishes the workout drawer. Duplicate exercises, such as
-"Bench Press" and "Barbell Bench Press", can now be merged into one, with their full history. Exercises in the
-workout drawer can be dragged into a new order. The Analysis breakdown chart can also open full screen, like every
-other graph in FitLens.
+This build finishes several of FitLens's workout tools. Each exercise can have its own rest time. The rest timer can
+play a sound of your choice at the volume you set. The calendar can highlight the days that match a filter, such as
+"Bench Press, 80 kg or more for at least 5 reps". Workout duration now has an average per workout and a graph of
+every workout's length.
 
-There's no database change in this update, and nothing you've logged changes when you install it.
+This update upgrades FitLens's database so each exercise can store its own rest time. Nothing you've logged changes,
+and backups from earlier versions restore the same way.
 
 ## What's new
 
-- **Merge duplicate exercises.** In the exercise library, open an exercise's menu and choose **Merge into…**, then
-  pick the exercise to keep. Everything moves across: every set with its date, place, superset and tick, its goals,
-  and its places in saved workouts and routines. The kept exercise keeps its name, category and settings. It takes
-  the other exercise's notes and favourite star only if it has none of its own.
-  - Personal records are worked out again across the joined history.
-  - Later FitNotes imports respect the merge: the old name's history is added to the kept exercise instead of
-    coming back as a duplicate, and sets you deleted stay deleted.
-  - A safety copy is taken first, so you can undo a merge from **Settings → Backups** for 7 days.
-- **Drag to reorder in the workout drawer.** Each exercise in the drawer on the exercise screen has a drag handle.
-  The list follows your finger, and the new order is saved when you let go.
-- **Full-screen breakdown chart.** **Analysis → Breakdown** has a full-screen button (or double-tap the chart). Full
-  screen gives the chart more room. Turn the phone sideways and the legend sits beside the chart.
+- **Rest time per exercise.** In **Edit exercise**, choose a rest time for that exercise, or keep **As in the rest
+  timer**. The rest timer then uses that length after the exercise's sets, both when it starts on its own and when
+  you start it from the rest timer on that exercise.
+- **Rest-over sound.** The rest timer has a new **Play a sound when rest is over** switch. Choose the sound from your
+  phone's sounds, set its volume, and try it with **Play the sound**. The sound and vibration can each be turned on or
+  off.
+- **Calendar filter.** Tap the search button on the calendar to filter by an exercise or a category, and by minimum
+  and maximum weight and reps, minimum distance or minimum time. One set has to meet every condition. Days that don't
+  match fade back, and a bar above the calendar shows the filter with the number of matching days this month and in
+  total. Tap **Clear** to remove it. The filter is remembered until you clear it.
+- **Workout duration.** **Analysis → Workouts → Duration** can show each week's, month's or year's total, or the
+  **Average per workout**. A new **Each workout** graph below it plots every timed workout's length, with trend,
+  tap for details and full screen.
 
 ## Improved
 
-- **Moving exercises keeps supersets together.** Moving an exercise up or down, whether you drag it in the drawer or
-  use Move up and Move down on the day log, swaps it with the neighbouring exercise within its superset. Outside a
-  superset, it moves past the neighbouring superset as a whole, so a superset is never split.
-- **Workouts and routines are complete.** Saved workouts, the workout editor, routines and their days, and adding a
-  workout to a day, all in the new design.
+- The "Rest over" notification is now silent itself, and FitLens plays the sound you chose, so the volume setting
+  applies. Android shows this as a new "Rest over" notification category. If you had changed the old one's settings,
+  set them again on the new one.
 
 ## Known limitations
 
-- An exercise can only be merged into another of the same type (weight and reps, distance and time, or time), so
-  weights never mix with distances or times.
-- The workout drawer opens from the menu button on the exercise screen. It doesn't open with a swipe from the left
-  edge, because Android uses that swipe as its back gesture.
-- Full-screen graphs zoom and pan along the timeline only. Zooming the vertical scale will come in a later build.
+- The rest-over sound follows your phone's notification volume, scaled by FitLens's volume setting. It can't play
+  louder than the phone allows.
+- A sound chosen on this phone isn't included in backups, because sounds are files on the phone. After restoring on
+  another phone, the default notification sound is used until you choose one.
+- Calendar filter distances use the unit they were logged in.
+- Only workouts with a start and finish time count towards duration.

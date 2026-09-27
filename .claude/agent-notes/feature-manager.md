@@ -63,3 +63,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   brings back duplicates or deleted sets. `Workouts.mergeExercises` is the reference.
 - A left-edge swipe to open a drawer conflicts with Android's gesture-navigation back swipe. Open drawers from a
   button instead (1.0.42, #17).
+- A notification channel's sound can't be changed once created. To change it, create a channel with a new id and
+  delete the old one (`TimerService`, 1.0.44). The rest-over sound is played in-app by `RestSound` so its volume applies.
+- `categoryColour` and `exercisePickerItems` are `@Composable`: never call them inside `remember { }` or
+  `rememberChartData { }` (1.0.43 CI failure).
