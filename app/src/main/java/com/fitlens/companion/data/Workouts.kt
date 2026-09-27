@@ -346,6 +346,51 @@ object Workouts {
         if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)
     }
 
+    /**
+     * Merges exercise [fromId] into [intoId] and deletes [fromId] (#57), for duplicates such as "Bench Press" and
+     * "Barbell Bench Press". Every set, goal and saved-workout entry moves across with its date, place, superset and
+     * tick. [intoId] keeps its own name, category, type and defaults, and takes [fromId]'s notes and star only when it
+     * has none. Later FitNotes imports follow the merge: [fromId]'s name (and every name already linked to it) maps
+     * onto [intoId], and skip rules for its deleted imported sets are re-keyed, so nothing comes back as a duplicate.
+     * PR marks are replayed, since the joined history can change them. Returns how many sets moved.
+     */
+    suspend fun mergeExercises(fromId: Long, intoId: Long): Int = write { w ->
+        if (fromId == intoId) throw WorkoutDataException("Choose a different exercise to merge into.")
+        data class Row(val name: String, val notes: String?, val favourite: Boolean)
+        fun row(id: Long) = w.rawQuery("SELECT name, notes, favourite FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
+            if (c.moveToFirst()) Row(c.strOr(0), c.str(1), c.int(2) != 0) else null
+        } ?: throw WorkoutDataException("That exercise no longer exists.")
+        val from = row(fromId)
+        val into = row(intoId)
+        val fromArg = arrayOf(fromId.toString())
+        val moved = w.rawQuery("SELECT COUNT(*) FROM workout_set WHERE exercise_id=?", fromArg).use { c ->
+            if (c.moveToFirst()) c.getInt(0) else 0
+        }
+        val target = ContentValues().apply { put("exercise_id", intoId) }
+        w.update("workout_set", target, "exercise_id=?", fromArg)
+        w.update("exercise_goal", target, "exercise_id=?", fromArg)
+        w.update("saved_workout_exercise", target, "exercise_id=?", fromArg)
+        w.update("exercise", ContentValues().apply {
+            if (into.notes.isNullOrBlank() && !from.notes.isNullOrBlank()) put("notes", from.notes)
+            if (from.favourite) put("favourite", 1)
+            put("source", Sources.FITLENS)
+        }, "id=?", arrayOf(intoId.toString()))
+        w.delete("exercise", "id=?", fromArg)
+        // Imports: names that led to the old exercise now lead to the kept one, and its skipped sets stay skipped.
+        w.execSQL("UPDATE import_rule SET target_id=? WHERE kind=? AND target_id=?", arrayOf<Any>(intoId, RULE_EXERCISE, fromId))
+        setLink(w, RULE_EXERCISE, nameKey(from.name), intoId)
+        val prefix = "$fromId|"
+        val rekey = mutableListOf<Pair<Long, String>>()
+        w.rawQuery("SELECT rowid, key FROM import_rule WHERE kind=? AND key LIKE ?", arrayOf(RULE_SET, "$prefix%")).use { c ->
+            while (c.moveToNext()) rekey += c.getLong(0) to "$intoId|" + c.strOr(1).removePrefix(prefix)
+        }
+        rekey.forEach { (rowid, key) ->
+            w.update("import_rule", ContentValues().apply { put("key", key) }, "rowid=?", arrayOf(rowid.toString()))
+        }
+        replayPrs(w)
+        moved
+    }
+
     /** Stars or unstars an exercise. Favourites are listed first when choosing an exercise. */
     suspend fun setFavourite(id: Long, favourite: Boolean): Unit = write { w ->
         w.update("exercise", ContentValues().apply { put("favourite", if (favourite) 1 else 0) }, "id=?", arrayOf(id.toString()))

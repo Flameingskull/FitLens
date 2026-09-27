@@ -68,9 +68,11 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.Category
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Exercise
+import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.Routine
 import com.fitlens.companion.data.RoutineDay
 import com.fitlens.companion.data.Routines
@@ -86,6 +88,8 @@ import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.ListRowWithMenu
 import com.fitlens.companion.ui.design.MenuAction
+import com.fitlens.companion.ui.design.PickerItem
+import com.fitlens.companion.ui.design.SearchablePicker
 import com.fitlens.companion.ui.design.OverflowMenu
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.relativeDayLabel
@@ -144,6 +148,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Exercise?>(null) }
     var deleting by remember { mutableStateOf<Exercise?>(null) }
+    var merging by remember { mutableStateOf<Exercise?>(null) }
     var showCategories by remember { mutableStateOf(false) }
     var seeding by remember { mutableStateOf(false) }
 
@@ -244,7 +249,8 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                     onPick = { ex -> toggle(picked, ex.id) },
                     onEdit = { editing = it },
                     onDetails = { nav.push(Screen.ExerciseDetail(it.id)) },
-                    onDelete = { deleting = it }
+                    onDelete = { deleting = it },
+                    onMerge = { merging = it }
                 )
                 else -> CategoryList(snap) { category = it }
             }
@@ -276,6 +282,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
         ExerciseEditorSheet(snap = snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editing = null })
     }
     deleting?.let { ex -> DeleteExerciseSheet(snap, ex) { deleting = null } }
+    merging?.let { ex -> MergeExerciseFlow(snap, ex) { merging = null } }
     if (showCategories) CategoryManagerSheet(snap) { showCategories = false }
     if (seeding) StarterLibraryDialog { seeding = false }
     startDay?.let { d ->
@@ -388,7 +395,8 @@ private fun ExerciseList(
     onPick: (Exercise) -> Unit,
     onEdit: (Exercise) -> Unit,
     onDetails: (Exercise) -> Unit,
-    onDelete: (Exercise) -> Unit
+    onDelete: (Exercise) -> Unit,
+    onMerge: (Exercise) -> Unit
 ) {
     LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         if (exercises.isEmpty()) {
@@ -424,6 +432,7 @@ private fun ExerciseList(
                         menu = listOf(
                             MenuAction("Edit") { onEdit(ex) },
                             MenuAction("Records and goals", enabled = (snap.workoutsByExercise[ex.id] ?: 0) > 0) { onDetails(ex) },
+                            MenuAction("Merge into…") { onMerge(ex) },
                             MenuAction("Delete") { onDelete(ex) }
                         )
                     )
@@ -708,6 +717,66 @@ private fun DeleteExerciseSheet(snap: Snapshot, ex: Exercise, onDismiss: () -> U
             AppScope.scope.launch {
                 Workouts.deleteExercise(ex.id)
                 UiEvents.show("Deleted ${ex.name}")
+            }
+        }
+    )
+}
+
+/**
+ * Merges a duplicate exercise into another one (#57): pick the exercise to keep (same type only, so weights never mix
+ * with distances or times), confirm what moves, then merge after a safety copy, so it can be undone from
+ * Settings → Backups like other bulk changes.
+ */
+@Composable
+private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    var into by remember { mutableStateOf<Exercise?>(null) }
+    val target = into
+    if (target == null) {
+        val items = remember(snap, ex.id) {
+            snap.exercisesSorted.filter { it.id != ex.id && it.type == ex.type }.map { other ->
+                val cat = snap.categories[other.categoryId]
+                PickerItem(
+                    id = other.id,
+                    title = other.name,
+                    subtitle = countOf(snap.setsByExercise[other.id]?.size ?: 0, "set"),
+                    section = cat?.name ?: "Uncategorised",
+                    color = categoryColour(cat?.colour ?: 0)
+                )
+            }
+        }
+        SearchablePicker(
+            title = "Merge ${ex.name} into",
+            items = items,
+            onDismiss = onDismiss,
+            onPick = { ids -> into = ids.firstOrNull()?.let { snap.exercises[it] } },
+            searchLabel = "Search exercises",
+            emptyText = "No other exercise of the same type matches."
+        )
+        return
+    }
+    val sets = snap.setsByExercise[ex.id]?.size ?: 0
+    val days = snap.workoutsByExercise[ex.id] ?: 0
+    ConfirmSheet(
+        title = "Merge into ${target.name}?",
+        message = "${ex.name} becomes part of ${target.name}: ${countOf(sets, "set")} across ${countOf(days, "workout")}, " +
+            "its goals and its places in saved workouts all move across, and ${ex.name} is removed. ${target.name} keeps " +
+            "its name, category and settings. Personal records are worked out again, and later FitNotes imports add " +
+            "${ex.name}'s history to ${target.name}. A safety copy is taken first, so you can undo this from " +
+            "Settings → Backups for ${Backups.UNDO_DAYS} days.",
+        confirmLabel = "Merge",
+        onDismiss = onDismiss,
+        onConfirm = {
+            runBusy("Merging exercises…") {
+                // The way back (#47). If it can't be made, nothing is merged.
+                val safety = Backups.safetyCopy(ctx, "Before merging ${ex.name} into ${target.name}")
+                if (!safety.ok) return@runBusy safety
+                try {
+                    val n = Workouts.mergeExercises(ex.id, target.id)
+                    ImportSummary("Merged ${ex.name} into ${target.name} (${countOf(n, "set")}). Undo is in Settings → Backups.", ok = true)
+                } catch (e: WorkoutDataException) {
+                    ImportSummary(e.message ?: "Couldn't merge those exercises.", ok = false)
+                }
             }
         }
     )
