@@ -67,3 +67,6 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   delete the old one (`TimerService`, 1.0.44). The rest-over sound is played in-app by `RestSound` so its volume applies.
 - `categoryColour` and `exercisePickerItems` are `@Composable`: never call them inside `remember { }` or
   `rememberChartData { }` (1.0.43 CI failure).
+- 1.0.45: every e1RM goes through `Records.factor(reps, formula = chosen())`; never inline a formula. Panes reused in
+  a `ModalBottomSheet` must not sit inside `FitSheet` (its content scrolls, so a LazyColumn pane would crash);
+  `ExerciseOverviewSheet` uses `ModalBottomSheet` directly with a bounded height.
