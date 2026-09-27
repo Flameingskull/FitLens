@@ -79,6 +79,7 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     var managing by remember { mutableStateOf(false) }
     var editingGoal by remember { mutableStateOf(false) }
     var ordering by remember { mutableStateOf(false) }
+    var editingRecord by remember { mutableStateOf<MRecord?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         PlainTopBar("Body tracker") {
@@ -207,7 +208,7 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                     item { StatsBlock(shown, def?.unit ?: shown.lastOrNull()?.unit ?: "") }
                 }
             } else {
-                HistoryTable(snap, nav, snap.recordsByName[selectedName] ?: emptyList(), def)
+                HistoryTable(snap, snap.recordsByName[selectedName] ?: emptyList(), def) { editingRecord = it }
             }
         }
     }
@@ -217,6 +218,9 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     val goalDef = measurements.firstOrNull { it.name == selectedName }
     if (editingGoal && goalDef != null) MeasurementGoalSheet(goalDef) { editingGoal = false }
     if (ordering) MeasurementOrderSheet(measurements) { ordering = false }
+    editingRecord?.let { r ->
+        MeasurementEntrySheet(snap, r.date, existing = r, onOpenDay = { d -> nav.push(Screen.Day(d)) }) { editingRecord = null }
+    }
 }
 
 /**
@@ -325,7 +329,7 @@ private fun StatsBlock(list: List<MRecord>, unit: String) {
 }
 
 @Composable
-private fun HistoryTable(snap: Snapshot, nav: Nav, records: List<MRecord>, def: MeasurementDef?) {
+private fun HistoryTable(snap: Snapshot, records: List<MRecord>, def: MeasurementDef?, onOpen: (MRecord) -> Unit) {
     val rows = records.reversed()
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
@@ -342,7 +346,8 @@ private fun HistoryTable(snap: Snapshot, nav: Nav, records: List<MRecord>, def: 
             val prev = if (idx > 0) records[idx - 1] else null
             val photo = snap.photosByDate[r.date]?.firstOrNull()
             Row(
-                Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(r.date)) }.padding(horizontal = 16.dp, vertical = 6.dp),
+                // Tap to edit a value logged by hand, or see an imported one (#27).
+                Modifier.fillMaxWidth().clickable(onClickLabel = "Open this value") { onOpen(r) }.padding(horizontal = 16.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1.4f)) {

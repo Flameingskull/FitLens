@@ -395,6 +395,14 @@ object Store {
         }
     }
 
+    /** Changes a value entered by hand (#27). Imported values aren't edited: the next import would restore them. */
+    suspend fun updateRecord(id: Long, date: String, time: String, value: Double, comment: String?) = withContext(Dispatchers.IO) {
+        db.writableDatabase.update("mrecord", ContentValues().apply {
+            put("date", date); put("time", time); put("value", value); put("comment", comment)
+        }, "id=? AND source='manual'", arrayOf(id.toString()))
+        _snapshot.value = load()
+    }
+
     suspend fun deleteRecord(id: Long) = withContext(Dispatchers.IO) {
         db.writableDatabase.delete("mrecord", "id=? AND source='manual'", arrayOf(id.toString()))
         _snapshot.value = load()

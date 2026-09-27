@@ -611,60 +611,7 @@ fun nearestPhoto(snap: Snapshot, date: String, windowDays: Int = 30): com.fitlen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMeasurementDialog(snap: Snapshot, date: String, initialName: String? = null, onDismiss: () -> Unit) {
-    val names = remember(snap) {
-        (snap.usedMeasurements.map { it.name } + snap.measurementDefs.filter { it.enabled }.map { it.name }).distinct()
-    }
-    var name by remember { mutableStateOf(initialName ?: names.firstOrNull() ?: "Bodyweight") }
-    var value by remember { mutableStateOf("") }
-    var comment by remember { mutableStateOf("") }
-    var pickDate by remember { mutableStateOf(false) }
-    var theDate by remember { mutableStateOf(date) }
-    var timeText by remember { mutableStateOf(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm"))) }
-    val unit = snap.measurementDefs.firstOrNull { it.name == name }?.unit
-        ?: snap.recordsByName[name]?.lastOrNull()?.unit ?: ""
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add measurement") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    names.forEach { n -> FilterChip(selected = n == name, onClick = { name = n }, label = { Text(n) }) }
-                }
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Measurement") }, singleLine = true)
-                OutlinedTextField(
-                    value = value, onValueChange = { value = it }, label = { Text("Value ${if (unit.isNotBlank()) "($unit)" else ""}") },
-                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
-                OutlinedTextField(value = comment, onValueChange = { comment = it }, label = { Text("Comment (optional)") })
-                TextButton(onClick = { pickDate = true }) { Text("Date: ${Dates.medium(theDate)}") }
-                OutlinedTextField(
-                    value = timeText, onValueChange = { timeText = it }, label = { Text("Time (HH:mm)") },
-                    singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                Text(
-                    "Tip: also log it in FitNotes. When a FitNotes backup containing the same value is imported, this entry is merged automatically.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val v = value.replace(',', '.').toDoubleOrNull()
-                if (v != null && name.isNotBlank()) {
-                    // The time typed in, or now when it can't be read.
-                    val time = runCatching { LocalTime.parse(timeText.trim()) }.getOrNull()
-                        ?.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-                        ?: LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-                    val n = name.trim()
-                    val c = comment.ifBlank { null }
-                    val d = theDate
-                    AppScope.scope.launch { Store.addManualRecord(n, unit, d, time, v, c) }
-                    onDismiss()
-                } else UiEvents.show("Enter a number")
-            }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-    if (pickDate) PickDateDialog(theDate, onDismiss = { pickDate = false }) { theDate = it }
+    // Now a sheet, shared with editing a value (#88).
+    MeasurementEntrySheet(snap, date, initialName = initialName, onDismiss = onDismiss)
 }
 
