@@ -24,12 +24,15 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -49,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
@@ -64,6 +69,7 @@ import java.util.Locale
  * The calendar (#87, #9), laid out after FitNotes: a month grid (swipe or arrows for other months) with category dots,
  * a gold ring for today and the selected day filled imperial purple, the month's workout count, and the selected
  * day's workout below with Open day. Tapping the selected day again opens it too. The list view is All days.
+ * The filter (#9) dims every day without a matching set and counts the matches.
  */
 @Composable
 fun CalendarScreen(snap: Snapshot, nav: Nav) {
@@ -73,6 +79,10 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
     val month = YearMonth.parse(monthStr)
     val colors = LocalChartColors.current
     val shift by rememberUpdatedState<(Long) -> Unit>({ n -> monthStr = month.plusMonths(n).toString() })
+    val device by Settings.device.collectAsState()
+    val filter = remember(device.calendarFilter) { CalendarFilter.decode(device.calendarFilter) }
+    val matches = remember(snap, filter) { filter.days(snap) }
+    var filtering by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
@@ -83,9 +93,13 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                     selected = today
                     monthStr = YearMonth.from(LocalDate.now()).toString()
                 },
+                TopBarAction(Icons.Filled.Search, if (filter.active) "Change the filter" else "Filter days") { filtering = true },
                 TopBarAction(Icons.Filled.List, "List of every day") { nav.push(Screen.Timeline) }
             )
         )
+        if (filter.active) FilterBar(snap, filter, month, matches, onEdit = { filtering = true }) {
+            Settings.updateDevice { it.copy(calendarFilter = null) }
+        }
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { shift(-1) }) {
@@ -136,7 +150,8 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                             Box(Modifier.weight(1f).aspectRatio(0.8f).padding(2.dp)) {
                                 if (dayNum in 1..days) {
                                     val date = month.atDay(dayNum).format(Dates.ISO)
-                                    DayCell(snap, date, dayNum, date == selected, colors.accent, colors.series) {
+                                    val dim = filter.active && date !in matches
+                                    DayCell(snap, date, dayNum, date == selected, colors.accent, colors.series, dim) {
                                         // A second tap on the selected day opens it, like "Go!" in FitNotes (#9).
                                         if (selected == date) nav.home(date) else selected = date
                                     }
@@ -155,7 +170,43 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
             SelectedDay(snap, selected) { nav.home(selected) }
         }
     }
+    if (filtering) {
+        CalendarFilterSheet(
+            snap,
+            filter,
+            onApply = { f -> Settings.updateDevice { it.copy(calendarFilter = f.encode()) } },
+            onDismiss = { filtering = false }
+        )
+    }
 }
+
+/** The filter in words, the matches this month and in all, and Clear (#9). Tap to change it. */
+@Composable
+private fun FilterBar(snap: Snapshot, filter: CalendarFilter, month: YearMonth, matches: Set<String>, onEdit: () -> Unit, onClear: () -> Unit) {
+    val prefix = month.toString()
+    val inMonth = matches.count { it.startsWith(prefix) }
+    val words = filter.describe(snap)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(Brand.PurpleDeep)
+            .clickable(onClickLabel = "Change the filter", onClick = onEdit)
+            .padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.xs, bottom = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(words, style = MaterialTheme.typography.bodyMedium, color = Brand.GoldLight, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                "${plural(inMonth, "day")} this month  ·  ${plural(matches.size, "day")} in all".uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        TextButton(onClick = onClear, modifier = Modifier.heightIn(min = Spacing.touch)) { Text("Clear") }
+    }
+}
+
+private fun plural(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
 
 /** "12 workouts this month", with the month's photo count. */
 @Composable
@@ -174,7 +225,10 @@ private fun MonthCount(snap: Snapshot, month: YearMonth, modifier: Modifier) {
 }
 
 @Composable
-private fun DayCell(snap: Snapshot, date: String, dayNum: Int, isSelected: Boolean, photoColor: Color, measureColor: Color, onClick: () -> Unit) {
+private fun DayCell(
+    snap: Snapshot, date: String, dayNum: Int, isSelected: Boolean, photoColor: Color, measureColor: Color,
+    dimmed: Boolean, onClick: () -> Unit
+) {
     val photos = snap.photosByDate[date]
     val hasRecords = snap.recordsByDate.containsKey(date)
     val sets = snap.setsByDate[date]
@@ -189,6 +243,7 @@ private fun DayCell(snap: Snapshot, date: String, dayNum: Int, isSelected: Boole
         if (!photos.isNullOrEmpty()) append(", photo")
         if (hasRecords) append(", measurements")
         if (isToday) append(", today")
+        if (dimmed) append(", doesn't match the filter")
     }
     Box(
         Modifier
@@ -202,6 +257,8 @@ private fun DayCell(snap: Snapshot, date: String, dayNum: Int, isSelected: Boole
                 }
             )
             .then(if (isToday) Modifier.border(2.dp, Brand.Gold, shape) else Modifier)
+            // With a filter on, days without a matching set fade back so the matches stand out (#9).
+            .alpha(if (dimmed && !isSelected) 0.3f else 1f)
             .clickable(onClick = onClick)
             .semantics(mergeDescendants = true) { contentDescription = spoken; this.selected = isSelected }
     ) {

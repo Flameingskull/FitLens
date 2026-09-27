@@ -52,6 +52,8 @@ data class DeviceSettings(
     /** The rest-over sound (#20) as a ringtone URI, or null for the phone's default notification sound. Sounds are
      *  files on this phone, so the choice stays here and never travels in backups. */
     val restSoundUri: String? = null,
+    /** The calendar's filter (#9), as `CalendarFilter.encode` wrote it, or null for none. */
+    val calendarFilter: String? = null,
     /** The guided setup (#29) has been finished or skipped on this phone, or wasn't needed because data was here. */
     val setupDone: Boolean = false
 )
@@ -272,6 +274,7 @@ object Settings {
     private const val D_CHART_TAP = "chart_hint_tap"
     private const val D_CHART_EXPAND = "chart_hint_expand"
     private const val D_REST_SOUND_URI = "rest_sound_uri"
+    private const val D_CALENDAR_FILTER = "calendar_filter"
     private const val D_SETUP_DONE = "setup_done"
 
     /** Every phone-only key, as it was named in `meta` before 1.0.21. */
@@ -325,6 +328,7 @@ object Settings {
         chartTapSeen = bool(get(D_CHART_TAP)),
         chartExpandSeen = bool(get(D_CHART_EXPAND)),
         restSoundUri = get(D_REST_SOUND_URI),
+        calendarFilter = get(D_CALENDAR_FILTER),
         setupDone = bool(get(D_SETUP_DONE))
     )
 
@@ -347,6 +351,7 @@ object Settings {
         D_CHART_TAP to if (chartTapSeen) "1" else null,
         D_CHART_EXPAND to if (chartExpandSeen) "1" else null,
         D_REST_SOUND_URI to restSoundUri,
+        D_CALENDAR_FILTER to calendarFilter,
         D_SETUP_DONE to if (setupDone) "1" else null
     )
 
