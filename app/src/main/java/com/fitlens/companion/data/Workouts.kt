@@ -635,8 +635,10 @@ object Workouts {
         if (setIds != null && setIds.isEmpty()) return@write emptyList()
         val where = if (setIds == null) "date=?" else "date=? AND id IN (${setIds.joinToString(",")})"
         val copies = ArrayList<ContentValues>()
+        // Supersets come across as new groups on the target day, after any it already has (#18).
+        val offset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", t) ?: 0L).toInt()
         w.rawQuery(
-            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe FROM workout_set WHERE $where ORDER BY id",
+            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe, superset FROM workout_set WHERE $where ORDER BY position, id",
             arrayOf(f)
         ).use { c ->
             while (c.moveToNext()) {
@@ -645,6 +647,7 @@ object Workouts {
                     put("distance", c.dbl(3)); put("duration", c.int(4)); put("is_pr", 0)
                     put("comment", c.str(5)); put("source", Sources.FITLENS)
                     put("set_type", c.int(6)); if (c.isNull(7)) putNull("rpe") else put("rpe", c.getDouble(7))
+                    if (c.int(8) > 0) put("superset", c.int(8) + offset)
                 })
             }
         }
@@ -691,6 +694,9 @@ object Workouts {
             while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(f, c.str(0), c.str(1)))
         }
         val moved = (w.longOrNull("SELECT COUNT(*) FROM workout_set WHERE date=?", f) ?: 0L).toInt()
+        // Moved supersets keep their groups, numbered after the target day's own so the two never merge (#18).
+        val ssOffset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", t) ?: 0L).toInt()
+        if (ssOffset > 0) w.execSQL("UPDATE workout_set SET superset = superset + ? WHERE date=? AND superset > 0", arrayOf<Any>(ssOffset, f))
         // Where the workout came from moves with it (#21), replacing the target day's.
         w.execSQL("UPDATE OR REPLACE workout_origin SET date=? WHERE date=?", arrayOf<Any>(t, f))
         val values = ContentValues().apply { put("date", t); put("source", Sources.FITLENS) }

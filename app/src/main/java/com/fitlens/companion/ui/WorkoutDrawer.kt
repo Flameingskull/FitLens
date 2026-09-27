@@ -185,6 +185,19 @@ fun WorkoutDrawer(
                         IconButton(onClick = { moveExercise(snap, date, exId, 1) }, enabled = canDown) {
                             Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move $name down")
                         }
+                        // Supersets from the drawer (#18): join the next exercise, or leave the group.
+                        val nextEx = logged.getOrNull(logged.indexOf(exId) + 1)
+                        com.fitlens.companion.ui.design.OverflowMenu(
+                            listOf(
+                                com.fitlens.companion.ui.design.MenuAction("Superset with the next exercise", enabled = nextEx != null) {
+                                    nextEx?.let { n -> AppScope.scope.launch { Workouts.groupExercises(date, listOf(exId, n)) } }
+                                },
+                                com.fitlens.companion.ui.design.MenuAction("Remove from superset", enabled = group > 0) {
+                                    AppScope.scope.launch { Workouts.ungroupExercise(date, exId) }
+                                }
+                            ),
+                            description = "Superset options for $name"
+                        )
                     }
                 }
             }
