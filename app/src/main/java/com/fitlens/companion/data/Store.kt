@@ -75,12 +75,20 @@ class Snapshot(
         (setsByDate.keys + recordsByDate.keys + photosByDate.keys + workoutComments.keys)
             .toSortedSet().toList().reversed()
 
-    /** Measurements that have at least one record, plus all custom metrics, in FitNotes order. */
-    val usedMeasurements: List<MeasurementDef> = run {
+    /** Every measurement: each definition and each name seen only in records, in the user's order (#88). */
+    val allMeasurements: List<MeasurementDef> = run {
         val defs = measurementDefs.associateBy { it.name }
-        (recordsByName.keys + measurementDefs.filter { it.custom }.map { it.name }).distinct().map { name ->
+        (measurementDefs.map { it.name } + recordsByName.keys).distinct().map { name ->
             defs[name] ?: MeasurementDef(name, recordsByName[name]?.firstOrNull()?.unit ?: "", 999, 0, 0.0, true)
         }.sortedWith(compareBy({ it.sortOrder }, { it.name }))
+    }
+
+    /**
+     * Measurements that have at least one record, plus FitLens's own (custom and standard), in the user's order.
+     * Those switched off on the Measurements screen are left out everywhere they'd be shown (#27).
+     */
+    val usedMeasurements: List<MeasurementDef> = allMeasurements.filter { m ->
+        m.enabled && (m.custom || recordsByName.containsKey(m.name))
     }
 
     val customMetrics: List<MeasurementDef> = measurementDefs.filter { it.custom }.sortedBy { it.name.lowercase() }
@@ -374,6 +382,46 @@ object Store {
             w.endTransaction()
         }
         _snapshot.value = load()
+    }
+
+    /** Shows or hides a measurement (#27), and marks it so a FitNotes import keeps the choice. */
+    suspend fun setMeasurementEnabled(name: String, unit: String, enabled: Boolean) = withContext(Dispatchers.IO) {
+        val w = db.writableDatabase
+        ensureMeasurement(w, name, unit, 999)
+        w.update("measurement", ContentValues().apply { put("enabled", if (enabled) 1 else 0); put("edited", 1) }, "name=?", arrayOf(name))
+        _snapshot.value = load()
+    }
+
+    /**
+     * Adds the [StandardMeasurements] not already present (ignoring capitals) as FitLens's own measurements, after the
+     * existing ones. Existing measurements aren't touched. Returns how many were added.
+     */
+    suspend fun addStandardMeasurements(): Int = withContext(Dispatchers.IO) {
+        val w = db.writableDatabase
+        val names = w.rawQuery("SELECT name FROM measurement", null).use { c ->
+            val out = ArrayList<String>(); while (c.moveToNext()) out += c.strOr(0); out
+        } + w.rawQuery("SELECT DISTINCT name FROM mrecord", null).use { c ->
+            val out = ArrayList<String>(); while (c.moveToNext()) out += c.strOr(0); out
+        }
+        val add = StandardMeasurements.missing(names)
+        var order = w.rawQuery("SELECT IFNULL(MAX(sort_order), 0) FROM measurement WHERE sort_order < 900", null).use { c ->
+            if (c.moveToFirst()) c.getInt(0) else 0
+        }
+        w.beginTransaction()
+        try {
+            add.forEach { (name, unit) ->
+                order++
+                w.insertWithOnConflict("measurement", null, ContentValues().apply {
+                    put("name", name); put("unit", unit); put("sort_order", order)
+                    put("enabled", 1); put("custom", 1); put("edited", 1)
+                }, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
+            }
+            w.setTransactionSuccessful()
+        } finally {
+            w.endTransaction()
+        }
+        _snapshot.value = load()
+        add.size
     }
 
     /** Number of values entered by hand for a measurement. */

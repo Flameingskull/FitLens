@@ -1,0 +1,125 @@
+package com.fitlens.companion.ui
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import com.fitlens.companion.data.MeasurementDef
+import com.fitlens.companion.data.Snapshot
+import com.fitlens.companion.data.StandardMeasurements
+import com.fitlens.companion.data.Store
+import com.fitlens.companion.ui.design.MenuAction
+import com.fitlens.companion.ui.design.OverflowMenu
+import kotlinx.coroutines.launch
+
+/**
+ * Every body measurement in one place (#88, #27): turn each on or off (off hides it from the body tracker, the day log
+ * and the pickers, and keeps its values), create, edit or delete custom measurements, and add the standard set for
+ * people who don't import from FitNotes. Choices made here survive FitNotes imports.
+ */
+@Composable
+fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
+    var creating by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<MeasurementDef?>(null) }
+    var deleting by remember { mutableStateOf<MeasurementDef?>(null) }
+    val all = remember(snap) { snap.allMeasurements }
+    val missing = remember(snap) { StandardMeasurements.missing(snap.measurementDefs.map { it.name }) }
+
+    Column(Modifier.fillMaxSize()) {
+        PlainTopBar("Measurements") {
+            IconButton(onClick = { creating = true }) { Icon(Icons.Filled.Add, contentDescription = "New measurement") }
+        }
+        LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+            item {
+                Column(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
+                    Text(
+                        "Switch a measurement off to hide it from the body tracker and the day log. Its values are kept, " +
+                            "and FitNotes imports keep your choice.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (missing.isNotEmpty()) {
+                        OutlinedButton(
+                            onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } },
+                            modifier = Modifier.padding(top = Spacing.sm).heightIn(min = Spacing.touch)
+                        ) { Text("Add the standard measurements (${missing.size})") }
+                    }
+                }
+                GoldHairline()
+            }
+            if (all.isEmpty()) {
+                item { EmptyState("No measurements yet", "Add the standard set, create your own with +, or import a FitNotes backup.") }
+            }
+            items(all, key = { it.name }) { m ->
+                val count = snap.recordsByName[m.name]?.size ?: 0
+                val kind = if (m.custom) "Yours" else "From FitNotes"
+                val subtitle = listOf(if (count == 1) "1 value" else "$count values", kind).joinToString("  ·  ")
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.row)
+                        .padding(start = Spacing.lg, end = Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f).padding(vertical = Spacing.sm)) {
+                        Text(m.name + if (m.unit.isNotBlank()) " (${m.unit})" else "", style = MaterialTheme.typography.bodyLarge)
+                        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(
+                        checked = m.enabled,
+                        onCheckedChange = { on -> AppScope.scope.launch { Store.setMeasurementEnabled(m.name, m.unit, on) } },
+                        modifier = Modifier.semantics {
+                            contentDescription = "Show ${m.name}"
+                            stateDescription = if (m.enabled) "On" else "Off"
+                        }
+                    )
+                    if (m.custom) {
+                        OverflowMenu(
+                            listOf(
+                                MenuAction("Edit") { editing = m },
+                                MenuAction("Delete") { deleting = m }
+                            ),
+                            description = "Options for ${m.name}"
+                        )
+                    }
+                }
+                GoldHairline()
+            }
+        }
+    }
+
+    if (creating) CustomMetricEditor(snap, null) { creating = false }
+    editing?.let { m -> CustomMetricEditor(snap, m) { editing = null } }
+    deleting?.let { m ->
+        val manual = Store.manualCount(snap, m.name)
+        ConfirmDialog(
+            title = "Delete ${m.name}?",
+            text = (if (manual > 0) "The $manual values you entered by hand will be deleted. " else "") +
+                "Values from FitNotes stay under their FitNotes measurement.",
+            onDismiss = { deleting = null }
+        ) { AppScope.scope.launch { Store.deleteCustomMetric(m.name) } }
+    }
+}

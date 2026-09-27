@@ -76,22 +76,21 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     var fromZero by rememberSaveable { mutableStateOf(false) }
     var fullScreen by rememberSaveable { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
-    var managing by remember { mutableStateOf(false) }
     var editingGoal by remember { mutableStateOf(false) }
     var ordering by remember { mutableStateOf(false) }
     var editingRecord by remember { mutableStateOf<MRecord?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         PlainTopBar("Body tracker") {
-            IconButton(onClick = { managing = true }) { Icon(Icons.Filled.Edit, contentDescription = "Custom metrics") }
+            IconButton(onClick = { nav.push(Screen.Measurements) }) { Icon(Icons.Filled.Edit, contentDescription = "Manage measurements") }
             IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add measurement") }
             if (measurements.size > 1) IconButton(onClick = { ordering = true }) { Icon(Icons.Filled.Menu, contentDescription = "Reorder measurements") }
         }
         if (measurements.isEmpty()) {
-            EmptyState("No body tracker data yet", "Import a FitNotes backup, add a measurement, or create a custom metric.") {
+            EmptyState("No body tracker data yet", "Import a FitNotes backup, or add the standard measurements and your own.") {
                 Row {
                     TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
-                    TextButton(onClick = { managing = true }) { Text("Custom metrics") }
+                    TextButton(onClick = { nav.push(Screen.Measurements) }) { Text("Measurements") }
                 }
             }
         } else {
@@ -214,7 +213,6 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     }
     if (adding) AddMeasurementDialog(snap, Dates.today()) { adding = false }
     logName?.let { n -> AddMeasurementDialog(snap, Dates.today(), initialName = n) { logName = null } }
-    if (managing) CustomMetricsDialog(snap) { managing = false }
     val goalDef = measurements.firstOrNull { it.name == selectedName }
     if (editingGoal && goalDef != null) MeasurementGoalSheet(goalDef) { editingGoal = false }
     if (ordering) MeasurementOrderSheet(measurements) { ordering = false }

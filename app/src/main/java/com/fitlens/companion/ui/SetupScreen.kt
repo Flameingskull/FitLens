@@ -47,6 +47,9 @@ import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.StarterLibrary
+import kotlinx.coroutines.launch
+import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.StandardMeasurements
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.SegmentedSwitch
 
@@ -285,4 +288,13 @@ private fun ExercisesStep(snap: Snapshot) {
     Button(onClick = { starter = true }) { Text("Add the starter library") }
     StepText("You can add, rename or delete exercises any time from the Exercise library in the day log's ⋮ menu.")
     if (starter) StarterLibraryDialog(onDismiss = { starter = false })
+    // The standard body measurements (#27), for anyone not bringing them from FitNotes.
+    val missing = StandardMeasurements.missing(snap.measurementDefs.map { it.name } + snap.recordsByName.keys)
+    StepHeading("Body measurements")
+    StepText(
+        "Track bodyweight, body fat and ${StandardMeasurements.all.size - 2} tape measurements such as waist and arms. " +
+            "Switch off any you don't need, or add your own, from the body tracker's Measurements screen."
+    )
+    if (missing.isEmpty()) StepStatus("The standard measurements are ready in the body tracker.")
+    else Button(onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } }) { Text("Add the standard measurements") }
 }

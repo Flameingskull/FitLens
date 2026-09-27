@@ -460,7 +460,8 @@ object FitNotesImporter {
                 plan.measurementsAdded++
             } else if (isCustom == 0) {
                 // A goal or order the user set in FitLens wins over FitNotes's (#27); the unit still follows FitNotes.
-                if (edited) { cv.remove("sort_order"); cv.remove("goal_type"); cv.remove("goal_value") }
+                // So does switching it on or off on the Measurements screen.
+                if (edited) { cv.remove("sort_order"); cv.remove("goal_type"); cv.remove("goal_value"); cv.remove("enabled") }
                 w.update("measurement", cv, "name=?", arrayOf(name))
             }
         }

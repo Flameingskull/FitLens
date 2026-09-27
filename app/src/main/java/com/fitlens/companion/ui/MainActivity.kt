@@ -64,6 +64,8 @@ sealed interface Screen {
     data object Timeline : Screen
     data object Calendar : Screen
     data object Body : Screen
+    /** Every body measurement: on/off, custom ones, the standard set (#88). */
+    data object Measurements : Screen
     /** Saved workouts (#100): named groups of exercises with their sets. */
     data object SavedWorkouts : Screen
     /** Creating ([id] 0) or editing a saved workout (#100). */
@@ -267,6 +269,7 @@ fun AppRoot(nav: Nav) {
                     Screen.Timeline -> TimelineScreen(s, nav)
                     Screen.Calendar -> CalendarScreen(s, nav)
                     Screen.Body -> BodyScreen(s, nav)
+                    Screen.Measurements -> MeasurementsScreen(s, nav)
                     Screen.Analysis -> AnalysisScreen(s, nav)
                     Screen.SavedWorkouts -> SavedWorkoutsScreen(s, nav)
                     is Screen.SavedWorkoutEditor -> SavedWorkoutEditorScreen(s, nav, top.id)

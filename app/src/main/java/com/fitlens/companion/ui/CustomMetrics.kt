@@ -35,62 +35,10 @@ import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import kotlinx.coroutines.launch
 
-/** Lists custom metrics with add, edit and delete. */
-@Composable
-fun CustomMetricsDialog(snap: Snapshot, onDismiss: () -> Unit) {
-    var editing by remember { mutableStateOf<MeasurementDef?>(null) }
-    var creating by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf<MeasurementDef?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Custom metrics") },
-        text = {
-            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState())) {
-                Text(
-                    "Track anything FitNotes doesn't. Enter values by hand from the + button. If a FitNotes backup has a " +
-                        "measurement with the same name, or the one you link, its values fill the metric in automatically.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (snap.customMetrics.isEmpty()) {
-                    Text("No custom metrics yet.", Modifier.padding(vertical = 16.dp))
-                }
-                snap.customMetrics.forEach { m ->
-                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(m.name + if (m.unit.isNotBlank()) " (${m.unit})" else "", style = MaterialTheme.typography.titleSmall)
-                            val count = snap.recordsByName[m.name]?.size ?: 0
-                            val from = m.link?.takeIf { it.isNotBlank() }?.let { "Filled from FitNotes “$it”" }
-                                ?: "Filled from FitNotes when names match"
-                            Text("$count entries · $from", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(onClick = { editing = m }) { Icon(Icons.Filled.Edit, contentDescription = "Edit ${m.name}") }
-                        IconButton(onClick = { deleting = m }) { Icon(Icons.Filled.Delete, contentDescription = "Delete ${m.name}") }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { creating = true }) { Text("Add metric") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Done") } }
-    )
-
-    if (creating) CustomMetricEditor(snap, null) { creating = false }
-    editing?.let { m -> CustomMetricEditor(snap, m) { editing = null } }
-    deleting?.let { m ->
-        val manual = Store.manualCount(snap, m.name)
-        ConfirmDialog(
-            title = "Delete ${m.name}?",
-            text = (if (manual > 0) "The $manual values you entered by hand will be deleted. " else "") +
-                "Values from FitNotes stay under their FitNotes measurement.",
-            onDismiss = { deleting = null }
-        ) { AppScope.scope.launch { Store.deleteCustomMetric(m.name) } }
-    }
-}
-
+/** Creates or edits a custom measurement (#3), from the Measurements screen (#88). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CustomMetricEditor(snap: Snapshot, existing: MeasurementDef?, onDismiss: () -> Unit) {
+internal fun CustomMetricEditor(snap: Snapshot, existing: MeasurementDef?, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(existing?.name ?: "") }
     var unit by remember { mutableStateOf(existing?.unit ?: "") }
     var link by remember { mutableStateOf(existing?.link ?: "") }
