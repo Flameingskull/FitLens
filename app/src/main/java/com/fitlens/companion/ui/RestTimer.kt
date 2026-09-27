@@ -338,7 +338,7 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
         if (prefs.restSound) {
             ListRowWithMenu(
                 title = "Sound",
-                subtitle = RestSound.title(ctx, device.restSoundUri),
+                subtitle = remember(device.restSoundUri) { RestSound.title(ctx, device.restSoundUri) },
                 onClick = {
                     val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
                         putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION or RingtoneManager.TYPE_ALARM)
