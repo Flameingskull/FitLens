@@ -83,6 +83,7 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
     val filter = remember(device.calendarFilter) { CalendarFilter.decode(device.calendarFilter) }
     val matches = remember(snap, filter) { filter.days(snap) }
     var filtering by remember { mutableStateOf(false) }
+    var overview by remember { mutableStateOf<Long?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
@@ -167,9 +168,10 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                 Text("Other dots: categories", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             GoldHairline()
-            SelectedDay(snap, selected) { nav.home(selected) }
+            SelectedDay(snap, selected, onOverview = { overview = it }) { nav.home(selected) }
         }
     }
+    overview?.let { id -> ExerciseOverviewSheet(snap, nav, id, selected) { overview = null } }
     if (filtering) {
         CalendarFilterSheet(
             snap,
@@ -286,7 +288,7 @@ private fun DayCell(
 
 /** The selected day below the grid: its exercises, body values and photos, and Open day (#87). */
 @Composable
-private fun SelectedDay(snap: Snapshot, date: String, onOpen: () -> Unit) {
+private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit, onOpen: () -> Unit) {
     val sets = snap.setsByDate[date].orEmpty()
     val records = snap.recordsByDate[date].orEmpty()
     val photos = snap.photosByDate[date].orEmpty()
@@ -309,7 +311,11 @@ private fun SelectedDay(snap: Snapshot, date: String, onOpen: () -> Unit) {
             )
         }
         byExercise.forEach { (exId, exSets) ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Tap an exercise for its overview (#26): history, graph, records, stats and goals in one sheet.
+            Row(
+                Modifier.fillMaxWidth().clickable(onClickLabel = "Show overview") { onOverview(exId) }.heightIn(min = Spacing.touch),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Dot(categoryColour(snap.categoryOf(exId)?.colour ?: 0), 8.dp)
                 Spacer(Modifier.width(Spacing.sm))
                 Column(Modifier.weight(1f)) {

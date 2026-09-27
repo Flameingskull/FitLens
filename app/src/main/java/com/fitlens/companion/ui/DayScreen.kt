@@ -461,6 +461,7 @@ private fun ExerciseOnDay(
     var confirmDelete by remember { mutableStateOf(false) }
     var swapping by remember { mutableStateOf(false) }
     var grouping by remember { mutableStateOf(false) }
+    var overview by remember { mutableStateOf(false) }
     val markComplete = Settings.portable.collectAsState().value.markComplete
     val group = exSets.maxOfOrNull { it.superset } ?: 0
     val limit = if (setsShown == 0 || expanded) exSets.size else minOf(setsShown, exSets.size)
@@ -473,6 +474,7 @@ private fun ExerciseOnDay(
         menu = listOf(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
             MenuAction("History and graph") { nav.push(Screen.SetEntry(date, exId, page = 1)) },
+            MenuAction("Overview") { overview = true },
             MenuAction("Records and goals") { nav.push(Screen.ExerciseDetail(exId)) },
             MenuAction("Move up", enabled = displayOrder(snap, date).indexOf(exId) > 0) { moveExercise(snap, date, exId, -1) },
             MenuAction("Move down", enabled = displayOrder(snap, date).let { it.indexOf(exId) in 0 until it.lastIndex }) {
@@ -530,6 +532,7 @@ private fun ExerciseOnDay(
             }
         )
     }
+    if (overview) ExerciseOverviewSheet(snap, nav, exId, date) { overview = false }
     if (swapping) {
         // Swaps the exercise for today only: its sets on this day move to the chosen one (#100). A saved workout's
         // exercise is swapped for good in the workout editor.

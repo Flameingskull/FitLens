@@ -48,7 +48,7 @@ import com.fitlens.companion.ui.design.SetTypeBadge
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
 fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
 
-private fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolean {
+internal fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolean {
     val type = snap.exercises[exId]?.type ?: 0
     return type != 0 && sets.all { it.weightKg == 0.0 && it.reps == 0 }
 }
@@ -273,7 +273,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
 }
 
 @Composable
-private fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean) {
+internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean) {
     // -1 means the Custom range in customFrom..customTo.
     var periodIdx by rememberSaveable { mutableIntStateOf(Records.Period.ALL.ordinal) }
     var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
