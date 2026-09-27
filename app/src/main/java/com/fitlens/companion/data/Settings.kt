@@ -49,6 +49,9 @@ data class DeviceSettings(
     /** The graph hint shows until the user has tapped a point and opened a graph full screen once each (#50). */
     val chartTapSeen: Boolean = false,
     val chartExpandSeen: Boolean = false,
+    /** The rest-over sound (#20) as a ringtone URI, or null for the phone's default notification sound. Sounds are
+     *  files on this phone, so the choice stays here and never travels in backups. */
+    val restSoundUri: String? = null,
     /** The guided setup (#29) has been finished or skipped on this phone, or wasn't needed because data was here. */
     val setupDone: Boolean = false
 )
@@ -95,6 +98,10 @@ data class PortableSettings(
     val restAutoStart: Boolean = false,
     /** Vibrate when the rest timer ends (#20). */
     val restVibrate: Boolean = true,
+    /** Play a sound when the rest timer ends (#20); which sound is phone-only ([DeviceSettings.restSoundUri]). */
+    val restSound: Boolean = true,
+    /** The rest-over sound's volume, 10 to 100 percent of the notification volume (#20). */
+    val restVolume: Int = 80,
     /** "Mark sets complete" mode (#19): tick boxes on sets and progress per exercise and workout. */
     val markComplete: Boolean = false
 ) {
@@ -240,6 +247,8 @@ object Settings {
         db.setMeta(P_REST_SECONDS, s.restSeconds.takeIf { it != 90 }?.toString())
         db.setMeta(P_REST_AUTO, if (s.restAutoStart) "1" else null)
         db.setMeta(P_REST_VIBRATE, if (s.restVibrate) null else "0")
+        db.setMeta(P_REST_SOUND, if (s.restSound) null else "0")
+        db.setMeta(P_REST_VOLUME, s.restVolume.takeIf { it != 80 }?.toString())
         db.setMeta(P_MARK_COMPLETE, if (s.markComplete) "1" else null)
     }
 
@@ -262,6 +271,7 @@ object Settings {
     private const val D_LAST_RESULT = "last_result"
     private const val D_CHART_TAP = "chart_hint_tap"
     private const val D_CHART_EXPAND = "chart_hint_expand"
+    private const val D_REST_SOUND_URI = "rest_sound_uri"
     private const val D_SETUP_DONE = "setup_done"
 
     /** Every phone-only key, as it was named in `meta` before 1.0.21. */
@@ -290,6 +300,8 @@ object Settings {
     private const val P_REST_SECONDS = "rest_seconds"
     private const val P_REST_AUTO = "rest_auto_start"
     private const val P_REST_VIBRATE = "rest_vibrate"
+    private const val P_REST_SOUND = "rest_sound"
+    private const val P_REST_VOLUME = "rest_volume"
     private const val P_MARK_COMPLETE = "mark_complete"
 
     private fun bool(v: String?) = v == "1"
@@ -312,6 +324,7 @@ object Settings {
         lastResult = get(D_LAST_RESULT),
         chartTapSeen = bool(get(D_CHART_TAP)),
         chartExpandSeen = bool(get(D_CHART_EXPAND)),
+        restSoundUri = get(D_REST_SOUND_URI),
         setupDone = bool(get(D_SETUP_DONE))
     )
 
@@ -333,6 +346,7 @@ object Settings {
         D_LAST_RESULT to lastResult,
         D_CHART_TAP to if (chartTapSeen) "1" else null,
         D_CHART_EXPAND to if (chartExpandSeen) "1" else null,
+        D_REST_SOUND_URI to restSoundUri,
         D_SETUP_DONE to if (setupDone) "1" else null
     )
 
@@ -357,6 +371,8 @@ object Settings {
         restSeconds = get(P_REST_SECONDS)?.toIntOrNull()?.takeIf { it in 5..1800 } ?: 90,
         restAutoStart = bool(get(P_REST_AUTO)),
         restVibrate = get(P_REST_VIBRATE) != "0",
+        restSound = get(P_REST_SOUND) != "0",
+        restVolume = get(P_REST_VOLUME)?.toIntOrNull()?.coerceIn(10, 100) ?: 80,
         markComplete = bool(get(P_MARK_COMPLETE))
     )
 }

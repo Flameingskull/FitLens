@@ -320,13 +320,15 @@ object Workouts {
     }
 
     /**
-     * An exercise's own defaults (#15): its weight step in kg (null uses the global step) and the graph it opens on
-     * (-1 for the first). Kept apart from [updateExercise] so a rename never touches them.
+     * An exercise's own defaults (#15): its weight step in kg (null uses the global step), the graph it opens on
+     * (-1 for the first) and its rest length in seconds (null uses the global one). Kept apart from [updateExercise]
+     * so a rename never touches them.
      */
-    suspend fun setExerciseDefaults(id: Long, weightStepKg: Double?, defaultGraph: Int): Unit = write { w ->
+    suspend fun setExerciseDefaults(id: Long, weightStepKg: Double?, defaultGraph: Int, restSeconds: Int?): Unit = write { w ->
         w.update("exercise", ContentValues().apply {
             if (weightStepKg == null) putNull("weight_step") else put("weight_step", weightStepKg)
             put("default_graph", defaultGraph)
+            if (restSeconds == null) putNull("rest_seconds") else put("rest_seconds", restSeconds)
         }, "id=?", arrayOf(id.toString()))
     }
 

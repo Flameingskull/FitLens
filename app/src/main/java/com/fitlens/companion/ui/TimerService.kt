@@ -79,7 +79,10 @@ class TimerService : Service() {
 
     companion object {
         private const val CHANNEL_ONGOING = "timers"
-        private const val CHANNEL_ALERT = "timer_alerts"
+        // The alert channel is silent since 1.0.44: FitLens plays the chosen sound itself, at its own volume (#20).
+        // A channel's sound can't be changed once created, hence a new id and the old one deleted.
+        private const val CHANNEL_ALERT = "timer_alerts_v2"
+        private const val OLD_CHANNEL_ALERT = "timer_alerts"
         private const val ONGOING_ID = 2001
         private const val ALERT_ID = 2002
         private const val ACTION_PAUSE = "com.fitlens.companion.timer.PAUSE"
@@ -148,6 +151,7 @@ class TimerService : Service() {
 
         private fun channels(context: Context) {
             val nm = context.getSystemService(NotificationManager::class.java) ?: return
+            nm.deleteNotificationChannel(OLD_CHANNEL_ALERT)
             nm.createNotificationChannel(
                 NotificationChannel(CHANNEL_ONGOING, "Timers", NotificationManager.IMPORTANCE_LOW).apply {
                     description = "The rest timer and workout timer while they run"
@@ -156,7 +160,8 @@ class TimerService : Service() {
             )
             nm.createNotificationChannel(
                 NotificationChannel(CHANNEL_ALERT, "Rest over", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "When the rest timer ends"
+                    description = "When the rest timer ends. The sound is chosen in the rest timer."
+                    setSound(null, null)
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0, 400, 200, 400)
                 }

@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 11
+        const val VERSION = 12
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -62,7 +62,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE TABLE exercise(id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0, notes TEXT, " +
                 "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, " +
-                "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1)",
+                "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1, rest_seconds INTEGER)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
                 "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0)",
@@ -191,6 +191,12 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // ---- 1.0.41: mark sets complete (#19) ----------------------------------------------------------------
             // Whether a set has been ticked off. Every existing set starts unticked; the step replays safely (#77).
             addColumn(db, "workout_set", "done", "INTEGER NOT NULL DEFAULT 0")
+        }
+        if (oldVersion < 12) {
+            // ---- 1.0.44: per-exercise rest time (#15) ------------------------------------------------------------
+            // An exercise's own rest length in seconds; NULL uses the global one, so every exercise keeps today's
+            // behaviour. The step replays safely (#77).
+            addColumn(db, "exercise", "rest_seconds", "INTEGER")
         }
     }
 

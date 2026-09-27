@@ -216,7 +216,10 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     val members = supersetMembers(snap, date, supersetOf(snap, date, exerciseId))
                     val at = members.indexOf(exerciseId)
                     val endOfRound = members.size < 2 || at == members.lastIndex
-                    Settings.currentPortable().let { p -> if (p.restAutoStart && endOfRound) RestTimer.start(appContext, p.restSeconds) }
+                    Settings.currentPortable().let { p ->
+                        // The exercise's own rest length when it has one (#15).
+                        if (p.restAutoStart && endOfRound) RestTimer.start(appContext, snap.exercises[exerciseId]?.restSeconds ?: p.restSeconds)
+                    }
                     if (members.size > 1 && at >= 0) {
                         val next = members[(at + 1) % members.size]
                         if (nav.top is Screen.SetEntry) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
@@ -571,7 +574,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             }
         }
     }
-    if (restSheet) RestTimerSheet { restSheet = false }
+    if (restSheet) RestTimerSheet(ex) { restSheet = false }
     if (editExercise && ex != null) {
         ExerciseEditorSheet(snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editExercise = false })
     }

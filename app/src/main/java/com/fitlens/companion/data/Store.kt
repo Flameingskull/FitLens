@@ -153,11 +153,12 @@ object Store {
             while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
         }
         val exercises = HashMap<Long, Exercise>()
-        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph FROM exercise", null).use { c ->
+        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph, rest_seconds FROM exercise", null).use { c ->
             while (c.moveToNext()) exercises[c.lng(0)] =
                 Exercise(
                     c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0,
-                    if (c.isNull(7)) null else c.getDouble(7), if (c.isNull(8)) -1 else c.getInt(8)
+                    if (c.isNull(7)) null else c.getDouble(7), if (c.isNull(8)) -1 else c.getInt(8),
+                    if (c.isNull(9)) null else c.getInt(9)
                 )
         }
         val sets = ArrayList<SetRow>()

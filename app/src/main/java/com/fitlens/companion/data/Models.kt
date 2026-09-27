@@ -54,7 +54,9 @@ data class Exercise(
     /** This exercise's + and − step in kg, or null for the global step (#15). */
     val weightStepKg: Double? = null,
     /** The graph the exercise opens on, as an index into its graph list, or -1 for the first (#15). */
-    val defaultGraph: Int = -1
+    val defaultGraph: Int = -1,
+    /** This exercise's rest length in seconds, or null for the global rest timer length (#15, #20). */
+    val restSeconds: Int? = null
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
 }

@@ -82,6 +82,7 @@ import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.StarterLibrary
 import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
+import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.ConfirmSheet
 import com.fitlens.companion.ui.design.FitSheet
@@ -568,6 +569,7 @@ fun ExerciseEditorSheet(
     // This exercise's defaults (#15): weight step in kg (null = the global step) and the graph it opens on.
     var stepKg by remember { mutableStateOf(existing?.weightStepKg) }
     var defaultGraph by remember { mutableStateOf(existing?.defaultGraph ?: -1) }
+    var restSec by remember { mutableStateOf(existing?.restSeconds) }
 
     fun save(keepOpen: Boolean) {
         val n = name.trim()
@@ -580,6 +582,7 @@ fun ExerciseEditorSheet(
         val note = notes.trim().ifBlank { null }
         val step = stepKg
         val graph = defaultGraph
+        val rest = restSec
         if (!keepOpen) onDismiss()
         AppScope.scope.launch {
             try {
@@ -589,8 +592,8 @@ fun ExerciseEditorSheet(
                     Workouts.updateExercise(existing.id, n, c, t, note)
                     existing.id
                 }
-                if (step != existing?.weightStepKg || graph != (existing?.defaultGraph ?: -1)) {
-                    Workouts.setExerciseDefaults(id, step, graph)
+                if (step != existing?.weightStepKg || graph != (existing?.defaultGraph ?: -1) || rest != existing?.restSeconds) {
+                    Workouts.setExerciseDefaults(id, step, graph, rest)
                 }
                 if (keepOpen) {
                     // Ready for the next one in the same category (#83). onSaved isn't fired: it would open the
@@ -657,6 +660,14 @@ fun ExerciseEditorSheet(
                         label = { Text("${fmtNum(v, 2)} ${snap.weightUnit}") }
                     )
                 }
+            }
+        }
+        // Its own rest length (#15): the rest timer uses it after this exercise's sets.
+        FieldLabel("Rest time")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(selected = restSec == null, onClick = { restSec = null }, label = { Text("As in the rest timer") })
+            REST_CHOICES.forEach { secs ->
+                FilterChip(selected = restSec == secs, onClick = { restSec = secs }, label = { Text(fmtDuration(secs)) })
             }
         }
         FieldLabel("Opens on graph")
