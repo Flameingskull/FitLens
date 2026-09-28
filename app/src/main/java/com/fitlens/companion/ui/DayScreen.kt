@@ -103,9 +103,6 @@ private fun shiftDay(date: String, days: Long): String =
 fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     val prefs by Settings.portable.collectAsState()
     val sets = snap.setsByDate[date] ?: emptyList()
-    // The nearest days with data either side, for the menu's jumps. allDates is newest first.
-    val older = snap.allDates.firstOrNull { it < date }
-    val newer = snap.allDates.lastOrNull { it > date }
     var addMeasurement by remember { mutableStateOf(false) }
     var editComment by remember { mutableStateOf(false) }
     var copyPrevious by remember { mutableStateOf(false) }
@@ -158,15 +155,11 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction("Delete this workout", enabled = hasWorkout) { deleteWorkout = true },
                 MenuAction("Add photos to this day") { importForDay() },
                 MenuAction("Add measurement") { addMeasurement = true },
-                MenuAction("Previous day with data", enabled = older != null) { older?.let { go(it) } },
-                MenuAction("Next day with data", enabled = newer != null) { newer?.let { go(it) } },
                 MenuAction("Workouts") { nav.push(Screen.SavedWorkouts) },
                 MenuAction("Routines") { nav.push(Screen.Routines) },
                 MenuAction("Analysis") { nav.push(Screen.Analysis) },
                 MenuAction("Body tracker") { nav.push(Screen.Body) },
                 MenuAction("Photos") { nav.push(Screen.Photos) },
-                MenuAction("All days") { nav.push(Screen.Timeline) },
-                MenuAction("Exercise library") { nav.push(Screen.Library(date)) },
                 MenuAction("Settings") { nav.push(Screen.SettingsHome) }
             )
         )
