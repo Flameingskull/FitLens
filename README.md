@@ -60,8 +60,9 @@ custom metrics.
   Warm-ups stay out of records and statistics unless you choose to count them. Optionally record how hard each set
   felt, as **RPE** or **reps in reserve**.
 - **Exercise library.** Every category and exercise in one place, with quick add, notes, editing and deletion. Star
-  the ones you use most and they come first in every picker. Each exercise can have its own weight step and the graph
-  it opens on. Starting without a FitNotes backup, you can add a starter library of common exercises, only when you
+  the ones you use most and they come first in every picker. Each exercise can have its own weight step, rest time and
+  the graph it opens on. **Merge into…** joins a duplicate (say "Bench Press" and "Barbell Bench Press") into one
+  exercise with all its history, goals and saved-workout places; later FitNotes imports follow the merge. Starting without a FitNotes backup, you can add a starter library of common exercises, only when you
   ask and never on top of exercises you already have.
 - **Workout editing.** Add exercises to a day, and write, edit or delete the workout comment. Copy a logged workout
   to another day (leaving out any exercises you choose), move it, copy a previous workout into today, or delete it.
@@ -76,8 +77,10 @@ custom metrics.
   marked in gold, and a tap logs that day's workout.
 - **Timers.** **⋮ → Workout time** sets a workout's start and finish, or runs a workout timer (optionally started by
   the first set). The exercise screen has a **rest timer** with −15 s / +15 s, pause, a length you choose, auto-start
-  after each set and vibration. Both keep running with the screen off, in a notification with its own buttons.
-- **Reorder, supersets and ticking sets off.** Move exercises and sets up or down within a workout. Group
+  after each set, and a sound (your choice of the phone's sounds, at its own volume) and vibration when rest is over.
+  An exercise can have its own rest time. Both keep running with the screen off, in a notification with its own buttons.
+- **Reorder, supersets and ticking sets off.** Drag exercises into a new order in the workout drawer, or move
+  exercises and sets up or down; a superset always moves as one. Group
   exercises into **supersets**: they sit together with a gold bar, and saving a set moves you round-robin to the next
   exercise in the group, with the rest timer starting after each round. Saved workouts keep their supersets. With
   **Settings → Workout & logging → Tick sets off as you do them**, every set gets a tick box, each exercise and the
@@ -100,12 +103,16 @@ custom metrics.
   4. then the file's modified date. Photos dated this way are flagged for you to check.
 
   Duplicates are detected and skipped, so re-importing a folder is safe.
-- **Manual entry:** add photos to a specific day and add measurements by hand. If the same value later arrives in a
+- **Manual entry:** add photos to a specific day and log measurements by hand, with a date, time and comment. A value
+  you logged can be changed or deleted from the body tracker's History. If the same value later arrives in a
   FitNotes backup, the FitNotes copy is skipped and your entry is kept.
-- **Custom metrics:** create your own measurements, such as calories, sleep or a tape measurement FitNotes doesn't
-  have, with their own unit. You can link one to a FitNotes measurement so imports fill it in.
+- **Measurements:** the body tracker's **Measurements** screen lists every measurement with an on/off switch, adds
+  the standard set (bodyweight, body fat and eight tape measurements), and creates your own, such as calories or
+  sleep, with their own unit. You can link one to a FitNotes measurement so imports fill it in, and imports keep your
+  on/off choices.
 - **Guided setup:** a fresh install opens a short, skippable setup: restore a FitLens backup, or choose your units,
-  an automatic backup folder, a FitNotes import, your progress photos and the starter exercise library.
+  an automatic backup folder, a FitNotes import, your progress photos, the starter exercise library and the standard
+  body measurements.
   **Settings → Run setup again** opens it any time.
 - **Settings:** open it from the **⋮** menu on the day log. **Data, backup & import** holds Backups, FitNotes
   import and Data tools; **Training** holds Units & display (kilograms or pounds), Workout & logging and Personal
@@ -130,22 +137,30 @@ custom metrics.
   - **All days:** a timeline of every day, with that day's photos, measurements and workout summary.
   - **Calendar:** as in FitNotes, a month grid (swipe between months) with category dots, photo and measurement
     dots, today in gold and the selected day in purple. The selected day's workout shows below the grid; **Open day**
-    (or a second tap) opens its log.
+    (or a second tap) opens its log, and tapping one of its exercises opens that exercise's **overview** (history,
+    graph, records, stats and goals in one sheet). The search button **filters** the calendar by exercise or
+    category and weight, reps, distance or time, fading the days that don't match and counting those that do.
   - **Body tracker:** **Track** lists every measurement with its latest value, the change since the entry before
     (coloured by your goal) and its goal; tap one to log a new value. **History** is a table for each measurement, and
     **Graph** has the graph (1M/3M/6M/1Y/All) and stats (start, latest, change, min, max, weekly rate). Days with
-    photos are marked on the graph. Measurements can be put in your own order.
+    photos are marked on the graph. Measurements can be put in your own order, and a tap on a History value opens it
+    to edit.
   - **Exercise library:** as in FitNotes, your categories first, then a category's exercises, with a search across
     all of them. Tap an exercise to log it, or long-press to choose several and go through them in turn.
-  - **Exercise screen:** **Track** (log sets), **History** (every day you've done it) and **Graph** (est. 1RM, max
+  - **Exercise screen:** **Track** (log sets), **History** (every day you've done it, with its totals and **Copy to
+    today**) and **Graph** (est. 1RM, max
     weight, volume, reps, time) tabs. Its menu button opens the **workout drawer**: the day's exercises in order,
     to jump between, reorder, group into supersets or add to. Its top bar also has the rest timer, and opens
     **Records**, **Stats** (bests, totals and first and last logged, by period), **Goals** and a **1RM calculator**.
+    Its ⋮ menu has a **set calculator** (percentages of your 1RM, or a warm-up ramp) and a **plate calculator**
+    (plates per side for your bar and plates); both fill in the set.
     Rep-max records run from 1RM to 15RM, actual and estimated, for the last workout, week, month, year or all time. A heavier or equal lift for more reps counts as the record for every
-    lower rep count too. Estimated maxes blend the Epley and Brzycki formulas up to 10 reps and use a gentler curve
-    for 11 to 20 reps, so high-rep sets don't overstate your strength. Records can also cover a date range you choose.
+    lower rep count too. By default, estimated maxes blend the Epley and Brzycki formulas up to 10 reps and use a
+    gentler curve for 11 to 20 reps, so high-rep sets don't overstate your strength; **Settings → Personal records**
+    can switch to Epley, Brzycki, Lombardi, O'Conner or Wathan instead, with a worked example of each. Records can also cover a date range you choose.
   - **Analysis:** **Workouts** shows your workouts, volume, sets, reps or duration per week, month or year, for all
-    training, a category or an exercise. **Breakdown** splits your training by category or exercise in a donut chart,
+    training, a category or an exercise; duration can be a total or an average per workout, with a graph of every
+    workout's length. **Breakdown** splits your training by category or exercise in a donut chart,
     with a comparison to the period before. **Records** puts 1RM to 15RM for many exercises side by side.
   - **Graphs** (Body tracker, exercise screen and Analysis) can add a dashed **trend line** with its change per month, start their scale **from
     zero**, and show long breaks in training as gaps. Every graph opens **full screen** (the expand button or a double
@@ -171,7 +186,7 @@ custom metrics.
   - **Status and alerts:** the Backups section shows the last successful backup, the next scheduled one and the
     folder's free space. If the folder can't be reached (the SD card was removed or access was lost), a notification
     explains how to fix it.
-  - **Safety copy with Undo:** before a restore, a FitNotes import or deleting workout history, FitLens keeps a copy
+  - **Safety copy with Undo:** before a restore, a FitNotes import, merging exercises or deleting workout history, FitLens keeps a copy
     of your current data on the phone. For 7 days, **Settings → Backups → Safety copy → Undo** puts it back.
   - **Phone-to-phone transfer** (Android 12+) carries FitLens data across when you set up a new phone with a cable or
     a direct transfer.
@@ -242,8 +257,8 @@ The first time FitLens opens, a short guided setup walks through the steps below
 
 ## Limits
 
-- Exercises and sets are reordered with buttons (and TalkBack actions), not by dragging. Routines from FitNotes
-  backups aren't imported.
+- Sets are reordered with buttons (and TalkBack actions), not by dragging. Routines from FitNotes backups aren't
+  imported.
 - Full-screen graphs zoom along the time axis only; the vertical scale fits the stretch in view
   ([#96](https://github.com/Flameingskull/FitLens/issues/96)).
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So

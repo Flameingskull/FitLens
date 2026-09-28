@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.45.
+Last updated: 1.0.46.
 
 ## How data flows
 
@@ -41,7 +41,7 @@ Last updated: 1.0.45.
 | --- | --- |
 | `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set/`deleteMeta`, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
 | `Models.kt` | Row types (`Category`, `Exercise`, `SetRow` with `setType` and `rpe`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes`, `SetTypes` (W/D/F badges), `Effort` (RPE/RIR), `Poses`, `Dates` |
-| `Store.kt` | `Snapshot` and `Store` (load and reload, photo and measurement writes, custom metrics) |
+| `Store.kt` | `Snapshot` (`allMeasurements`; `usedMeasurements` leaves out those switched off, #27) and `Store` (load and reload, photo and measurement writes: `addManualRecord`, `updateRecord`, `setMeasurementEnabled`, `addStandardMeasurements`, custom metrics) |
 | `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts (`copyWorkout` returns the new ids), comments, times, undo helpers (`addSets`, `deleteSets`, `moveSets`), `reorderCategories`, `logPlanned` (a saved workout's sets, PR replay), `swapExercise` / `setExerciseOf`, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction), `mergeExercises` (#57: moves sets, goals and saved-workout entries, re-points import rules and re-keys set skips, PR replay) |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`; `Formula` and `chosen()`, the user's formula, #42), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
@@ -55,6 +55,7 @@ Last updated: 1.0.45.
 | `BackupSync.kt` | FitNotes backup-folder auto-sync |
 | `PhotoImporter.kt` | Photo import, date detection (EXIF, media store, file name, modified), duplicate hashing |
 | `StarterLibrary.kt` | Optional starter exercise library |
+| `StandardMeasurements.kt` | The standard body measurements (#27) and `missing`; added by `Store.addStandardMeasurements` from setup and the Measurements screen |
 | `Settings.kt` | The typed settings layer: `DeviceSettings` (DataStore), `PortableSettings` (`meta`), the one-time move from `meta` |
 
 ### `ui/`
@@ -84,7 +85,7 @@ Last updated: 1.0.45.
 | `Calculators.kt` | Set calculator (`SetCalculatorSheet`: % of 1RM or a warm-up ramp) and plate calculator (`PlateCalculatorSheet`, `platesPerSide`, `BarEnd`; bar and plates in `PortableSettings`), #28, from the exercise screen's ⋮ menu |
 | `ExerciseOverview.kt` | `ExerciseOverviewSheet` (#26): History, Graph, Records, Stats and Goals in one sheet, from the calendar's selected day and the day log |
 | `ExerciseStats.kt` | `ExerciseStatsTab` (#24: tiles by period) and `OneRepMaxSheet` (#28: rep maxes and percentages) |
-| `TrainingScreen.kt` | `ExerciseDetailScreen` (Records, Stats and Goals tabs, 1RM button), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` used by the exercise screen, `graphLabels`, `e1rm` |
+| `TrainingScreen.kt` | `ExerciseDetailScreen` (Records, Stats and Goals tabs, 1RM button), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` (day totals and Copy to today, #22) used by the exercise screen and the overview, `graphLabels`, `e1rm` |
 | `AnalysisScreen.kt` | `AnalysisScreen` and `AnalysisHub` (#90): Workouts tab (#51, bar totals; Duration as total or average per workout and `DurationPerWorkout`, #12), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
 | `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
@@ -98,7 +99,9 @@ Last updated: 1.0.45.
 | `FitNotesCards.kt` | `FitNotesCards`: FitNotes backup import and the backup-folder sync, shown in Settings → FitNotes import (the Sync tab was removed in 1.0.23, #35). Photo import lives on the Photos screen and the day log |
 | `BackupUi.kt` | `BackupsCard`, shown in Settings → Backups, with Save, Share and Restore and the file-name timestamp toggle |
 | `FitNotesImportUi.kt`, `ImportActions.kt` | Import hosts and flows, `runBusy`, `AppScope` |
-| `CustomMetrics.kt` | Custom metric dialogs |
+| `CustomMetrics.kt` | `CustomMetricEditor` (create or edit a custom measurement) |
+| `MeasurementsScreen.kt` | `Screen.Measurements` (#88): every measurement with on/off, custom ones, the standard set |
+| `MeasurementSheets.kt` | `MeasurementEntrySheet` (#27, #88): log a value, or edit/delete one logged by hand; `AddMeasurementDialog` in `DayScreen.kt` delegates to it |
 
 ### Other
 | File | Owns |
