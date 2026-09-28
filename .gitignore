@@ -11,3 +11,4 @@ captures/
 *.jks
 .claude/plugins/
 .nimbalyst/
+nimbalyst-local/

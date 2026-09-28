@@ -55,6 +55,12 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
   workout adds a whole group of exercises; a control that adds one exercise always says "Add exercise".
 - **Comments (owner decision, 2026-09-28):** a workout comment belongs to a day's recorded workout, and an exercise
   comment to that exercise in the workout. Both are reached there, never from the main ⋮ menu.
+- **Live logging (owner, 2026-09-28):** workouts are often logged live in the gym, not only afterwards. The screens
+  used mid-workout come first: set entry (Track, History, Graph), the workout drawer, the rest timer and the workout
+  timer. The rest timer times the break between sets, and while it runs its countdown replaces the alarm icon in the
+  top bar. The workout timer records how long the workout took. Each set has its own comment (a speech-bubble icon
+  opens a Comment box) and a done checkbox. The owner's FitNotes reference screenshots are in
+  `nimbalyst-local/fitnotes-screens/` (local only, not in git).
 - **Redesign first (owner decision, 2026-09-26):** builds now follow #79's page bundles: day log (#81, #84, #8), then
   the library and routine switcher (#83), the exercise screen (#82) and routines (#91, #21, #99). Feature-only builds
   wait until those land.

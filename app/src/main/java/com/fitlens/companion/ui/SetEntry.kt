@@ -86,8 +86,7 @@ import kotlinx.coroutines.launch
 /**
  * The exercise screen (#16, laid out after FitNotes in #82): TRACK, HISTORY and GRAPH tabs for one exercise on one
  * day. Track has fields that follow the exercise type, +/- steppers, auto-fill from last time, a comment button on
- * each set (#108), and
- * Save / Clear, or Update / Delete for a selected set, with an undo. Exercises chosen together in the library (#83)
+ * each set (#108), and Save / Clear, or Update / Delete for a selected set, with an undo. Exercises chosen together in the library (#83)
  * arrive as a [queue] and are opened one after another.
  *
  * Deferred on purpose: drag to reorder needs a stored position that `workout_set` doesn't have yet, and the gold
@@ -517,7 +516,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                         onClick = { selected = if (selected == s.id) null else s.id },
                         // Each set's own comment, one tap away mid-workout (#108).
                         onComment = { commenting = s },
-                        trailingHint = if (prefs.markComplete) null else if (isSelected) "Selected" else "Edit",
+                        // No "Edit" hint: the comment button needs the room at 320dp, and the purple, gold-edged
+                        // frame already marks the selected set (#108, #112).
                         // "Mark sets complete" (#19). Ticking the last set offers the next exercise, respecting
                         // supersets and the workout's order.
                         done = if (prefs.markComplete) s.done else null,

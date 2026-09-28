@@ -161,14 +161,14 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
 data class SetCell(val value: String, val unit: String = "", val spoken: String, val unitSlot: Boolean = true)
 
 /** Width of the set-number column on the Track tab: room for "12" and a set-type badge. */
-private val SetIndexWidth = 44.dp
+private val SetIndexWidth = 40.dp
 /** The trailing slots have fixed widths, so the value columns line up down the list. */
 private val SetMarkWidth = 32.dp
-private val SetMarkWideWidth = 48.dp
+private val SetMarkWideWidth = 40.dp
 private val SetDoneWidth = 48.dp
 private val SetHintWidth = 64.dp
 /** The unit after a value: room for "reps" or "lbs", so the figures before it line up (#112). */
-private val SetUnitWidth = 30.dp
+private val SetUnitWidth = 28.dp
 
 private fun setOuterPadding(framed: Boolean) =
     if (framed) PaddingValues(horizontal = Spacing.md, vertical = 3.dp) else PaddingValues(0.dp)
@@ -197,7 +197,7 @@ private fun SetCellText(cell: SetCell, modifier: Modifier = Modifier) {
         if (cell.unitSlot) {
             Text(
                 cell.unit,
-                Modifier.alignByBaseline().padding(start = 4.dp).widthIn(min = SetUnitWidth),
+                Modifier.alignByBaseline().padding(start = 3.dp).widthIn(min = SetUnitWidth),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

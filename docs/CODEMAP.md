@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.48.
+Last updated: 1.0.49.
 
 ## How data flows
 
@@ -70,16 +70,16 @@ Last updated: 1.0.48.
 | `SetMarks.kt` | `setMarks(set)`: a set's type badge and effort text (shown and spoken), following the settings. Every set list uses it |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`. **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (back arrow from `LocalNavBack`, for screens opened from the day log's menu), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
-| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow` with `SetCell` columns, `SetColumnsHeader`, `ExerciseCard`), `Glass.kt` (#102: `raisedGlass`, `recessedGlass`, `ambientBackdrop`, `GoldButton`, `GlassOutlinedButton`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
-| `TimelineScreen.kt` | All days (every day with photos, measurements, workout), from the day log's menu |
-| `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the ⋮ menu to every screen), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet` (one-line "80 kg · 8 reps" for toasts, PDFs and summaries), `defOrder`, `AddMeasurementDialog` |
-| `SetColumns.kt` | #101: `SetField`, `setFields` (an exercise's set columns, from its type plus anything recorded) and `setCells` (a set's values as `SetCell`s for `SetRow`) |
-| `SetEntry.kt` | The exercise screen (#82): `SetEntryScreen` with Track (logging and editing sets, Save / Clear, Update / Delete), History and Graph tabs in a `HorizontalPager`; `queue` opens exercises chosen together one after another; `page` picks the opening tab |
+| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow` with `SetCell` columns, `showIndex` and the `onComment` button, `SetCommentSheet`, `ExerciseCard`), `Icons.kt` (`FitIcons`: comment and alarm glyphs not in icons-core), `Glass.kt` (#102: `raisedGlass`, `recessedGlass`, `ambientBackdrop`, `GoldButton`, `GlassOutlinedButton`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
+| `TimelineScreen.kt` | All days (every day with photos, measurements, workout), from the Calendar's top bar |
+| `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the rest countdown while resting (#109), the ⋮ menu: day actions, then Workouts, Routines, Analysis, Body tracker, Photos, Settings; #111), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet` (one-line "80 kg · 8 reps" for toasts, PDFs and summaries), `defOrder`, `AddMeasurementDialog` |
+| `SetColumns.kt` | #101: `SetField`, `setFields` (an exercise's set columns, from its type plus anything recorded) and `setCells` (a set's values and units as `SetCell`s for `SetRow`, #112), `spokenDuration` |
+| `SetEntry.kt` | The exercise screen (#82): `SetEntryScreen` with Track (logging and editing sets, Save / Clear, Update / Delete, a comment button per set, #108), History and Graph tabs in a `HorizontalPager`; `queue` opens exercises chosen together one after another; `page` picks the opening tab |
 | `SavedWorkoutsScreen.kt` | Saved workouts UI (#100): `SavedWorkoutsScreen`, `SavedWorkoutEditorScreen` (drag order, swap, per-exercise sets sheet), `AddWorkoutSheet` (saved or built on the spot, review, Undo, `replace`), `SaveAsWorkoutSheet`, `exercisePickerItems` for `SearchablePicker` |
 | `RoutinesScreen.kt` | `RoutinesScreen` and `RoutineEditorScreen` (days with drag order, day sheet choosing a saved workout, copy a day to another routine). The switcher lives in the library title (`FitTopBar(titleMenu = …)`); starting a day is `StartRoutineDaySheet` in `SavedWorkoutsScreen.kt` |
 | `WorkoutTools.kt` | Day log tools: `WorkoutClock` (a running timer is a `workout_time` start with no finish; `running`, `stop`), `rememberElapsed`, `WorkoutTimeSheet` (#12, time pickers), `ShareWorkoutSheet` (#11, text) |
 | `WorkoutDrawer.kt` | The workout drawer (#85), ordering helpers (#70: `dayExercises`, `moveExercise`, `moveSet`; #85: `moveInOrder` keeps supersets together, `saveExerciseOrder`, the drawer's drag handle saves once on release) and supersets (#18: `displayOrder`, `supersetOf`, `supersetLetters`, `supersetMembers`; writes are `Workouts.groupExercises` / `ungroupExercise`) |
-| `RestTimer.kt` | The rest timer (#20): `RestTimer` singleton (runs in `AppScope`), `RestSound` (the rest-over ringtone at FitLens's volume; the alert channel is silent), `REST_CHOICES`, `rememberRest`, `RestTimerStrip`, `RestTimerSheet(exercise)` (uses the exercise's own `restSeconds`, #15), `rememberNotificationAsk` |
+| `RestTimer.kt` | The rest timer (#20): `RestTimer` singleton (runs in `AppScope`), `RestSound` (the rest-over ringtone at FitLens's volume; the alert channel is silent), `REST_CHOICES`, `REST_MIN` / `REST_MAX`, `RestTimer.setLength` (a running rest's new length, #105), `rememberRest`, `RestTimerButton` (the top-bar alarm clock that becomes the countdown, #109), `RestLengthStepper` (#105, also in `ExerciseEditorSheet`), `RestTimerSheet(exercise)` (edits the exercise's own `restSeconds` when it has one, #15), `rememberNotificationAsk` |
 | `TimerService.kt` | Foreground service (type specialUse) with one ongoing notification for the rest and workout timers (system chronometer, action buttons), the "Rest over" alert; `refresh` on every timer change, `watch` (from `App`) follows the workout timer |
 | `WorkoutEditing.kt` | Workout sheets (#84): `WorkoutCommentSheet`, `DeleteWorkoutSheet`, `CopyOrMoveWorkoutSheet`, `CopyPreviousWorkoutSheet`, each with Undo |
 | `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises (side by side on `WidthBucket.Expanded`), search, long-press multi-select; `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`, `MergeExerciseFlow` (#57: pick, confirm, safety copy, merge). `Screen.Library(date)` is also the exercise picker |
@@ -129,8 +129,9 @@ Last updated: 1.0.48.
   for wells, `GoldButton` / `GlassOutlinedButton` instead of `Button` / `OutlinedButton` (destructive buttons with
   error colours stay plain `Button`). The page glow comes from `ambientBackdrop` on the root `Scaffold`, so screens
   and bars stay transparent rather than painting `Brand.Black`.
-- **Sets are shown as columns (#101):** list a day's or history's sets with `SetColumnsHeader` over `SetRow(cells =
-  setCells(snap, fields, s))`, `fields = setFields(snap, exerciseId, sets)`. Keep "×" formulas out of set rows.
+- **Sets are shown as columns (#101, #112):** list a day's or history's sets with `SetRow(cells = setCells(snap, fields,
+  s))`, `fields = setFields(snap, exerciseId, sets)`: each value right-aligned with its unit, no heading row. Lists
+  outside set entry pass `showIndex = false`. Keep "×" formulas out of set rows.
 - **Stats use `snap.statSets` / `statSetsByExercise`**, which leave out warm-ups unless the setting counts them
   (#43). Lists and history use `sets`. New records, graphs or analysis must use the stat sets.
 - **Order within a day** is `SetRow.position` (#70): the snapshot is sorted by date then position, and exercises follow
