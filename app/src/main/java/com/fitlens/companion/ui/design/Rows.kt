@@ -1,7 +1,5 @@
 package com.fitlens.companion.ui.design
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -25,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -56,9 +53,7 @@ fun StatTile(
     val shape = FitShapes.card
     Column(
         modifier
-            .clip(shape)
-            .background(Brand.Surface)
-            .border(1.dp, Brand.Hairline, shape)
+            .raisedGlass(shape, elevation = 4.dp)
             .semantics(mergeDescendants = true) {}
             .padding(horizontal = Spacing.md, vertical = Spacing.sm)
     ) {

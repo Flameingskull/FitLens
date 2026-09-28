@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -432,15 +434,15 @@ private fun EmptyDay(onAddWorkout: () -> Unit, onAddExercise: () -> Unit, onCopy
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(Spacing.sm))
-        Button(onClick = onAddWorkout, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
+        GoldButton(onClick = onAddWorkout, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
             Icon(Icons.Filled.Add, contentDescription = null)
             Spacer(Modifier.width(Spacing.sm))
             Text("Add workout")
         }
-        OutlinedButton(onClick = onAddExercise, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
+        GlassOutlinedButton(onClick = onAddExercise, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
             Text("Add exercise")
         }
-        OutlinedButton(onClick = onCopyPrevious, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
+        GlassOutlinedButton(onClick = onCopyPrevious, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
             Text("Copy previous workout")
         }
     }

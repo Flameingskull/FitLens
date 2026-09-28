@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -130,7 +132,7 @@ fun SetupScreen(snap: Snapshot, nav: Nav) {
         ) {
             if (stepIdx > 0) TextButton(onClick = { stepIdx-- }) { Text("Back") }
             Spacer(Modifier.weight(1f))
-            Button(onClick = { if (last) finish() else stepIdx++ }) {
+            GoldButton(onClick = { if (last) finish() else stepIdx++ }) {
                 Text(if (last) "Finish" else if (step == SetupStep.Welcome) "Set up FitLens" else "Next")
             }
         }
@@ -165,7 +167,7 @@ private fun WelcomeStep(onRestore: () -> Unit) {
     )
     SectionTitle("Moving from another phone?")
     StepText("Restore a FitLens backup (.fitlens) to bring everything back. This replaces setup, so it ends here.")
-    OutlinedButton(onClick = onRestore) { Text("Restore a FitLens backup") }
+    GlassOutlinedButton(onClick = onRestore) { Text("Restore a FitLens backup") }
 }
 
 @Composable
@@ -212,7 +214,7 @@ private fun BackupsStep() {
         folder?.let { "Folder: " + (it.lastPathSegment?.substringAfter(':')?.ifBlank { "(root)" } ?: it.toString()) }
             ?: "No folder chosen yet."
     )
-    OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose backup folder" else "Change folder") }
+    GlassOutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose backup folder" else "Change folder") }
     if (folder != null) {
         StepText("How often")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -251,7 +253,7 @@ private fun FitNotesStep(snap: Snapshot) {
     )
     val last = device.lastImportName
     if (last != null) StepStatus("Imported: $last · ${snap.setsByDate.size} workouts, ${snap.sets.size} sets.")
-    Button(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text(if (last == null) "Import a FitNotes backup" else "Import another backup") }
+    GoldButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text(if (last == null) "Import a FitNotes backup" else "Import another backup") }
     StepText(
         "Later imports merge in the same way, from Settings → FitNotes import. Syncing a FitNotes backup folder " +
             "automatically is also there, and is off unless you turn it on."
@@ -270,8 +272,8 @@ private fun PhotosStep(snap: Snapshot) {
     )
     if (snap.photos.isNotEmpty()) StepStatus("${snap.photos.size} photos on ${snap.photosByDate.size} days so far.")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = importPhotos) { Text("Choose photos") }
-        OutlinedButton(onClick = importFolder) { Text("Import a folder") }
+        GoldButton(onClick = importPhotos) { Text("Choose photos") }
+        GlassOutlinedButton(onClick = importFolder) { Text("Import a folder") }
     }
     StepText("You can add more at any time with the + on the Photos screen (in the day log's ⋮ menu).")
 }
@@ -285,7 +287,7 @@ private fun ExercisesStep(snap: Snapshot) {
             "or build your own as you go. Anything already in your library is kept as it is."
     )
     if (snap.exercises.isNotEmpty()) StepStatus("${snap.exercises.size} exercises in your library.")
-    Button(onClick = { starter = true }) { Text("Add the starter library") }
+    GoldButton(onClick = { starter = true }) { Text("Add the starter library") }
     StepText("You can add, rename or delete exercises any time from the Exercise library in the day log's ⋮ menu.")
     if (starter) StarterLibraryDialog(onDismiss = { starter = false })
     // The standard body measurements (#27), for anyone not bringing them from FitNotes.
@@ -296,5 +298,5 @@ private fun ExercisesStep(snap: Snapshot) {
             "Switch off any you don't need, or add your own, from the body tracker's Measurements screen."
     )
     if (missing.isEmpty()) StepStatus("The standard measurements are ready in the body tracker.")
-    else Button(onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } }) { Text("Add the standard measurements") }
+    else GoldButton(onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } }) { Text("Add the standard measurements") }
 }

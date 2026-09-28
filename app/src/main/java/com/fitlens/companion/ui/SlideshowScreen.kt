@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.compose.animation.Crossfade
@@ -233,7 +235,7 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
             SectionTitle("Video")
             ChipRow(FORMATS.map { it.label }, fmt.label) { l -> formatIdx = FORMATS.indexOfFirst { it.label == l } }
             Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(enabled = slides.isNotEmpty(), onClick = {
+                GoldButton(enabled = slides.isNotEmpty(), onClick = {
                     val app = ctx.applicationContext
                     val snapSlides = slides
                     val snapOpts = opts
@@ -256,7 +258,7 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
                     }
                 }) { Text("Create video") }
                 lastVideo?.let { f ->
-                    OutlinedButton(onClick = { shareFile(ctx, f, "video/mp4") }) { Text("Share video") }
+                    GlassOutlinedButton(onClick = { shareFile(ctx, f, "video/mp4") }) { Text("Share video") }
                 }
             }
             Text(

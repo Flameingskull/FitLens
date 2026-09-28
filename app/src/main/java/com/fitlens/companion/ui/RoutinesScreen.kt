@@ -2,6 +2,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -83,7 +85,7 @@ fun RoutinesScreen(snap: Snapshot, nav: Nav) {
                 "A routine is your saved workouts split into days you name, such as Push, Pull and Legs. FitLens then " +
                     "suggests the next day each time you train."
             ) {
-                Button(onClick = { nav.push(Screen.RoutineEditor(0L)) }) { Text("Create a routine") }
+                GoldButton(onClick = { nav.push(Screen.RoutineEditor(0L)) }) { Text("Create a routine") }
             }
         } else {
             LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
@@ -220,7 +222,7 @@ fun RoutineEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                 }
             }
             item(key = "add") {
-                OutlinedButton(
+                GlassOutlinedButton(
                     onClick = { editing = DaySlot(-1L, RoutineDay(0L, "Day ${slots.size + 1}", 0L)) },
                     modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md).heightIn(min = Spacing.touch)
                 ) {
@@ -231,7 +233,7 @@ fun RoutineEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             }
         }
         GoldHairline()
-        Button(
+        GoldButton(
             onClick = { save() },
             enabled = name.isNotBlank(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md).heightIn(min = Spacing.row)
@@ -303,7 +305,7 @@ private fun RoutineDaySheet(snap: Snapshot, nav: Nav, initial: RoutineDay, onDis
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            OutlinedButton(onClick = { onDismiss(); nav.push(Screen.SavedWorkouts) }) { Text("Open Workouts") }
+            GlassOutlinedButton(onClick = { onDismiss(); nav.push(Screen.SavedWorkouts) }) { Text("Open Workouts") }
         }
         snap.savedWorkouts.forEach { w ->
             val on = w.id == workoutId

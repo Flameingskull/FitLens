@@ -2,6 +2,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
@@ -294,19 +296,19 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
                 trackColor = Brand.Hairline
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                OutlinedButton(onClick = { RestTimer.adjust(-15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text("−15 s") }
-                Button(
+                GlassOutlinedButton(onClick = { RestTimer.adjust(-15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text("−15 s") }
+                GoldButton(
                     onClick = { if (st.paused) RestTimer.resume() else RestTimer.pause() },
                     modifier = Modifier.weight(1f).heightIn(min = Spacing.row)
                 ) { Text(if (st.paused) "Resume" else "Pause") }
-                OutlinedButton(onClick = { RestTimer.adjust(15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text("+15 s") }
+                GlassOutlinedButton(onClick = { RestTimer.adjust(15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text("+15 s") }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 TextButton(onClick = { RestTimer.start(ctx, length) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text("Restart") }
                 TextButton(onClick = { RestTimer.stop() }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text("Stop") }
             }
         } else {
-            Button(
+            GoldButton(
                 onClick = { askNotify(); RestTimer.start(ctx, length) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
             ) { Text("Start ${fmtDuration(length)} rest") }

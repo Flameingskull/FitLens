@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -241,7 +242,7 @@ fun ErrorState(title: String, body: String, actionLabel: String? = null, onActio
             )
         },
         action = {
-            if (actionLabel != null && onAction != null) Button(onClick = onAction) { Text(actionLabel) }
+            if (actionLabel != null && onAction != null) GoldButton(onClick = onAction) { Text(actionLabel) }
         }
     )
 }

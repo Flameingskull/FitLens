@@ -2,6 +2,7 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -187,7 +188,7 @@ fun CopyOrMoveWorkoutSheet(snap: Snapshot, date: String, move: Boolean, onDismis
                 FilterChip(selected = chosen == d, onClick = { target = d }, label = { Text(relativeDayLabel(d)) })
             }
         }
-        OutlinedButton(onClick = { picking = true }, modifier = Modifier.heightIn(min = Spacing.touch)) {
+        GlassOutlinedButton(onClick = { picking = true }, modifier = Modifier.heightIn(min = Spacing.touch)) {
             Text(if (chosen == null || chosen in quick) "Choose a date" else Dates.long(chosen))
         }
         if (chosen != null) {

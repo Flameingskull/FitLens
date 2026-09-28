@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -125,7 +126,7 @@ fun GoalsTab(snap: Snapshot, exId: Long, timeBased: Boolean) {
                 trackColor = Brand.Hairline
             )
         }
-        Button(
+        GoldButton(
             onClick = { editing = ExerciseGoal(0, exId, if (timeBased) GoalKinds.LONGEST_SET else GoalKinds.MAX_WEIGHT, 0.0, 0) },
             modifier = Modifier.padding(16.dp)
         ) { Text("Add a goal") }

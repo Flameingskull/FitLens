@@ -6,6 +6,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -235,8 +237,8 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                     "Create your own exercises, start from FitLens's starter library, or import a FitNotes backup from Settings → FitNotes import."
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Button(onClick = { seeding = true }) { Text("Add starter library") }
-                        OutlinedButton(onClick = { creating = true }) { Text("Create an exercise") }
+                        GoldButton(onClick = { seeding = true }) { Text("Add starter library") }
+                        GlassOutlinedButton(onClick = { creating = true }) { Text("Create an exercise") }
                     }
                 }
                 routineMode && routine != null -> RoutineDayList(snap, routine) { startDay = it }
@@ -265,7 +267,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = { picked.clear() }) { Text("Clear") }
-                Button(onClick = { open(picked.toList()) }) { Text("Add ${countOf(picked.size, "exercise")}") }
+                GoldButton(onClick = { open(picked.toList()) }) { Text("Add ${countOf(picked.size, "exercise")}") }
             }
         }
     }

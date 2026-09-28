@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import com.fitlens.companion.ui.design.ambientBackdrop
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -254,6 +255,9 @@ fun AppRoot(nav: Nav) {
     BackHandler(enabled = !nav.atHome) { nav.pop() }
 
     Scaffold(
+        // Transparent over the ambient glow the glass surfaces catch (#102).
+        modifier = Modifier.ambientBackdrop(),
+        containerColor = Brand.Black.copy(alpha = 0f),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbar) }
     ) { inner ->

@@ -3,6 +3,7 @@ package com.fitlens.companion.ui.design
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -93,6 +94,9 @@ fun DayNavigator(
         Row(
             Modifier
                 .fillMaxWidth()
+                // A raised glass pill (#102).
+                .padding(horizontal = Spacing.md, vertical = Spacing.xs)
+                .raisedGlass(RoundedCornerShape(percent = 50), elevation = 4.dp, inset = 24.dp)
                 .heightIn(min = Spacing.row)
                 .pointerInput(Unit) {
                     var total = 0f

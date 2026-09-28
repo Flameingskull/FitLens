@@ -3,6 +3,7 @@
 package com.fitlens.companion.ui.design
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
@@ -75,8 +76,9 @@ fun FitTopBar(
 ) {
     var titleOpen by remember { mutableStateOf(false) }
     val colors = TopAppBarDefaults.topAppBarColors(
-        containerColor = Brand.Black,
-        scrolledContainerColor = Brand.Black,
+        // Transparent over the glass gradient drawn behind the bar (#102).
+        containerColor = Brand.Black.copy(alpha = 0f),
+        scrolledContainerColor = Brand.Black.copy(alpha = 0f),
         titleContentColor = Brand.Ivory,
         navigationIconContentColor = Brand.Gold,
         actionIconContentColor = Brand.Gold
@@ -148,7 +150,7 @@ fun FitTopBar(
         }
         if (overflow.isNotEmpty()) OverflowMenu(overflow)
     }
-    Column(modifier) {
+    Column(modifier.background(Glass.bar)) {
         if (centered) {
             CenterAlignedTopAppBar(
                 title = titleContent,

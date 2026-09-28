@@ -5,6 +5,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -441,15 +443,15 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     // As in FitNotes: Save and Clear for a new set, Update and Delete for the selected one.
                     if (selected == null) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) {
+                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) {
                                 Text("Save", style = MaterialTheme.typography.labelLarge)
                             }
-                            OutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Clear") }
+                            GlassOutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Clear") }
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Update") }
-                            OutlinedButton(
+                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Update") }
+                            GlassOutlinedButton(
                                 onClick = { deleting = sets.firstOrNull { it.id == selected } },
                                 modifier = Modifier.weight(1f).height(52.dp)
                             ) { Text("Delete") }
@@ -474,7 +476,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     }
                     if (next != null) {
                         // The next of the exercises chosen together in the library (#83).
-                        OutlinedButton(
+                        GlassOutlinedButton(
                             onClick = { nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next.id, queue.drop(1)) },
                             modifier = Modifier.fillMaxWidth().height(52.dp)
                         ) {

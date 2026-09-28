@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -175,8 +177,8 @@ private fun CsvExportSection(snap: Snapshot) {
     }
     Text("$preview, ${range.label}.", Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodyMedium)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = { save.launch(CsvExport.fileName(kind, from, to)) }, enabled = count.first > 0) { Text("Save CSV") }
-        OutlinedButton(onClick = { share() }, enabled = count.first > 0) { Text("Share CSV") }
+        GoldButton(onClick = { save.launch(CsvExport.fileName(kind, from, to)) }, enabled = count.first > 0) { Text("Save CSV") }
+        GlassOutlinedButton(onClick = { share() }, enabled = count.first > 0) { Text("Share CSV") }
     }
     val columns = if (body) {
         CsvExport.BODY_COLUMNS.joinToString(", ") + ". One row per value."

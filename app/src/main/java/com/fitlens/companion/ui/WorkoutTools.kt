@@ -2,6 +2,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
@@ -130,20 +132,20 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             color = Brand.Gold
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            OutlinedButton(onClick = { picking = true }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) {
+            GlassOutlinedButton(onClick = { picking = true }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) {
                 Text("Start ${s?.drop(11)?.take(5) ?: "--:--"}")
             }
-            OutlinedButton(onClick = { picking = false }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch), enabled = s != null) {
+            GlassOutlinedButton(onClick = { picking = false }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch), enabled = s != null) {
                 Text("Finish ${e?.drop(11)?.take(5) ?: "--:--"}")
             }
         }
         if (isToday) {
             when {
-                s == null || e != null -> Button(
+                s == null || e != null -> GoldButton(
                     onClick = { askNotify(); save(WorkoutClock.now(), null); UiEvents.show("Workout timer started") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
                 ) { Text("Start timer now") }
-                else -> Button(
+                else -> GoldButton(
                     onClick = { onDismiss(); WorkoutClock.stop(date, s) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
                 ) { Text("Stop timer") }

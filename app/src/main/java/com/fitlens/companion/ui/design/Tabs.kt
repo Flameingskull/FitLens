@@ -78,7 +78,7 @@ fun FitTabRow(
         if (scrollable) {
             ScrollableTabRow(
                 selectedTabIndex = index,
-                containerColor = Brand.Black,
+                containerColor = Brand.Black.copy(alpha = 0f),
                 contentColor = Brand.Gold,
                 edgePadding = Spacing.sm,
                 divider = {},
@@ -87,7 +87,7 @@ fun FitTabRow(
         } else {
             TabRow(
                 selectedTabIndex = index,
-                containerColor = Brand.Black,
+                containerColor = Brand.Black.copy(alpha = 0f),
                 contentColor = Brand.Gold,
                 divider = {},
                 tabs = tabs

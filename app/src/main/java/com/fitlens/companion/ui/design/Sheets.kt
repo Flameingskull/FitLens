@@ -101,7 +101,7 @@ fun FitSheet(
                 TextButton(onClick = onDismiss) { Text(dismissLabel) }
                 val secondary = onSecondary
                 if (secondary != null && secondaryLabel != null) {
-                    OutlinedButton(onClick = secondary, enabled = confirmEnabled) { Text(secondaryLabel) }
+                    GlassOutlinedButton(onClick = secondary, enabled = confirmEnabled) { Text(secondaryLabel) }
                 }
                 val confirm = onConfirm
                 if (confirm != null && confirmLabel != null) {
@@ -267,7 +267,7 @@ fun SearchablePicker(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Button(onClick = { onPick(chosen.toList()) }, enabled = chosen.isNotEmpty()) {
+                    GoldButton(onClick = { onPick(chosen.toList()) }, enabled = chosen.isNotEmpty()) {
                         Text(if (chosen.isEmpty()) "Add" else "Add ${chosen.size}")
                     }
                 }

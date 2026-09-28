@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -326,7 +327,7 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
 private fun PoseOptions(onPick: (String) -> Unit) {
     Column {
         (Poses.all + NOT_SET).forEach { p ->
-            OutlinedButton(
+            GlassOutlinedButton(
                 onClick = { onPick(if (p == NOT_SET) Poses.NONE else p) },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)
             ) { Text(p) }

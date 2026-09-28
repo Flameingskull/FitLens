@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -151,7 +153,7 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
                         InfoRow(m.name, "${fmtNum(r.value)} ${r.unit}$note")
                     }
                 }
-                OutlinedButton(onClick = { nav.push(Screen.Day(d)) }, modifier = Modifier.padding(top = 4.dp)) { Text("Open this day") }
+                GlassOutlinedButton(onClick = { nav.push(Screen.Day(d)) }, modifier = Modifier.padding(top = 4.dp)) { Text("Open this day") }
             }
         }
     }
@@ -215,8 +217,8 @@ fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
                     )
                 }
                 Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { shareCompare(ctx, snap, pa, pb, save = false) }) { Text("Share image") }
-                    OutlinedButton(onClick = { shareCompare(ctx, snap, pa, pb, save = true) }) { Text("Save to gallery") }
+                    GoldButton(onClick = { shareCompare(ctx, snap, pa, pb, save = false) }) { Text("Share image") }
+                    GlassOutlinedButton(onClick = { shareCompare(ctx, snap, pa, pb, save = true) }) { Text("Save to gallery") }
                 }
             }
         }

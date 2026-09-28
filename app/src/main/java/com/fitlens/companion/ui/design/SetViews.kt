@@ -382,7 +382,7 @@ fun SetRow(
 }
 
 /**
- * An exercise in a day's workout (#80): a category colour bar on the left, the exercise name in serif, the set rows
+ * An exercise in a day's workout (#80), in raised glass (#102): a category colour bar on the left, the exercise name in serif, the set rows
  * in [sets] (usually unframed [SetRow]s), an optional comment line and a PR marker. Tapping the card calls [onClick];
  * [menu] adds an overflow button.
  */
@@ -403,9 +403,7 @@ fun ExerciseCard(
             .fillMaxWidth()
             .padding(horizontal = Spacing.md, vertical = Spacing.xs)
             .height(IntrinsicSize.Min)
-            .clip(shape)
-            .background(Brand.Surface)
-            .border(1.dp, Brand.Hairline, shape)
+            .raisedGlass(shape)
             .clickable(onClick = onClick)
     ) {
         Box(Modifier.width(4.dp).fillMaxHeight().background(categoryColor))

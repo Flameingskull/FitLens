@@ -2,6 +2,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -134,7 +136,7 @@ fun SavedWorkoutsScreen(snap: Snapshot, nav: Nav) {
                 "A workout is a group of exercises with their sets. Save one here, or save a day you've logged from " +
                     "its menu, then add the whole workout to any day in one go."
             ) {
-                Button(onClick = { nav.push(Screen.SavedWorkoutEditor(0L)) }) { Text("Create a workout") }
+                GoldButton(onClick = { nav.push(Screen.SavedWorkoutEditor(0L)) }) { Text("Create a workout") }
             }
         } else {
             LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
@@ -293,7 +295,7 @@ fun SavedWorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                 }
             }
             item(key = "add") {
-                OutlinedButton(
+                GlassOutlinedButton(
                     onClick = { adding = true },
                     modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md).heightIn(min = Spacing.touch)
                 ) {
@@ -304,7 +306,7 @@ fun SavedWorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             }
         }
         GoldHairline()
-        Button(
+        GoldButton(
             onClick = { save() },
             enabled = name.isNotBlank(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md).heightIn(min = Spacing.row)

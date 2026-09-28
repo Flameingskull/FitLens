@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -62,7 +63,7 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (missing.isNotEmpty()) {
-                        OutlinedButton(
+                        GlassOutlinedButton(
                             onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } },
                             modifier = Modifier.padding(top = Spacing.sm).heightIn(min = Spacing.touch)
                         ) { Text("Add the standard measurements (${missing.size})") }

@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -68,7 +69,7 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
                 "Log your first workout, or import your FitNotes backup and bulk-import your progress photos. " +
                     "FitLens matches each photo to its date automatically."
             ) {
-                Button(onClick = { nav.home() }) { Text("Log today’s workout") }
+                GoldButton(onClick = { nav.home() }) { Text("Log today’s workout") }
                 TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
                 TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Restore from a backup") }
             }

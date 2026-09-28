@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -137,7 +138,7 @@ fun FitNotesImportHost() {
                     modifier = Modifier.padding(top = 6.dp)
                 )
                 if (!plan.nothingNew) {
-                    OutlinedButton(onClick = { backupFirst.launch(Backups.manualFileName()) }, modifier = Modifier.padding(top = 4.dp)) {
+                    GlassOutlinedButton(onClick = { backupFirst.launch(Backups.manualFileName()) }, modifier = Modifier.padding(top = 4.dp)) {
                         Text("Save a FitLens backup first")
                     }
                 }

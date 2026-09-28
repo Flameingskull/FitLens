@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -162,9 +164,9 @@ fun BackupsCard(snap: Snapshot) {
                     "to restore after reinstalling FitLens or on a new phone."
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { saveBackup.launch(Backups.manualFileName()) }) { Text("Save backup") }
-                OutlinedButton(onClick = { shareBackup(ctx) }, enabled = busy == null) { Text("Share backup") }
-                OutlinedButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Restore backup") }
+                GoldButton(onClick = { saveBackup.launch(Backups.manualFileName()) }) { Text("Save backup") }
+                GlassOutlinedButton(onClick = { shareBackup(ctx) }, enabled = busy == null) { Text("Share backup") }
+                GlassOutlinedButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Restore backup") }
             }
             Hint(
                 "Share sends the backup with an app you already use, such as email, Drive or Dropbox. " +
@@ -181,8 +183,8 @@ fun BackupsCard(snap: Snapshot) {
                 style = MaterialTheme.typography.bodyMedium
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (autoFolder == null) "Choose folder" else "Change folder") }
-                if (autoFolder != null) Button(onClick = { runBusy("Backing up…") { Backups.backupToFolder(ctx) } }) { Text("Back up now") }
+                GlassOutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (autoFolder == null) "Choose folder" else "Change folder") }
+                if (autoFolder != null) GoldButton(onClick = { runBusy("Backing up…") { Backups.backupToFolder(ctx) } }) { Text("Back up now") }
             }
             if (autoFolder != null) {
                 Hint("How often. Backups run in the background, even when FitLens is closed, while the battery isn't low.")
@@ -245,7 +247,7 @@ fun BackupsCard(snap: Snapshot) {
                     "FitLens keeps a copy of your data from just before the last restore or import, for " +
                         "${Backups.UNDO_DAYS} days. Undo puts that data back and replaces what is there now."
                 )
-                OutlinedButton(onClick = { confirmUndo = true }) { Text("Undo") }
+                GlassOutlinedButton(onClick = { confirmUndo = true }) { Text("Undo") }
             }
 
             lastResult?.let { r ->
@@ -261,7 +263,7 @@ fun BackupsCard(snap: Snapshot) {
 
             SubHeading("PDF report")
             Hint("A readable report of your photos, measurements, charts and workouts in the FitLens style. Good for printing or sharing.")
-            Button(onClick = { showReport = true }, enabled = snap.allDates.isNotEmpty()) { Text("Create PDF report") }
+            GoldButton(onClick = { showReport = true }, enabled = snap.allDates.isNotEmpty()) { Text("Create PDF report") }
         }
     }
 

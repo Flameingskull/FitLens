@@ -2,6 +2,7 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -345,7 +346,7 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Button(onClick = onOpen, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(top = Spacing.sm)) {
+        GoldButton(onClick = onOpen, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(top = Spacing.sm)) {
             Text(if (sets.isEmpty()) "Open day to log" else "Open day")
         }
     }

@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
+import com.fitlens.companion.ui.design.GoldButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -67,8 +69,8 @@ fun FitNotesCards(snap: Snapshot) {
             }
             Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Import backup file") }
-                OutlinedButton(onClick = {
+                GoldButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Import backup file") }
+                GlassOutlinedButton(onClick = {
                     if (!BackupSync.launchFitNotes(ctx)) UiEvents.show("FitNotes isn't installed on this phone.")
                 }) { Text("Open FitNotes") }
             }
@@ -97,8 +99,8 @@ fun FitNotesCards(snap: Snapshot) {
                 style = MaterialTheme.typography.bodyMedium
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose folder" else "Change folder") }
-                if (folder != null) Button(onClick = { FitNotesImports.startFromFolder(ctx) }) { Text("Sync now") }
+                GlassOutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose folder" else "Change folder") }
+                if (folder != null) GoldButton(onClick = { FitNotesImports.startFromFolder(ctx) }) { Text("Sync now") }
             }
             if (folder != null) ToggleRow("Sync automatically when FitLens opens (off by default)", autoSync) {
                 BackupSync.setAutoSync(it)

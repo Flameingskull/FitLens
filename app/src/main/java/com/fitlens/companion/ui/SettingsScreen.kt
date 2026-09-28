@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
@@ -295,7 +296,7 @@ private fun RecordsPage(snap: Snapshot) {
         "New sets are marked as PRs when you save them. Recalculate rebuilds the PR marks on every " +
             "weight-and-reps set, imported ones included, for example after editing old sets."
     )
-    OutlinedButton(onClick = { confirmRecalc = true }, enabled = snap.sets.isNotEmpty()) { Text("Recalculate personal records") }
+    GlassOutlinedButton(onClick = { confirmRecalc = true }, enabled = snap.sets.isNotEmpty()) { Text("Recalculate personal records") }
     if (confirmRecalc) {
         ConfirmSheet(
             title = "Recalculate personal records?",
