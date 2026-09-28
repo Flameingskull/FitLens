@@ -79,7 +79,6 @@ import com.fitlens.companion.ui.design.ExerciseCard
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.SearchablePicker
-import com.fitlens.companion.ui.design.SetColumnsHeader
 import com.fitlens.companion.ui.design.SetRow
 import com.fitlens.companion.ui.design.TopBarAction
 import java.time.LocalTime
@@ -502,7 +501,6 @@ private fun ExerciseOnDay(
             MenuAction("Remove from this workout") { confirmDelete = true }
         )
     ) {
-        if (exSets.isNotEmpty()) SetColumnsHeader(fields.map { it.label }, framed = false, hasDone = markComplete)
         exSets.take(limit).forEachIndexed { i, s ->
             val marks = setMarks(s)
             SetRow(
@@ -512,6 +510,8 @@ private fun ExerciseOnDay(
                 comment = s.comment,
                 isPr = s.isPr,
                 framed = false,
+                // FitNotes lists a day's sets without numbers (#112); TalkBack still says "Set 2".
+                showIndex = false,
                 badge = marks.badge,
                 badgeSpoken = marks.badgeSpoken,
                 effort = marks.effort,

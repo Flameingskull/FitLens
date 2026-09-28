@@ -47,7 +47,11 @@ private fun spokenDuration(sec: Int): String {
     return parts.joinToString(" ")
 }
 
-/** A set's values in the order of [fields], ready for `SetRow(cells = …)`. An empty value shows as a dash. */
+/**
+ * A set's values in the order of [fields], ready for `SetRow(cells = …)`, each with its unit after it as FitNotes shows
+ * them (#112): "85 kg", "6 reps", "1:30". FitLens has no distance unit yet (#7), so distance says "dist". An empty
+ * value shows as a dash.
+ */
 fun setCells(snap: Snapshot, fields: List<SetField>, s: SetRow): List<SetCell> = fields.map { f ->
     when (f) {
         SetField.WEIGHT -> {
@@ -61,13 +65,13 @@ fun setCells(snap: Snapshot, fields: List<SetField>, s: SetRow): List<SetCell> =
             }
         }
         SetField.REPS ->
-            if (s.reps > 0) SetCell("${s.reps}", spoken = "${s.reps} rep${if (s.reps == 1) "" else "s"}")
+            if (s.reps > 0) SetCell("${s.reps}", if (s.reps == 1) "rep" else "reps", "${s.reps} rep${if (s.reps == 1) "" else "s"}")
             else SetCell("—", spoken = "no reps")
         SetField.DISTANCE ->
-            if (s.distance > 0) fmtNum(s.distance).let { SetCell(it, spoken = "distance $it") }
+            if (s.distance > 0) fmtNum(s.distance).let { SetCell(it, "dist", "distance $it") }
             else SetCell("—", spoken = "no distance")
         SetField.TIME ->
-            if (s.durationSec > 0) SetCell(fmtDuration(s.durationSec), spoken = spokenDuration(s.durationSec))
-            else SetCell("—", spoken = "no time")
+            if (s.durationSec > 0) SetCell(fmtDuration(s.durationSec), spoken = spokenDuration(s.durationSec), unitSlot = false)
+            else SetCell("—", spoken = "no time", unitSlot = false)
     }
 }

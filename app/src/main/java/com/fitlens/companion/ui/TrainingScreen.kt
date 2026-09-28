@@ -46,7 +46,6 @@ import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.FitTabRow
-import com.fitlens.companion.ui.design.SetColumnsHeader
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
@@ -271,7 +270,6 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    SetColumnsHeader(fields.map { it.label }, Modifier.padding(top = Spacing.xs), framed = false)
                     l.forEachIndexed { i, s ->
                         val marks = setMarks(s)
                         SetRowView(
@@ -281,6 +279,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                             comment = s.comment,
                             isPr = s.isPr,
                             framed = false,
+                            showIndex = false,
                             badge = marks.badge,
                             badgeSpoken = marks.badgeSpoken,
                             effort = marks.effort,

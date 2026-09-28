@@ -218,6 +218,17 @@ object Workouts {
         replayPrs(w)
     }
 
+    /**
+     * Sets or clears one set's comment (#108); null or blank removes it. Nothing else about the set changes. Like any
+     * edit, an imported set becomes FitLens's own; its values are unchanged, so no skip rule is needed.
+     */
+    suspend fun setComment(id: Long, comment: String?): Unit = write { w ->
+        val changed = w.update("workout_set", ContentValues().apply {
+            put("comment", comment?.trim()?.takeIf { it.isNotEmpty() }); put("source", Sources.FITLENS)
+        }, "id=?", arrayOf(id.toString()))
+        if (changed == 0) throw WorkoutDataException("That set no longer exists.")
+    }
+
     /** Ticks a set off, or clears the tick (#19). Nothing else about the set changes. */
     suspend fun setDone(id: Long, done: Boolean): Unit = write { w ->
         w.update("workout_set", ContentValues().apply { put("done", if (done) 1 else 0) }, "id=?", arrayOf(id.toString()))

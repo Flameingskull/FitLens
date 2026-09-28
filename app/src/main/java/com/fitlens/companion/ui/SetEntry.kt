@@ -79,14 +79,15 @@ import com.fitlens.companion.ui.design.SetTypeBadge
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.relativeDayLabel
 import com.fitlens.companion.ui.design.StepperField
-import com.fitlens.companion.ui.design.SetColumnsHeader
+import com.fitlens.companion.ui.design.SetCommentSheet
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 import kotlin.math.max
 import kotlinx.coroutines.launch
 
 /**
  * The exercise screen (#16, laid out after FitNotes in #82): TRACK, HISTORY and GRAPH tabs for one exercise on one
- * day. Track has fields that follow the exercise type, +/- steppers, auto-fill from last time, per-set comments, and
+ * day. Track has fields that follow the exercise type, +/- steppers, auto-fill from last time, a comment button on
+ * each set (#108), and
  * Save / Clear, or Update / Delete for a selected set, with an undo. Exercises chosen together in the library (#83)
  * arrive as a [queue] and are opened one after another.
  *
@@ -150,7 +151,6 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
     var reps by remember(date, exerciseId) { mutableStateOf("") }
     var distance by remember(date, exerciseId) { mutableStateOf("") }
     var duration by remember(date, exerciseId) { mutableStateOf("") }
-    var comment by remember(date, exerciseId) { mutableStateOf("") }
     // Set type (#43): new sets start as working sets; editing a set shows its own type.
     var setType by remember(date, exerciseId) { mutableIntStateOf(SetTypes.WORKING) }
     // Effort (#44), always held as RPE; null means not recorded.
@@ -163,6 +163,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
     var deleting by remember { mutableStateOf<SetRow?>(null) }
     var editExercise by remember { mutableStateOf(false) }
     var calculator by remember { mutableStateOf<String?>(null) }
+    // The set whose Comment box is open (#108).
+    var commenting by remember { mutableStateOf<SetRow?>(null) }
 
     // The global step from Settings → Units & display (#7) is stored in kg; the field works in the display unit.
     // This exercise's own step comes first (#15), then the global one.
@@ -188,7 +190,6 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             reps = source?.reps?.takeIf { it > 0 }?.toString() ?: ""
             distance = source?.distance?.takeIf { it > 0 }?.let { fmtNum(it, 2) } ?: ""
             duration = source?.durationSec?.takeIf { it > 0 }?.let { fmtDuration(it) } ?: ""
-            comment = chosen?.comment ?: ""
             setType = chosen?.setType ?: SetTypes.WORKING
             rpe = chosen?.rpe
         }
@@ -209,13 +210,12 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             UiEvents.show("Enter something to save.")
             return
         }
-        val note = comment.trim().ifBlank { null }
         val chosen = selected?.let { id -> sets.firstOrNull { it.id == id } }
         AppScope.scope.launch {
             try {
                 if (chosen == null) {
                     val firstOfDay = Store.snapshot.value?.setsByDate?.get(date).isNullOrEmpty()
-                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, note, setType = setType, rpe = rpe)
+                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, null, setType = setType, rpe = rpe)
                     // In a superset, saving a set moves on to the next exercise of the group, round-robin, as FitNotes
                     // does (#18). The rest timer then starts only after the round's last exercise (#20).
                     val members = supersetMembers(snap, date, supersetOf(snap, date, exerciseId))
@@ -243,7 +243,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     }
                 } else {
                     Workouts.updateSet(
-                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, comment = note, setType = setType, rpe = rpe)
+                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, setType = setType, rpe = rpe)
                     )
                     // With auto-select next on, the following set of the day is selected, ready to adjust (#97).
                     val next = if (Settings.currentPortable().autoSelectNext) {
@@ -264,7 +264,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
 
     fun clear() {
         selected = null
-        weight = ""; reps = ""; distance = ""; duration = ""; comment = ""
+        weight = ""; reps = ""; distance = ""; duration = ""
         loadedWeightText = ""; loadedWeightKg = null
         setType = SetTypes.WORKING; rpe = null
     }
@@ -433,13 +433,6 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                             }
                         }
                     }
-                    OutlinedTextField(
-                        value = comment,
-                        onValueChange = { comment = it },
-                        label = { Text("Set comment (optional)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                     // As in FitNotes: Save and Clear for a new set, Update and Delete for the selected one.
                     if (selected == null) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -507,11 +500,6 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             }
             // Each value in its own labelled column (#101), chosen by the exercise type.
             val fields = setFields(snap, exerciseId, sets)
-            if (sets.isNotEmpty()) {
-                item(key = "setHeader") {
-                    SetColumnsHeader(fields.map { it.label }, hasDone = prefs.markComplete, hasHint = !prefs.markComplete)
-                }
-            }
             sets.forEachIndexed { i, s ->
                 item(key = "s${s.id}") {
                     val isSelected = selected == s.id
@@ -528,6 +516,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                         effortSpoken = marks.effortSpoken,
                         selected = isSelected,
                         onClick = { selected = if (selected == s.id) null else s.id },
+                        // Each set's own comment, one tap away mid-workout (#108).
+                        onComment = { commenting = s },
                         trailingHint = if (prefs.markComplete) null else if (isSelected) "Selected" else "Edit",
                         // "Mark sets complete" (#19). Ticking the last set offers the next exercise, respecting
                         // supersets and the workout's order.
@@ -593,6 +583,23 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
         }
     }
     if (restSheet) RestTimerSheet(ex) { restSheet = false }
+    commenting?.let { s ->
+        val number = sets.indexOfFirst { it.id == s.id } + 1
+        SetCommentSheet(
+            describe = "Set $number · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+            initial = s.comment,
+            onSave = { text ->
+                AppScope.scope.launch {
+                    try {
+                        Workouts.setComment(s.id, text)
+                    } catch (e: WorkoutDataException) {
+                        UiEvents.show(e.message ?: "That comment couldn't be saved.")
+                    }
+                }
+            },
+            onDismiss = { commenting = null }
+        )
+    }
     when (calculator) {
         "set" -> SetCalculatorSheet(
             snap,
