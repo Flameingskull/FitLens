@@ -17,31 +17,79 @@ data class Category(val id: Long, val name: String, val colour: Int, val sortOrd
 }
 
 /**
- * The four FitNotes exercise types, kept so imported exercises behave the same in FitLens. They decide which
- * fields the set entry screen shows. Per-exercise units, increments and the fuller type handling are #14 and #15.
+ * Exercise types (#14): which values a set records. They decide the set entry fields, the set columns (#101), the
+ * graphs and the records.
+ *
+ * 0–3 are FitNotes's own type ids and are stored as FitNotes stores them, so imports and backups keep working. 4 and
+ * up are FitLens's extra built-in types, such as weight and time for a loaded hold or carry. FitNotes never sends
+ * them. User-defined types are still to come (#14).
  */
 object ExerciseTypes {
     const val WEIGHT_REPS = 0
     const val DISTANCE_TIME = 1
     const val WEIGHT_DISTANCE = 2
     const val TIME = 3
+    const val WEIGHT_TIME = 4
+    const val REPS_TIME = 5
+    const val REPS_DISTANCE = 6
+    const val WEIGHT_ONLY = 7
+    const val REPS_ONLY = 8
+    const val DISTANCE_ONLY = 9
 
-    val all = listOf(WEIGHT_REPS, DISTANCE_TIME, WEIGHT_DISTANCE, TIME)
+    /** Every built-in type, in the order the type picker lists them: the two main types first. */
+    val all = listOf(
+        WEIGHT_REPS, DISTANCE_TIME, WEIGHT_TIME, WEIGHT_DISTANCE, REPS_TIME, REPS_DISTANCE,
+        WEIGHT_ONLY, REPS_ONLY, DISTANCE_ONLY, TIME
+    )
 
     fun label(type: Int): String = when (type) {
         DISTANCE_TIME -> "Distance & time"
         WEIGHT_DISTANCE -> "Weight & distance"
         TIME -> "Time"
+        WEIGHT_TIME -> "Weight & time"
+        REPS_TIME -> "Reps & time"
+        REPS_DISTANCE -> "Reps & distance"
+        WEIGHT_ONLY -> "Weight"
+        REPS_ONLY -> "Reps"
+        DISTANCE_ONLY -> "Distance"
         else -> "Weight & reps"
     }
 
-    fun usesWeight(type: Int): Boolean = type == WEIGHT_REPS || type == WEIGHT_DISTANCE
-    fun usesReps(type: Int): Boolean = type == WEIGHT_REPS
-    fun usesDistance(type: Int): Boolean = type == DISTANCE_TIME || type == WEIGHT_DISTANCE
-    fun usesDuration(type: Int): Boolean = type == DISTANCE_TIME || type == TIME
-}
+    /** A short example of the kind of exercise each type suits, for the type picker. */
+    fun example(type: Int): String = when (type) {
+        DISTANCE_TIME -> "Running, cycling, rowing"
+        WEIGHT_DISTANCE -> "Sled push, farmer's walk for distance"
+        TIME -> "Plank, stretching"
+        WEIGHT_TIME -> "Weighted plank, loaded carry, dead hang"
+        REPS_TIME -> "Burpees or skipping in a set time"
+        REPS_DISTANCE -> "Lunges over a distance"
+        WEIGHT_ONLY -> "A single heavy lift or hold"
+        REPS_ONLY -> "Pull-ups, push-ups, dips"
+        DISTANCE_ONLY -> "Swimming lengths, a walk"
+        else -> "Bench press, squat, curls"
+    }
 
-/** FitNotes exercise types: see [ExerciseTypes]. */
+    private val weightTypes = setOf(WEIGHT_REPS, WEIGHT_DISTANCE, WEIGHT_TIME, WEIGHT_ONLY)
+    private val repTypes = setOf(WEIGHT_REPS, REPS_TIME, REPS_DISTANCE, REPS_ONLY)
+    private val distanceTypes = setOf(DISTANCE_TIME, WEIGHT_DISTANCE, REPS_DISTANCE, DISTANCE_ONLY)
+    private val timeTypes = setOf(DISTANCE_TIME, TIME, WEIGHT_TIME, REPS_TIME)
+
+    fun usesWeight(type: Int): Boolean = type in weightTypes
+    fun usesReps(type: Int): Boolean = type in repTypes
+    fun usesDistance(type: Int): Boolean = type in distanceTypes
+    fun usesDuration(type: Int): Boolean = type in timeTypes
+
+    /**
+     * Whether an exercise's graphs and records are about time and distance rather than weight and reps. FitNotes's
+     * own types keep their old rule (anything but weight and reps, once no set has a weight or reps), so existing
+     * default graphs keep pointing at the same graph. FitLens's types decide from what they record.
+     */
+    fun timeBased(type: Int, anyWeightOrReps: Boolean): Boolean = when {
+        type <= TIME -> type != WEIGHT_REPS && !anyWeightOrReps
+        else -> !(usesWeight(type) && usesReps(type)) && (usesDuration(type) || usesDistance(type))
+    }
+}
+/** An exercise in the library. [type] is one of [ExerciseTypes]. */
 data class Exercise(
     val id: Long,
     val name: String,

@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Records
+import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
 import kotlinx.coroutines.launch
 import com.fitlens.companion.data.WorkoutDataException
@@ -51,15 +52,22 @@ import com.fitlens.companion.ui.design.SetRow as SetRowView
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
 fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
 
-internal fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolean {
-    val type = snap.exercises[exId]?.type ?: 0
-    return type != 0 && sets.all { it.weightKg == 0.0 && it.reps == 0 }
-}
+internal fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolean =
+    ExerciseTypes.timeBased(snap.exercises[exId]?.type ?: 0, sets.any { it.weightKg != 0.0 || it.reps != 0 })
 
-/** The graph names an exercise offers, in order: the same lists [ExerciseDetailScreen] builds (#15 uses the index). */
-fun graphLabels(timeBased: Boolean): List<String> =
-    if (timeBased) listOf("Longest set", "Total time", "Distance")
-    else listOf("Est. 1RM", "Max weight", "Volume", "Total reps", "Max reps")
+/**
+ * The graph names an exercise offers, in order: the same lists [ExerciseGraphPane] builds (#15 stores the index). A
+ * time-based FitLens type that also records weight or reps (#14) gets those graphs after the time ones, so the
+ * indices of the older lists never move.
+ */
+fun graphLabels(type: Int, timeBased: Boolean): List<String> =
+    if (timeBased) {
+        listOf("Longest set", "Total time", "Distance") +
+            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesWeight(type)) listOf("Max weight") else emptyList()) +
+            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesReps(type)) listOf("Total reps") else emptyList())
+    } else {
+        listOf("Est. 1RM", "Max weight", "Volume", "Total reps", "Max reps")
+    }
 
 private data class GraphType(val label: String, val fn: (List<SetRow>) -> Double, val isWeight: Boolean, val isTime: Boolean = false)
 
@@ -98,18 +106,19 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     val ex = snap.exercises[exId]
     val sets = snap.setsByExercise[exId] ?: emptyList()
     val timeBased = isTimeBased(snap, exId, sets)
-    val graphTypes = remember(timeBased) {
-        if (timeBased) listOf(
+    val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
+    val graphTypes = remember(timeBased, type) {
+        val all = listOf(
             GraphType("Longest set", { l -> l.maxOf { it.durationSec }.toDouble() }, false, true),
             GraphType("Total time", { l -> l.sumOf { it.durationSec }.toDouble() }, false, true),
-            GraphType("Distance", { l -> l.sumOf { it.distance } }, false)
-        ) else listOf(
+            GraphType("Distance", { l -> l.sumOf { it.distance } }, false),
             GraphType("Est. 1RM", { l -> l.maxOf { e1rm(it) } }, true),
             GraphType("Max weight", { l -> l.maxOf { it.weightKg } }, true),
             GraphType("Volume", { l -> l.sumOf { it.weightKg * it.reps } }, true),
             GraphType("Total reps", { l -> l.sumOf { it.reps }.toDouble() }, false),
             GraphType("Max reps", { l -> l.maxOf { it.reps }.toDouble() }, false)
-        )
+        ).associateBy { it.label }
+        graphLabels(type, timeBased).map { all.getValue(it) }
     }
     // Opens on the exercise's default graph when one is set (#15).
     var gIdx by rememberSaveable { mutableIntStateOf(ex?.defaultGraph?.takeIf { it >= 0 } ?: 0) }

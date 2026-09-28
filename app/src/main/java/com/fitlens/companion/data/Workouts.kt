@@ -292,7 +292,7 @@ object Workouts {
 
     // ---------- Exercises ----------
 
-    /** [type] uses the FitNotes exercise types (0 = weight and reps, 1 = distance and time, 3 = time). */
+    /** [type] is one of [ExerciseTypes]. */
     suspend fun createExercise(name: String, categoryId: Long, type: Int = 0, notes: String? = null): Long = write { w ->
         val n = cleanName(name, "exercise")
         if (sameName(w, "exercise", n) != null) throw WorkoutDataException("There's already an exercise called $n.")

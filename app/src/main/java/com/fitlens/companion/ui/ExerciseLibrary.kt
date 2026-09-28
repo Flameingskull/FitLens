@@ -674,7 +674,7 @@ fun ExerciseEditorSheet(
         }
         FieldLabel("Opens on graph")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            graphLabels(timeBased = type != ExerciseTypes.WEIGHT_REPS).forEachIndexed { i, label ->
+            graphLabels(type, timeBased = ExerciseTypes.timeBased(type, anyWeightOrReps = false)).forEachIndexed { i, label ->
                 FilterChip(
                     selected = defaultGraph == i || (defaultGraph < 0 && i == 0),
                     onClick = { defaultGraph = i },
