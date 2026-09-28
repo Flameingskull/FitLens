@@ -149,7 +149,6 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction(if (running != null) "Stop workout timer" else "Workout time") {
                     if (running != null) WorkoutClock.stop(date, running) else editTime = true
                 },
-                MenuAction(if (snap.workoutComments.containsKey(date)) "Edit workout comment" else "Workout comment") { editComment = true },
                 MenuAction("Copy previous workout") { copyPrevious = true },
                 MenuAction("Copy this workout to another day", enabled = sets.isNotEmpty()) { copyToDay = true },
                 MenuAction("Move this workout to another day", enabled = hasWorkout) { moveToDay = true },
@@ -305,6 +304,16 @@ private fun DayContent(
                             style = MaterialTheme.typography.bodyMedium,
                             fontStyle = FontStyle.Italic
                         )
+                    }
+                    // A comment is added on the day's workout itself, not from the menu.
+                    if (comments.isEmpty() && sets.isNotEmpty()) {
+                        TextButton(
+                            onClick = onEditComment,
+                            modifier = Modifier.heightIn(min = Spacing.touch),
+                            contentPadding = PaddingValues(horizontal = 0.dp)
+                        ) {
+                            Text("Add workout comment", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }
