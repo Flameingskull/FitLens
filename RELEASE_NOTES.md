@@ -1,39 +1,35 @@
 ## Overview
 
-This build changes how FitLens looks and how your sets read. Each set is now laid out in labelled columns (Set,
-Weight and Reps, or Distance and Time), so you no longer have to read "80 kg × 8 reps" like a formula. The whole app
-also gains depth: cards, bars and buttons are now glass in the FitLens black, imperial purple and gold, instead of flat
-blocks.
+This build expands what an exercise can record. The biggest change is a **Weight & time** type, so a weighted plank,
+dead hang or loaded carry can now be logged properly, alongside five more built-in types. The exercise library also
+uses wide screens better, and the workout comment now sits on the day's workout instead of in the menu.
 
 There's no database change in this update, and nothing you've logged changes when you install it.
 
 ## What's new
 
-- **Sets in labelled columns.** In the day log, the set entry screen and an exercise's **History**, sets appear under
-  a **SET · WEIGHT · REPS** heading, with each value in its own column. The numbers are large and lined up, with the
-  unit small beside them.
-  - The columns follow the exercise type. Strength exercises show Weight and Reps. Cardio shows Distance and Time, and
-    timed exercises show Time.
-  - Values that an imported exercise recorded outside its type still get a column, so nothing you logged is hidden.
-  - Bodyweight sets show **BW** in the Weight column.
-  - TalkBack reads each set as one sentence, for example "Set 2, 85 kilograms, 6 reps, personal record".
-- **Glass depth.** Screens sit on a soft imperial purple and gold glow.
-  - Exercise cards, stat tiles and the date bar are raised glass, with a gold top edge and a shadow beneath.
-  - Set rows are wells set into the glass.
-  - The top bar is purple glass above its gold rule.
-  - Main buttons are polished gold. Secondary buttons are clear purple glass with a gold edge.
+- **More exercise types.** Alongside Weight & reps, Distance & time, Weight & distance and Time, an exercise can now
+  record:
+  - **Weight & time**, for weighted holds and loaded carries;
+  - **Reps & time** and **Reps & distance**;
+  - **Weight**, **Reps** or **Distance** on its own.
+
+  Set entry, the set columns, saved workouts, graphs and records all follow the type. For example, a Weight & time
+  exercise shows SET · WEIGHT · TIME, and its graphs include Longest set, Total time and Max weight.
+- **Library side by side on wide screens.** On an unfolded phone, in landscape or on a tablet, the categories and their
+  exercises sit next to each other, with the chosen category picked out.
 
 ## Improved
 
-- One-line set summaries now read "80 kg · 8 reps" instead of "80 kg × 8 reps". This covers the calendar, day
-  sharing, the PDF report and delete prompts. Saved workouts read "3 sets · 100 kg · 5 reps".
-- With **Mark sets complete** on, the set entry screen shows the selected set by its gold outline instead of a
-  "Selected" label, which keeps the columns lined up.
+- **Clearer type choice.** The new exercise sheet shows the two main types first and the rest under **More types**,
+  with an example of what each one suits.
+- **Changing an exercise's type** now explains what happens to sets you've already logged: every value is kept, and
+  anything the new type doesn't record still shows in its own column.
+- **Workout comment.** The comment is now added from the day's workout: **Add workout comment** appears under the day's
+  summary, and an existing comment is tapped to edit. It's no longer in the ⋮ menu.
 
 ## Known limitations
 
-- The glass is drawn with gradients and shadows, not a live blur of what's behind it.
-- Pop-up sheets and dialogs keep their solid backgrounds for now.
-- Exercises that record weight and time together (for example a weighted plank) need the new exercise types in #14.
-  Until then, a lift can't be set up to record time.
+- You can't yet create your own exercise types with custom values (#14).
+- Comments on an individual exercise within a day's workout are still to come.
 - Distances show without a unit until unit settings arrive.

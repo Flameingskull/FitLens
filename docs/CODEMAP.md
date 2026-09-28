@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.47.
+Last updated: 1.0.48.
 
 ## How data flows
 
@@ -40,7 +40,7 @@ Last updated: 1.0.47.
 | File | Owns |
 | --- | --- |
 | `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set/`deleteMeta`, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
-| `Models.kt` | Row types (`Category`, `Exercise`, `SetRow` with `setType` and `rpe`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes`, `SetTypes` (W/D/F badges), `Effort` (RPE/RIR), `Poses`, `Dates` |
+| `Models.kt` | Row types (`Category`, `Exercise`, `SetRow` with `setType` and `rpe`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes` (FitNotes ids 0–3 plus FitLens types 4–9, #14; `uses*` and `timeBased` drive fields, columns, graphs and records), `SetTypes` (W/D/F badges), `Effort` (RPE/RIR), `Poses`, `Dates` |
 | `Store.kt` | `Snapshot` (`allMeasurements`; `usedMeasurements` leaves out those switched off, #27) and `Store` (load and reload, photo and measurement writes: `addManualRecord`, `updateRecord`, `setMeasurementEnabled`, `addStandardMeasurements`, custom metrics) |
 | `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts (`copyWorkout` returns the new ids), comments, times, undo helpers (`addSets`, `deleteSets`, `moveSets`), `reorderCategories`, `logPlanned` (a saved workout's sets, PR replay), `swapExercise` / `setExerciseOf`, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction), `mergeExercises` (#57: moves sets, goals and saved-workout entries, re-points import rules and re-keys set skips, PR replay) |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`; `Formula` and `chosen()`, the user's formula, #42), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
@@ -82,7 +82,7 @@ Last updated: 1.0.47.
 | `RestTimer.kt` | The rest timer (#20): `RestTimer` singleton (runs in `AppScope`), `RestSound` (the rest-over ringtone at FitLens's volume; the alert channel is silent), `REST_CHOICES`, `rememberRest`, `RestTimerStrip`, `RestTimerSheet(exercise)` (uses the exercise's own `restSeconds`, #15), `rememberNotificationAsk` |
 | `TimerService.kt` | Foreground service (type specialUse) with one ongoing notification for the rest and workout timers (system chronometer, action buttons), the "Rest over" alert; `refresh` on every timer change, `watch` (from `App`) follows the workout timer |
 | `WorkoutEditing.kt` | Workout sheets (#84): `WorkoutCommentSheet`, `DeleteWorkoutSheet`, `CopyOrMoveWorkoutSheet`, `CopyPreviousWorkoutSheet`, each with Undo |
-| `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises, search, long-press multi-select; `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`, `MergeExerciseFlow` (#57: pick, confirm, safety copy, merge). `Screen.Library(date)` is also the exercise picker |
+| `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises (side by side on `WidthBucket.Expanded`), search, long-press multi-select; `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`, `MergeExerciseFlow` (#57: pick, confirm, safety copy, merge). `Screen.Library(date)` is also the exercise picker |
 | `Calculators.kt` | Set calculator (`SetCalculatorSheet`: % of 1RM or a warm-up ramp) and plate calculator (`PlateCalculatorSheet`, `platesPerSide`, `BarEnd`; bar and plates in `PortableSettings`), #28, from the exercise screen's ⋮ menu |
 | `ExerciseOverview.kt` | `ExerciseOverviewSheet` (#26): History, Graph, Records, Stats and Goals in one sheet, from the calendar's selected day and the day log |
 | `ExerciseStats.kt` | `ExerciseStatsTab` (#24: tiles by period) and `OneRepMaxSheet` (#28: rep maxes and percentages) |
