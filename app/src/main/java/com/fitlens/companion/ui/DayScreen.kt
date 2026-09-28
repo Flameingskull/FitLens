@@ -77,6 +77,7 @@ import com.fitlens.companion.ui.design.ExerciseCard
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.SearchablePicker
+import com.fitlens.companion.ui.design.SetColumnsHeader
 import com.fitlens.companion.ui.design.SetRow
 import com.fitlens.companion.ui.design.TopBarAction
 import java.time.LocalTime
@@ -465,6 +466,8 @@ private fun ExerciseOnDay(
     val markComplete = Settings.portable.collectAsState().value.markComplete
     val group = exSets.maxOfOrNull { it.superset } ?: 0
     val limit = if (setsShown == 0 || expanded) exSets.size else minOf(setsShown, exSets.size)
+    // Each value in its own labelled column (#101), chosen by the exercise type.
+    val fields = setFields(snap, exId, exSets)
     // A superset's exercises share a gold bar, as FitNotes colours its groups (#18).
     val colour = if (group > 0) Brand.Gold else if (showCategories) categoryColour(snap.categoryOf(exId)?.colour ?: 0) else Brand.Hairline
     ExerciseCard(
@@ -488,11 +491,13 @@ private fun ExerciseOnDay(
             MenuAction("Remove from this workout") { confirmDelete = true }
         )
     ) {
+        if (exSets.isNotEmpty()) SetColumnsHeader(fields.map { it.label }, framed = false, hasDone = markComplete)
         exSets.take(limit).forEachIndexed { i, s ->
             val marks = setMarks(s)
             SetRow(
                 index = i + 1,
                 summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                cells = setCells(snap, fields, s),
                 comment = s.comment,
                 isPr = s.isPr,
                 framed = false,
@@ -592,9 +597,9 @@ fun describeSet(snap: Snapshot, weightKg: Double, reps: Int, distance: Double, d
     // A bodyweight set has no weight to show; "0 kg x 10 reps" read as though the weight had been lost (#74).
     if (weightKg != 0.0) parts.add("${snap.fmtWeight(weightKg)} ${snap.weightUnit}")
     if (reps > 0) parts.add("$reps reps")
-    if (distance > 0) parts.add("${fmtNum(distance)} dist")
+    if (distance > 0) parts.add("${fmtNum(distance)} distance")
     if (duration > 0) parts.add(fmtDuration(duration))
-    return parts.joinToString(" × ").ifBlank { "—" }
+    return parts.joinToString(" · ").ifBlank { "—" }
 }
 
 fun formatTime(iso: String): String? =

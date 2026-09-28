@@ -77,6 +77,7 @@ import com.fitlens.companion.ui.design.SetTypeBadge
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.relativeDayLabel
 import com.fitlens.companion.ui.design.StepperField
+import com.fitlens.companion.ui.design.SetColumnsHeader
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 import kotlin.math.max
 import kotlinx.coroutines.launch
@@ -502,6 +503,13 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     )
                 }
             }
+            // Each value in its own labelled column (#101), chosen by the exercise type.
+            val fields = setFields(snap, exerciseId, sets)
+            if (sets.isNotEmpty()) {
+                item(key = "setHeader") {
+                    SetColumnsHeader(fields.map { it.label }, hasDone = prefs.markComplete, hasHint = !prefs.markComplete)
+                }
+            }
             sets.forEachIndexed { i, s ->
                 item(key = "s${s.id}") {
                     val isSelected = selected == s.id
@@ -509,6 +517,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     SetRowView(
                         index = i + 1,
                         summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                        cells = setCells(snap, fields, s),
                         comment = s.comment,
                         isPr = s.isPr,
                         badge = marks.badge,
@@ -517,7 +526,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                         effortSpoken = marks.effortSpoken,
                         selected = isSelected,
                         onClick = { selected = if (selected == s.id) null else s.id },
-                        trailingHint = if (isSelected) "Selected" else if (prefs.markComplete) null else "Edit",
+                        trailingHint = if (prefs.markComplete) null else if (isSelected) "Selected" else "Edit",
                         // "Mark sets complete" (#19). Ticking the last set offers the next exercise, respecting
                         // supersets and the workout's order.
                         done = if (prefs.markComplete) s.done else null,

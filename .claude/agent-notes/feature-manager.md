@@ -70,3 +70,4 @@ that stop being true. The repository is public: no personal data, secrets or `FI
 - 1.0.45: every e1RM goes through `Records.factor(reps, formula = chosen())`; never inline a formula. Panes reused in
   a `ModalBottomSheet` must not sit inside `FitSheet` (its content scrolls, so a LazyColumn pane would crash);
   `ExerciseOverviewSheet` uses `ModalBottomSheet` directly with a bounded height.
+- 2026-09-28: Owner design direction: set rows as labelled columns driven by exercise type (#101), faked glass depth via shared `ui/design` modifiers, no blur/Haze (#102). Owner wants weight + time lifts (#14; asked if it should be a priority slice).

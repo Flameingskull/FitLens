@@ -150,12 +150,95 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
 }
 
 /**
- * One logged set (#80): number, what was done (for example "100 kg × 5 reps", built by the caller), the set's
- * comment, a PR marker, an optional done checkbox and an optional hint on the right such as "Edit".
+ * One value in a set's column (#101): [value] in large figures ("85"), a small muted [unit] ("kg") and how TalkBack
+ * says it ("85 kilograms").
+ */
+data class SetCell(val value: String, val unit: String = "", val spoken: String)
+
+/** Width of the set-number column when a row shows [SetCell] columns: room for "12" and a set-type badge. */
+private val SetIndexWidth = 48.dp
+/** The trailing slots in column mode have fixed widths, so values line up under [SetColumnsHeader]. */
+private val SetPrWidth = 32.dp
+private val SetDoneWidth = 48.dp
+private val SetHintWidth = 64.dp
+
+/** Padding shared by [SetRow] and [SetColumnsHeader], so the header sits over the columns. */
+private fun setOuterPadding(framed: Boolean) =
+    if (framed) PaddingValues(horizontal = Spacing.md, vertical = 3.dp) else PaddingValues(0.dp)
+private fun setInnerPadding(framed: Boolean) =
+    if (framed) PaddingValues(horizontal = Spacing.md, vertical = 10.dp) else PaddingValues(start = 18.dp, top = Spacing.xxs)
+
+/**
+ * The column headings over a list of [SetRow]s shown as columns (#101): SET, then one label per value ("WEIGHT",
+ * "REPS"), over a gold hairline. Pass the same [framed], [hasDone] and [hasHint] as the rows so the headings line up.
+ * TalkBack skips it: every row already says what each value is.
+ */
+@Composable
+fun SetColumnsHeader(
+    labels: List<String>,
+    modifier: Modifier = Modifier,
+    framed: Boolean = true,
+    hasDone: Boolean = false,
+    hasHint: Boolean = false
+) {
+    val style = MaterialTheme.typography.labelSmall
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(modifier.fillMaxWidth().padding(setOuterPadding(framed)).clearAndSetSemantics { }) {
+        Row(
+            Modifier.fillMaxWidth().padding(setInnerPadding(framed)).padding(bottom = Spacing.xxs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("SET", Modifier.width(SetIndexWidth), style = style, color = muted)
+            Row(Modifier.weight(1f)) {
+                labels.forEach { Text(it.uppercase(), Modifier.weight(1f), style = style, color = muted, maxLines = 1) }
+            }
+            Spacer(Modifier.width(SetPrWidth))
+            if (hasDone) Spacer(Modifier.width(SetDoneWidth))
+            if (hasHint) Spacer(Modifier.width(SetHintWidth))
+        }
+        Box(
+            Modifier
+                .padding(start = if (framed) Spacing.md else 18.dp, end = if (framed) Spacing.md else 0.dp)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Brand.Gold.copy(alpha = 0.35f))
+        )
+    }
+}
+
+/** A value and its unit on one line, in tabular figures so the columns line up down the list (#101). */
+@Composable
+private fun SetCellText(cell: SetCell, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            cell.value,
+            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false
+        )
+        if (cell.unit.isNotEmpty()) {
+            Text(
+                cell.unit,
+                Modifier.padding(start = 3.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+    }
+}
+
+/**
+ * One logged set (#80): number, what was done, the set's comment, a PR marker, an optional done checkbox and an
+ * optional hint on the right such as "Edit".
  *
- * - [framed] draws the set as its own card, picked out in imperial purple with a gold outline when [selected];
- *   unframed, it is a compact line for use inside an [ExerciseCard] or another clickable container.
- * - TalkBack reads the row as one sentence, for example "Set 2, 100 kg × 5 reps, personal record".
+ * - With [cells] (#101) each value sits in its own column under a [SetColumnsHeader]: "85 kg" under WEIGHT and "6"
+ *   under REPS, rather than one "85 kg × 6 reps" line. Without them, [summary] is shown as one line.
+ * - [framed] draws the set as its own recessed glass well (#102), picked out in imperial purple with a gold outline
+ *   when [selected]; unframed, it is a compact line for use inside an [ExerciseCard] or another clickable container.
+ * - TalkBack reads the row as one sentence, for example "Set 2, 85 kilograms, 6 reps, personal record".
  * - [done] is null when the screen has no done state; otherwise a checkbox is shown and [onDoneChange] is called.
  */
 @Composable
@@ -163,6 +246,7 @@ fun SetRow(
     index: Int,
     summary: String,
     modifier: Modifier = Modifier,
+    cells: List<SetCell>? = null,
     comment: String? = null,
     isPr: Boolean = false,
     selected: Boolean = false,
@@ -182,28 +266,28 @@ fun SetRow(
     val spoken = buildString {
         append("Set ").append(index).append(", ")
         if (badgeSpoken != null) append(badgeSpoken).append(", ")
-        append(summary)
+        append(if (cells != null) cells.joinToString(", ") { it.spoken } else summary)
         if (effortSpoken != null) append(", ").append(effortSpoken)
         if (isPr) append(", personal record")
         if (!comment.isNullOrBlank()) append(", comment: ").append(comment)
         if (done == true) append(", done")
     }
-    val frame = if (framed) {
-        Modifier
+    val frame = when {
+        !framed -> Modifier.fillMaxWidth()
+        selected -> Modifier
             .fillMaxWidth()
-            .background(if (selected) Brand.ImperialPurple.copy(alpha = 0.35f) else Brand.Surface, shape)
-            .border(1.dp, if (selected) Brand.Gold else Brand.Hairline, shape)
+            .background(Brand.ImperialPurple.copy(alpha = 0.35f), shape)
+            .border(1.dp, Brand.Gold, shape)
             .clip(shape)
-    } else {
-        Modifier.fillMaxWidth()
+        else -> Modifier.fillMaxWidth().recessedGlass(shape)
     }
     val tap = onClick
     val isDone = done
     val toggleDone = onDoneChange
     val click = if (tap != null) Modifier.clickable(onClick = tap) else Modifier
-    val inner = if (framed) PaddingValues(horizontal = Spacing.md, vertical = 10.dp) else PaddingValues(start = 18.dp, top = Spacing.xxs)
+    val columns = cells != null
 
-    Box(modifier.fillMaxWidth().padding(if (framed) PaddingValues(horizontal = Spacing.md, vertical = 3.dp) else PaddingValues(0.dp))) {
+    Box(modifier.fillMaxWidth().padding(setOuterPadding(framed))) {
         Row(
             frame
                 .then(click)
@@ -226,23 +310,42 @@ fun SetRow(
                         )
                     }
                 }
-                .padding(inner),
-            verticalAlignment = if (framed) Alignment.CenterVertically else Alignment.Top
+                .padding(setInnerPadding(framed)),
+            verticalAlignment = if (framed || columns) Alignment.CenterVertically else Alignment.Top
         ) {
-            Text("$index", Modifier.width(if (framed) 28.dp else 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            if (columns) {
+                Row(Modifier.width(SetIndexWidth), verticalAlignment = Alignment.CenterVertically) {
+                    Text("$index", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (badge != null) {
-                        SetTypeBadge(badge)
                         Spacer(Modifier.width(6.dp))
+                        SetTypeBadge(badge)
                     }
-                    Text(summary, style = MaterialTheme.typography.bodyLarge)
+                }
+            } else {
+                Text("$index", Modifier.width(if (framed) 28.dp else 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(Modifier.weight(1f)) {
+                if (cells != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        cells.forEach { SetCellText(it, Modifier.weight(1f)) }
+                    }
                     if (effort != null) {
-                        Text(
-                            "  ·  $effort",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text(effort, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (badge != null) {
+                            SetTypeBadge(badge)
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Text(summary, style = MaterialTheme.typography.bodyLarge)
+                        if (effort != null) {
+                            Text(
+                                "  ·  $effort",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
                 if (!comment.isNullOrBlank()) {
@@ -254,7 +357,11 @@ fun SetRow(
                 }
             }
             // #23 replaces this with a live gold trophy; today only imported FitNotes flags are shown.
-            if (isPr) {
+            if (columns) {
+                Box(Modifier.width(SetPrWidth), contentAlignment = Alignment.Center) {
+                    if (isPr) Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
+                }
+            } else if (isPr) {
                 Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
                 if (trailingHint != null || done != null) Spacer(Modifier.width(6.dp))
             }
@@ -264,8 +371,10 @@ fun SetRow(
             if (trailingHint != null) {
                 Text(
                     trailingHint,
+                    if (columns) Modifier.width(SetHintWidth) else Modifier,
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (selected) Brand.Gold else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (selected) Brand.Gold else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = if (columns) TextAlign.End else null
                 )
             }
         }

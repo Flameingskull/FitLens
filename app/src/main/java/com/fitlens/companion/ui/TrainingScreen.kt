@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -33,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Records
@@ -47,7 +45,8 @@ import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.FitTabRow
-import com.fitlens.companion.ui.design.SetTypeBadge
+import com.fitlens.companion.ui.design.SetColumnsHeader
+import com.fitlens.companion.ui.design.SetRow as SetRowView
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
 fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
@@ -243,6 +242,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
 fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
     val sets = snap.setsByExercise[exId] ?: emptyList()
     val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
+    // The same labelled columns as the day log (#101), fixed for the whole history so days line up.
+    val fields = remember(snap, exId, sets) { setFields(snap, exId, sets) }
     if (sets.isEmpty()) {
         EmptyState("No history yet", "Every day you log this exercise appears here, newest first.")
         return
@@ -261,19 +262,21 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    SetColumnsHeader(fields.map { it.label }, Modifier.padding(top = Spacing.xs), framed = false)
                     l.forEachIndexed { i, s ->
                         val marks = setMarks(s)
-                        Row(Modifier.padding(start = 8.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${i + 1}", Modifier.width(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            marks.badge?.let { SetTypeBadge(it); Spacer(Modifier.width(6.dp)) }
-                            Text(
-                                describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec) +
-                                    (marks.effort?.let { "  ·  $it" } ?: ""),
-                                Modifier.weight(1f)
-                            )
-                            if (s.isPr) Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
-                        }
-                        if (!s.comment.isNullOrBlank()) Text("“${s.comment}”", Modifier.padding(start = 32.dp), style = MaterialTheme.typography.bodySmall)
+                        SetRowView(
+                            index = i + 1,
+                            summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                            cells = setCells(snap, fields, s),
+                            comment = s.comment,
+                            isPr = s.isPr,
+                            framed = false,
+                            badge = marks.badge,
+                            badgeSpoken = marks.badgeSpoken,
+                            effort = marks.effort,
+                            effortSpoken = marks.effortSpoken
+                        )
                     }
                     // Repeat this day's sets today (#22), with Undo.
                     val today = Dates.today()

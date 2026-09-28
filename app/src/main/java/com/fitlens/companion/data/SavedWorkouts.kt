@@ -175,18 +175,18 @@ object SavedWorkouts {
 
     private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType)
 
-    /** How the sets read in lists, for example "3 sets · 100 kg × 5". */
+    /** How the sets read in lists, for example "3 sets · 100 kg · 5 reps". */
     fun describe(snap: Snapshot, sets: List<PlannedSet>): String {
         if (sets.isEmpty()) return "No sets"
         val first = sets.first()
         val parts = ArrayList<String>()
         if (first.weightKg != 0.0) parts.add("${snap.fmtWeight(first.weightKg)} ${snap.weightUnit}")
-        if (first.reps > 0) parts.add("${first.reps}")
-        if (first.distance > 0) parts.add("${fmtNum(first.distance)} dist")
+        if (first.reps > 0) parts.add("${first.reps} reps")
+        if (first.distance > 0) parts.add("${fmtNum(first.distance)} distance")
         if (first.durationSec > 0) parts.add(fmtDuration(first.durationSec))
         val same = sets.all { it == first }
         val head = "${sets.size} set${if (sets.size == 1) "" else "s"}"
-        return if (parts.isEmpty()) head else "$head · ${parts.joinToString(" × ")}${if (same) "" else " …"}"
+        return if (parts.isEmpty()) head else "$head · ${parts.joinToString(" · ")}${if (same) "" else " …"}"
     }
 
     private suspend fun <T> write(block: (SQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
