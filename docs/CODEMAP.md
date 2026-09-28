@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.46.
+Last updated: 1.0.47.
 
 ## How data flows
 
@@ -70,9 +70,10 @@ Last updated: 1.0.46.
 | `SetMarks.kt` | `setMarks(set)`: a set's type badge and effort text (shown and spoken), following the settings. Every set list uses it |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`. **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (back arrow from `LocalNavBack`, for screens opened from the day log's menu), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
-| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow`, `ExerciseCard`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
+| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow` with `SetCell` columns, `SetColumnsHeader`, `ExerciseCard`), `Glass.kt` (#102: `raisedGlass`, `recessedGlass`, `ambientBackdrop`, `GoldButton`, `GlassOutlinedButton`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets). New screens use these |
 | `TimelineScreen.kt` | All days (every day with photos, measurements, workout), from the day log's menu |
-| `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the ⋮ menu to every screen), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet`, `defOrder`, `AddMeasurementDialog` |
+| `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the ⋮ menu to every screen), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet` (one-line "80 kg · 8 reps" for toasts, PDFs and summaries), `defOrder`, `AddMeasurementDialog` |
+| `SetColumns.kt` | #101: `SetField`, `setFields` (an exercise's set columns, from its type plus anything recorded) and `setCells` (a set's values as `SetCell`s for `SetRow`) |
 | `SetEntry.kt` | The exercise screen (#82): `SetEntryScreen` with Track (logging and editing sets, Save / Clear, Update / Delete), History and Graph tabs in a `HorizontalPager`; `queue` opens exercises chosen together one after another; `page` picks the opening tab |
 | `SavedWorkoutsScreen.kt` | Saved workouts UI (#100): `SavedWorkoutsScreen`, `SavedWorkoutEditorScreen` (drag order, swap, per-exercise sets sheet), `AddWorkoutSheet` (saved or built on the spot, review, Undo, `replace`), `SaveAsWorkoutSheet`, `exercisePickerItems` for `SearchablePicker` |
 | `RoutinesScreen.kt` | `RoutinesScreen` and `RoutineEditorScreen` (days with drag order, day sheet choosing a saved workout, copy a day to another routine). The switcher lives in the library title (`FitTopBar(titleMenu = …)`); starting a day is `StartRoutineDaySheet` in `SavedWorkoutsScreen.kt` |
@@ -124,6 +125,12 @@ Last updated: 1.0.46.
   Launch writes with `AppScope` / `runBusy`, and report results through `UiEvents`.
 - **Brand:** colours come from `MaterialTheme.colorScheme`, `Brand` or `LocalChartColors`. Never write `Color(0x…)`
   outside `Theme.kt`. Headings are serif, labels letter-spaced, dividers `GoldHairline`.
+- **Glass depth (#102):** surfaces use `ui/design/Glass.kt`: `raisedGlass` for cards and tiles, `recessedGlass`
+  for wells, `GoldButton` / `GlassOutlinedButton` instead of `Button` / `OutlinedButton` (destructive buttons with
+  error colours stay plain `Button`). The page glow comes from `ambientBackdrop` on the root `Scaffold`, so screens
+  and bars stay transparent rather than painting `Brand.Black`.
+- **Sets are shown as columns (#101):** list a day's or history's sets with `SetColumnsHeader` over `SetRow(cells =
+  setCells(snap, fields, s))`, `fields = setFields(snap, exerciseId, sets)`. Keep "×" formulas out of set rows.
 - **Stats use `snap.statSets` / `statSetsByExercise`**, which leave out warm-ups unless the setting counts them
   (#43). Lists and history use `sets`. New records, graphs or analysis must use the stat sets.
 - **Order within a day** is `SetRow.position` (#70): the snapshot is sorted by date then position, and exercises follow

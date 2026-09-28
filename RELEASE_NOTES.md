@@ -1,33 +1,39 @@
 ## Overview
 
-This build completes FitLens's body tracker. All your measurements are now managed on one screen. There's a standard
-set to start from, and any value you logged can be changed. An exercise's history now shows each day's totals and can
-copy a past workout's sets into today. The README has also been brought up to date.
+This build changes how FitLens looks and how your sets read. Each set is now laid out in labelled columns (Set,
+Weight and Reps, or Distance and Time), so you no longer have to read "80 kg × 8 reps" like a formula. The whole app
+also gains depth: cards, bars and buttons are now glass in the FitLens black, imperial purple and gold, instead of flat
+blocks.
 
 There's no database change in this update, and nothing you've logged changes when you install it.
 
 ## What's new
 
-- **Measurements screen.** In the body tracker, the edit button opens **Measurements**, a list of every measurement.
-  - Switch a measurement off to hide it from the body tracker, the day log and the pickers. Its values are kept, and
-    FitNotes imports keep your choice.
-  - Create, edit and delete your own measurements with their own units. This replaces the old Custom metrics dialog.
-  - **Add the standard measurements** adds bodyweight, body fat, waist, chest, hips, arms, thighs, calves, neck and
-    shoulders, skipping any you already have. First-run setup offers the same.
-- **Edit a logged value.** Tap a value in the body tracker's **History** to change its value, date, time or comment,
-  or to delete it. Values imported from FitNotes are shown with a note that they're changed in FitNotes, because the
-  next import would bring the original back.
-- **Day totals and Copy to today.** On an exercise's **History** tab, each day shows its sets, reps and volume (or
-  distance and time). **Copy to today** repeats that day's sets today, with Undo.
+- **Sets in labelled columns.** In the day log, the set entry screen and an exercise's **History**, sets appear under
+  a **SET · WEIGHT · REPS** heading, with each value in its own column. The numbers are large and lined up, with the
+  unit small beside them.
+  - The columns follow the exercise type. Strength exercises show Weight and Reps. Cardio shows Distance and Time, and
+    timed exercises show Time.
+  - Values that an imported exercise recorded outside its type still get a column, so nothing you logged is hidden.
+  - Bodyweight sets show **BW** in the Weight column.
+  - TalkBack reads each set as one sentence, for example "Set 2, 85 kilograms, 6 reps, personal record".
+- **Glass depth.** Screens sit on a soft imperial purple and gold glow.
+  - Exercise cards, stat tiles and the date bar are raised glass, with a gold top edge and a shadow beneath.
+  - Set rows are wells set into the glass.
+  - The top bar is purple glass above its gold rule.
+  - Main buttons are polished gold. Secondary buttons are clear purple glass with a gold edge.
 
 ## Improved
 
-- Logging a measurement, from the day log or the body tracker, now opens a sheet in the FitLens design, with the
-  date, time and comment together.
-- The README describes the app as it is at this release, including everything added since 1.0.41.
+- One-line set summaries now read "80 kg · 8 reps" instead of "80 kg × 8 reps". This covers the calendar, day
+  sharing, the PDF report and delete prompts. Saved workouts read "3 sets · 100 kg · 5 reps".
+- With **Mark sets complete** on, the set entry screen shows the selected set by its gold outline instead of a
+  "Selected" label, which keeps the columns lined up.
 
 ## Known limitations
 
-- The standard tape measurements use centimetres. Other length units will come with unit settings.
-- A value imported from FitNotes can't be edited in FitLens.
-- Sets within an exercise are still reordered with buttons rather than by dragging.
+- The glass is drawn with gradients and shadows, not a live blur of what's behind it.
+- Pop-up sheets and dialogs keep their solid backgrounds for now.
+- Exercises that record weight and time together (for example a weighted plank) need the new exercise types in #14.
+  Until then, a lift can't be set up to record time.
+- Distances show without a unit until unit settings arrive.
