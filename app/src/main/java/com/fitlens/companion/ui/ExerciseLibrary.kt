@@ -6,6 +6,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.WidthBucket
+import com.fitlens.companion.ui.design.currentWidthBucket
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
 import android.content.Intent
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -196,6 +199,24 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
         else -> category?.let { snap.categories[it]?.name } ?: "Exercises"
     }
 
+    // On wide screens (unfolded, landscape, tablets) the categories and their exercises sit side by side (#83).
+    val wide = currentWidthBucket() == WidthBucket.Expanded
+    val exerciseList: @Composable () -> Unit = {
+        ExerciseList(
+            snap = snap,
+            exercises = listed,
+            grouped = searching && q.isNotEmpty(),
+            picked = picked,
+            emptyText = if (searching && q.isNotEmpty()) "No exercise matches “$q”." else "No exercises here yet. Tap + to create one.",
+            onOpen = { ex -> if (picked.isNotEmpty()) toggle(picked, ex.id) else open(listOf(ex.id)) },
+            onPick = { ex -> toggle(picked, ex.id) },
+            onEdit = { editing = it },
+            onDetails = { nav.push(Screen.ExerciseDetail(it.id)) },
+            onDelete = { deleting = it },
+            onMerge = { merging = it }
+        )
+    }
+
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
             title = title,
@@ -242,20 +263,23 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                     }
                 }
                 routineMode && routine != null -> RoutineDayList(snap, routine) { startDay = it }
-                showingExercises -> ExerciseList(
-                    snap = snap,
-                    exercises = listed,
-                    grouped = searching && q.isNotEmpty(),
-                    picked = picked,
-                    emptyText = if (searching && q.isNotEmpty()) "No exercise matches “$q”." else "No exercises here yet. Tap + to create one.",
-                    onOpen = { ex -> if (picked.isNotEmpty()) toggle(picked, ex.id) else open(listOf(ex.id)) },
-                    onPick = { ex -> toggle(picked, ex.id) },
-                    onEdit = { editing = it },
-                    onDetails = { nav.push(Screen.ExerciseDetail(it.id)) },
-                    onDelete = { deleting = it },
-                    onMerge = { merging = it }
-                )
-                else -> CategoryList(snap) { category = it }
+                wide -> Row(Modifier.fillMaxSize()) {
+                    CategoryList(snap, category, Modifier.weight(0.4f).fillMaxHeight()) { category = it }
+                    Box(Modifier.width(1.dp).fillMaxHeight().background(Brand.Gold.copy(alpha = 0.35f)))
+                    Box(Modifier.weight(0.6f).fillMaxHeight()) {
+                        if (showingExercises) {
+                            exerciseList()
+                        } else {
+                            Text(
+                                "Choose a category, or search every exercise.",
+                                Modifier.padding(Spacing.lg),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                showingExercises -> exerciseList()
+                else -> CategoryList(snap, null) { category = it }
             }
         }
 
@@ -349,32 +373,47 @@ private fun toggle(picked: MutableList<Long>, id: Long) {
     if (id in picked) picked.remove(id) else picked.add(id)
 }
 
-/** The first view: Favourites (when there are any), every category, and Uncategorised (when used). */
+/**
+ * The first view: Favourites (when there are any), every category, and Uncategorised (when used). [selectedId] is
+ * picked out when the list sits beside the exercises on a wide screen.
+ */
 @Composable
-private fun CategoryList(snap: Snapshot, onOpen: (Long) -> Unit) {
+private fun CategoryList(snap: Snapshot, selectedId: Long?, modifier: Modifier = Modifier, onOpen: (Long) -> Unit) {
     val counts = remember(snap) { snap.exercisesSorted.groupingBy { it.categoryId }.eachCount() }
-    LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
+    LazyColumn(modifier, contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         if (snap.favouriteExercises.isNotEmpty()) {
-            item(key = "fav") { CategoryRow("Favourites", Brand.Gold, snap.favouriteExercises.size) { onOpen(FAVOURITES) } }
+            item(key = "fav") {
+                CategoryRow("Favourites", Brand.Gold, snap.favouriteExercises.size, selectedId == FAVOURITES) { onOpen(FAVOURITES) }
+            }
         }
         snap.categoriesSorted.forEach { c ->
-            item(key = "c${c.id}") { CategoryRow(c.name, categoryColour(c.colour), counts[c.id] ?: 0) { onOpen(c.id) } }
+            item(key = "c${c.id}") {
+                CategoryRow(c.name, categoryColour(c.colour), counts[c.id] ?: 0, selectedId == c.id) { onOpen(c.id) }
+            }
         }
         val loose = counts[Workouts.UNCATEGORISED] ?: 0
         if (loose > 0) {
-            item(key = "none") { CategoryRow("Uncategorised", MaterialTheme.colorScheme.outline, loose) { onOpen(Workouts.UNCATEGORISED) } }
+            item(key = "none") {
+                CategoryRow("Uncategorised", MaterialTheme.colorScheme.outline, loose, selectedId == Workouts.UNCATEGORISED) {
+                    onOpen(Workouts.UNCATEGORISED)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun CategoryRow(name: String, colour: Color, count: Int, onClick: () -> Unit) {
+private fun CategoryRow(name: String, colour: Color, count: Int, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .background(if (selected) Brand.ImperialPurple.copy(alpha = 0.35f) else Color.Transparent)
             .clickable(onClickLabel = "Show $name exercises", onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = "$name, ${countOf(count, "exercise")}" }
+            .semantics(mergeDescendants = true) {
+                contentDescription = "$name, ${countOf(count, "exercise")}"
+                this.selected = selected
+            }
             .padding(end = Spacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -642,11 +681,31 @@ fun ExerciseEditorSheet(
             )
             FilterChip(selected = false, onClick = { newCategory = true }, label = { Text("New category…") })
         }
+        // The type decides what each set records (#14): the two main types first, as in FitNotes, then the rest.
         FieldLabel("Type")
+        val main = listOf(ExerciseTypes.WEIGHT_REPS, ExerciseTypes.DISTANCE_TIME)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ExerciseTypes.all.forEach { t ->
+            main.forEach { t ->
                 FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
             }
+        }
+        FieldLabel("More types")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            ExerciseTypes.all.filter { it !in main }.forEach { t ->
+                FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
+            }
+        }
+        Text(
+            "For example: ${ExerciseTypes.example(type)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (existing != null && type != existing.type && (snap.workoutsByExercise[existing.id] ?: 0) > 0) {
+            Text(
+                "Sets already logged keep every value. Any value the new type doesn't record still shows in its own column.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Brand.GoldLight
+            )
         }
         if (ExerciseTypes.usesWeight(type)) {
             val lbs = snap.weightUnit == "lbs"
