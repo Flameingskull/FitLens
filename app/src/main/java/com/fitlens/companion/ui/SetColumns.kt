@@ -36,7 +36,8 @@ fun setFields(type: Int, sets: List<SetRow>): List<SetField> = SetField.entries.
 fun setFields(snap: Snapshot, exerciseId: Long, sets: List<SetRow>): List<SetField> =
     setFields(snap.exercises[exerciseId]?.type ?: ExerciseTypes.WEIGHT_REPS, sets)
 
-private fun spokenDuration(sec: Int): String {
+/** A duration as TalkBack should say it: "1 minute 23 seconds". */
+fun spokenDuration(sec: Int): String {
     val h = sec / 3600
     val m = (sec % 3600) / 60
     val s = sec % 60

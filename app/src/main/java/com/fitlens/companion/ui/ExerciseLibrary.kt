@@ -723,14 +723,16 @@ fun ExerciseEditorSheet(
                 }
             }
         }
-        // Its own rest length (#15): the rest timer uses it after this exercise's sets.
+        // Its own rest length (#15), any exact length (#105): the rest timer uses it after this exercise's sets.
+        // Default follows the rest timer's own length.
         FieldLabel("Rest time")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            FilterChip(selected = restSec == null, onClick = { restSec = null }, label = { Text("As in the rest timer") })
-            REST_CHOICES.forEach { secs ->
-                FilterChip(selected = restSec == secs, onClick = { restSec = secs }, label = { Text(fmtDuration(secs)) })
-            }
-        }
+        val defaultRest = Settings.portable.collectAsState().value.restSeconds
+        RestLengthStepper(
+            seconds = restSec ?: defaultRest,
+            onChange = { restSec = it },
+            isDefault = restSec == null,
+            onDefault = { restSec = null }
+        )
         FieldLabel("Opens on graph")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             graphLabels(type, timeBased = ExerciseTypes.timeBased(type, anyWeightOrReps = false)).forEachIndexed { i, label ->

@@ -118,6 +118,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var saveAsWorkout by remember { mutableStateOf(false) }
     var editTime by remember { mutableStateOf(false) }
     var share by remember { mutableStateOf(false) }
+    var restSheet by remember { mutableStateOf(false) }
     val running = WorkoutClock.running(snap, date)
     val importForDay = rememberPhotoImporter(forcedDate = date)
     val hasWorkout = sets.isNotEmpty() || snap.workoutComments.containsKey(date)
@@ -141,6 +142,8 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 TopBarAction(Icons.Filled.DateRange, "Calendar") { nav.push(Screen.Calendar) },
                 TopBarAction(Icons.Filled.Add, "Add exercise") { nav.push(Screen.Library(date)) }
             ),
+            // A running rest stays in view after going back to the day (#109).
+            trailing = { RestTimerButton(onOpen = { restSheet = true }, onlyWhileRunning = true) },
             overflow = listOf(
                 MenuAction("Add workout") { addWorkout = true },
                 MenuAction("Replace this workout", enabled = sets.isNotEmpty()) { replaceWorkout = true },
@@ -235,6 +238,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     if (saveAsWorkout) SaveAsWorkoutSheet(snap, date) { saveAsWorkout = false }
     if (editTime) WorkoutTimeSheet(snap, date) { editTime = false }
     if (share) ShareWorkoutSheet(snap, date) { share = false }
+    if (restSheet) RestTimerSheet { restSheet = false }
 }
 
 /** One day's log: photo strip, body values, the workout summary and its exercise cards, or the empty-day actions. */

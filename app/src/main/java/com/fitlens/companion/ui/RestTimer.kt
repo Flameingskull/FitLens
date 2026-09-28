@@ -19,6 +19,18 @@ import android.os.Vibrator
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.Workouts
+import com.fitlens.companion.ui.design.FitIcons
+import com.fitlens.companion.ui.design.StepperField
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -97,6 +109,23 @@ object RestTimer {
         } else {
             val end = max(now(), s.endAt + seconds * 1000L)
             schedule(s.copy(endAt = end, total = max(s.total, left(s) + seconds)))
+        }
+    }
+
+    /**
+     * Changes the running rest's length to [seconds] (#105), keeping the time already rested, so the new length applies
+     * from now. A length shorter than the time already rested leaves one second.
+     */
+    fun setLength(seconds: Int) {
+        val s = _state.value
+        if (!s.active) return
+        val rested = max(0, s.total - left(s))
+        val newLeft = max(1, seconds - rested)
+        if (s.paused) {
+            _state.value = s.copy(total = seconds, pausedLeft = newLeft)
+            changed()
+        } else {
+            schedule(s.copy(total = seconds, endAt = now() + newLeft * 1000L))
         }
     }
 
@@ -193,8 +222,13 @@ object RestSound {
     }
 }
 
-/** The rest lengths offered in the rest timer and in an exercise's own rest time (#15). */
+/** The rest lengths offered as quick chips in the rest timer and in an exercise's own rest time (#15). */
 val REST_CHOICES = listOf(30, 45, 60, 90, 120, 150, 180, 240, 300)
+
+/** Any exact rest length can be set (#105), from one second to an hour, in 5 s steps on the stepper. */
+const val REST_MIN = 1
+const val REST_MAX = 3600
+private const val REST_STEP = 5
 
 /**
  * Asks once for the notification permission (Android 13+), which the timers' notification needs. Returns a function
@@ -223,35 +257,86 @@ fun rememberRest(): Pair<RestTimer.State, Int> {
     return st to RestTimer.left(st, now)
 }
 
-/** A slim bar under the exercise screen's tabs while the rest timer is running. Tapping it opens the timer. */
+/**
+ * The rest timer's top-bar button (#109), as in FitNotes: an alarm clock while resting isn't timed, and the time left
+ * in gold in its place while it runs (dimmed while paused). It keeps one width so the bar doesn't jump. Tapping it
+ * calls [onOpen]. With [onlyWhileRunning] (the day log) it shows nothing until a rest starts.
+ */
 @Composable
-fun RestTimerStrip(onOpen: () -> Unit) {
+fun RestTimerButton(onOpen: () -> Unit, onlyWhileRunning: Boolean = false) {
     val (st, left) = rememberRest()
-    if (!st.active) return
-    Row(
+    if (onlyWhileRunning && !st.active) return
+    val label = if (st.active) {
+        "Rest timer, ${spokenDuration(left)} left" + if (st.paused) ", paused" else ""
+    } else "Rest timer"
+    Box(
         Modifier
-            .fillMaxWidth()
-            .heightIn(min = Spacing.touch)
-            .clickable(onClickLabel = "Open the rest timer", onClick = onOpen)
-            .semantics(mergeDescendants = true) { contentDescription = "Rest timer, ${fmtDuration(left)} left" + if (st.paused) ", paused" else "" }
-            .padding(horizontal = Spacing.lg),
-        verticalAlignment = Alignment.CenterVertically
+            .size(width = 64.dp, height = Spacing.touch)
+            .clickable(role = Role.Button, onClick = onOpen)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center
     ) {
-        Text("REST", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            fmtDuration(left) + if (st.paused) "  ·  paused" else "",
-            Modifier.weight(1f).padding(start = Spacing.md),
-            style = MaterialTheme.typography.titleMedium,
-            color = Brand.Gold
-        )
-        LinearProgressIndicator(
-            progress = { if (st.total > 0) left.toFloat() / st.total else 0f },
-            modifier = Modifier.weight(1f),
-            color = Brand.Gold,
-            trackColor = Brand.Hairline
-        )
+        if (st.active) {
+            Text(
+                fmtDuration(left),
+                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                color = if (st.paused) Brand.Gold.copy(alpha = 0.6f) else Brand.Gold,
+                maxLines = 1
+            )
+        } else {
+            Icon(FitIcons.Alarm, contentDescription = null, tint = Brand.Gold)
+        }
     }
-    GoldHairline()
+}
+
+/**
+ * The rest length as FitNotes sets it (#105): − and + in 5 s steps either side of a number of seconds the user can
+ * also type, with the m:ss beside it, then the presets as quick chips (the one matching is selected). [onDefault]
+ * adds a first chip, "Default", selected when [isDefault], for an exercise that follows the rest timer's length.
+ */
+@Composable
+fun RestLengthStepper(
+    seconds: Int,
+    onChange: (Int) -> Unit,
+    label: String = "Rest length (seconds)",
+    isDefault: Boolean = false,
+    onDefault: (() -> Unit)? = null
+) {
+    var text by remember(seconds) { mutableStateOf(seconds.toString()) }
+    val typed = text.trim().toIntOrNull()
+    val valid = typed != null && typed in REST_MIN..REST_MAX
+    StepperField(
+        label = label,
+        value = text,
+        onValue = { t ->
+            text = t.filter { it.isDigit() }.take(4)
+            text.toIntOrNull()?.takeIf { it in REST_MIN..REST_MAX }?.let(onChange)
+        },
+        onStep = { dir ->
+            val base = typed?.coerceIn(REST_MIN, REST_MAX) ?: seconds
+            // Snap to the 5 s grid, so 93 goes to 95 or 90.
+            val next = if (dir > 0) (base / REST_STEP + 1) * REST_STEP else ((base - 1) / REST_STEP) * REST_STEP
+            onChange(next.coerceIn(REST_MIN, REST_MAX))
+        },
+        keyboard = KeyboardType.Number
+    )
+    Text(
+        if (valid) "${fmtDuration(typed ?: seconds)} (m:ss)" else "Enter 1 to 3600 seconds (up to 60 minutes).",
+        style = MaterialTheme.typography.bodySmall,
+        color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+    )
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        if (onDefault != null) {
+            FilterChip(selected = isDefault, onClick = onDefault, label = { Text("Default") })
+        }
+        REST_CHOICES.forEach { secs ->
+            FilterChip(
+                selected = !isDefault && seconds == secs,
+                onClick = { onChange(secs) },
+                label = { Text(fmtDuration(secs)) }
+            )
+        }
+    }
 }
 
 /**
@@ -281,10 +366,38 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
     DisposableEffect(Unit) { onDispose { RestSound.stop() } }
     val (st, left) = rememberRest()
     val askNotify = rememberNotificationAsk()
+    // The stepper edits a local length that is saved a moment after the last change (#105), so holding + doesn't
+    // write the setting, or reload the database for an exercise's own length, on every step.
+    // Closing the sheet sooner saves it straight away.
+    var chosen by remember(length) { mutableIntStateOf(length) }
+    val saved by rememberUpdatedState(length)
+    val latest by rememberUpdatedState(chosen)
+    fun commit(secs: Int) {
+        // A running rest takes the new length from now (#105). Waiting for typing to settle means "120" never passes
+        // through a 1 s rest on the way.
+        RestTimer.setLength(secs)
+        if (own != null && exercise != null) {
+            AppScope.scope.launch { Workouts.setExerciseDefaults(exercise.id, exercise.weightStepKg, exercise.defaultGraph, secs) }
+        } else {
+            Settings.updatePortable { it.copy(restSeconds = secs) }
+        }
+    }
+    LaunchedEffect(chosen) {
+        if (chosen == length) return@LaunchedEffect
+        delay(600)
+        commit(chosen)
+    }
+    DisposableEffect(Unit) { onDispose { if (latest != saved) commit(latest) } }
     FitSheet(title = "Rest timer", onDismiss = onDismiss, dismissLabel = "Close") {
+        RestLengthStepper(
+            seconds = chosen,
+            label = if (own != null && exercise != null) "${exercise.name}: rest (seconds)" else "Rest length (seconds)",
+            onChange = { secs -> chosen = secs }
+        )
+        GoldHairline()
         Text(
-            fmtDuration(if (st.active) left else length),
-            Modifier.fillMaxWidth().semantics { contentDescription = "${fmtDuration(if (st.active) left else length)} left" },
+            fmtDuration(if (st.active) left else chosen),
+            Modifier.fillMaxWidth().semantics { contentDescription = "${spokenDuration(if (st.active) left else chosen)} left" },
             style = MaterialTheme.typography.displayLarge,
             color = Brand.Gold
         )
@@ -304,33 +417,31 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
                 GlassOutlinedButton(onClick = { RestTimer.adjust(15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text("+15 s") }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                TextButton(onClick = { RestTimer.start(ctx, length) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text("Restart") }
+                TextButton(onClick = { RestTimer.start(ctx, chosen) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text("Restart") }
                 TextButton(onClick = { RestTimer.stop() }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text("Stop") }
             }
         } else {
             GoldButton(
-                onClick = { askNotify(); RestTimer.start(ctx, length) },
+                onClick = { askNotify(); RestTimer.start(ctx, chosen) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
-            ) { Text("Start ${fmtDuration(length)} rest") }
+            ) { Text("Start ${fmtDuration(chosen)} rest") }
         }
         if (own != null && exercise != null) {
             Text(
-                "${exercise.name} rests ${fmtDuration(own)}, set in Edit exercise. The lengths below are for every other exercise.",
+                "This length is ${exercise.name}'s own. Every other exercise rests ${fmtDuration(prefs.restSeconds)}.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            TextButton(
+                onClick = {
+                    AppScope.scope.launch {
+                        Workouts.setExerciseDefaults(exercise.id, exercise.weightStepKg, exercise.defaultGraph, null)
+                    }
+                },
+                modifier = Modifier.heightIn(min = Spacing.touch)
+            ) { Text("Use the default length for ${exercise.name}") }
         }
         GoldHairline()
-        Text("REST LENGTH", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            REST_CHOICES.forEach { secs ->
-                FilterChip(
-                    selected = prefs.restSeconds == secs,
-                    onClick = { Settings.updatePortable { it.copy(restSeconds = secs) } },
-                    label = { Text(fmtDuration(secs)) }
-                )
-            }
-        }
         ToggleRow("Start after saving a set", prefs.restAutoStart) { on ->
             if (on) askNotify()
             Settings.updatePortable { it.copy(restAutoStart = on) }

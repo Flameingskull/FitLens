@@ -394,7 +394,8 @@ object Settings {
         homeSetsShown = get(P_HOME_SETS)?.toIntOrNull()?.takeIf { it in 1..10 } ?: 0,
         lastRoutineId = get(P_LAST_ROUTINE)?.toLongOrNull() ?: 0L,
         workoutTimerAuto = bool(get(P_TIMER_AUTO)),
-        restSeconds = get(P_REST_SECONDS)?.toIntOrNull()?.takeIf { it in 5..1800 } ?: 90,
+        // Any exact length from 1 s to 60 min (#105).
+        restSeconds = get(P_REST_SECONDS)?.toIntOrNull()?.takeIf { it in 1..3600 } ?: 90,
         restAutoStart = bool(get(P_REST_AUTO)),
         restVibrate = get(P_REST_VIBRATE) != "0",
         restSound = get(P_REST_SOUND) != "0",

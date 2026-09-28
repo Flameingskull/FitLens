@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalDrawerSheet
@@ -301,11 +300,12 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             onBack = { nav.pop() },
             actions = listOf(
                 TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } },
-                TopBarAction(Icons.Filled.Notifications, "Rest timer") { restSheet = true },
                 TopBarAction(Icons.Filled.List, "Records and goals", enabled = allSets.isNotEmpty()) {
                     nav.push(Screen.ExerciseDetail(exerciseId))
                 }
             ),
+            // The rest timer's alarm clock, which shows the time left in its place while a rest runs (#109).
+            trailing = { RestTimerButton(onOpen = { restSheet = true }) },
             overflow = listOfNotNull(
                 MenuAction("Edit exercise") { editExercise = true },
                 // The calculators (#28) fill in this set's weight.
@@ -318,7 +318,6 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             selected = pager.currentPage,
             onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
         )
-        RestTimerStrip { restSheet = true }
         // Where this exercise sits in its superset (#18).
         supersetMembers(snap, date, supersetOf(snap, date, exerciseId)).takeIf { it.size > 1 }?.let { members ->
             Text(
