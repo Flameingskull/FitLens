@@ -245,7 +245,7 @@ object FitNotesImporter {
      * Merges a FitNotes backup into FitLens following the conflict rules in [Workouts]: only adds rows, matches
      * categories and exercises by name, and skips sets, comments, times and body records that are already present.
      */
-    private fun merge(src: SQLiteDatabase, w: SQLiteDatabase): ImportPlan {
+    internal fun merge(src: SQLiteDatabase, w: SQLiteDatabase): ImportPlan {
         val plan = ImportPlan()
 
         // What the user changed in FitLens (see Workouts, conflict rule 5).

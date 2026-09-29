@@ -1,7 +1,6 @@
 package com.fitlens.companion.data
 
 import android.app.Application
-import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
@@ -58,55 +57,67 @@ class DbMigrationTest {
     )
 
     /** Writes a database at [version] with [schema] and whatever [fill] inserts, the way an older build left it. */
-    private fun oldDatabase(version: Int, schema: List<String>, fill: (SQLiteDatabase) -> Unit) {
-        val file = app.getDatabasePath(Db.NAME)
-        file.parentFile?.mkdirs()
-        SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
-            schema.forEach { db.execSQL(it) }
-            fill(db)
-            db.version = version
-        }
-    }
-
-    private fun SQLiteDatabase.insert(table: String, vararg values: Pair<String, Any?>): Long =
-        insertOrThrow(table, null, ContentValues().apply {
-            values.forEach { (k, v) ->
-                when (v) {
-                    null -> putNull(k)
-                    is Long -> put(k, v)
-                    is Int -> put(k, v)
-                    is Double -> put(k, v)
-                    else -> put(k, v.toString())
-                }
-            }
-        })
-
-    private fun SQLiteDatabase.count(sql: String, vararg args: String): Int =
-        rawQuery(sql, args).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
-
-    private fun SQLiteDatabase.hasTable(name: String): Boolean =
-        count("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", name) == 1
+    private fun oldDatabase(version: Int, schema: List<String>, fill: (SQLiteDatabase) -> Unit) =
+        OldSchemas.create(app.getDatabasePath(Db.NAME), version, schema, fill)
 
     /** A v12 database: a routine whose two days share one saved workout, plus a saved workout no day uses. */
     private fun v12WithSavedWorkouts() = oldDatabase(12, v12Schema) { db ->
-        db.insert("exercise", "id" to 1L, "name" to "Bench Press")
-        db.insert("exercise", "id" to 2L, "name" to "Squat")
-        db.insert("exercise", "id" to 3L, "name" to "Deadlift")
-        val push = db.insert("saved_workout", "name" to "Push", "sort_order" to 0)
-        val pushBench = db.insert("saved_workout_exercise", "workout_id" to push, "exercise_id" to 1L, "sort_order" to 0, "fill" to 1)
-        db.insert("saved_workout_set", "item_id" to pushBench, "sort_order" to 0, "weight" to 80.0, "reps" to 8)
-        db.insert("saved_workout_set", "item_id" to pushBench, "sort_order" to 1, "weight" to 85.0, "reps" to 6)
-        db.insert("saved_workout_exercise", "workout_id" to push, "exercise_id" to 2L, "sort_order" to 1, "fill" to 0, "superset" to 1)
-        val legs = db.insert("saved_workout", "name" to "Legs", "notes" to "Slow eccentrics", "sort_order" to 1)
-        db.insert("saved_workout_exercise", "workout_id" to legs, "exercise_id" to 3L, "sort_order" to 0)
-        val ppl = db.insert("routine", "name" to "PPL", "sort_order" to 0)
-        val dayA = db.insert("routine_day", "routine_id" to ppl, "name" to "Monday", "workout_id" to push, "sort_order" to 0)
-        val dayB = db.insert("routine_day", "routine_id" to ppl, "name" to "Thursday", "workout_id" to push, "sort_order" to 1)
-        db.insert("routine_day", "routine_id" to ppl, "name" to "Rest", "workout_id" to 0L, "sort_order" to 2)
-        db.insert("workout_origin", "date" to "2026-09-01", "workout_id" to push, "routine_day_id" to dayA)
-        db.insert("workout_origin", "date" to "2026-09-04", "workout_id" to push, "routine_day_id" to dayB)
-        db.insert("workout_origin", "date" to "2026-09-06", "workout_id" to legs, "routine_day_id" to null)
-        db.insert("workout_set", "exercise_id" to 1L, "date" to "2026-09-01", "weight" to 80.0, "reps" to 8)
+        db.row("exercise", "id" to 1L, "name" to "Bench Press")
+        db.row("exercise", "id" to 2L, "name" to "Squat")
+        db.row("exercise", "id" to 3L, "name" to "Deadlift")
+        val push = db.row("saved_workout", "name" to "Push", "sort_order" to 0)
+        val pushBench = db.row("saved_workout_exercise", "workout_id" to push, "exercise_id" to 1L, "sort_order" to 0, "fill" to 1)
+        db.row("saved_workout_set", "item_id" to pushBench, "sort_order" to 0, "weight" to 80.0, "reps" to 8)
+        db.row("saved_workout_set", "item_id" to pushBench, "sort_order" to 1, "weight" to 85.0, "reps" to 6)
+        db.row("saved_workout_exercise", "workout_id" to push, "exercise_id" to 2L, "sort_order" to 1, "fill" to 0, "superset" to 1)
+        val legs = db.row("saved_workout", "name" to "Legs", "notes" to "Slow eccentrics", "sort_order" to 1)
+        db.row("saved_workout_exercise", "workout_id" to legs, "exercise_id" to 3L, "sort_order" to 0)
+        val ppl = db.row("routine", "name" to "PPL", "sort_order" to 0)
+        val dayA = db.row("routine_day", "routine_id" to ppl, "name" to "Monday", "workout_id" to push, "sort_order" to 0)
+        val dayB = db.row("routine_day", "routine_id" to ppl, "name" to "Thursday", "workout_id" to push, "sort_order" to 1)
+        db.row("routine_day", "routine_id" to ppl, "name" to "Rest", "workout_id" to 0L, "sort_order" to 2)
+        db.row("workout_origin", "date" to "2026-09-01", "workout_id" to push, "routine_day_id" to dayA)
+        db.row("workout_origin", "date" to "2026-09-04", "workout_id" to push, "routine_day_id" to dayB)
+        db.row("workout_origin", "date" to "2026-09-06", "workout_id" to legs, "routine_day_id" to null)
+        db.row("workout_set", "exercise_id" to 1L, "date" to "2026-09-01", "weight" to 80.0, "reps" to 8)
+    }
+
+    /** The oldest histories: every row survives, and the v3 ownership rules (#6) are applied on the way up. */
+    private fun assertUpgradedFromBeforeV3() {
+        Db(app).writableDatabase.use { db ->
+            assertEquals(Db.VERSION, db.version)
+            assertEquals(3, db.count("SELECT COUNT(*) FROM workout_set"))
+            // Rows that existed before v3 came from FitNotes: marked so, keeping their FitNotes id.
+            assertEquals(3, db.count("SELECT COUNT(*) FROM workout_set WHERE source='fitnotes' AND fitnotes_id=id"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE source='fitnotes' AND fitnotes_id=id AND name='Bench Press'"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM category WHERE source='fitnotes'"))
+            // Comments and times were rebuilt with an id, keeping their text.
+            assertTrue(db.hasColumn("workout_comment", "id"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM workout_comment WHERE comment='Felt strong' AND source='fitnotes'"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM workout_time WHERE start='2025-01-02 18:00:00' AND source='fitnotes'"))
+            // A chosen sync folder keeps sync on; body data is untouched.
+            assertEquals(1, db.count("SELECT COUNT(*) FROM meta WHERE k='auto_sync' AND v='1'"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Bodyweight' AND value=82.5"))
+            // Later columns arrived with safe defaults.
+            assertEquals(3, db.count("SELECT COUNT(*) FROM workout_set WHERE set_type=0 AND done=0 AND superset=0 AND position=id"))
+            listOf("custom", "link", "edited").forEach { assertTrue("measurement.$it", db.hasColumn("measurement", it)) }
+            listOf("favourite", "weight_step", "default_graph", "rest_seconds").forEach { assertTrue("exercise.$it", db.hasColumn("exercise", it)) }
+            listOf("import_rule", "exercise_goal", "routine", "routine_day_exercise", "exercise_comment").forEach {
+                assertTrue("missing table $it", db.hasTable(it))
+            }
+        }
+    }
+
+    @Test
+    fun v2HistoryUpgradesToCurrent() {
+        oldDatabase(2, OldSchemas.V2) { OldSchemas.fillV2(it) }
+        assertUpgradedFromBeforeV3()
+    }
+
+    @Test
+    fun v1HistoryUpgradesToCurrent() {
+        oldDatabase(1, OldSchemas.V1) { OldSchemas.fillV2(it) }
+        assertUpgradedFromBeforeV3()
     }
 
     @Test
@@ -197,14 +208,14 @@ class DbMigrationTest {
             13,
             v12Schema + listOf(Routines.CREATE_EXERCISE, Routines.CREATE_SET)
         ) { db ->
-            val r = db.insert("routine", "name" to "Upper", "sort_order" to 0)
-            val d = db.insert("routine_day", "routine_id" to r, "name" to "Day 1", "sort_order" to 0)
-            db.insert("routine_day_exercise", "day_id" to d, "exercise_id" to 1L, "sort_order" to 0)
+            val r = db.row("routine", "name" to "Upper", "sort_order" to 0)
+            val d = db.row("routine_day", "routine_id" to r, "name" to "Day 1", "sort_order" to 0)
+            db.row("routine_day_exercise", "day_id" to d, "exercise_id" to 1L, "sort_order" to 0)
         }
         Db(app).writableDatabase.use { db ->
             assertEquals(Db.VERSION, db.version)
             assertEquals(1, db.count("SELECT COUNT(*) FROM routine_day_exercise"))
-            db.insert("exercise_comment", "date" to "2026-09-29", "exercise_id" to 1L, "comment" to "Left shoulder tight")
+            db.row("exercise_comment", "date" to "2026-09-29", "exercise_id" to 1L, "comment" to "Left shoulder tight")
             assertEquals(1, db.count("SELECT COUNT(*) FROM exercise_comment WHERE source='fitlens'"))
         }
     }

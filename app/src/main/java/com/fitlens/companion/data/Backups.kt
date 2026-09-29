@@ -97,6 +97,12 @@ object Backups {
                 snap.allDates.firstOrNull()?.let { put("lastDate", it) }
             }
         }
+        writeArchive(os, manifest, dbFile, photos)
+        return photos.size
+    }
+
+    /** The `.fitlens` archive itself: the manifest, the database, then the photos. Tested on its own (#40). */
+    internal fun writeArchive(os: OutputStream, manifest: JSONObject, dbFile: File, photos: List<File>) {
         ZipOutputStream(os.buffered()).use { zip ->
             zip.setLevel(Deflater.DEFAULT_COMPRESSION)
             zip.putNextEntry(ZipEntry("manifest.json"))
@@ -113,7 +119,6 @@ object Backups {
                 zip.closeEntry()
             }
         }
-        return photos.size
     }
 
     suspend fun export(context: Context, dest: Uri): ImportSummary = withContext(Dispatchers.IO) {
@@ -215,45 +220,10 @@ object Backups {
             // Set the moment the live database is about to be closed and overwritten: from here on the old data is gone.
             var replacing = false
             try {
-                var photos = 0
-                // A safety copy taken before a merge import holds no photos and must not empty the photo folder.
-                var dataOnly = false
-                open()?.use { input ->
-                    ZipInputStream(input.buffered()).use { zip ->
-                        while (true) {
-                            val e = zip.nextEntry ?: break
-                            when {
-                                e.name == "manifest.json" ->
-                                    dataOnly = runCatching {
-                                        JSONObject(zip.readBytes().toString(Charsets.UTF_8)).optBoolean("dataOnly", false)
-                                    }.getOrDefault(false)
-                                e.name == "fitlens.db" -> stageDb.outputStream().use { zip.copyTo(it) }
-                                e.name.startsWith("photos/") && !e.isDirectory -> {
-                                    val name = File(e.name).name
-                                    if (name.isNotBlank() && name != "." && name != "..") {
-                                        File(stagePhotos, name).outputStream().use { zip.copyTo(it) }
-                                        photos++
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } ?: return@withContext ImportSummary("Couldn't open the backup file.", false)
-                if (!stageDb.exists()) return@withContext ImportSummary("That isn't a FitLens backup.", false)
-
-                // Check the database before touching anything.
-                val version = SQLiteDatabase.openDatabase(stageDb.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
-                    val tables = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null).use { c ->
-                        buildSet { while (c.moveToNext()) add(c.getString(0)) }
-                    }
-                    if (!tables.containsAll(listOf("photo", "mrecord", "measurement", "workout_set"))) {
-                        return@withContext ImportSummary("That backup is damaged or isn't from FitLens.", false)
-                    }
-                    db.version
-                }
-                if (version > Db.VERSION) {
-                    return@withContext ImportSummary("That backup was made by a newer FitLens. Update FitLens first, then restore.", false)
-                }
+                val unpacked = unpack(open(), stageDb, stagePhotos)
+                unpacked.error?.let { return@withContext ImportSummary(it, false) }
+                val photos = unpacked.photos
+                val dataOnly = unpacked.dataOnly
 
                 // The way back (#47), written while the current data is still all there. If it can't be made, the
                 // restore doesn't start: replacing everything with no way back is exactly what this prevents.
@@ -268,11 +238,7 @@ object Backups {
 
                 replacing = true
                 Store.db.close()
-                val dbFile = context.getDatabasePath(Db.NAME)
-                File(dbFile.path + "-wal").delete()
-                File(dbFile.path + "-shm").delete()
-                File(dbFile.path + "-journal").delete()
-                stageDb.copyTo(dbFile, overwrite = true)
+                installDatabase(context, stageDb)
 
                 if (!dataOnly) {
                     val photoDir = Store.photoDir
@@ -319,6 +285,70 @@ object Backups {
                 stage.deleteRecursively()
             }
         }
+    }
+
+    /**
+     * What [unpack] found in an archive: the photo count and whether it's a data-only safety copy, or [error] when it
+     * mustn't be restored.
+     */
+    internal data class Unpacked(val error: String? = null, val photos: Int = 0, val dataOnly: Boolean = false)
+
+    /**
+     * Reads an archive into [stageDb] and [stagePhotos] and checks the database before anything live is touched:
+     * refused when it isn't a FitLens backup, is damaged, or was made by a newer FitLens. Tested on its own (#40).
+     */
+    internal fun unpack(input: InputStream?, stageDb: File, stagePhotos: File): Unpacked {
+        if (input == null) return Unpacked("Couldn't open the backup file.")
+        var photos = 0
+        // A safety copy taken before a merge import holds no photos and must not empty the photo folder.
+        var dataOnly = false
+        input.use {
+            ZipInputStream(input.buffered()).use { zip ->
+                while (true) {
+                    val e = zip.nextEntry ?: break
+                    when {
+                        e.name == "manifest.json" ->
+                            dataOnly = runCatching {
+                                JSONObject(zip.readBytes().toString(Charsets.UTF_8)).optBoolean("dataOnly", false)
+                            }.getOrDefault(false)
+                        e.name == "fitlens.db" -> stageDb.outputStream().use { zip.copyTo(it) }
+                        e.name.startsWith("photos/") && !e.isDirectory -> {
+                            val name = File(e.name).name
+                            if (name.isNotBlank() && name != "." && name != "..") {
+                                File(stagePhotos, name).outputStream().use { zip.copyTo(it) }
+                                photos++
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!stageDb.exists()) return Unpacked("That isn't a FitLens backup.")
+        val version = SQLiteDatabase.openDatabase(stageDb.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+            val tables = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null).use { c ->
+                buildSet { while (c.moveToNext()) add(c.getString(0)) }
+            }
+            if (!tables.containsAll(listOf("photo", "mrecord", "measurement", "workout_set"))) {
+                return Unpacked("That backup is damaged or isn't from FitLens.")
+            }
+            db.version
+        }
+        if (version > Db.VERSION) {
+            return Unpacked("That backup was made by a newer FitLens. Update FitLens first, then restore.")
+        }
+        return Unpacked(photos = photos, dataOnly = dataOnly)
+    }
+
+    /**
+     * Puts [stageDb] in place of the live database file, clearing the old write-ahead log and journal. The caller has
+     * already closed the live database. Tested on its own (#40).
+     */
+    internal fun installDatabase(context: Context, stageDb: File) {
+        val dbFile = context.getDatabasePath(Db.NAME)
+        File(dbFile.path + "-wal").delete()
+        File(dbFile.path + "-shm").delete()
+        File(dbFile.path + "-journal").delete()
+        stageDb.copyTo(dbFile, overwrite = true)
     }
 
     // ---------- The safety copy: the way back from a restore or an import (#47) ----------
