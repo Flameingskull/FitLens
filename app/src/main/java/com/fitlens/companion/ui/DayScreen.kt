@@ -109,7 +109,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var copyToDay by remember { mutableStateOf(false) }
     var moveToDay by remember { mutableStateOf(false) }
     var deleteWorkout by remember { mutableStateOf(false) }
-    // Saved workouts (#100): add one (or replace the day's with one), or save this day as one.
+    // Workouts (#100, #106): add a workout day (or replace the day's sets with one), or save this day as a workout day.
     var addWorkout by remember { mutableStateOf(false) }
     var replaceWorkout by remember { mutableStateOf(false) }
     var saveAsWorkout by remember { mutableStateOf(false) }
@@ -144,7 +144,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             overflow = listOf(
                 MenuAction("Add workout") { addWorkout = true },
                 MenuAction("Replace this workout", enabled = sets.isNotEmpty()) { replaceWorkout = true },
-                MenuAction("Save as a workout", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
+                MenuAction("Save as a workout day", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
                 MenuAction(if (running != null) "Stop workout timer" else "Workout time") {
                     if (running != null) WorkoutClock.stop(date, running) else editTime = true
                 },
@@ -155,8 +155,6 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction("Delete this workout", enabled = hasWorkout) { deleteWorkout = true },
                 MenuAction("Add photos to this day") { importForDay() },
                 MenuAction("Add measurement") { addMeasurement = true },
-                MenuAction("Workouts") { nav.push(Screen.SavedWorkouts) },
-                MenuAction("Routines") { nav.push(Screen.Routines) },
                 MenuAction("Analysis") { nav.push(Screen.Analysis) },
                 MenuAction("Body tracker") { nav.push(Screen.Body) },
                 MenuAction("Photos") { nav.push(Screen.Photos) },

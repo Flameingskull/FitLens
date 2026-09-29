@@ -27,15 +27,12 @@ class Snapshot(
     val weekStart: Int = 1,
     /** Exercise goals (#25), in each exercise's order. */
     val goals: List<ExerciseGoal> = emptyList(),
-    /** Saved workouts (#100), in the user's order. */
-    val savedWorkouts: List<SavedWorkout> = emptyList(),
-    /** Routines (#21), in the user's order. */
+    /** The user's workouts (#106, FitNotes's routines): named days of exercises, in the user's order. */
     val routines: List<Routine> = emptyList(),
-    /** Which saved workout each logged day was started from, by date (#21). */
+    /** Which workout and day each logged date was started from, by date (#21, #106). */
     val workoutOrigins: Map<String, WorkoutOrigin> = emptyMap()
 ) {
     val routinesById: Map<Long, Routine> = routines.associateBy { it.id }
-    val savedWorkoutsById: Map<Long, SavedWorkout> = savedWorkouts.associateBy { it.id }
     val goalsByExercise: Map<Long, List<ExerciseGoal>> = goals.groupBy { it.exerciseId }
     val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
     val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
@@ -220,7 +217,7 @@ object Store {
         Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
         return Snapshot(
             categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir,
-            prefs.warmupsCount, prefs.weekStart, goals, SavedWorkouts.load(r), Routines.load(r), Routines.loadOrigins(r)
+            prefs.warmupsCount, prefs.weekStart, goals, Routines.load(r), Routines.loadOrigins(r)
         )
     }
 

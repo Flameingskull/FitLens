@@ -143,9 +143,9 @@ object Workouts {
     }
 
     /**
-     * Logs a saved workout's sets on [date] in one transaction (#100): each pair is an exercise and a prescribed set,
+     * Logs a workout day's sets on [date] in one transaction (#100, #106): each pair is an exercise and a prescribed set,
      * added in order as FitLens sets, like FitNotes's "Log All". PR marks are replayed, since a prescribed set can be
-     * a record. [workoutId] (and [routineDayId]) record which saved workout the day was started from, for the routine's
+     * a record. [workoutId] (and [routineDayId]) record which workout and day the date was started from, for the workout's
      * next-day suggestion (#21). Returns the new ids, so the whole workout can be undone.
      */
     suspend fun logPlanned(
@@ -353,7 +353,7 @@ object Workouts {
             w.longOrNull("SELECT 1 FROM import_rule WHERE kind=? AND target_id=? LIMIT 1", RULE_EXERCISE, id.toString()) != null
         w.delete("workout_set", "exercise_id=?", arrayOf(id.toString()))
         w.delete("exercise_goal", "exercise_id=?", arrayOf(id.toString()))
-        SavedWorkouts.forgetExercise(w, id)
+        Routines.forgetExercise(w, id)
         w.delete("exercise", "id=?", arrayOf(id.toString()))
         w.execSQL("UPDATE import_rule SET target_id=NULL WHERE kind=? AND target_id=?", arrayOf<Any>(RULE_EXERCISE, id))
         if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)
@@ -361,7 +361,7 @@ object Workouts {
 
     /**
      * Merges exercise [fromId] into [intoId] and deletes [fromId] (#57), for duplicates such as "Bench Press" and
-     * "Barbell Bench Press". Every set, goal and saved-workout entry moves across with its date, place, superset and
+     * "Barbell Bench Press". Every set, goal and workout-day entry moves across with its date, place, superset and
      * tick. [intoId] keeps its own name, category, type and defaults, and takes [fromId]'s notes and star only when it
      * has none. Later FitNotes imports follow the merge: [fromId]'s name (and every name already linked to it) maps
      * onto [intoId], and skip rules for its deleted imported sets are re-keyed, so nothing comes back as a duplicate.
@@ -382,7 +382,7 @@ object Workouts {
         val target = ContentValues().apply { put("exercise_id", intoId) }
         w.update("workout_set", target, "exercise_id=?", fromArg)
         w.update("exercise_goal", target, "exercise_id=?", fromArg)
-        w.update("saved_workout_exercise", target, "exercise_id=?", fromArg)
+        w.update("routine_day_exercise", target, "exercise_id=?", fromArg)
         w.update("exercise", ContentValues().apply {
             if (into.notes.isNullOrBlank() && !from.notes.isNullOrBlank()) put("notes", from.notes)
             if (from.favourite) put("favourite", 1)

@@ -67,14 +67,11 @@ sealed interface Screen {
     data object Body : Screen
     /** Every body measurement: on/off, custom ones, the standard set (#88). */
     data object Measurements : Screen
-    /** Saved workouts (#100): named groups of exercises with their sets. */
-    data object SavedWorkouts : Screen
-    /** Creating ([id] 0) or editing a saved workout (#100). */
-    data class SavedWorkoutEditor(val id: Long) : Screen
-    /** Routines (#21): saved workouts split into user-named days. */
-    data object Routines : Screen
-    /** Creating ([id] 0) or editing a routine (#21). */
-    data class RoutineEditor(val id: Long) : Screen
+    /**
+     * Creating ([id] 0) or editing a workout (#106, FitNotes's routine): exercises grouped by user-named days. Reached
+     * from the library's title switcher and the day log's Add workout.
+     */
+    data class WorkoutEditor(val id: Long) : Screen
     /** The Analysis hub (#90). */
     data object Analysis : Screen
     data object Photos : Screen
@@ -275,10 +272,7 @@ fun AppRoot(nav: Nav) {
                     Screen.Body -> BodyScreen(s, nav)
                     Screen.Measurements -> MeasurementsScreen(s, nav)
                     Screen.Analysis -> AnalysisScreen(s, nav)
-                    Screen.SavedWorkouts -> SavedWorkoutsScreen(s, nav)
-                    is Screen.SavedWorkoutEditor -> SavedWorkoutEditorScreen(s, nav, top.id)
-                    Screen.Routines -> RoutinesScreen(s, nav)
-                    is Screen.RoutineEditor -> RoutineEditorScreen(s, nav, top.id)
+                    is Screen.WorkoutEditor -> WorkoutEditorScreen(s, nav, top.id)
                     Screen.Photos -> PhotosScreen(s, nav)
                     is Screen.Day -> DayScreen(s, nav, top.date)
                     is Screen.Library -> ExerciseLibraryScreen(s, nav, top.date)

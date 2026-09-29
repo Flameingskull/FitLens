@@ -11,7 +11,23 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 12
+        const val VERSION = 13
+
+        /**
+         * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
+         * stay empty, kept only so an older FitLens can still open the database (#77) and the v13 step can replay.
+         */
+        private const val CREATE_LEGACY_SAVED_WORKOUT =
+            "CREATE TABLE saved_workout(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, notes TEXT, " +
+                "sort_order INTEGER NOT NULL DEFAULT 0)"
+        private const val CREATE_LEGACY_SAVED_EXERCISE =
+            "CREATE TABLE saved_workout_exercise(id INTEGER PRIMARY KEY AUTOINCREMENT, workout_id INTEGER NOT NULL, " +
+                "exercise_id INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, fill INTEGER NOT NULL DEFAULT 0, " +
+                "superset INTEGER NOT NULL DEFAULT 0)"
+        private const val CREATE_LEGACY_SAVED_SET =
+            "CREATE TABLE saved_workout_set(id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, " +
+                "sort_order INTEGER NOT NULL DEFAULT 0, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, " +
+                "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0)"
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -78,12 +94,14 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             CREATE_TIME,
             CREATE_IMPORT_RULE,
             CREATE_GOAL,
-            SavedWorkouts.CREATE_WORKOUT,
-            SavedWorkouts.CREATE_EXERCISE,
-            SavedWorkouts.CREATE_SET,
+            CREATE_LEGACY_SAVED_WORKOUT,
+            CREATE_LEGACY_SAVED_EXERCISE,
+            CREATE_LEGACY_SAVED_SET,
             Routines.CREATE_ROUTINE,
             Routines.CREATE_DAY,
             Routines.CREATE_ORIGIN,
+            Routines.CREATE_EXERCISE,
+            Routines.CREATE_SET,
             "CREATE TABLE photo(id INTEGER PRIMARY KEY AUTOINCREMENT, file TEXT NOT NULL, date TEXT, taken_at TEXT, date_source TEXT NOT NULL, pose TEXT NOT NULL DEFAULT '', note TEXT, original_name TEXT, hash TEXT UNIQUE, added_at INTEGER NOT NULL DEFAULT 0)",
             "CREATE INDEX idx_photo_date ON photo(date)",
             "CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT)"
@@ -158,7 +176,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // ---- 1.0.33: saved workouts (#100) -----------------------------------------------------------
             // Three new tables and nothing else: no existing row or column changes. IF NOT EXISTS lets the step
             // replay safely after a downgrade (#77) and on restores of older backups.
-            listOf(SavedWorkouts.CREATE_WORKOUT, SavedWorkouts.CREATE_EXERCISE, SavedWorkouts.CREATE_SET).forEach {
+            listOf(CREATE_LEGACY_SAVED_WORKOUT, CREATE_LEGACY_SAVED_EXERCISE, CREATE_LEGACY_SAVED_SET).forEach {
                 db.execSQL(it.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
             }
         }
@@ -197,6 +215,13 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // An exercise's own rest length in seconds; NULL uses the global one, so every exercise keeps today's
             // behaviour. The step replays safely (#77).
             addColumn(db, "exercise", "rest_seconds", "INTEGER")
+        }
+        if (oldVersion < 13) {
+            // ---- 1.0.50: workouts and routines as one function (#106) --------------------------------------------
+            // Each routine day takes a copy of its saved workout's exercises and sets; saved workouts no day used
+            // become one-day workouts; logged dates are re-pointed. See Routines.migrateSavedWorkouts. The step
+            // runs inside the upgrade's transaction, so it copies everything or nothing, and it replays safely (#77).
+            Routines.migrateSavedWorkouts(db)
         }
     }
 
