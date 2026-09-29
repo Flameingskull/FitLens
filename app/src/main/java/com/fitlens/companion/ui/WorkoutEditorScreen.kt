@@ -217,9 +217,14 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             }
         )
     }
-    swapping?.let { (dayKey, slotKey) ->
-        val current = days.firstOrNull { it.key == dayKey }?.slots?.firstOrNull { it.key == slotKey }
-        if (current == null) swapping = null else SearchablePicker(
+    fun slotAt(at: Pair<Long, Long>?): Slot? =
+        at?.let { (dayKey, slotKey) -> days.firstOrNull { it.key == dayKey }?.slots?.firstOrNull { it.key == slotKey } }
+    val swapAt = swapping
+    val swapSlot = slotAt(swapAt)
+    if (swapAt != null && swapSlot != null) {
+        val (dayKey, slotKey) = swapAt
+        val current: Slot = swapSlot
+        SearchablePicker(
             title = "Swap ${snap.exercises[current.planned.exerciseId]?.name ?: "exercise"} for",
             items = exercisePickerItems(snap).filter { it.id != current.planned.exerciseId },
             onDismiss = { swapping = null },
@@ -229,9 +234,11 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             }
         )
     }
-    editingSets?.let { (dayKey, slotKey) ->
-        val current = days.firstOrNull { it.key == dayKey }?.slots?.firstOrNull { it.key == slotKey }
-        if (current == null) editingSets = null else PlannedSetsSheet(snap, current.planned, onDismiss = { editingSets = null }) { updated ->
+    val setsAt = editingSets
+    val setsSlot = slotAt(setsAt)
+    if (setsAt != null && setsSlot != null) {
+        val (dayKey, slotKey) = setsAt
+        PlannedSetsSheet(snap, setsSlot.planned, onDismiss = { editingSets = null }) { updated ->
             updateSlot(dayKey, slotKey) { updated }
             editingSets = null
         }
@@ -255,9 +262,10 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             )
         }
     }
-    copying?.let { dayKey ->
-        val day = days.firstOrNull { it.key == dayKey }
-        if (day == null) copying = null else FitSheet(title = "Copy ${day.name} to", onDismiss = { copying = null }) {
+    val copyDay = copying?.let { dayKey -> days.firstOrNull { it.key == dayKey } }
+    if (copyDay != null) {
+        val day: DayDraft = copyDay
+        FitSheet(title = "Copy ${day.name} to", onDismiss = { copying = null }) {
             snap.routines.filter { it.id != original.id }.forEach { r ->
                 Text(
                     r.name,

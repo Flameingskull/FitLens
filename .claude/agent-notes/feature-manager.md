@@ -75,3 +75,8 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   `ui/design/Icons.kt` (`FitIcons`, Material path data) rather than adding icons-extended. Top-bar widgets that aren't
   plain icons (the rest countdown) go in `FitTopBar(trailing = …)`. A stepper that writes settings or the database
   debounces its commit and flushes on dispose (`RestTimerSheet`), so holding + doesn't reload the snapshot every step.
+- 2026-09-29 (1.0.50, #106): saved workouts and routines are one model, database v13. A workout is `Routine` in code
+  (`data/Routines.kt`), its days own their exercises (`routine_day_exercise`, `routine_day_set`); `SavedWorkouts.kt`,
+  `Screen.SavedWorkouts`, `Screen.Routines` and `Screen.RoutineEditor` are gone (use `Screen.WorkoutEditor(id)`). The
+  old `saved_workout*` tables stay empty rather than dropped, because older builds must still open the database (#77):
+  never drop a table in a migration.
