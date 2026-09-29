@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -41,15 +42,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Velocity
 import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.Dot
 import com.fitlens.companion.ui.FitShapes
 import com.fitlens.companion.ui.GoldHairline
 import com.fitlens.companion.ui.Spacing
+
+/**
+ * Keeps a sheet's scrolling content from dragging the sheet itself (#103). Without it, pulling a list down once it is
+ * already at the top, or a fling that runs past the top, is handed on to the modal sheet, which slides away and
+ * throws away whatever was chosen or typed. Put it on the scrolling content: whatever the content leaves unconsumed
+ * stops here, so scrolling only ever scrolls. The sheet's drag handle still closes it.
+ */
+private object KeepScrollInSheet : NestedScrollConnection {
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset = available
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity = available
+}
 
 /**
  * A modal bottom sheet in the FitLens style (#80): serif [title], gold hairline, scrolling [content] and a sticky
@@ -87,6 +104,7 @@ fun FitSheet(
             Column(
                 Modifier
                     .weight(1f, fill = false)
+                    .nestedScroll(KeepScrollInSheet)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = Spacing.lg),
                 verticalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -173,10 +191,15 @@ fun SearchablePicker(
     searchLabel: String = "Search",
     emptyText: String = "Nothing matches that search."
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val chosen = remember { mutableStateListOf<Long>() }
+    // With exercises ticked, only Cancel closes the picker: a drag, a tap outside or Back leave it open, so a choice
+    // is never lost by accident (#103).
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden || chosen.isEmpty() }
+    )
     var query by remember { mutableStateOf("") }
     var section by remember { mutableStateOf<String?>(null) }
-    val chosen = remember { mutableStateListOf<Long>() }
     val sections = remember(items) { items.mapNotNull { it.section }.distinct() }
     val q = query.trim()
     val shown = items.filter { item ->
@@ -215,7 +238,7 @@ fun SearchablePicker(
                     }
                 }
             }
-            LazyColumn(Modifier.weight(1f)) {
+            LazyColumn(Modifier.weight(1f).nestedScroll(KeepScrollInSheet)) {
                 if (shown.isEmpty()) {
                     item {
                         Text(
