@@ -80,3 +80,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   `Screen.SavedWorkouts`, `Screen.Routines` and `Screen.RoutineEditor` are gone (use `Screen.WorkoutEditor(id)`). The
   old `saved_workout*` tables stay empty rather than dropped, because older builds must still open the database (#77):
   never drop a table in a migration.
+- 2026-09-29 (1.0.52, #107, #40 slice): exercise comments live in `exercise_comment` (v14), keyed by date and
+  exercise, FitLens-only (no skip rules). Any new path that copies, moves or deletes sets must carry them, and its
+  Undo must restore them (`Workouts.setExerciseComments`). JVM tests now exist (`app/src/test`, Robolectric, run in
+  CI before the release build): every database change adds an upgrade test to `DbMigrationTest`.
