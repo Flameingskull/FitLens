@@ -40,6 +40,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.ui.fitDatePickerColors
 import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.GoldHairline
 import com.fitlens.companion.ui.Spacing
