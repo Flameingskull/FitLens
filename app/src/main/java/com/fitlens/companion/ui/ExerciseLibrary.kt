@@ -610,6 +610,45 @@ fun ExerciseNotes(notes: String, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * An exercise's settings at a glance (#110), from the exercise screen's info button, as FitNotes shows them: notes
+ * (with their link buttons), weight increment, rest time, default graph and type. **Edit** opens [ExerciseEditorSheet]
+ * through [onEdit]. [weightStepShown] is the increment the steppers use, in the display unit.
+ */
+@Composable
+fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onEdit: () -> Unit, onDismiss: () -> Unit) {
+    val prefs by Settings.portable.collectAsState()
+    val graphs = graphLabels(ex.type, timeBased = ExerciseTypes.timeBased(ex.type, anyWeightOrReps = false))
+    @Composable
+    fun InfoRow(label: String, value: String) {
+        Row(Modifier.fillMaxWidth().heightIn(min = Spacing.touch), verticalAlignment = Alignment.CenterVertically) {
+            Text(label.uppercase(), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.bodyLarge)
+        }
+        GoldHairline()
+    }
+    FitSheet(
+        title = ex.name,
+        onDismiss = onDismiss,
+        dismissLabel = "Close",
+        confirmLabel = "Edit",
+        onConfirm = { onDismiss(); onEdit() }
+    ) {
+        Text("NOTES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val notes = ex.notes
+        if (notes.isNullOrBlank()) {
+            Text("No notes saved for this exercise.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            ExerciseNotes(notes)
+        }
+        GoldHairline()
+        if (ExerciseTypes.usesWeight(ex.type)) InfoRow("Weight increment", "${fmtNum(weightStepShown, 2)} ${snap.weightUnit}")
+        InfoRow("Rest time", ex.restSeconds?.let { fmtDuration(it) } ?: "Default (${fmtDuration(prefs.restSeconds)})")
+        InfoRow("Default graph", graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0) ?: "None")
+        InfoRow("Type", ExerciseTypes.label(ex.type))
+    }
+}
+
 // ---------------------------------------------------------------------------------------------------------
 // Exercise editor
 // ---------------------------------------------------------------------------------------------------------

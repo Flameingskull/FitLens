@@ -22,6 +22,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
@@ -160,6 +161,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
     var loadedWeightKg by remember(date, exerciseId) { mutableStateOf<Double?>(null) }
     var deleting by remember { mutableStateOf<SetRow?>(null) }
     var editExercise by remember { mutableStateOf(false) }
+    var showInfo by remember { mutableStateOf(false) }
     var calculator by remember { mutableStateOf<String?>(null) }
     // The set whose Comment box is open (#108).
     var commenting by remember { mutableStateOf<SetRow?>(null) }
@@ -299,6 +301,8 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             onBack = { nav.pop() },
             actions = listOf(
                 TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } },
+                // The exercise's settings at a glance, with Edit (#110).
+                TopBarAction(Icons.Filled.Info, "Exercise info", enabled = ex != null) { showInfo = true },
                 TopBarAction(Icons.Filled.List, "Records and goals", enabled = allSets.isNotEmpty()) {
                     nav.push(Screen.ExerciseDetail(exerciseId))
                 }
@@ -306,7 +310,6 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             // The rest timer's alarm clock, which shows the time left in its place while a rest runs (#109).
             trailing = { RestTimerButton(onOpen = { restSheet = true }) },
             overflow = listOfNotNull(
-                MenuAction("Edit exercise") { editExercise = true },
                 // The calculators (#28) fill in this set's weight.
                 if (showWeight) MenuAction("Set calculator") { calculator = "set" } else null,
                 if (showWeight) MenuAction("Plate calculator") { calculator = "plate" } else null
@@ -609,6 +612,9 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
             onDismiss = { calculator = null }
         )
         "plate" -> PlateCalculatorSheet(snap, weight, onUse = { w -> weight = w }, onDismiss = { calculator = null })
+    }
+    if (showInfo && ex != null) {
+        ExerciseInfoSheet(snap, ex, weightStep, onEdit = { editExercise = true }, onDismiss = { showInfo = false })
     }
     if (editExercise && ex != null) {
         ExerciseEditorSheet(snap, existing = ex, initialCategoryId = ex.categoryId, onDismiss = { editExercise = false })
