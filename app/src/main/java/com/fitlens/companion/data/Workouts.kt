@@ -354,6 +354,7 @@ object Workouts {
         w.delete("workout_set", "exercise_id=?", arrayOf(id.toString()))
         w.delete("exercise_goal", "exercise_id=?", arrayOf(id.toString()))
         Routines.forgetExercise(w, id)
+        w.delete("exercise_comment", "exercise_id=?", arrayOf(id.toString()))
         w.delete("exercise", "id=?", arrayOf(id.toString()))
         w.execSQL("UPDATE import_rule SET target_id=NULL WHERE kind=? AND target_id=?", arrayOf<Any>(RULE_EXERCISE, id))
         if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)
@@ -383,6 +384,7 @@ object Workouts {
         w.update("workout_set", target, "exercise_id=?", fromArg)
         w.update("exercise_goal", target, "exercise_id=?", fromArg)
         w.update("routine_day_exercise", target, "exercise_id=?", fromArg)
+        mergeExerciseComments(w, fromId, intoId)
         w.update("exercise", ContentValues().apply {
             if (into.notes.isNullOrBlank() && !from.notes.isNullOrBlank()) put("notes", from.notes)
             if (from.favourite) put("favourite", 1)
@@ -543,6 +545,8 @@ object Workouts {
             deleteSetsWhere(w, where, args.toTypedArray())
             replayPrs(w)
         }
+        // Exercise comments belong to the exercise in that day's workout, so they go with its sets (#107).
+        w.delete("exercise_comment", where.replace("substr(date, 1, 10)", "date"), args.toTypedArray())
         count
     }
 
@@ -628,6 +632,44 @@ object Workouts {
         }
     }
 
+    /** Replaces the comment on exercise [exerciseId] in [date]'s workout (#107). A blank comment removes it. */
+    suspend fun setExerciseComment(date: String, exerciseId: Long, comment: String?): Unit = write { w ->
+        writeExerciseComment(w, checkDate(date), exerciseId, comment)
+    }
+
+    /** Puts [date]'s exercise comments back exactly as [comments] (exercise id to text), for Undo (#107). */
+    suspend fun setExerciseComments(date: String, comments: Map<Long, String>): Unit = write { w ->
+        val d = checkDate(date)
+        w.delete("exercise_comment", "date=?", arrayOf(d))
+        comments.forEach { (ex, text) -> writeExerciseComment(w, d, ex, text) }
+    }
+
+    private fun writeExerciseComment(w: SQLiteDatabase, d: String, exerciseId: Long, comment: String?) {
+        w.delete("exercise_comment", "date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
+        val text = comment?.trim()
+        if (!text.isNullOrEmpty()) {
+            w.insertOrThrow("exercise_comment", null, ContentValues().apply {
+                put("date", d); put("exercise_id", exerciseId); put("comment", text); put("source", Sources.FITLENS)
+            })
+        }
+    }
+
+    /** Moves exercise comments from exercise [fromId] to [intoId]; on a date where both have one, they're joined. */
+    private fun mergeExerciseComments(w: SQLiteDatabase, fromId: Long, intoId: Long) {
+        val moving = w.rawQuery("SELECT date, comment FROM exercise_comment WHERE exercise_id=?", arrayOf(fromId.toString()))
+            .use { c -> ArrayList<Pair<String, String>>().apply { while (c.moveToNext()) add(c.strOr(0) to c.strOr(1)) } }
+        w.delete("exercise_comment", "exercise_id=?", arrayOf(fromId.toString()))
+        moving.forEach { (d, text) -> joinExerciseComment(w, d, intoId, text) }
+    }
+
+    /** Adds [text] to exercise [exerciseId]'s comment on [d], after any comment already there. */
+    private fun joinExerciseComment(w: SQLiteDatabase, d: String, exerciseId: Long, text: String) {
+        val existing = w.rawQuery("SELECT comment FROM exercise_comment WHERE date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
+            .use { c -> if (c.moveToFirst()) c.strOr(0) else null }
+        val joined = listOfNotNull(existing, text).map { it.trim() }.filter { it.isNotEmpty() }.distinct().joinToString("\n\n")
+        writeExerciseComment(w, d, exerciseId, joined)
+    }
+
     /**
      * Replaces the workout start and end for [date]. Times use FitNotes's format (`yyyy-MM-dd HH:mm:ss`).
      * Both null removes them.
@@ -675,6 +717,7 @@ object Workouts {
             while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(d, c.str(0), c.str(1)))
         }
         w.delete("workout_comment", "date=?", arrayOf(d))
+        w.delete("exercise_comment", "date=?", arrayOf(d))
         w.delete("workout_time", "date=?", arrayOf(d))
         w.delete("workout_origin", "date=?", arrayOf(d))
     }
@@ -709,7 +752,17 @@ object Workouts {
                 })
             }
         }
-        copies.map { w.insertOrThrow("workout_set", null, it) }
+        val ids = copies.map { w.insertOrThrow("workout_set", null, it) }
+        // Exercise comments come along for the exercises copied, unless the target day already has its own (#107).
+        val copied = copies.map { it.getAsLong("exercise_id") }.distinct()
+        if (copied.isNotEmpty()) {
+            w.execSQL(
+                "INSERT OR IGNORE INTO exercise_comment(date, exercise_id, comment, source) " +
+                    "SELECT ?, exercise_id, comment, ? FROM exercise_comment WHERE date=? AND exercise_id IN (${copied.joinToString(",")})",
+                arrayOf<Any>(t, Sources.FITLENS, f)
+            )
+        }
+        ids
     }
 
     /**
@@ -718,7 +771,18 @@ object Workouts {
      */
     suspend fun deleteSets(ids: Collection<Long>): Int = write { w ->
         if (ids.isEmpty()) return@write 0
+        val pairs = w.rawQuery("SELECT DISTINCT substr(date, 1, 10), exercise_id FROM workout_set WHERE id IN (${ids.joinToString(",")})", null)
+            .use { c -> ArrayList<Pair<String, Long>>().apply { while (c.moveToNext()) add(c.strOr(0) to c.lng(1)) } }
         deleteSetsWhere(w, "id IN (${ids.joinToString(",")})", emptyArray())
+        // Undoing a copy or a logged workout takes the exercise comments it brought along (#107): a comment goes
+        // once its exercise has no sets left on that date.
+        pairs.forEach { (d, ex) ->
+            w.execSQL(
+                "DELETE FROM exercise_comment WHERE date=? AND exercise_id=? AND NOT EXISTS " +
+                    "(SELECT 1 FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id=?)",
+                arrayOf<Any>(d, ex, d, ex)
+            )
+        }
         replayPrs(w)
         ids.size
     }
@@ -759,6 +823,11 @@ object Workouts {
         w.execSQL("UPDATE OR REPLACE workout_origin SET date=? WHERE date=?", arrayOf<Any>(t, f))
         val values = ContentValues().apply { put("date", t); put("source", Sources.FITLENS) }
         w.update("workout_set", values, "date=?", arrayOf(f))
+        // Exercise comments move too; one landing on an exercise that already has a comment there is joined (#107).
+        val movingComments = w.rawQuery("SELECT exercise_id, comment FROM exercise_comment WHERE date=?", arrayOf(f))
+            .use { c -> ArrayList<Pair<Long, String>>().apply { while (c.moveToNext()) add(c.lng(0) to c.strOr(1)) } }
+        w.delete("exercise_comment", "date=?", arrayOf(f))
+        movingComments.forEach { (ex, text) -> joinExerciseComment(w, t, ex, text) }
 
         // Comments: if both days have one, merge into a single FitLens row (destination first) (#76).
         val movedComments = readComments(w, f)

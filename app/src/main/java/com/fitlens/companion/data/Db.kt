@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 13
+        const val VERSION = 14
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -28,6 +28,14 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TABLE saved_workout_set(id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, " +
                 "sort_order INTEGER NOT NULL DEFAULT 0, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, " +
                 "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0)"
+
+        /**
+         * Exercise comments (#107): one note per exercise within a date's workout ("left shoulder tight"). FitLens's
+         * own; FitNotes imports never write it.
+         */
+        const val CREATE_EXERCISE_COMMENT =
+            "CREATE TABLE exercise_comment(id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, exercise_id INTEGER NOT NULL, " +
+                "comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens', UNIQUE(date, exercise_id))"
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -91,6 +99,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TABLE mrecord(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, unit TEXT NOT NULL DEFAULT '', date TEXT NOT NULL, time TEXT NOT NULL DEFAULT '', value REAL NOT NULL, comment TEXT, source TEXT NOT NULL)",
             "CREATE INDEX idx_mr_date ON mrecord(date)",
             CREATE_COMMENT,
+            CREATE_EXERCISE_COMMENT,
             CREATE_TIME,
             CREATE_IMPORT_RULE,
             CREATE_GOAL,
@@ -222,6 +231,11 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // become one-day workouts; logged dates are re-pointed. See Routines.migrateSavedWorkouts. The step
             // runs inside the upgrade's transaction, so it copies everything or nothing, and it replays safely (#77).
             Routines.migrateSavedWorkouts(db)
+        }
+        if (oldVersion < 14) {
+            // ---- 1.0.52: exercise comments (#107) ------------------------------------------------------------------
+            // One new table; nothing existing changes, and the step replays safely (#77).
+            db.execSQL(CREATE_EXERCISE_COMMENT.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
         }
     }
 

@@ -124,12 +124,12 @@ fun DeleteWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             ", will be removed from ${Dates.medium(date)}. Photos and measurements on this day are kept.",
         confirmLabel = "Delete workout",
         onDismiss = onDismiss,
-        onConfirm = { deleteWithUndo(date, sets, comment, times) }
+        onConfirm = { deleteWithUndo(date, sets, comment, times, snap.exerciseComments[date].orEmpty()) }
     )
 }
 
 /** Deletes the workout on [date], then offers to put back its sets, comment and times. */
-private fun deleteWithUndo(date: String, sets: List<SetRow>, comment: String?, times: List<WorkoutTime>) {
+private fun deleteWithUndo(date: String, sets: List<SetRow>, comment: String?, times: List<WorkoutTime>, exerciseComments: Map<Long, String>) {
     AppScope.scope.launch {
         Workouts.deleteWorkout(date)
         UiEvents.show("Workout deleted", "Undo") {
@@ -138,6 +138,7 @@ private fun deleteWithUndo(date: String, sets: List<SetRow>, comment: String?, t
                     Workouts.addSets(sets)
                     if (!comment.isNullOrBlank()) Workouts.setWorkoutComment(date, comment)
                     if (times.isNotEmpty()) Workouts.setWorkoutTimes(date, times)
+                    if (exerciseComments.isNotEmpty()) Workouts.setExerciseComments(date, exerciseComments)
                 } catch (e: Exception) {
                     UiEvents.show("Couldn't undo that: ${e.message}")
                 }
@@ -360,6 +361,8 @@ private fun moveWithUndo(snap: Snapshot, from: String, to: String) {
     val toComment = snap.workoutComments[to]?.joinToString("\n\n")
     val fromTimes = snap.workoutTimes[from].orEmpty()
     val toTimes = snap.workoutTimes[to].orEmpty()
+    val fromExerciseComments = snap.exerciseComments[from].orEmpty()
+    val toExerciseComments = snap.exerciseComments[to].orEmpty()
     AppScope.scope.launch {
         try {
             val moved = Workouts.moveWorkout(from, to)
@@ -371,6 +374,8 @@ private fun moveWithUndo(snap: Snapshot, from: String, to: String) {
                         Workouts.setWorkoutComment(to, toComment)
                         Workouts.setWorkoutTimes(from, fromTimes)
                         Workouts.setWorkoutTimes(to, toTimes)
+                        Workouts.setExerciseComments(from, fromExerciseComments)
+                        Workouts.setExerciseComments(to, toExerciseComments)
                     } catch (e: Exception) {
                         UiEvents.show("Couldn't undo that: ${e.message}")
                     }

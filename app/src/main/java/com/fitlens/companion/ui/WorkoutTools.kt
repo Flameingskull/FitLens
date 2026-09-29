@@ -213,6 +213,8 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 if (!s.comment.isNullOrBlank()) append("  “").append(s.comment).append('”')
                 append('\n')
             }
+            // The exercise's own comment follows its sets when comments are included (#107).
+            if (withComment) snap.exerciseComments[date.take(10)]?.get(exId)?.let { append("  “").append(it).append("”\n") }
         }
         if (withComment) snap.workoutComments[date]?.forEach { append('\n').append('“').append(it).append("”\n") }
         append("\nLogged with FitLens")

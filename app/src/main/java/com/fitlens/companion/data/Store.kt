@@ -30,7 +30,9 @@ class Snapshot(
     /** The user's workouts (#106, FitNotes's routines): named days of exercises, in the user's order. */
     val routines: List<Routine> = emptyList(),
     /** Which workout and day each logged date was started from, by date (#21, #106). */
-    val workoutOrigins: Map<String, WorkoutOrigin> = emptyMap()
+    val workoutOrigins: Map<String, WorkoutOrigin> = emptyMap(),
+    /** Exercise comments (#107): date to exercise id to its comment in that day's workout. */
+    val exerciseComments: Map<String, Map<Long, String>> = emptyMap()
 ) {
     val routinesById: Map<Long, Routine> = routines.associateBy { it.id }
     val goalsByExercise: Map<Long, List<ExerciseGoal>> = goals.groupBy { it.exerciseId }
@@ -217,8 +219,16 @@ object Store {
         Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
         return Snapshot(
             categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir,
-            prefs.warmupsCount, prefs.weekStart, goals, Routines.load(r), Routines.loadOrigins(r)
+            prefs.warmupsCount, prefs.weekStart, goals, Routines.load(r), Routines.loadOrigins(r), loadExerciseComments(r)
         )
+    }
+
+    private fun loadExerciseComments(r: android.database.sqlite.SQLiteDatabase): Map<String, Map<Long, String>> {
+        val out = HashMap<String, HashMap<Long, String>>()
+        r.rawQuery("SELECT date, exercise_id, comment FROM exercise_comment", null).use { c ->
+            while (c.moveToNext()) out.getOrPut(c.strOr(0)) { HashMap() }[c.lng(1)] = c.strOr(2)
+        }
+        return out
     }
 
     // ---------- Photo edits ----------

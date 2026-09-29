@@ -406,6 +406,39 @@ fun SetRow(
  * [describe] names the set ("Set 2 · 85 kg · 6 reps"). [onSave] receives the trimmed text, or null when it's empty,
  * which removes the comment.
  */
+/**
+ * The exercise comment row (#107): a note on this exercise in one day's workout, under its sets. Shows the comment
+ * (or "Add exercise comment") beside a speech bubble, gold when there is one; tapping it opens [onEdit].
+ */
+@Composable
+fun ExerciseCommentRow(comment: String?, onEdit: () -> Unit, modifier: Modifier = Modifier) {
+    val has = !comment.isNullOrBlank()
+    Row(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.touch)
+            .clickable(onClickLabel = if (has) "Edit exercise comment" else "Add exercise comment", onClick = onEdit)
+            .semantics(mergeDescendants = true) {}
+            .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            if (has) FitIcons.Comment else FitIcons.CommentOutline,
+            contentDescription = null,
+            tint = if (has) Brand.Gold else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(Spacing.md))
+        Column(Modifier.weight(1f)) {
+            Text("EXERCISE COMMENT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                if (has) comment.orEmpty() else "Add exercise comment",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (has) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @Composable
 fun SetCommentSheet(describe: String, initial: String?, onSave: (String?) -> Unit, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf(initial.orEmpty()) }

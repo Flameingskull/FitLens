@@ -76,6 +76,7 @@ import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
 import com.fitlens.companion.ui.design.DayNavigator
 import com.fitlens.companion.ui.design.ExerciseCard
+import com.fitlens.companion.ui.design.SetCommentSheet
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.SearchablePicker
@@ -468,6 +469,8 @@ private fun ExerciseOnDay(
     var swapping by remember { mutableStateOf(false) }
     var grouping by remember { mutableStateOf(false) }
     var overview by remember { mutableStateOf(false) }
+    var commenting by remember { mutableStateOf(false) }
+    val exerciseComment = snap.exerciseComments[date.take(10)]?.get(exId)
     val markComplete = Settings.portable.collectAsState().value.markComplete
     val group = exSets.maxOfOrNull { it.superset } ?: 0
     val limit = if (setsShown == 0 || expanded) exSets.size else minOf(setsShown, exSets.size)
@@ -479,8 +482,11 @@ private fun ExerciseOnDay(
         name = name,
         categoryColor = colour,
         onClick = { nav.push(Screen.SetEntry(date, exId)) },
+        // The exercise's comment in this workout sits under its sets (#107).
+        comment = exerciseComment,
         menu = listOf(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
+            MenuAction(if (exerciseComment.isNullOrBlank()) "Add exercise comment" else "Edit exercise comment") { commenting = true },
             MenuAction("History and graph") { nav.push(Screen.SetEntry(date, exId, page = 1)) },
             MenuAction("Overview") { overview = true },
             MenuAction("Records and goals") { nav.push(Screen.ExerciseDetail(exId)) },
@@ -570,6 +576,14 @@ private fun ExerciseOnDay(
             }
         )
     }
+    if (commenting) {
+        SetCommentSheet(
+            describe = "$name · ${Dates.medium(date)}",
+            initial = exerciseComment,
+            onSave = { text -> AppScope.scope.launch { Workouts.setExerciseComment(date, exId, text) } },
+            onDismiss = { commenting = false }
+        )
+    }
     if (confirmDelete) {
         ConfirmDialog(
             "Remove $name from this workout?",
@@ -579,12 +593,14 @@ private fun ExerciseOnDay(
             onDismiss = { confirmDelete = false }
         ) {
             val removed = exSets
+            val removedComment = exerciseComment
             AppScope.scope.launch {
                 Workouts.deleteHistory(date, date, setOf(exId))
                 UiEvents.show("$name removed from this workout", "Undo") {
                     AppScope.scope.launch {
                         try {
                             Workouts.addSets(removed)
+                            if (!removedComment.isNullOrBlank()) Workouts.setExerciseComment(date, exId, removedComment)
                         } catch (e: Exception) {
                             UiEvents.show("Couldn't undo that: ${e.message}")
                         }

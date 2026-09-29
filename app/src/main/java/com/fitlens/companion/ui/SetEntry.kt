@@ -79,6 +79,7 @@ import com.fitlens.companion.ui.design.SetTypeBadge
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.relativeDayLabel
 import com.fitlens.companion.ui.design.StepperField
+import com.fitlens.companion.ui.design.ExerciseCommentRow
 import com.fitlens.companion.ui.design.SetCommentSheet
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 import kotlin.math.max
@@ -165,6 +166,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
     var calculator by remember { mutableStateOf<String?>(null) }
     // The set whose Comment box is open (#108).
     var commenting by remember { mutableStateOf<SetRow?>(null) }
+    var editingExerciseComment by remember { mutableStateOf(false) }
 
     // The global step from Settings → Units & display (#7) is stored in kg; the field works in the display unit.
     // This exercise's own step comes first (#15), then the global one.
@@ -543,6 +545,10 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
                     )
                 }
             }
+            // One comment for the whole exercise in today's workout (#107), under its sets.
+            item(key = "exercise-comment") {
+                ExerciseCommentRow(snap.exerciseComments[date.take(10)]?.get(exerciseId), onEdit = { editingExerciseComment = true })
+            }
             if (sets.isNotEmpty()) {
                 item {
                     val volume = sets.sumOf { it.weightKg * it.reps }
@@ -585,6 +591,14 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
         }
     }
     if (restSheet) RestTimerSheet(ex) { restSheet = false }
+    if (editingExerciseComment) {
+        SetCommentSheet(
+            describe = "${ex?.name ?: "Exercise"} · ${relativeDayLabel(date)}",
+            initial = snap.exerciseComments[date.take(10)]?.get(exerciseId),
+            onSave = { text -> AppScope.scope.launch { Workouts.setExerciseComment(date, exerciseId, text) } },
+            onDismiss = { editingExerciseComment = false }
+        )
+    }
     commenting?.let { s ->
         val number = sets.indexOfFirst { it.id == s.id } + 1
         SetCommentSheet(

@@ -115,6 +115,7 @@ fun logWorkoutDay(
     val rows = resolved.flatMap { (p, sets) -> sets.map { p.exerciseId to it } }
     val toOpen = resolved.filter { it.second.isEmpty() }.map { it.first.exerciseId }.distinct()
     val old = if (replace) snap.setsByDate[date].orEmpty() else emptyList<SetRow>()
+    val oldComments = if (replace) snap.exerciseComments[date].orEmpty() else emptyMap()
     val groups = exercises.filter { it.superset > 0 }.associate { it.exerciseId to it.superset }
     AppScope.scope.launch {
         try {
@@ -132,6 +133,7 @@ fun logWorkoutDay(
                     try {
                         Workouts.deleteSets(ids)
                         if (old.isNotEmpty()) Workouts.addSets(old)
+                        if (oldComments.isNotEmpty()) Workouts.setExerciseComments(date, oldComments)
                     } catch (e: Exception) {
                         UiEvents.show("Couldn't undo that: ${e.message}")
                     }

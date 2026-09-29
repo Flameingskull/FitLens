@@ -286,6 +286,15 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                             effortSpoken = marks.effortSpoken
                         )
                     }
+                    // The exercise's comment in that day's workout (#107).
+                    snap.exerciseComments[d.take(10)]?.get(exId)?.let { note ->
+                        Text(
+                            "“$note”",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                     // Repeat this day's sets today (#22), with Undo.
                     val today = Dates.today()
                     if (d.take(10) != today) {

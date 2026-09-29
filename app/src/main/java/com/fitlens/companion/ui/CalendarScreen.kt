@@ -328,6 +328,16 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                    // The exercise's comment in this workout (#107).
+                    snap.exerciseComments[date.take(10)]?.get(exId)?.let { note ->
+                        Text(
+                            "“$note”",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
                 if (exSets.any { it.isPr }) Text("PR", style = MaterialTheme.typography.labelMedium, color = Brand.Gold)
             }
