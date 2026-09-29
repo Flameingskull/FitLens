@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.52.
+Last updated: 1.0.54.
 
 ## How data flows
 
@@ -45,7 +45,7 @@ Last updated: 1.0.52.
 | `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts (`copyWorkout` returns the new ids), workout comments, exercise comments (#107: `setExerciseComment`, `setExerciseComments` for Undo; copy, move, delete, `deleteHistory`, `deleteSets` and merges carry them), times, undo helpers (`addSets`, `deleteSets`, `moveSets`), `reorderCategories`, `logPlanned` (a workout day's sets, PR replay), `swapExercise` / `setExerciseOf`, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction), `mergeExercises` (#57: moves sets, goals and workout-day entries, re-points import rules and re-keys set skips, PR replay) |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`; `Formula` and `chosen()`, the user's formula, #42), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
-| `Backups.kt` | `.fitlens` export and restore, `exportForShare` (share sheet), `manualFileName` (timestamp setting), safety copy with Undo, automatic backups to a folder |
+| `Backups.kt` | `.fitlens` export and restore (`writeArchive`, `unpack` (checks before anything live is touched), `installDatabase`), `exportForShare` (share sheet), `manualFileName` (timestamp setting), safety copy with Undo, automatic backups to a folder |
 | `Analysis.kt` | The Analysis hub's numbers, pure Kotlin: period totals (`totals`, `Period`, `Metric`, `Filter`), breakdowns (`breakdown`, `windows`, `previousWindow`, `Span`, `Measure`), `percents` (largest remainder). Weeks start on `weekStart` (Monday until #7) |
 | `Routines.kt` | Workouts (#106, FitNotes's routines; the code keeps the `Routine` names): `Routine` (name, notes, days), `RoutineDay` (a user-named day with its `PlannedExercise`s), `PlannedExercise` (`fill`: `FILL_LAST` copy previous, `FILL_PLANNED` predefined sets, `FILL_NONE`; superset), `PlannedSet`, `WorkoutOrigin` (which workout and day a logged date came from); `load`, `save` (keeps day ids, rewrites each day's exercises), `delete`, `copy`, `addDay`, `deleteDay`, `setDayExercises`, `nextDay`, `dayById`, `resolve` (the sets an exercise adds on a date; blank predefined values copy last time), `fromDate`, `describe`, `fillLabel`, and the v13 step `migrateSavedWorkouts`. Logging goes through `Workouts.logPlanned`, which writes the origin |
 | `Goals.kt` | Exercise goals (#25): `ExerciseGoal`, `GoalKinds` (labels, units, `progress`), `Goals` writes (save, delete, reorder) |
@@ -143,8 +143,11 @@ Last updated: 1.0.52.
   so CI is the compiler.
 - **Tests (#40):** JVM unit tests with Robolectric in `app/src/test` (`./gradlew testDebugUnitTest`), run by CI before
   every release build; a failure stops the release and its names land in `errors.txt`. `data/DbMigrationTest.kt`
-  builds older databases by hand and opens them with `Db`, using a plain `Application` so `Store` and `Settings` don't
-  start. **Every database change adds a test there** for its upgrade step.
+  builds older databases by hand (v1, v2, v12, v13; schemas in `OldSchemas.kt`) and opens them with `Db`;
+  `FitNotesImporterTest` merges a synthetic FitNotes backup through `FitNotesImporter.merge`; `BackupsTest` covers
+  `Backups.writeArchive`, `unpack` and `installDatabase`. All use a plain `Application`, so `Store` and `Settings`
+  don't start: test seams take a database or file, not the singletons. **Every database change adds an upgrade test**,
+  and every change to the importer's rules or the archive format adds a case.
 
 ## Where things usually go
 

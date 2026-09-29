@@ -1,38 +1,33 @@
 ## Overview
 
-This build adds **exercise comments**: a note on one exercise within a day's workout, such as "left shoulder tight,
-stopped early". It also adds automated checks that protect your data on every update, and a refreshed README that
-matches the app as it is now.
+This is a reliability update. Nothing on screen changes. Instead, every release is now checked automatically against
+the things that matter most for your data: FitNotes imports, `.fitlens` backups and restores, and database upgrades
+from every earlier version of FitLens. The release process has also been fixed so that one change can never publish
+two releases.
 
-This update changes the database (version 14) by adding one table for exercise comments. Nothing you've logged
-changes when you install it.
-
-## What's new
-
-- **Exercise comments.** Each exercise in a day's workout can carry one comment for that date.
-  - On the exercise screen's **Track** tab, the **Exercise comment** row under the sets adds or edits it.
-  - On the day log, the exercise card's menu has **Add exercise comment** (or **Edit exercise comment**), and the
-    comment shows on the card under the sets.
-  - It also appears in the exercise's **History** under that date, in the calendar's selected day, and in **Share
-    workout** when comments are included. CSV exports gain an **Exercise comment** column.
-  - Saving an empty comment removes it.
+There's no database change in this update, and nothing you've logged changes when you install it.
 
 ## Improved
 
-- **Comments follow the workout.** Copying, moving or deleting a workout copies, moves or deletes its exercise
-  comments, and Undo puts them back. Removing an exercise from a day, replacing a day's workout, deleting workout
-  history, deleting an exercise and merging two exercises all handle its comments too. When a move or merge lands two
-  comments on the same exercise and day, they're joined rather than one being lost.
-- **Safer updates.** Every release now runs automated tests before it's built. They recreate databases the way
-  earlier versions of FitLens left them, including the saved workouts and routines merged in 1.0.51, and check that
-  every row survives the upgrade. If a test fails, the release isn't published.
-- **README.** The project page now describes the app as released: workouts with named days, exercise types, set and
-  exercise comments, the rest countdown, the FitLens look and the new tests.
+- **FitNotes imports are tested on every release.** A small made-up FitNotes backup is imported into FitLens before
+  each release is built. The tests confirm that an import:
+  - adds everything the first time, and nothing when the same backup is imported again;
+  - matches exercises by name and never overwrites or deletes anything you created in FitLens;
+  - counts identical sets correctly (3 × 5 × 100 kg stays three sets);
+  - respects exercises you renamed or deleted in FitLens.
+- **Backups and restores are tested on every release.** The tests save a backup, change the data, and restore it,
+  checking that every set, body value, comment and photo comes back. They also check that a backup from an older
+  FitLens is upgraded when you restore it, and that a damaged file, a non-FitLens file or a backup from a newer FitLens
+  is refused before anything on your phone is touched.
+- **Upgrades from every version are tested.** Databases are rebuilt the way the very first versions of FitLens left
+  them and upgraded to today's, checking that every workout, comment, time and body value survives.
+- **One release per change.** A recent update was published twice (1.0.52 and 1.0.53, with the same contents), and
+  the lower number was briefly marked as the latest release. Releases are now built one at a time, in order, and a
+  change that has already been released is never published again. 1.0.53 is marked as the latest of that pair.
 
 ## Known limitations
 
-- The automated tests cover database upgrades so far. Tests for FitNotes imports and for backup and restore are still
-  to come (#40).
-- FitNotes's own exercise comments aren't imported yet; imports never touch the comments you write in FitLens.
+- The final step of a restore, reopening the app's data afterwards, is still checked by hand rather than by the
+  automated tests.
 - Exercises in the workout editor move with up and down arrows rather than a drag handle.
 - Distances show "dist" as their unit until unit settings arrive (#7).

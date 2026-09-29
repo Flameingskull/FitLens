@@ -84,3 +84,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   exercise, FitLens-only (no skip rules). Any new path that copies, moves or deletes sets must carry them, and its
   Undo must restore them (`Workouts.setExerciseComments`). JVM tests now exist (`app/src/test`, Robolectric, run in
   CI before the release build): every database change adds an upgrade test to `DbMigrationTest`.
+- 2026-09-29 (1.0.54, #40 closed): tests cover migrations (v1, v2, v12, v13), the FitNotes merge and backup/restore.
+  Release runs share one concurrency group and skip a commit that already has a `build-*` tag, after one push
+  published 1.0.52 and 1.0.53 twice. A release's number is run number + 3 and can jump if a run is used up; read the
+  actual release name from `gh release list` after the build rather than assuming latest + 1.
