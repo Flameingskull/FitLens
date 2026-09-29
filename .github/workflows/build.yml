@@ -12,6 +12,12 @@ jobs:
   release:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # One release at a time, in push order. A push once started two runs for the same commit, and both published
+    # (1.0.52 and 1.0.53), leaving the lower build marked Latest. Runs now queue here, and the guard below skips a
+    # run whose commit already has a release.
+    concurrency:
+      group: release-main
+      cancel-in-progress: false
     permissions:
       contents: write
       issues: read
@@ -25,7 +31,19 @@ jobs:
           # Full history and tags, so the release post can list every commit since the previous build.
           fetch-depth: 0
 
+      - name: Skip a commit that already has a release
+        id: guard
+        run: |
+          EXISTING=$(git tag --points-at HEAD --list 'build-*' | head -1)
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::$GITHUB_SHA was already released as $EXISTING; this run publishes nothing."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set version
+        if: steps.guard.outputs.skip != 'true'
         run: |
           BUILD=$((GITHUB_RUN_NUMBER + BUILD_OFFSET))
           echo "FITLENS_BUILD=$BUILD" >> "$GITHUB_ENV"
@@ -34,6 +52,7 @@ jobs:
       # The signing key lives only in encrypted secrets. A release is never published without it,
       # because an APK signed with any other key can't update the installed app.
       - name: Restore signing key
+        if: steps.guard.outputs.skip != 'true'
         env:
           KEYSTORE_BASE64: ${{ secrets.FITLENS_KEYSTORE_BASE64 }}
         run: |
@@ -42,13 +61,16 @@ jobs:
           echo "FITLENS_KEYSTORE=$RUNNER_TEMP/fitlens.keystore" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v6
+        if: steps.guard.outputs.skip != 'true'
         with:
           distribution: temurin
           java-version: 17
 
       - uses: gradle/actions/setup-gradle@v6
+        if: steps.guard.outputs.skip != 'true'
 
       - name: Build release APK
+        if: steps.guard.outputs.skip != 'true'
         id: build
         env:
           FITLENS_STORE_PASSWORD: ${{ secrets.FITLENS_STORE_PASSWORD }}
@@ -62,7 +84,7 @@ jobs:
           rm -f "$FITLENS_KEYSTORE"
 
       - name: Keep the unit test report
-        if: always()
+        if: always() && steps.guard.outputs.skip != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: test-report-${{ github.run_number }}
@@ -70,7 +92,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Package release files
-        if: success()
+        if: success() && steps.guard.outputs.skip != 'true'
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/FitLens-$VERSION.apk"
@@ -79,7 +101,7 @@ jobs:
           (cd dist && sha256sum * > SHA256SUMS.txt)
 
       - name: Keep release files as build artifact
-        if: success()
+        if: success() && steps.guard.outputs.skip != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: FitLens-${{ env.VERSION }}
@@ -88,7 +110,7 @@ jobs:
       # The release post = RELEASE_NOTES.md (the hand-written update list for this build)
       # + issues resolved + install steps + a table of the attached files + the commits since the previous build.
       - name: Write release post
-        if: success()
+        if: success() && steps.guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -142,7 +164,7 @@ jobs:
           } > release-post.md
 
       - name: Publish release
-        if: success()
+        if: success() && steps.guard.outputs.skip != 'true'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ env.FITLENS_BUILD }}
@@ -152,7 +174,7 @@ jobs:
 
       # Writes the result and build log to the ci-logs branch so they can be read with plain git.
       - name: Record build result
-        if: always()
+        if: always() && steps.guard.outputs.skip != 'true'
         run: |
           RESULT="${{ steps.build.outcome }}"
           SHA="${{ github.sha }}"
