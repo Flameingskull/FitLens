@@ -23,10 +23,10 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
-      - name: Build debug APK
+      - name: Unit tests and debug APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew testDebugUnitTest assembleDebug --stacktrace
       - uses: actions/upload-artifact@v7
         with:
           name: FitLens-pr-${{ github.event.pull_request.number }}-debug

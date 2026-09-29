@@ -57,8 +57,17 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew assembleRelease --stacktrace 2>&1 | tee build.log
+          # The unit tests (#40) run first: a failing test stops the build, so nothing is published.
+          ./gradlew testDebugUnitTest assembleRelease --stacktrace 2>&1 | tee build.log
           rm -f "$FITLENS_KEYSTORE"
+
+      - name: Keep the unit test report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report-${{ github.run_number }}
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
 
       - name: Package release files
         if: success()
@@ -153,7 +162,7 @@ jobs:
           git config user.email "fitlens-ci@users.noreply.github.com"
           echo "run=${{ github.run_number }} build=${FITLENS_BUILD:-?} sha=$SHA result=$RESULT" > status.txt
           if [ -f "$GITHUB_WORKSPACE/build.log" ]; then
-            grep -E "^e: |error:|FAILURE|What went wrong|BUILD (SUCCESSFUL|FAILED)|AAPT|Execution failed" "$GITHUB_WORKSPACE/build.log" | head -300 > errors.txt || true
+            grep -E "^e: |error:|FAILURE|What went wrong|BUILD (SUCCESSFUL|FAILED)|AAPT|Execution failed| FAILED$|AssertionError|Exception at|Caused by" "$GITHUB_WORKSPACE/build.log" | head -300 > errors.txt || true
             tail -400 "$GITHUB_WORKSPACE/build.log" > build-tail.log
           fi
           git add -A && git commit -qm "CI run ${{ github.run_number }}: $RESULT"

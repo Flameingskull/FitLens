@@ -48,6 +48,18 @@ android {
     buildFeatures {
         compose = true
     }
+    // JVM unit tests with Robolectric (#40): real SQLite without an emulator, run in CI before every release build.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.testLogging {
+                    events("failed")
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                }
+            }
+        }
+    }
 }
 
 // The Kotlin side of the toolchain. `kotlinOptions { jvmTarget = "17" }` was removed in Kotlin 2.4 and is now a
@@ -77,4 +89,9 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     // Phone-only settings (#38): folders, schedules and state that must never travel in a .fitlens backup.
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Unit tests (#40): database migrations on the JVM, no emulator.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core:1.6.1")
 }
