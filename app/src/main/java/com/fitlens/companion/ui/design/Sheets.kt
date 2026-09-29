@@ -123,18 +123,19 @@ fun FitSheet(
                 }
                 val confirm = onConfirm
                 if (confirm != null && confirmLabel != null) {
-                    Button(
-                        onClick = confirm,
-                        enabled = confirmEnabled,
-                        colors = if (destructive) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
+                    // Gold text on a dark fill, never black on gold (#104).
+                    if (destructive) {
+                        Button(
+                            onClick = confirm,
+                            enabled = confirmEnabled,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
                             )
-                        } else {
-                            ButtonDefaults.buttonColors()
-                        }
-                    ) { Text(confirmLabel) }
+                        ) { Text(confirmLabel) }
+                    } else {
+                        GoldButton(onClick = confirm, enabled = confirmEnabled) { Text(confirmLabel) }
+                    }
                 }
             }
         }

@@ -171,7 +171,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         AlertDialog(
             onDismissRequest = { picking = null },
             title = { Text(if (isStart) "Start time" else "Finish time") },
-            text = { TimePicker(state = state) },
+            text = { TimePicker(state = state, colors = fitTimePickerColors()) },
             confirmButton = {
                 TextButton(onClick = {
                     val picked = WorkoutClock.stamp(date, LocalTime.of(state.hour, state.minute))

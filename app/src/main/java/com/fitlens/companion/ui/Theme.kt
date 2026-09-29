@@ -1,7 +1,12 @@
 package com.fitlens.companion.ui
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DatePickerColors
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TimePickerColors
+import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -38,6 +43,8 @@ object Brand {
      * so every outlined control clears the 3:1 minimum for user-interface components.
      */
     val Outline = Color(0xFF7A6C86)
+    /** Destructive buttons (#104): a deep wine that carries gold text, where the light error pink would need black. */
+    val Wine = Color(0xFF4A1426)
 }
 
 /** Chart colours: gold series, purple photo markers, ivory goal line. */
@@ -54,6 +61,11 @@ data class ChartColors(
 
 val LocalChartColors = staticCompositionLocalOf { ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory) }
 
+/**
+ * No text is ever black (#104): every filled control carries gold text on a dark fill. [onPrimary] stays black only
+ * for the icons Material draws on gold (checkmarks, switch thumbs); no button or chip is filled with the gold
+ * primary, and pickers use [fitDatePickerColors] and [fitTimePickerColors].
+ */
 private val Scheme = darkColorScheme(
     primary = Brand.Gold,
     onPrimary = Brand.Black,
@@ -79,14 +91,37 @@ private val Scheme = darkColorScheme(
     surfaceContainer = Brand.Onyx,
     surfaceContainerHigh = Brand.Surface,
     surfaceContainerHighest = Brand.SurfaceHighest,
-    inverseSurface = Brand.Ivory,
-    inverseOnSurface = Brand.Black,
-    inversePrimary = Brand.ImperialPurple,
+    // Snackbars and tooltips: gold on raised onyx rather than black on ivory (#104).
+    inverseSurface = Brand.SurfaceHighest,
+    inverseOnSurface = Brand.GoldLight,
+    inversePrimary = Brand.Gold,
     outline = Brand.Outline,
     outlineVariant = Color(0xFF2A2231),
     error = Color(0xFFE8798A),
     onError = Brand.Black,
+    errorContainer = Brand.Wine,
+    onErrorContainer = Brand.GoldLight,
     scrim = Color.Black
+)
+
+/** Date pickers: the chosen day and year in gold on imperial purple, never black on gold (#104). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun fitDatePickerColors(): DatePickerColors = DatePickerDefaults.colors(
+    selectedDayContainerColor = Brand.ImperialPurple,
+    selectedDayContentColor = Brand.GoldLight,
+    selectedYearContainerColor = Brand.ImperialPurple,
+    selectedYearContentColor = Brand.GoldLight,
+    todayContentColor = Brand.Gold,
+    todayDateBorderColor = Brand.Gold
+)
+
+/** Time pickers: the dial's chosen number in gold on imperial purple (#104). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun fitTimePickerColors(): TimePickerColors = TimePickerDefaults.colors(
+    selectorColor = Brand.ImperialPurple,
+    clockDialSelectedContentColor = Brand.GoldLight
 )
 
 private val Serif = FontFamily.Serif

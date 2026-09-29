@@ -285,7 +285,7 @@ fun PickDateDialog(initial: String?, onDismiss: () -> Unit, onPicked: (String) -
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     ) {
-        DatePicker(state = state)
+        DatePicker(state = state, colors = fitDatePickerColors())
     }
 }
 

@@ -58,6 +58,10 @@ object Glass {
         1f to Brand.GoldDeep
     )
     val goldHighlight = Brand.Ivory.copy(alpha = 0.55f)
+    /** The primary button's fill (#104): imperial purple, deepening towards the bottom, under gold text. */
+    val royal = Brush.verticalGradient(0f to Brand.ImperialPurple, 1f to Brand.PurpleDeep)
+    /** The primary button's polished gold rim: light at the top, deep at the bottom. */
+    val royalRim = Brush.verticalGradient(0f to Brand.GoldLight, 1f to Brand.GoldDeep)
     val purple = Brush.verticalGradient(listOf(Brand.PurpleLight.copy(alpha = 0.20f), Brand.ImperialPurple.copy(alpha = 0.18f)))
     val purpleRim = Brand.Gold.copy(alpha = 0.45f)
     /** The top bar: deep purple fading to the page. */
@@ -124,7 +128,10 @@ fun Modifier.ambientBackdrop(): Modifier = drawWithCache {
     }
 }
 
-/** A primary button in polished gold glass (#102): metallic gradient, a glossy top edge and a soft gold glow. */
+/**
+ * The primary button (#102, #104): imperial purple glass with a polished gold rim, gold text, a glossy top edge and a
+ * soft gold glow. Gold text on a dark fill, as the owner asked: no button text is ever black.
+ */
 @Composable
 fun GoldButton(
     onClick: () -> Unit,
@@ -138,8 +145,9 @@ fun GoldButton(
         Modifier
             .shadow(6.dp, shape, clip = false, ambientColor = Brand.Gold, spotColor = Brand.Gold)
             .clip(shape)
-            .background(Glass.gold)
-            .topSheen(Glass.goldHighlight, 16.dp)
+            .background(Glass.royal)
+            .border(1.dp, Glass.royalRim, shape)
+            .topSheen(Glass.sheen, 16.dp)
     } else {
         Modifier
     }
@@ -148,7 +156,7 @@ fun GoldButton(
         modifier = modifier.then(glass),
         enabled = enabled,
         shape = shape,
-        colors = ButtonDefaults.buttonColors(containerColor = Brand.Gold.copy(alpha = 0f), contentColor = Brand.Black),
+        colors = ButtonDefaults.buttonColors(containerColor = Brand.Gold.copy(alpha = 0f), contentColor = Brand.GoldLight),
         contentPadding = contentPadding,
         content = content
     )

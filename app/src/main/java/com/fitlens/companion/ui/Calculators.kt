@@ -1,6 +1,7 @@
 package com.fitlens.companion.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -249,10 +250,12 @@ private fun BarEnd(side: List<Double>) {
                 Modifier
                     .width(30.dp)
                     .height((40 + 80 * (p / heaviest)).dp)
-                    .background(if (i % 2 == 0) Brand.Gold else Brand.PurpleLight, FitShapes.row),
+                    // Dark plates with gold rims and gold figures, never black text (#104).
+                    .background(if (i % 2 == 0) Brand.ImperialPurple else Brand.PurpleDeep, FitShapes.row)
+                    .border(1.dp, if (i % 2 == 0) Brand.Gold else Brand.GoldDeep, FitShapes.row),
                 contentAlignment = Alignment.Center
             ) {
-                Text(fmtNum(p, 2), style = MaterialTheme.typography.labelSmall, color = Brand.Black, maxLines = 1)
+                Text(fmtNum(p, 2), style = MaterialTheme.typography.labelSmall, color = Brand.GoldLight, maxLines = 1)
             }
         }
         Box(Modifier.width(24.dp).height(10.dp).background(Brand.Muted))

@@ -236,8 +236,8 @@ private fun DeleteHistorySection(snap: Snapshot) {
         onClick = { confirming = true },
         enabled = matching.isNotEmpty(),
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.error,
-            contentColor = MaterialTheme.colorScheme.onError
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
         )
     ) {
         Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
