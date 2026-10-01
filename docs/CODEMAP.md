@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.54.
+Last updated: 1.0.56.
 
 ## How data flows
 
@@ -24,7 +24,7 @@ Last updated: 1.0.54.
 - **Reads:** `data/Store.kt` loads everything into one immutable `Snapshot` and publishes it as
   `Store.snapshot: StateFlow<Snapshot?>`. Screens take `snap: Snapshot` as a parameter. `Snapshot` has the lookups
   (`exercises`, `categories`, `setsByExercise`, `setsByDate`, `photosByDate`, `recordsByName`) and unit helpers
-  (`weight(kg)`, `toKg(shown)`, `fmtWeight(kg)`, `weightUnit`). Since 1.0.54 (#60) the snapshot is built from one
+  (`weight(kg)`, `toKg(shown)`, `fmtWeight(kg)`, `weightUnit`). Since 1.0.55 (#60) the snapshot is built from one
   part per `Area` (`LibraryPart`, `SetPart`, `NotesPart`, `BodyPart`, `PhotoPart`, each with its own lookups); its
   public properties delegate to them, so screens don't see the split.
 - **Writes:** workout data goes through `data/Workouts.kt`. Its private `write(areas) { w -> }` runs one transaction
@@ -80,7 +80,7 @@ Last updated: 1.0.54.
 | `TimelineScreen.kt` | All days (every day with photos, measurements, workout), from the Calendar's top bar |
 | `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the rest countdown while resting (#109), the ⋮ menu: day actions, then Analysis, Body tracker, Photos, Settings; #111, #106), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet` (one-line "80 kg · 8 reps" for toasts, PDFs and summaries), `defOrder`, `AddMeasurementDialog` |
 | `SetColumns.kt` | #101: `SetField`, `setFields` (an exercise's set columns, from its type plus anything recorded) and `setCells` (a set's values and units as `SetCell`s for `SetRow`, #112), `spokenDuration` |
-| `SetEntry.kt` | The exercise screen (#82): `SetEntryScreen` (top bar: workout drawer, (i) exercise info (#110), records, rest timer; ⋮ has the calculators) with Track (logging and editing sets, Save / Clear, Update / Delete, a comment button per set, #108), History and Graph tabs in a `HorizontalPager`; `queue` opens exercises chosen together one after another; `page` picks the opening tab |
+| `SetEntry.kt` | The exercise screen (#82): `SetEntryScreen` (top bar: workout drawer, (i) exercise info (#110), records, rest timer; ⋮ has the calculators) with Track (logging and editing sets, Save / Clear, Update / Delete, a comment button per set, #108), History and Graph tabs in a `HorizontalPager`; `queue` opens exercises chosen together one after another; `page` picks the opening tab. `Screen.SetEntry.setId` opens Track with that set selected (`AppRoot` keys the screen on it). |
 | `WorkoutEditorScreen.kt` | `WorkoutEditorScreen` (#106, `Screen.WorkoutEditor(id)`): name, notes, days as cards (+ Add exercise, day menu: rename, duplicate, move, copy to another workout, delete), exercise rows (sets, supersets, swap, remove, move); the ⋮ has Duplicate and Delete workout. `PlannedSetsSheet` (copy previous / predefined / none) and `planSummary` |
 | `WorkoutSheets.kt` | The day log's workout sheets (#100, #106): `AddWorkoutSheet` (a workout's day or exercises chosen on the spot, review, `replace`), `SaveAsWorkoutSheet` (new workout, new day, or instead of a day), `logWorkoutDay` (logs a day with Undo, shared with the library's Log all), `exercisePickerItems` for `SearchablePicker`, `exerciseLine` |
 | `WorkoutTools.kt` | Day log tools: `WorkoutClock` (a running timer is a `workout_time` start with no finish; `running`, `stop`), `rememberElapsed`, `WorkoutTimeSheet` (#12, time pickers), `ShareWorkoutSheet` (#11, text) |
@@ -91,9 +91,10 @@ Last updated: 1.0.54.
 | `ExerciseLibrary.kt` | The exercise library (#83): category list, then a category's exercises (side by side on `WidthBucket.Expanded`), search, long-press multi-select; the title's workout switcher (#106: All exercises, each workout, Create new workout) and `RoutineDayList` (day cards with Log all); `ExerciseInfoSheet` (#110), `ExerciseEditorSheet`, `CategoryManagerSheet` (reorder), `CategoryEditorSheet`, `StarterLibraryDialog`, `categoryColour`, `MergeExerciseFlow` (#57: pick, confirm, safety copy, merge). `Screen.Library(date)` is also the exercise picker |
 | `Calculators.kt` | Set calculator (`SetCalculatorSheet`: % of 1RM or a warm-up ramp) and plate calculator (`PlateCalculatorSheet`, `platesPerSide`, `BarEnd`; bar and plates in `PortableSettings`), #28, from the exercise screen's ⋮ menu |
 | `ExerciseOverview.kt` | `ExerciseOverviewSheet` (#26): History, Graph, Records, Stats and Goals in one sheet, from the calendar's selected day and the day log |
-| `ExerciseStats.kt` | `ExerciseStatsTab` (#24: tiles by period) and `OneRepMaxSheet` (#28: rep maxes and percentages) |
-| `TrainingScreen.kt` | `ExerciseDetailScreen` (Records, Stats and Goals tabs, 1RM button), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` (day totals and Copy to today, #22) used by the exercise screen and the overview, `graphLabels`, `e1rm` |
-| `AnalysisScreen.kt` | `AnalysisScreen` and `AnalysisHub` (#90): Workouts tab (#51, bar totals; Duration as total or average per workout and `DurationPerWorkout`, #12), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
+| `ExerciseStats.kt` | `ExerciseStatsTab` (#24: tiles by period) and `OneRepMaxSheet` (#28: rep maxes and percentages). Stats tiles (`StatItem`) with a date open that day; Custom range via `DateRangePickerDialog` (#24). |
+| `TrainingScreen.kt` | `ExerciseDetailScreen` (Records, Stats and Goals tabs, 1RM button), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` (day totals and Copy to today, #22) used by the exercise screen and the overview, `graphLabels`, `e1rm`. Graph names are the `GRAPH_*` constants; `graphLabels` only ever appends (#15 stores the index), #22 added Max volume, Max weight for reps (`RepsForGraph`) and Personal records (`Records.recordProgress`); a `GraphType` with `series` builds the whole line. History set rows open `Screen.SetEntry(date, id, setId = …)`. |
+| `AnalysisScreen.kt` | `AnalysisScreen` (top bar; + on Goals) and `AnalysisHub` (#90): tabs Workouts, Breakdown, Exercises, Goals, Records (`TAB_*`); Workouts tab (#51, bar totals; Duration as total or average per workout and `DurationPerWorkout`, #12), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
+| `AnalysisTabs.kt` | Analysis → Exercises (`AnalysisExercisesTab`: exercise picker, then `ExerciseGraphPane` keyed by exercise) and Analysis → Goals (`AnalysisGoalsTab`: every goal by exercise, opens `Screen.ExerciseDetail(id, tab = 2)`, + picks an exercise then `GoalEditor`), #90 |
 | `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
 | `BodyScreen.kt` | Body tracker (#88): Track (latest value, change, goal; tap logs via `AddMeasurementDialog(initialName)`), History and Graph tabs. Also `RANGES` and `inRange` for charts |

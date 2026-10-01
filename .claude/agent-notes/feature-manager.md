@@ -94,3 +94,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   so name every area a new write touches. Still open on #60: per-area flows so unrelated screens don't recompose, and
   timing on a large real dataset. Full-screen graphs zoom values via `ChartViewport.yFrom`/`yTo`; bar charts pass
   `valueZoom = false`.
+- 1.0.56 (#22 slice, #24 slice, #90, icon): graph names are `GRAPH_*` constants in `ui/TrainingScreen.kt`; add new
+  graphs only at the end of `graphLabels`, because `exercise.default_graph` stores the index. Analysis has five tabs
+  (`TAB_*` in `AnalysisScreen.kt`). The launcher icon is the owner's artwork, unedited (`branding/`); never redraw it.
+  Left on #22: cardio pace/speed graphs (need #7) and share a graph as an image. Left on #24: pace tiles (#7).
