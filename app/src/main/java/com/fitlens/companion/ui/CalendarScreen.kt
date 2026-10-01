@@ -2,6 +2,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.currentWidthBucket
+import com.fitlens.companion.ui.design.WidthBucket
 import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -102,7 +104,8 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
         if (filter.active) FilterBar(snap, filter, month, matches, onEdit = { filtering = true }) {
             Settings.updateDevice { it.copy(calendarFilter = null) }
         }
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        // The month and its legend. On wide screens (#87) the selected day sits beside it rather than below.
+        val monthGrid: @Composable () -> Unit = {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { shift(-1) }) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
@@ -168,8 +171,24 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                 Dot(colors.series, 6.dp); Text(" Measurement    ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("Other dots: categories", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            GoldHairline()
+        }
+        val dayPanel: @Composable () -> Unit = {
             SelectedDay(snap, selected, onOverview = { overview = it }) { nav.home(selected) }
+        }
+        if (currentWidthBucket() == WidthBucket.Expanded) {
+            Row(Modifier.fillMaxSize()) {
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) { monthGrid() }
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                    GoldHairline()
+                    dayPanel()
+                }
+            }
+        } else {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                monthGrid()
+                GoldHairline()
+                dayPanel()
+            }
         }
     }
     overview?.let { id -> ExerciseOverviewSheet(snap, nav, id, selected) { overview = null } }
