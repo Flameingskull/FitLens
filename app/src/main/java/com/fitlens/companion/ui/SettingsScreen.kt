@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.SearchFieldIcon
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -110,7 +112,7 @@ fun SettingsScreen(nav: Nav) {
             value = query,
             onValueChange = { query = it },
             label = { Text("Search settings") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            leadingIcon = { SearchFieldIcon() },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm)
         )

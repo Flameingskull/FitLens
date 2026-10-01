@@ -6,6 +6,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.SearchFieldIcon
+
 import com.fitlens.companion.ui.design.WidthBucket
 import com.fitlens.companion.ui.design.currentWidthBucket
 import com.fitlens.companion.ui.design.GlassOutlinedButton
@@ -245,7 +247,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                 onValueChange = { query = it },
                 singleLine = true,
                 label = { Text("Search every exercise") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { SearchFieldIcon() },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.xs)
             )
         }

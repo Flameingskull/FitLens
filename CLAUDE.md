@@ -23,6 +23,8 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    **The icon and branding image is `branding/fitlens-icon-source.png`** (owner, 2026-10-01). It's final: use it, unedited,
    as the source for every icon or branding image (launcher icon, store icon, README). Only resize or place it, never
    redraw or recolour it.
+   The close-up **character icons** in `branding/character/` (owner, 2026-10-01) are for notifications (the picture
+   beside each one) and search fields (beside the magnifying glass), used unedited the same way.
 5. **Log every significant gap.** Whenever any agent (or the main session) finds a significant gap, missing
    feature or function, or a more stable or maintainable way of doing something, it searches for an existing issue.
    If there isn't one, it files a feature request (`enhancement`, `needs-triage`) and mentions it in its report.

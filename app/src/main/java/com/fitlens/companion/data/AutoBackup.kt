@@ -1,5 +1,7 @@
 package com.fitlens.companion.data
 
+import android.graphics.BitmapFactory
+import com.fitlens.companion.R
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -210,6 +212,9 @@ object AutoBackup {
         }
         val n = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_warning)
+            // The FitLens character beside the notification, in colour (branding/character/). The status-bar icon has to
+            // stay a plain glyph: Android keeps only its outline.
+            .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_character))
             .setColor(Brand.Gold.toArgb())
             .setContentTitle(title)
             .setContentText(text)

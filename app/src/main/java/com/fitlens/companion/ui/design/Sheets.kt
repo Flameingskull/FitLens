@@ -222,7 +222,7 @@ fun SearchablePicker(
                 value = query,
                 onValueChange = { query = it },
                 label = { Text(searchLabel) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { SearchFieldIcon() },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg)
             )
