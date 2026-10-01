@@ -45,6 +45,10 @@ import com.fitlens.companion.data.Workouts
 import androidx.compose.foundation.layout.heightIn
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
+import com.fitlens.companion.data.DistanceUnits
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import kotlin.math.roundToInt
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.FitTabRow
@@ -69,7 +73,10 @@ fun graphLabels(type: Int, timeBased: Boolean): List<String> =
     if (timeBased) {
         listOf(GRAPH_LONGEST, GRAPH_TOTAL_TIME, GRAPH_DISTANCE) +
             (if (type > ExerciseTypes.TIME && ExerciseTypes.usesWeight(type)) listOf(GRAPH_MAX_WEIGHT) else emptyList()) +
-            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesReps(type)) listOf(GRAPH_WORKOUT_REPS) else emptyList())
+            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesReps(type)) listOf(GRAPH_WORKOUT_REPS) else emptyList()) +
+            // FitNotes's cardio graphs (#22), in the exercise's distance unit (#7). Appended, so saved defaults hold.
+            (if (ExerciseTypes.usesDistance(type)) listOf(GRAPH_MAX_DISTANCE) else emptyList()) +
+            (if (ExerciseTypes.usesDistance(type) && ExerciseTypes.usesDuration(type)) listOf(GRAPH_MAX_SPEED, GRAPH_MAX_PACE) else emptyList())
     } else {
         listOf(
             GRAPH_E1RM, GRAPH_MAX_WEIGHT, GRAPH_WORKOUT_VOLUME, GRAPH_WORKOUT_REPS, GRAPH_MAX_REPS,
@@ -85,9 +92,30 @@ internal const val GRAPH_MAX_REPS = "Max reps"
 internal const val GRAPH_MAX_VOLUME = "Max volume"
 internal const val GRAPH_WEIGHT_FOR_REPS = "Max weight for reps"
 internal const val GRAPH_RECORDS = "Personal records"
-internal const val GRAPH_LONGEST = "Longest set"
+/** FitNotes's name for the longest single set (#22); "Longest set" before 1.0.66. */
+internal const val GRAPH_LONGEST = "Max time"
 internal const val GRAPH_TOTAL_TIME = "Total time"
 internal const val GRAPH_DISTANCE = "Distance"
+internal const val GRAPH_MAX_DISTANCE = "Max distance"
+internal const val GRAPH_MAX_SPEED = "Max speed"
+internal const val GRAPH_MAX_PACE = "Max pace"
+
+/** Speed per hour in km or mi ("km/h", "mph"); metres, as swimmers and rowers count them, per minute (#22). */
+internal fun speedUnit(distUnit: String): String = when (distUnit) {
+    DistanceUnits.M -> "m/min"
+    DistanceUnits.MI -> "mph"
+    else -> "$distUnit/h"
+}
+
+/** A set's speed in [speedUnit], or 0 when it has no distance or time. */
+internal fun speedOf(s: SetRow, distUnit: String): Double =
+    if (s.distance <= 0 || s.durationSec <= 0) 0.0
+    else s.distance / s.durationSec * (if (distUnit == DistanceUnits.M) 60.0 else 3600.0)
+
+/** A set's pace in seconds per km or mi, or per 100 m (as [pace] shows it), or 0 when it has no distance or time. */
+internal fun paceSecondsOf(s: SetRow, distUnit: String): Double =
+    if (s.distance <= 0 || s.durationSec <= 0) 0.0
+    else s.durationSec / s.distance * (if (distUnit == DistanceUnits.M) 100.0 else 1.0)
 
 /**
  * One graph: [fn] gives a day's value from its sets, or [series] gives the whole line at once for a graph that
@@ -98,7 +126,9 @@ private data class GraphType(
     val fn: (List<SetRow>) -> Double,
     val isWeight: Boolean,
     val isTime: Boolean = false,
-    val series: ((Map<String, List<SetRow>>) -> List<Pair<String, Double>>)? = null
+    val series: ((Map<String, List<SetRow>>) -> List<Pair<String, Double>>)? = null,
+    /** Pace: a lower value is better, and values read as m:ss (#22). */
+    val lowerIsBetter: Boolean = false
 )
 
 /** The rep count each exercise's "Max weight for reps" graph shows (#22), kept while the app is open. */
@@ -145,7 +175,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     val timeBased = isTimeBased(snap, exId, sets)
     val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
     var repsFor by remember(exId) { mutableIntStateOf(RepsForGraph.get(exId)) }
-    val graphTypes = remember(timeBased, type, repsFor) {
+    val distUnit = snap.distanceUnit(exId)
+    val graphTypes = remember(timeBased, type, repsFor, distUnit) {
         val all = listOf(
             GraphType(GRAPH_LONGEST, { l -> l.maxOf { it.durationSec }.toDouble() }, false, true),
             GraphType(GRAPH_TOTAL_TIME, { l -> l.sumOf { it.durationSec }.toDouble() }, false, true),
@@ -158,7 +189,15 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
             // FitNotes's extra graphs (#22): the best single set, the heaviest at a chosen rep count, and the records.
             GraphType(GRAPH_MAX_VOLUME, { l -> l.maxOf { it.weightKg * it.reps } }, true),
             GraphType(GRAPH_WEIGHT_FOR_REPS, { l -> Records.maxWeightForReps(l, repsFor) }, true),
-            GraphType(GRAPH_RECORDS, { 0.0 }, true, series = { byDate -> Records.recordProgress(byDate) })
+            GraphType(GRAPH_RECORDS, { 0.0 }, true, series = { byDate -> Records.recordProgress(byDate) }),
+            // Cardio (#22): the farthest set, the fastest set as speed, and the fastest set as pace.
+            GraphType(GRAPH_MAX_DISTANCE, { l -> l.maxOf { it.distance } }, false),
+            GraphType(GRAPH_MAX_SPEED, { l -> l.maxOf { speedOf(it, distUnit) } }, false),
+            GraphType(
+                GRAPH_MAX_PACE,
+                { l -> l.map { paceSecondsOf(it, distUnit) }.filter { it > 0 }.minOrNull() ?: 0.0 },
+                false, isTime = true, lowerIsBetter = true
+            )
         ).associateBy { it.label }
         graphLabels(type, timeBased).map { all.getValue(it) }
     }
@@ -169,6 +208,9 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fromZero by rememberSaveable { mutableStateOf(false) }
     var fullScreen by rememberSaveable { mutableStateOf(false) }
+    // Set by the ⋮ menu's "Share graph as image" (#22); the graph item below draws and shares what it shows.
+    var shareRequested by remember { mutableStateOf(false) }
+    val ctx = LocalContext.current
     val g = graphTypes[gIdx.coerceIn(0, graphTypes.lastIndex)]
     // A goal for this graph can be drawn as a line (#25), in the graph's own unit.
     var showGoal by rememberSaveable { mutableStateOf(true) }
@@ -192,6 +234,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
                 showTrend, { showTrend = !showTrend },
                 fromZero, { fromZero = !fromZero },
                 extra = if (goalTarget != null) listOf(ToggleOption("Goal line", showGoal) { showGoal = !showGoal }) else emptyList(),
+                onShare = { shareRequested = true },
                 leading = {
                     DropdownPill("Graph", graphTypes.map { it.label }, gIdx.coerceIn(0, graphTypes.lastIndex)) { gIdx = it }
                     // "Max weight for reps" (#22): which rep count, 1 to 15, kept for this exercise while the app is open.
@@ -225,9 +268,35 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
             val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
             val unit = when {
                 g.isWeight -> snap.weightUnit
+                g.label == GRAPH_MAX_PACE -> if (distUnit == DistanceUnits.M) "/100 m" else "/$distUnit"
                 g.isTime -> "min"
-                g.label == GRAPH_DISTANCE -> snap.distanceUnit(exId)
+                g.label == GRAPH_DISTANCE || g.label == GRAPH_MAX_DISTANCE -> distUnit
+                g.label == GRAPH_MAX_SPEED -> speedUnit(distUnit)
                 else -> ""
+            }
+            // A value with its unit; pace reads as minutes and seconds, "5:12 /km" (#22).
+            fun show(v: Double): String =
+                if (g.lowerIsBetter) "${fmtDuration((v * 60).roundToInt())} $unit" else "${fmtNum(v, 1)} $unit".trim()
+            val summary = if (shown.isEmpty()) "" else {
+                val best = if (g.lowerIsBetter) shown.minOf { it.y } else shown.maxOf { it.y }
+                "${g.label}: ${show(shown.first().y)} → ${show(shown.last().y)} (best ${show(best)})"
+            }
+            LaunchedEffect(shareRequested) {
+                if (!shareRequested) return@LaunchedEffect
+                shareRequested = false
+                if (shown.isEmpty()) { UiEvents.show("Nothing to share in this range"); return@LaunchedEffect }
+                val name = ex?.name ?: "Exercise"
+                val image = ShareImages.GraphImage(
+                    title = name,
+                    graph = g.label,
+                    range = rangeName(RANGES[rangeIdx].first),
+                    points = shown,
+                    format = { v -> show(v) },
+                    summary = summary,
+                    trend = if (showTrend) trendOf(shown) else null,
+                    goal = goalLine
+                )
+                ShareImages.share(ctx, "Creating graph image…", ShareImages.fileName(name, g.label)) { ShareImages.renderGraph(image) }
             }
             LineChart(
                 listOf(LineSeries(g.label, shown)),
@@ -256,7 +325,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
                     footer = {
                         sel?.let { shown.getOrNull(it) }?.let { p ->
                             Text(
-                                "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
+                                "${Dates.long(p.date)}: ${show(p.y)}",
                                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                                 style = MaterialTheme.typography.titleMedium
                             )
@@ -280,7 +349,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
             }
             if (showTrend) trendOf(shown)?.let { tr ->
                 Text(
-                    "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
+                    "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} ${if (g.lowerIsBetter) "min $unit" else unit} per month",
                     Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -288,13 +357,13 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
             val p = sel?.let { shown.getOrNull(it) }
             if (p != null) {
                 Text(
-                    "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit  ·  open day →",
+                    "${Dates.long(p.date)}: ${show(p.y)}  ·  open day →",
                     Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(p.date)) }.padding(16.dp),
                     style = MaterialTheme.typography.titleMedium
                 )
             } else if (shown.isNotEmpty()) {
                 Text(
-                    "${g.label}: ${fmtNum(shown.first().y, 1)} → ${fmtNum(shown.last().y, 1)} $unit (best ${fmtNum(shown.maxOf { it.y }, 1)})",
+                    summary,
                     Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge
                 )
             }

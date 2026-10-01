@@ -2,6 +2,7 @@ package com.fitlens.companion.ui
 
 import com.fitlens.companion.ui.design.ToggleOption
 import com.fitlens.companion.ui.design.OptionsMenu
+import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.DropdownPill
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.Canvas
@@ -399,6 +400,7 @@ fun GraphOptionChips(
     fromZero: Boolean = false,
     onFromZero: (() -> Unit)? = null,
     extra: List<ToggleOption> = emptyList(),
+    onShare: (() -> Unit)? = null,
     leading: @Composable RowScope.() -> Unit = {},
     trailing: @Composable RowScope.() -> Unit = {}
 ) {
@@ -413,14 +415,16 @@ fun GraphOptionChips(
             listOfNotNull(
                 ToggleOption("Trend line", showTrend, onTrend),
                 onFromZero?.let { ToggleOption("Start from zero", fromZero, it) }
-            ) + extra
+            ) + extra,
+            // Share the graph as a branded image (#22).
+            actions = listOfNotNull(onShare?.let { MenuAction("Share graph as image", it) })
         )
         trailing()
     }
 }
 
 /** A range preset's name in a menu: "1M" reads as "1 month". */
-private fun rangeName(short: String): String = when (short) {
+internal fun rangeName(short: String): String = when (short) {
     "1M" -> "1 month"; "3M" -> "3 months"; "6M" -> "6 months"; "1Y" -> "1 year"; "All" -> "All time"; else -> short
 }
 
