@@ -1,5 +1,7 @@
 # FitLens
 
+<p align="center"><img src="branding/fitlens-icon-512.png" alt="FitLens icon" width="180"></p>
+
 **Your workouts, body stats and progress photos in one private Android app.**
 
 [![Latest release](https://img.shields.io/github/v/release/Flameingskull/FitLens?label=latest%20release)](https://github.com/Flameingskull/FitLens/releases/latest)

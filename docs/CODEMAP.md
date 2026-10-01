@@ -115,6 +115,7 @@ Last updated: 1.0.54.
 | --- | --- |
 | `report/PdfReport.kt` | The PDF progress report (dark or light), drawn on `android.graphics.pdf` |
 | `video/FrameRenderer.kt`, `video/VideoExporter.kt` | Slideshow frames and MP4 export |
+| `branding/` (repo root) | `fitlens-icon-source.jpg`, the owner's final icon artwork (use unedited for every icon), and `fitlens-icon-512.png` (store and README). The launcher icon is `res/mipmap-anydpi-v26/ic_launcher.xml`: the artwork placed in the safe zone (`mipmap-*/ic_launcher_foreground.png`) over `@color/ic_launcher_background` (#381451, its own background) |
 | `App.kt` | `Application`: initialises `Store` and `Settings`, then starts `AutoBackup` |
 
 ## Conventions

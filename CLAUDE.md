@@ -20,6 +20,9 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    in `.claude/agents/` (details below).
 4. **Brand look:** luxury black, imperial purple and gold. Use the `Brand` colours and the theme in `ui/Theme.kt`.
    Don't hard-code other colours. Serif headings, letter-spaced labels, gold hairlines.
+   **The icon and branding image is `branding/fitlens-icon-source.jpg`** (owner, 2026-10-01). It's final: use it, unedited,
+   as the source for every icon or branding image (launcher icon, store icon, README). Only resize or place it, never
+   redraw or recolour it.
 5. **Log every significant gap.** Whenever any agent (or the main session) finds a significant gap, missing
    feature or function, or a more stable or maintainable way of doing something, it searches for an existing issue.
    If there isn't one, it files a feature request (`enhancement`, `needs-triage`) and mentions it in its report.
