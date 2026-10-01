@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.Dates
 import com.fitlens.companion.ui.Spacing
 
 /*
@@ -92,5 +93,34 @@ fun OptionsMenu(options: List<ToggleOption>, description: String = "Graph option
                 )
             }
         }
+    }
+}
+
+/**
+ * A period choice: [options] followed by "Custom…", which opens a date-range picker. [selected] is -1 when the custom
+ * range is in use, and the pill then shows its dates.
+ */
+@Composable
+fun PeriodDropdown(
+    label: String,
+    options: List<String>,
+    selected: Int,
+    custom: Pair<String, String>?,
+    onSelect: (Int) -> Unit,
+    onCustom: (from: String, to: String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var picking by remember { mutableStateOf(false) }
+    val customLabel = if (selected < 0 && custom != null) "${Dates.short(custom.first)} – ${Dates.short(custom.second)}" else "Custom…"
+    DropdownPill(label, options + customLabel, if (selected < 0) options.size else selected, modifier) { i ->
+        if (i < options.size) onSelect(i) else picking = true
+    }
+    if (picking) {
+        DateRangePickerDialog(
+            initialFrom = custom?.first,
+            initialTo = custom?.second,
+            onDismiss = { picking = false },
+            onPicked = { from, to -> onCustom(from, to) }
+        )
     }
 }

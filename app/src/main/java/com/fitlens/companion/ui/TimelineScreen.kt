@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.DropdownPill
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,14 +75,12 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
                 TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Restore from a backup") }
             }
         } else {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf("All", "Photos", "Body", "Workouts", "Photo + body").forEachIndexed { i, label ->
-                FilterChip(selected = filter == i, onClick = { filter = i }, label = { Text(label) })
-            }
-        }
+        DropdownPill(
+            label = "Show",
+            options = listOf("All days", "Days with photos", "Days with body values", "Days with a workout", "Days with photos and body values"),
+            selected = filter,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        ) { filter = it }
         LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(dates, key = { it }) { date ->
                 DayCard(snap, date) { nav.push(Screen.Day(date)) }

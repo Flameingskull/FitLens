@@ -150,55 +150,39 @@ fun SegmentedSwitch(options: List<String>, selected: Int, onSelect: (Int) -> Uni
     }
 }
 
-/** The preset windows offered by [RangeChips]. [months] is null for all time. */
+/** The preset windows offered by [RangeDropdown]. [months] is null for all time. */
 enum class RangePreset(val label: String, val months: Long?) {
-    OneMonth("1M", 1),
-    ThreeMonths("3M", 3),
-    SixMonths("6M", 6),
-    OneYear("1Y", 12),
-    All("All", null);
+    OneMonth("Last month", 1),
+    ThreeMonths("Last 3 months", 3),
+    SixMonths("Last 6 months", 6),
+    OneYear("Last year", 12),
+    All("All dates", null);
 
     /** The first ISO date inside this window, or null for all time. */
     fun startDate(today: LocalDate = LocalDate.now()): String? = months?.let { today.minusMonths(it).format(Dates.ISO) }
 }
 
 /**
- * 1M / 3M / 6M / 1Y / All chips plus "Custom", which opens a date-range picker (#80).
- *
- * Exactly one chip is selected: the [selected] preset, or Custom when [selected] is null and [custom] holds the
- * chosen ISO dates (from, to). The chips scroll sideways rather than wrap at large font sizes.
+ * A date range as one compact dropdown (#115): the presets, then "Custom…", which opens a date-range picker (#80).
+ * [selected] is the preset in use, or null for the [custom] ISO dates (from, to).
  */
 @Composable
-fun RangeChips(
+fun RangeDropdown(
     selected: RangePreset?,
     onPreset: (RangePreset) -> Unit,
     custom: Pair<String, String>?,
     onCustom: (from: String, to: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var picking by remember { mutableStateOf(false) }
-    Row(
-        modifier.horizontalScroll(rememberScrollState()).padding(horizontal = Spacing.lg),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-    ) {
-        RangePreset.values().forEach { p ->
-            FilterChip(selected = p == selected, onClick = { onPreset(p) }, label = { Text(p.label) })
-        }
-        val customLabel = if (custom != null && selected == null) {
-            "${Dates.short(custom.first)} – ${Dates.short(custom.second)}"
-        } else {
-            "Custom"
-        }
-        FilterChip(selected = selected == null && custom != null, onClick = { picking = true }, label = { Text(customLabel) })
-    }
-    if (picking) {
-        DateRangePickerDialog(
-            initialFrom = custom?.first,
-            initialTo = custom?.second,
-            onDismiss = { picking = false },
-            onPicked = { from, to -> onCustom(from, to) }
-        )
-    }
+    PeriodDropdown(
+        label = "Date range",
+        options = RangePreset.entries.map { it.label },
+        selected = selected?.ordinal ?: -1,
+        custom = custom,
+        onSelect = { onPreset(RangePreset.entries[it]) },
+        onCustom = onCustom,
+        modifier = modifier
+    )
 }
 
 private fun isoToMillis(iso: String?): Long? =

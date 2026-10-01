@@ -39,7 +39,7 @@ import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.ui.design.ConfirmSheet
 import com.fitlens.companion.ui.design.PickerItem
-import com.fitlens.companion.ui.design.RangeChips
+import com.fitlens.companion.ui.design.RangeDropdown
 import com.fitlens.companion.ui.design.RangePreset
 import com.fitlens.companion.ui.design.SearchablePicker
 import com.fitlens.companion.ui.design.SegmentedSwitch
@@ -50,7 +50,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Settings → Data tools: CSV export (#31) and deleting workout history (#32). Both work on a date range picked with
- * the shared [RangeChips]; a preset or a custom range resolves to inclusive ISO dates, null meaning open-ended.
+ * the shared [RangeDropdown]; a preset or a custom range resolves to inclusive ISO dates, null meaning open-ended.
  */
 @Composable
 fun DataToolsPage(snap: Snapshot) {
@@ -76,7 +76,7 @@ private class RangeState {
             val c = custom
             return when {
                 p == RangePreset.All -> "all dates"
-                p != null -> "the last ${p.label}"
+                p != null -> p.label.lowercase()
                 c != null -> "${Dates.medium(c.first)} to ${Dates.medium(c.second)}"
                 else -> "all dates"
             }
@@ -85,7 +85,7 @@ private class RangeState {
 
 @Composable
 private fun RangePicker(state: RangeState) {
-    RangeChips(
+    RangeDropdown(
         selected = state.preset,
         onPreset = { state.preset = it },
         custom = state.custom,

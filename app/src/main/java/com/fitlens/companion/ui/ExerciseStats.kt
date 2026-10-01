@@ -37,9 +37,10 @@ import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.StatTile
 import com.fitlens.companion.ui.design.StepperField
 import kotlin.math.max
+import com.fitlens.companion.ui.design.PeriodDropdown
 
 /** The periods the Stats tab offers, in days back from today; 0 is all time. Custom follows them (#24). */
-private val STAT_PERIODS = listOf("All" to 0L, "1Y" to 365L, "3M" to 91L, "1M" to 30L)
+private val STAT_PERIODS = listOf("All time" to 0L, "Last year" to 365L, "Last 3 months" to 91L, "Last month" to 30L)
 
 /** One Stats tile: its value, a line under it, and the day it happened, which a tap opens (#24). */
 private data class StatItem(val label: String, val value: String, val line: String? = null, val date: String? = null)
@@ -56,7 +57,6 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
     var period by rememberSaveable { mutableIntStateOf(0) }
     var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
     var customTo by rememberSaveable { mutableStateOf<String?>(null) }
-    var picking by remember { mutableStateOf(false) }
     val from = customFrom
     val to = customTo
     val shown = remember(sets, period, from, to) {
@@ -70,23 +70,16 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             }
         }
     }
-    if (picking) {
-        DateRangePickerDialog(
-            initialFrom = customFrom,
-            initialTo = customTo,
-            onDismiss = { picking = false },
-            onPicked = { f, t -> customFrom = f; customTo = t; period = -1 }
-        )
-    }
     val unit = snap.weightUnit
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            STAT_PERIODS.forEachIndexed { i, (label, _) ->
-                FilterChip(selected = period == i, onClick = { period = i }, label = { Text(label) })
-            }
-            val customLabel = if (period < 0 && from != null && to != null) "${Dates.medium(from)} – ${Dates.medium(to)}" else "Custom"
-            FilterChip(selected = period < 0, onClick = { picking = true }, label = { Text(customLabel) })
-        }
+        PeriodDropdown(
+            label = "Period",
+            options = STAT_PERIODS.map { it.first },
+            selected = period,
+            custom = if (from != null && to != null) from to to else null,
+            onSelect = { period = it },
+            onCustom = { f, t -> customFrom = f; customTo = t; period = -1 }
+        )
         if (shown.isEmpty()) {
             Text("Nothing logged in this period.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@Column

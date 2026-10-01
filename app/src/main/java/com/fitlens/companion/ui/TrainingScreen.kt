@@ -51,6 +51,7 @@ import com.fitlens.companion.ui.design.FitTabRow
 import com.fitlens.companion.ui.design.StepperField
 import androidx.compose.ui.text.input.KeyboardType
 import com.fitlens.companion.ui.design.SetRow as SetRowView
+import com.fitlens.companion.ui.design.PeriodDropdown
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
 fun e1rm(s: SetRow): Double = Records.oneRepMax(s)
@@ -396,7 +397,6 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
     var periodIdx by rememberSaveable { mutableIntStateOf(Records.Period.ALL.ordinal) }
     var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
     var customTo by rememberSaveable { mutableStateOf<String?>(null) }
-    var picking by remember { mutableStateOf(false) }
     val period = Records.Period.entries.getOrNull(periodIdx)
     val from = customFrom
     val to = customTo
@@ -405,26 +405,17 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
         else if (from != null && to != null) Records.between(allSets, from, to)
         else allSets
     }
-    if (picking) {
-        DateRangePickerDialog(
-            initialFrom = customFrom,
-            initialTo = customTo,
-            onDismiss = { picking = false },
-            onPicked = { f, t -> customFrom = f; customTo = t; periodIdx = -1 }
-        )
-    }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Records.Period.entries.forEach { p ->
-                    FilterChip(selected = period == p, onClick = { periodIdx = p.ordinal }, label = { Text(p.label) })
-                }
-                val customLabel = if (period == null && from != null && to != null) "${Dates.short(from)} – ${Dates.short(to)}" else "Custom"
-                FilterChip(selected = period == null, onClick = { picking = true }, label = { Text(customLabel) })
-            }
+            PeriodDropdown(
+                label = "Period",
+                options = Records.Period.entries.map { it.label },
+                selected = period?.ordinal ?: -1,
+                custom = if (from != null && to != null) from to to else null,
+                onSelect = { periodIdx = it },
+                onCustom = { f, t -> customFrom = f; customTo = t; periodIdx = -1 },
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
         }
         if (sets.isEmpty()) {
             item {

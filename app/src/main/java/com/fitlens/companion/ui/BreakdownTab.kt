@@ -32,6 +32,7 @@ import com.fitlens.companion.data.fmtSigned
 import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.SegmentedSwitch
 import com.fitlens.companion.ui.design.StatTile
+import com.fitlens.companion.ui.design.DropdownPill
 
 /**
  * Breakdown (#52): how training splits by category or exercise for one workout, week, month, year, all time or a
@@ -69,34 +70,29 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+        // One compact row (#115): what's measured, how it's split, and over what span.
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Analysis.Measure.entries.forEachIndexed { i, m ->
-                FilterChip(selected = measureIdx == i, onClick = { measureIdx = i }, label = { Text(m.label) })
-            }
-        }
-        SegmentedSwitch(
-            options = Analysis.GroupBy.entries.map { "By ${it.label.lowercase()}" },
-            selected = groupIdx,
-            onSelect = { groupIdx = it },
-            modifier = Modifier.padding(horizontal = 12.dp)
-        )
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Analysis.Span.entries.forEachIndexed { i, s ->
-                FilterChip(
-                    selected = spanIdx == i,
-                    onClick = {
-                        spanIdx = i
-                        windowIdx = 0
-                        if (s == Analysis.Span.Custom) pickingCustom = true
-                    },
-                    label = { Text(s.label) }
-                )
+            DropdownPill(
+                label = "Measure",
+                options = Analysis.Measure.entries.map { it.label },
+                selected = measureIdx
+            ) { measureIdx = it }
+            DropdownPill(
+                label = "Split",
+                options = Analysis.GroupBy.entries.map { "By ${it.label.lowercase()}" },
+                selected = groupIdx
+            ) { groupIdx = it }
+            DropdownPill(
+                label = "Span",
+                options = Analysis.Span.entries.map { it.label },
+                selected = spanIdx
+            ) { i ->
+                spanIdx = i
+                windowIdx = 0
+                if (Analysis.Span.entries[i] == Analysis.Span.Custom) pickingCustom = true
             }
         }
 

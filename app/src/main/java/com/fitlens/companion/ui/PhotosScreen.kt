@@ -62,6 +62,7 @@ import com.fitlens.companion.data.Poses
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import kotlinx.coroutines.launch
+import com.fitlens.companion.ui.design.DropdownPill
 
 /** Filter / group key for photos without a pose. */
 private const val UNSET = "Unset"
@@ -204,22 +205,23 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                 }
                 item(span = { GridItemSpan(maxLineSpan) }, key = "filters") {
                     Column {
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            (listOf("All") + Poses.all + UNSET).forEach { p ->
-                                val n = if (p == "All") snap.datedPhotos.size else counts[p] ?: 0
-                                FilterChip(selected = poseFilter == p, onClick = { poseFilter = p }, label = { Text("$p · $n") })
-                            }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                "GROUP BY",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                            listOf("Month", "Pose").forEach { g ->
-                                FilterChip(selected = groupBy == g, onClick = { groupBy = g }, label = { Text(g) })
-                            }
+                        // One compact row (#115): which poses, and how the grid is grouped.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val poses = listOf("All") + Poses.all + UNSET
+                            DropdownPill(
+                                label = "Pose",
+                                options = poses.map { p ->
+                                    val n = if (p == "All") snap.datedPhotos.size else counts[p] ?: 0
+                                    "${if (p == "All") "All poses" else p} · $n"
+                                },
+                                selected = poses.indexOf(poseFilter).coerceAtLeast(0)
+                            ) { poseFilter = poses[it] }
+                            val groups = listOf("Month", "Pose")
+                            DropdownPill(
+                                label = "Group by",
+                                options = groups.map { "By ${it.lowercase()}" },
+                                selected = groups.indexOf(groupBy).coerceAtLeast(0)
+                            ) { groupBy = groups[it] }
                         }
                         if (selected.isEmpty()) {
                             Text(

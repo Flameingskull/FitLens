@@ -42,6 +42,7 @@ import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.ui.design.PickerItem
 import com.fitlens.companion.ui.design.SearchablePicker
 import com.fitlens.companion.ui.design.SegmentedSwitch
+import com.fitlens.companion.ui.design.DropdownPill
 
 private const val MAX_REPS = 15
 private val LABEL_W = 56.dp
@@ -77,39 +78,40 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        SegmentedSwitch(
-            options = listOf("Actual", "Estimated"),
-            selected = if (estimated) 1 else 0,
-            onSelect = { estimated = it == 1; selected = null },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-        )
+        // One compact row (#115): actual or estimated, which exercises, and their order.
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            FilterChip(
-                selected = categoryId == null && chosen.isEmpty(),
-                onClick = { categoryId = null; chosen = emptySet() },
-                label = { Text("All") }
-            )
-            FilterChip(
-                selected = categoryId != null,
-                onClick = { picking = "category" },
-                label = { Text(categoryId?.let { snap.categories[it]?.name } ?: "Category…") }
-            )
-            FilterChip(
-                selected = chosen.isNotEmpty(),
-                onClick = { picking = "exercises" },
-                label = { Text(if (chosen.isEmpty()) "Choose exercises…" else "${chosen.size} exercises") }
-            )
-        }
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            BoardSort.entries.forEachIndexed { i, s ->
-                FilterChip(selected = sortIdx == i, onClick = { sortIdx = i }, label = { Text(s.label) })
+            DropdownPill(
+                label = "Records",
+                options = listOf("Actual", "Estimated"),
+                selected = if (estimated) 1 else 0
+            ) { estimated = it == 1; selected = null }
+            DropdownPill(
+                label = "Exercises",
+                options = listOf(
+                    "All exercises",
+                    categoryId?.let { snap.categories[it]?.name } ?: "A category…",
+                    if (chosen.isEmpty()) "Choose exercises…" else "${chosen.size} exercises"
+                ),
+                selected = when {
+                    categoryId != null -> 1
+                    chosen.isNotEmpty() -> 2
+                    else -> 0
+                }
+            ) {
+                when (it) {
+                    0 -> { categoryId = null; chosen = emptySet() }
+                    1 -> picking = "category"
+                    else -> picking = "exercises"
+                }
             }
+            DropdownPill(
+                label = "Sort",
+                options = BoardSort.entries.map { it.label },
+                selected = sortIdx
+            ) { sortIdx = it }
         }
 
         val cols = columns

@@ -43,6 +43,8 @@ import com.fitlens.companion.ui.design.PickerItem
 import com.fitlens.companion.ui.design.SearchablePicker
 import com.fitlens.companion.ui.design.SegmentedSwitch
 import java.time.LocalDate
+import com.fitlens.companion.ui.design.OptionsMenu
+import androidx.compose.foundation.layout.Spacer
 
 /**
  * Analysis (#90), opened from the day log's menu. FitNotes-style navigation (#79) made it its own destination
@@ -379,10 +381,13 @@ private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: St
     val series = listOf(LineSeries("Workout length", points))
     SectionTitle("Each workout")
     Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
-        Text(" ")
-        FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
-        Text(" ", Modifier.weight(1f))
+        Spacer(Modifier.weight(1f))
+        OptionsMenu(
+            listOf(
+                ToggleOption("Trend", showTrend) { showTrend = !showTrend },
+                ToggleOption("From zero", fromZero) { fromZero = !fromZero }
+            )
+        )
         ExpandGraphButton { fullScreen = true }
     }
     LineChart(

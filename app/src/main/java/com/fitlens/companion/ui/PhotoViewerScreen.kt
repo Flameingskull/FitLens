@@ -72,6 +72,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.abs
+import com.fitlens.companion.ui.design.DropdownPill
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -108,24 +109,20 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
             )
         }
         Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()).padding(12.dp)) {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // The pose as one compact dropdown (#115), so the photo keeps the screen.
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("POSE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                (Poses.all + "Not set").forEach { label ->
-                    val value = if (label == "Not set") Poses.NONE else label
-                    FilterChip(
-                        selected = current.pose == value,
-                        onClick = {
-                            if (current.pose != value) {
-                                val id = current.id
-                                AppScope.scope.launch { Store.setPhotoPose(listOf(id), value) }
-                            }
-                        },
-                        label = { Text(label) }
-                    )
+                val labels = Poses.all + "Not set"
+                val values = Poses.all + Poses.NONE
+                DropdownPill(
+                    label = "Pose",
+                    options = labels,
+                    selected = values.indexOf(current.pose).let { if (it < 0) labels.lastIndex else it }
+                ) { i ->
+                    if (current.pose != values[i]) {
+                        val id = current.id
+                        AppScope.scope.launch { Store.setPhotoPose(listOf(id), values[i]) }
+                    }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
