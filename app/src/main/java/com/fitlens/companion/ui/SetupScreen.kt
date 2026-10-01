@@ -88,7 +88,7 @@ fun SetupScreen(snap: Snapshot, nav: Nav) {
     val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             Settings.updateDevice { it.copy(setupDone = true) }
-            // Settings → Backups inspects the file and asks before restoring (BackupsCard).
+            // Settings → Backups inspects the file and asks before restoring (BackupsPage).
             nav.home()
             nav.push(Screen.SettingsHome)
             nav.push(Screen.SettingsPage(SettingsSection.Backups))

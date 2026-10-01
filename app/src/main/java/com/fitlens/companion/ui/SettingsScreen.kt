@@ -70,10 +70,13 @@ private val CATALOGUE = listOf(
     SettingEntry("Save, share or restore a backup", SettingsSection.Backups, "fitlens file export"),
     SettingEntry("Automatic backups", SettingsSection.Backups, "schedule daily weekly folder"),
     SettingEntry("Date and time in backup names", SettingsSection.Backups, "timestamp file name"),
+    SettingEntry("Keep the newest automatic backups", SettingsSection.Backups, "how many old delete"),
+    SettingEntry("Back up after changes", SettingsSection.Backups, "automatic leave hour"),
     SettingEntry("Safety copy", SettingsSection.Backups, "undo restore"),
     SettingEntry("PDF progress report", SettingsSection.Backups, "report print"),
     SettingEntry("Import a FitNotes backup", SettingsSection.Import, "fitnotes merge"),
     SettingEntry("FitNotes backup folder sync", SettingsSection.Import, "auto sync folder"),
+    SettingEntry("Sync the FitNotes folder automatically", SettingsSection.Import, "auto sync open start"),
     SettingEntry("Export to CSV", SettingsSection.DataTools, "spreadsheet excel"),
     SettingEntry("Delete workout history", SettingsSection.DataTools, "erase remove clear"),
     SettingEntry("Weight unit", SettingsSection.Units, "kg kilograms lbs pounds"),
@@ -157,27 +160,16 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
             SettingsSection.Import -> FitNotesImportHost()
             else -> {}
         }
-        when (section) {
-            // Pages of settings rows run edge to edge, like the main list (#86).
-            SettingsSection.Units, SettingsSection.Logging, SettingsSection.Rest, SettingsSection.Records ->
-                Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-                    when (section) {
-                        SettingsSection.Units -> UnitsPage()
-                        SettingsSection.Logging -> LoggingPage()
-                        SettingsSection.Rest -> RestPage()
-                        else -> RecordsPage(snap)
-                    }
-                }
-            // The data pages are built from cards.
-            else -> Column(
-                Modifier.verticalScroll(rememberScrollState()).padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                when (section) {
-                    SettingsSection.Backups -> BackupsCard(snap)
-                    SettingsSection.Import -> FitNotesCards(snap)
-                    else -> DataToolsPage(snap)
-                }
+        // Every page is built from the settings rows and runs edge to edge, like the main list (#86).
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
+            when (section) {
+                SettingsSection.Backups -> BackupsPage(snap)
+                SettingsSection.Import -> FitNotesImportPage(snap)
+                SettingsSection.DataTools -> DataToolsPage(snap)
+                SettingsSection.Units -> UnitsPage()
+                SettingsSection.Logging -> LoggingPage()
+                SettingsSection.Rest -> RestPage()
+                SettingsSection.Records -> RecordsPage(snap)
             }
         }
     }

@@ -7,6 +7,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import com.fitlens.companion.ui.design.CharacterBackdrop
 import com.fitlens.companion.ui.design.ambientBackdrop
@@ -277,28 +284,41 @@ fun AppRoot(nav: Nav) {
             } else {
                 val back = remember(nav) { { nav.pop() } }
                 CompositionLocalProvider(LocalNavBack provides back) {
-                when (top) {
-                    Screen.Timeline -> TimelineScreen(s, nav)
-                    Screen.Calendar -> CalendarScreen(s, nav)
-                    Screen.Body -> BodyScreen(s, nav)
-                    Screen.Measurements -> MeasurementsScreen(s, nav)
-                    Screen.Analysis -> AnalysisScreen(s, nav)
-                    is Screen.WorkoutEditor -> WorkoutEditorScreen(s, nav, top.id)
-                    Screen.Photos -> PhotosScreen(s, nav)
-                    is Screen.Day -> DayScreen(s, nav, top.date)
-                    is Screen.Library -> ExerciseLibraryScreen(s, nav, top.date)
-                    // A set opened from History is a fresh screen, on Track with that set selected (#22).
-                    is Screen.SetEntry -> key(top.setId) {
-                        SetEntryScreen(s, nav, top.date, top.exerciseId, top.queue, top.page, top.setId)
+                // Screens slide in when opened and back out when closed (#86, #93). Replacing the top screen with
+                // one of the same kind (another day, the next exercise) keeps it in place, so it doesn't animate.
+                AnimatedContent(
+                    targetState = top to nav.stack.size,
+                    contentKey = { (screen, depth) -> screen::class to depth },
+                    transitionSpec = {
+                        val dir = if (targetState.second >= initialState.second) 1 else -1
+                        (slideInHorizontally(tween(Motion.STANDARD)) { w -> dir * w / 5 } + fadeIn(tween(Motion.STANDARD))) togetherWith
+                            (slideOutHorizontally(tween(Motion.STANDARD)) { w -> -dir * w / 5 } + fadeOut(tween(Motion.FAST)))
+                    },
+                    label = "screen"
+                ) { (screen, _) ->
+                    when (screen) {
+                        Screen.Timeline -> TimelineScreen(s, nav)
+                        Screen.Calendar -> CalendarScreen(s, nav)
+                        Screen.Body -> BodyScreen(s, nav)
+                        Screen.Measurements -> MeasurementsScreen(s, nav)
+                        Screen.Analysis -> AnalysisScreen(s, nav)
+                        is Screen.WorkoutEditor -> WorkoutEditorScreen(s, nav, screen.id)
+                        Screen.Photos -> PhotosScreen(s, nav)
+                        is Screen.Day -> DayScreen(s, nav, screen.date)
+                        is Screen.Library -> ExerciseLibraryScreen(s, nav, screen.date)
+                        // A set opened from History is a fresh screen, on Track with that set selected (#22).
+                        is Screen.SetEntry -> key(screen.setId) {
+                            SetEntryScreen(s, nav, screen.date, screen.exerciseId, screen.queue, screen.page, screen.setId)
+                        }
+                        is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, screen.id, screen.tab)
+                        is Screen.PhotoViewer -> PhotoViewerScreen(s, nav, screen.ids, screen.index)
+                        is Screen.Compare -> CompareScreen(s, nav, screen.a, screen.b)
+                        is Screen.Slideshow -> SlideshowScreen(s, nav, screen.ids)
+                        Screen.Review -> ReviewScreen(s, nav)
+                        Screen.SettingsHome -> SettingsScreen(nav)
+                        is Screen.SettingsPage -> SettingsPageScreen(s, nav, screen.section)
+                        Screen.Setup -> SetupScreen(s, nav)
                     }
-                    is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, top.id, top.tab)
-                    is Screen.PhotoViewer -> PhotoViewerScreen(s, nav, top.ids, top.index)
-                    is Screen.Compare -> CompareScreen(s, nav, top.a, top.b)
-                    is Screen.Slideshow -> SlideshowScreen(s, nav, top.ids)
-                    Screen.Review -> ReviewScreen(s, nav)
-                    Screen.SettingsHome -> SettingsScreen(nav)
-                    is Screen.SettingsPage -> SettingsPageScreen(s, nav, top.section)
-                    Screen.Setup -> SetupScreen(s, nav)
                 }
                 }
             }

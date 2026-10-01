@@ -1,7 +1,10 @@
 package com.fitlens.companion.ui
 
-import com.fitlens.companion.ui.design.GlassOutlinedButton
-import com.fitlens.companion.ui.design.GoldButton
+import com.fitlens.companion.ui.design.SettingsActionRow
+import com.fitlens.companion.ui.design.SettingsChoiceRow
+import com.fitlens.companion.ui.design.SettingsGroup
+import com.fitlens.companion.ui.design.SettingsNote
+import com.fitlens.companion.ui.design.SettingsSwitchRow
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -57,23 +60,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@Composable
-private fun SubHeading(text: String) {
-    Text(
-        text.uppercase(), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 8.dp)
-    )
-}
-
-@Composable
-private fun Hint(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
 /** Settings → Backups: backup files, automatic backups and PDF reports. Everything stays on the device. */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun BackupsCard(snap: Snapshot) {
+fun BackupsPage(snap: Snapshot) {
     val ctx = LocalContext.current.applicationContext
     // Every value here comes from Settings, so the screen follows each change live, including ones a background
     // backup makes while it's open (#38).
@@ -153,119 +142,106 @@ fun BackupsCard(snap: Snapshot) {
         }
     }
 
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Backups", style = MaterialTheme.typography.titleMedium)
-            Hint("Everything stays on your devices. No account or internet connection is needed.")
+    // Built from the shared settings rows (#86), like every other Settings page.
+    SettingsNote("Everything stays on your devices. No account or internet connection is needed.")
 
-            SubHeading("Backup file")
-            Hint(
-                "One .fitlens file with all your data and photos. Keep a copy off your phone (computer, USB drive or SD card) " +
-                    "to restore after reinstalling FitLens or on a new phone."
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GoldButton(onClick = { saveBackup.launch(Backups.manualFileName()) }) { Text("Save backup") }
-                GlassOutlinedButton(onClick = { shareBackup(ctx) }, enabled = busy == null) { Text("Share backup") }
-                GlassOutlinedButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Restore backup") }
-            }
-            Hint(
-                "Share sends the backup with an app you already use, such as email, Drive or Dropbox. " +
-                    "FitLens itself never uploads anything."
-            )
-            ToggleRow("Add the date and time to backup file names", prefs.backupTimestamp) { on ->
-                Settings.updatePortable { it.copy(backupTimestamp = on) }
-            }
-
-            SubHeading("Automatic backups")
-            Text(
-                autoFolder?.let { "Folder: " + (it.lastPathSegment?.substringAfter(':')?.ifBlank { "(root)" } ?: it.toString()) }
-                    ?: "Choose a folder outside FitLens, such as Documents or an SD card, so backups survive uninstalling.",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlassOutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (autoFolder == null) "Choose folder" else "Change folder") }
-                if (autoFolder != null) GoldButton(onClick = { runBusy("Backing up…") { Backups.backupToFolder(ctx) } }) { Text("Back up now") }
-            }
-            if (autoFolder != null) {
-                Hint("How often. Backups run in the background, even when FitLens is closed, while the battery isn't low.")
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(0 to "Off", 1 to "Daily", 7 to "Weekly").forEach { (d, label) ->
-                        FilterChip(selected = autoDays == d, onClick = {
-                            Backups.setAutoDays(d)
-                            AutoBackup.schedule(ctx)
-                        }, label = { Text(label) })
-                    }
-                }
-                Hint("Keep the newest")
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(3, 5, 10).forEach { n ->
-                        FilterChip(selected = keep == n, onClick = { Backups.setAutoKeep(n) }, label = { Text("$n backups") })
-                    }
-                }
-                ToggleRow("Back up after changes", afterChanges) {
-                    AutoBackup.setAfterChanges(it)
-                    if (it) ensureNotifyPermission()
-                }
-                Hint("When you leave FitLens after changing something, a backup is saved in the background, at most once an hour.")
-
-                SubHeading("Status")
-                Text(
-                    lastAuto?.let { "Last successful backup: " + fmtTime(it) } ?: "No automatic backup yet.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                nextDue?.let { due ->
-                    Hint(
-                        if (due <= System.currentTimeMillis() + 5 * 60_000L) "Next scheduled backup: due now. It runs shortly, once the battery isn't low."
-                        else "Next scheduled backup: from " + fmtTime(due)
-                    )
-                } ?: Hint("Scheduled backups are off.")
-                folderStatus?.let { st ->
-                    if (st.reachable) {
-                        Hint("Backup folder: available" + (st.freeBytes?.let { " · " + Formatter.formatShortFileSize(ctx, it) + " free" } ?: ""))
-                    } else {
-                        Text(
-                            "FitLens can't reach the backup folder. If it's on an SD card, check the card is in; otherwise choose the folder again.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-                lastError?.let { (at, msg) ->
-                    Text(
-                        "Last attempt failed (${fmtTime(at)}): $msg",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-
-            if (undoAt != null) {
-                SubHeading("Safety copy")
-                Text(
-                    (undoReason ?: "Safety copy") + ", " + fmtTime(undoAt) + ".",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Hint(
-                    "FitLens keeps a copy of your data from just before the last restore or import, for " +
-                        "${Backups.UNDO_DAYS} days. Undo puts that data back and replaces what is there now."
-                )
-                GlassOutlinedButton(onClick = { confirmUndo = true }) { Text("Undo") }
-            }
-
-            lastResult?.let { r ->
-                SubHeading("Last result")
-                Text(
-                    fmtTime(r.at) + ": " + r.text,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (r.level == ResultLevel.Failure || r.level == ResultLevel.Warning) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                TextButton(onClick = { UiEvents.clearLastResult() }) { Text("Clear") }
-            }
-
-            SubHeading("PDF report")
-            Hint("A readable report of your photos, measurements, charts and workouts in the FitLens style. Good for printing or sharing.")
-            GoldButton(onClick = { showReport = true }, enabled = snap.allDates.isNotEmpty()) { Text("Create PDF report") }
-        }
+    SettingsGroup("Backup file")
+    SettingsActionRow(
+        "Save backup",
+        "One .fitlens file with all your data and photos. Keep a copy off your phone (computer, USB drive or SD card) " +
+            "to restore after reinstalling FitLens or on a new phone."
+    ) { saveBackup.launch(Backups.manualFileName()) }
+    SettingsActionRow(
+        "Share backup",
+        "Send it with an app you already use, such as email, Drive or Dropbox. FitLens itself never uploads anything.",
+        enabled = busy == null
+    ) { shareBackup(ctx) }
+    SettingsActionRow(
+        "Restore a backup",
+        "Shows what the file holds before anything is replaced."
+    ) { openBackup.launch(arrayOf("*/*")) }
+    SettingsSwitchRow("Add the date and time to file names", prefs.backupTimestamp) { on ->
+        Settings.updatePortable { it.copy(backupTimestamp = on) }
     }
+
+    SettingsGroup("Automatic backups")
+    SettingsActionRow(
+        if (autoFolder == null) "Choose a backup folder" else "Backup folder",
+        if (autoFolder == null) "Choose a folder outside FitLens, such as Documents or an SD card, so backups survive uninstalling."
+        else "Tap to change it.",
+        value = autoFolder?.let { it.lastPathSegment?.substringAfter(':')?.ifBlank { "(root)" } ?: it.toString() }
+    ) { pickFolder.launch(null) }
+    if (autoFolder != null) {
+        SettingsActionRow("Back up now", enabled = busy == null) { runBusy("Backing up…") { Backups.backupToFolder(ctx) } }
+        val often = listOf(0 to "Off", 1 to "Daily", 7 to "Weekly")
+        SettingsChoiceRow(
+            "How often",
+            often.map { it.second },
+            often.indexOfFirst { it.first == autoDays }.coerceAtLeast(0),
+            summary = "Backups run in the background, even when FitLens is closed, while the battery isn't low."
+        ) { i ->
+            Backups.setAutoDays(often[i].first)
+            AutoBackup.schedule(ctx)
+        }
+        val keeps = listOf(3, 5, 10)
+        SettingsChoiceRow(
+            "Keep the newest",
+            keeps.map { "$it backups" },
+            keeps.indexOf(keep).coerceAtLeast(0),
+            summary = "Older automatic backups in the folder are deleted. Backups you save yourself are never touched."
+        ) { i -> Backups.setAutoKeep(keeps[i]) }
+        SettingsSwitchRow(
+            "Back up after changes", afterChanges,
+            summary = "When you leave FitLens after changing something, a backup is saved in the background, at most once an hour."
+        ) {
+            AutoBackup.setAfterChanges(it)
+            if (it) ensureNotifyPermission()
+        }
+
+        SettingsGroup("Status")
+        SettingsNote(lastAuto?.let { "Last successful backup: " + fmtTime(it) } ?: "No automatic backup yet.")
+        SettingsNote(
+            nextDue?.let { due ->
+                if (due <= System.currentTimeMillis() + 5 * 60_000L) "Next scheduled backup: due now. It runs shortly, once the battery isn't low."
+                else "Next scheduled backup: from " + fmtTime(due)
+            } ?: "Scheduled backups are off."
+        )
+        folderStatus?.let { st ->
+            if (st.reachable) {
+                SettingsNote("Backup folder: available" + (st.freeBytes?.let { " · " + Formatter.formatShortFileSize(ctx, it) + " free" } ?: ""))
+            } else {
+                SettingsNote(
+                    "FitLens can't reach the backup folder. If it's on an SD card, check the card is in; otherwise choose the folder again.",
+                    error = true
+                )
+            }
+        }
+        lastError?.let { (at, msg) -> SettingsNote("Last attempt failed (${fmtTime(at)}): $msg", error = true) }
+    }
+
+    if (undoAt != null) {
+        SettingsGroup("Safety copy")
+        SettingsActionRow(
+            "Undo",
+            "FitLens keeps a copy of your data from just before the last restore or import, for ${Backups.UNDO_DAYS} " +
+                "days. Undo puts that data back and replaces what is there now.",
+            value = (undoReason ?: "Safety copy") + ", " + fmtTime(undoAt)
+        ) { confirmUndo = true }
+    }
+
+    lastResult?.let { r ->
+        SettingsGroup("Last result")
+        SettingsNote(fmtTime(r.at) + ": " + r.text, error = r.level == ResultLevel.Failure || r.level == ResultLevel.Warning)
+        SettingsActionRow("Clear") { UiEvents.clearLastResult() }
+    }
+
+    SettingsGroup("PDF report")
+    SettingsActionRow(
+        "Create PDF report",
+        if (snap.allDates.isEmpty()) "Log a workout, a measurement or a photo first."
+        else "A readable report of your photos, measurements, charts and workouts in the FitLens style. Good for printing or sharing.",
+        enabled = snap.allDates.isNotEmpty()
+    ) { showReport = true }
 
     val info = restoreInfo
     val uri = restoreUri

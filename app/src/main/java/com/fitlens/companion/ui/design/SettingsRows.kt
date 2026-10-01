@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -118,36 +119,49 @@ fun SettingsChoiceRow(
     }
 }
 
-/** A row that opens something: a page, a picker or an action. */
+/**
+ * A row that opens something: a page, a picker or an action. [value] shows the current choice in gold, as on a
+ * choice row (a folder, the exercises chosen). A disabled row is dimmed and doesn't respond.
+ */
 @Composable
-fun SettingsActionRow(title: String, summary: String? = null, onClick: () -> Unit) {
+fun SettingsActionRow(
+    title: String,
+    summary: String? = null,
+    value: String? = null,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.45f)
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RowText(title, summary, Modifier.weight(1f))
+        RowText(title, summary, Modifier.weight(1f), value)
     }
 }
 
-/** An explanation under a group or a control that isn't a row (a stepper, a slider). */
+/** An explanation under a group or a control that isn't a row (a stepper, a slider). [error] shows a problem. */
 @Composable
-fun SettingsNote(text: String) {
+fun SettingsNote(text: String, error: Boolean = false) {
     Text(
         text,
         Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
     )
 }
 
 @Composable
-private fun RowText(title: String, summary: String?, modifier: Modifier) {
+private fun RowText(title: String, summary: String?, modifier: Modifier, value: String? = null) {
     Column(modifier) {
         Text(title, style = MaterialTheme.typography.bodyLarge)
+        if (!value.isNullOrBlank()) {
+            Text(value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        }
         if (!summary.isNullOrBlank()) {
             Text(summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

@@ -1,7 +1,5 @@
 package com.fitlens.companion.ui
 
-import com.fitlens.companion.ui.design.GlassOutlinedButton
-import com.fitlens.companion.ui.design.GoldButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +37,11 @@ import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.ui.design.ConfirmSheet
 import com.fitlens.companion.ui.design.PickerItem
-import com.fitlens.companion.ui.design.RangeDropdown
+import com.fitlens.companion.ui.design.DateRangePickerDialog
+import com.fitlens.companion.ui.design.SettingsActionRow
+import com.fitlens.companion.ui.design.SettingsChoiceRow
+import com.fitlens.companion.ui.design.SettingsGroup
+import com.fitlens.companion.ui.design.SettingsNote
 import com.fitlens.companion.ui.design.RangePreset
 import com.fitlens.companion.ui.design.SearchablePicker
 import com.fitlens.companion.ui.design.SegmentedSwitch
@@ -50,7 +52,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Settings → Data tools: CSV export (#31) and deleting workout history (#32). Both work on a date range picked with
- * the shared [RangeDropdown]; a preset or a custom range resolves to inclusive ISO dates, null meaning open-ended.
+ * a [RangeRow]; a preset or a custom range resolves to inclusive ISO dates, null meaning open-ended.
  */
 @Composable
 fun DataToolsPage(snap: Snapshot) {
@@ -83,34 +85,37 @@ private class RangeState {
         }
 }
 
+/** The date range as a settings choice row (#86): the presets, then "Custom dates…", which opens a date-range picker. */
 @Composable
-private fun RangePicker(state: RangeState) {
-    RangeDropdown(
-        selected = state.preset,
-        onPreset = { state.preset = it },
-        custom = state.custom,
-        onCustom = { from, to ->
-            state.custom = from to to
-            state.preset = null
-        }
-    )
-}
-
-@Composable
-private fun ToolHint(text: String) {
-    Text(
-        text,
-        Modifier.padding(horizontal = 4.dp),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+private fun RangeRow(state: RangeState) {
+    var picking by remember { mutableStateOf(false) }
+    val presets = RangePreset.entries
+    val custom = state.custom
+    val customLabel = if (state.preset == null && custom != null) {
+        "${Dates.medium(custom.first)} – ${Dates.medium(custom.second)}"
+    } else "Custom dates…"
+    SettingsChoiceRow(
+        "Date range",
+        presets.map { it.label } + customLabel,
+        state.preset?.ordinal ?: presets.size
+    ) { i -> if (i < presets.size) state.preset = presets[i] else picking = true }
+    if (picking) {
+        DateRangePickerDialog(
+            initialFrom = custom?.first,
+            initialTo = custom?.second,
+            onDismiss = { picking = false },
+            onPicked = { from, to ->
+                state.custom = from to to
+                state.preset = null
+            }
+        )
+    }
 }
 
 private fun plural(n: Int, one: String, many: String) = "$n ${if (n == 1) one else many}"
 
 // ---------- CSV export (#31) ----------
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CsvExportSection(snap: Snapshot) {
     val ctx = LocalContext.current.applicationContext
@@ -164,28 +169,24 @@ private fun CsvExportSection(snap: Snapshot) {
     val preview = if (body) plural(count.first, "body value", "body values")
     else "${plural(count.first, "set", "sets")} from ${plural(count.second, "workout", "workouts")}"
 
-    SectionTitle("Export as CSV")
-    ToolHint("For spreadsheets such as Excel or Google Sheets. FitLens can't restore from a CSV file: use a backup for that.")
-    SegmentedSwitch(options = listOf("Workouts", "Body data"), selected = if (body) 1 else 0, onSelect = { body = it == 1 })
-    RangePicker(range)
+    SettingsGroup("Export as CSV")
+    SettingsNote("For spreadsheets such as Excel or Google Sheets. FitLens can't restore from a CSV file: use a backup for that.")
+    SettingsChoiceRow("Data", listOf("Workouts", "Body data"), if (body) 1 else 0) { body = it == 1 }
+    RangeRow(range)
     if (!body) {
-        SegmentedSwitch(
-            options = listOf("Weights in kg", "Weights in lbs"),
-            selected = if (unit == "lbs") 1 else 0,
-            onSelect = { unit = if (it == 1) "lbs" else "kg" }
-        )
+        SettingsChoiceRow("Weights in", listOf("Kilograms (kg)", "Pounds (lbs)"), if (unit == "lbs") 1 else 0) {
+            unit = if (it == 1) "lbs" else "kg"
+        }
     }
-    Text("$preview, ${range.label}.", Modifier.padding(horizontal = 4.dp), style = MaterialTheme.typography.bodyMedium)
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        GoldButton(onClick = { save.launch(CsvExport.fileName(kind, from, to)) }, enabled = count.first > 0) { Text("Save CSV") }
-        GlassOutlinedButton(onClick = { share() }, enabled = count.first > 0) { Text("Share CSV") }
-    }
+    val ready = count.first > 0
+    SettingsActionRow("Save CSV", "$preview, ${range.label}.", enabled = ready) { save.launch(CsvExport.fileName(kind, from, to)) }
+    SettingsActionRow("Share CSV", "Send it with an app you already use.", enabled = ready) { share() }
     val columns = if (body) {
         CsvExport.BODY_COLUMNS.joinToString(", ") + ". One row per value."
     } else {
         CsvExport.WORKOUT_COLUMNS + ". One row per set, numbered from 1 for each exercise on each day. Time is in seconds."
     }
-    ToolHint("Columns: $columns Dates are written year-month-day.")
+    SettingsNote("Columns: $columns Dates are written year-month-day.")
 }
 
 // ---------- Delete workout history (#32) ----------
@@ -216,29 +217,25 @@ private fun DeleteHistorySection(snap: Snapshot) {
     }
     val summary = "${plural(matching.size, "set", "sets")} from ${plural(days, "workout", "workouts")}"
 
-    SectionTitle("Delete workout history")
-    ToolHint(
+    SettingsGroup("Delete workout history")
+    SettingsNote(
         "Removes logged sets by date range, exercise or both. Your exercises, categories, workout comments and " +
             "times, photos and body data are kept."
     )
-    RangePicker(range)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("For $exerciseLabel", Modifier.padding(horizontal = 4.dp).weight(1f), style = MaterialTheme.typography.bodyMedium)
-        if (exerciseIds.isNotEmpty()) TextButton(onClick = { exerciseIds = emptySet() }) { Text("All") }
-        TextButton(onClick = { picking = true }) { Text("Choose exercises") }
+    RangeRow(range)
+    SettingsActionRow("Exercises", "Tap to choose which exercises to delete from.", value = exerciseLabel.replaceFirstChar { it.uppercase() }) {
+        picking = true
     }
-    Text(
-        if (matching.isEmpty()) "Nothing to delete for ${range.label}." else "$summary, ${range.label}.",
-        Modifier.padding(horizontal = 4.dp),
-        style = MaterialTheme.typography.bodyMedium
-    )
+    if (exerciseIds.isNotEmpty()) SettingsActionRow("Use every exercise") { exerciseIds = emptySet() }
+    SettingsNote(if (matching.isEmpty()) "Nothing to delete for ${range.label}." else "$summary, ${range.label}.")
     Button(
         onClick = { confirming = true },
         enabled = matching.isNotEmpty(),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.errorContainer,
             contentColor = MaterialTheme.colorScheme.onErrorContainer
-        )
+        ),
+        modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)
     ) {
         Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
