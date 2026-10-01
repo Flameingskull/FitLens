@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.ToggleOption
+import com.fitlens.companion.ui.design.DropdownPill
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.FitTopBar
@@ -108,29 +110,29 @@ internal fun filterLabel(snap: Snapshot, f: Analysis.Filter): String = when {
     else -> "All training"
 }
 
-/** All training, one category or one exercise, chosen with the shared searchable picker. */
+/** All training, one category or one exercise, as one compact dropdown (#115) that opens the searchable picker. */
 @Composable
 internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilter: (Analysis.Filter) -> Unit) {
     var picking by remember { mutableStateOf<String?>(null) }
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        FilterChip(
-            selected = filter.categoryId == null && filter.exerciseId == null,
-            onClick = { onFilter(Analysis.Filter()) },
-            label = { Text("All training") }
-        )
-        FilterChip(
-            selected = filter.categoryId != null,
-            onClick = { picking = "category" },
-            label = { Text(if (filter.categoryId != null) filterLabel(snap, filter) else "Category…") }
-        )
-        FilterChip(
-            selected = filter.exerciseId != null,
-            onClick = { picking = "exercise" },
-            label = { Text(if (filter.exerciseId != null) filterLabel(snap, filter) else "Exercise…") }
-        )
+    val current = when {
+        filter.exerciseId != null -> 2
+        filter.categoryId != null -> 1
+        else -> 0
+    }
+    DropdownPill(
+        "Training",
+        listOf(
+            "All training",
+            if (current == 1) filterLabel(snap, filter) else "A category…",
+            if (current == 2) filterLabel(snap, filter) else "An exercise…"
+        ),
+        current
+    ) { i ->
+        when (i) {
+            0 -> onFilter(Analysis.Filter())
+            1 -> picking = "category"
+            else -> picking = "exercise"
+        }
     }
     when (picking) {
         "category" -> {
@@ -219,41 +221,29 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     }
     val fmt: (Double) -> String = if (metric == Analysis.Metric.Duration && !avgDuration) { v -> fmtNum(v, 1) } else { v -> fmtNum(v, 0) }
     fun withUnit(v: Double) = fmt(v) + if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
-    val bars = remember(totals, metric, snap.weightUnit, avgDuration) {
-        totals.orEmpty().map { BarDatum(Analysis.shortLabel(it, period), shown(valueOf(it))) }
+    // One point per period at its first day (#116): a line shows progression over time better than bars.
+    val points = remember(totals, metric, snap.weightUnit, avgDuration) {
+        totals.orEmpty().map { ChartPoint(it.start.toEpochDay(), shown(valueOf(it)), it.start.format(Dates.ISO)) }
     }
+    val series = remember(points, metric) { listOf(LineSeries(metric.label, points)) }
     val partial = totals?.lastOrNull()?.current == true
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-        SegmentedSwitch(
-            options = Analysis.Period.entries.map { it.label },
-            selected = periodIdx,
-            onSelect = { periodIdx = it },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+        // Everything that shapes the graph in two compact rows (#115): what, per what, for which training; then the
+        // range, options and full screen.
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            DropdownPill("Measure", Analysis.Metric.entries.map { it.label }, metricIdx) { metricIdx = it }
+            DropdownPill("Per", Analysis.Period.entries.map { "per ${it.label.lowercase()}" }, periodIdx) { periodIdx = it }
+            AnalysisFilterChips(snap, filter, onFilter)
+        }
+        GraphOptionChips(
+            rangeIdx, { rangeIdx = it },
+            showTrend, { showTrend = !showTrend },
+            extra = if (metric == Analysis.Metric.Duration) {
+                listOf(ToggleOption("Average per workout", durationAvg) { durationAvg = !durationAvg })
+            } else emptyList(),
+            trailing = { ExpandGraphButton { fullScreen = true } }
         )
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Analysis.Metric.entries.forEachIndexed { i, m ->
-                FilterChip(selected = metricIdx == i, onClick = { metricIdx = i }, label = { Text(m.label) })
-            }
-        }
-        if (metric == Analysis.Metric.Duration) {
-            SegmentedSwitch(
-                options = listOf("Total", "Average per workout"),
-                selected = if (durationAvg) 1 else 0,
-                onSelect = { durationAvg = it == 1 },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-        }
-        AnalysisFilterChips(snap, filter, onFilter)
-        Row(Modifier.padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                GraphOptionChips(rangeIdx, { rangeIdx = it }, showTrend, { showTrend = !showTrend })
-            }
-            ExpandGraphButton { fullScreen = true }
-        }
 
         when {
             totals == null -> AnalysisNote("Working it out…")
@@ -263,18 +253,19 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                     "Try a longer range or another filter."
             )
             else -> {
-                BarChart(
-                    bars,
-                    Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                    selected = sel,
-                    onSelect = { sel = it; showDays = false; ChartHints.tapped() },
+                LineChart(
+                    series,
+                    Modifier.padding(horizontal = 8.dp),
+                    selected = sel?.let { ChartSelection(0, it) },
+                    onSelect = { sel = it.index; showDays = false; ChartHints.tapped() },
                     yFormat = fmt,
                     unit = unit,
-                    onExpand = { ChartHints.expanded(); fullScreen = true },
                     showTrend = showTrend,
-                    lastIsPartial = partial
+                    yFromZero = true,
+                    onExpand = { ChartHints.expanded(); fullScreen = true }
                 )
                 ChartHint(Modifier.padding(horizontal = 16.dp))
+                if (partial) AnalysisNote("The last point is this ${period.name.lowercase()}, still in progress.")
 
                 // The selected period: its dates, value, change and the workouts in it.
                 val t = sel?.let { totals.getOrNull(it) }
@@ -316,7 +307,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         (if (complete.size < totals.size) " (not counting this ${period.name.lowercase()}, still in progress)" else "") +
                         ". Best: ${Analysis.longLabel(best, period)}, ${withUnit(shown(valueOf(best)))}."
                 )
-                if (showTrend) trendOf(bars.mapIndexed { i, b -> ChartPoint(i.toLong(), b.value, "") })?.let { tr ->
+                if (showTrend) trendOf(points.mapIndexed { i, p -> ChartPoint(i.toLong(), p.y, p.date) })?.let { tr ->
                     AnalysisNote("Trend: ${fmtSigned(tr.slope, 1)} ${if (unit.isEmpty()) metric.label.lowercase() else unit} per ${period.name.lowercase()}.")
                 }
                 when (metric) {
@@ -340,7 +331,6 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             "${metric.label} · ${filterLabel(snap, filter)}",
             onDismiss = { fullScreen = false },
             controls = { GraphOptionChips(rangeIdx, { rangeIdx = it }, showTrend, { showTrend = !showTrend }) },
-            valueZoom = false,
             footer = {
                 sel?.let { totals.getOrNull(it) }?.let { t ->
                     Text(
@@ -351,17 +341,17 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 }
             }
         ) { vp, h, resetZoom ->
-            BarChart(
-                bars,
+            LineChart(
+                series,
                 height = h,
-                selected = sel,
-                onSelect = { sel = it },
+                selected = sel?.let { ChartSelection(0, it) },
+                onSelect = { sel = it.index },
                 yFormat = fmt,
                 unit = unit,
-                viewport = vp,
-                onExpand = resetZoom,
                 showTrend = showTrend,
-                lastIsPartial = partial
+                yFromZero = true,
+                viewport = vp,
+                onExpand = resetZoom
             )
         }
     }

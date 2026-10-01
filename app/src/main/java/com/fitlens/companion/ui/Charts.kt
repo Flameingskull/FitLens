@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import androidx.compose.ui.unit.coerceIn
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -142,9 +144,6 @@ data class ChartViewport(val from: Float = 0f, val to: Float = 1f, val yFrom: Fl
     }
 }
 
-/** A gap longer than this many days is a break in training, drawn as a gap rather than one long straight line. */
-const val DEFAULT_BREAK_DAYS = 56L
-
 /**
  * Works out chart data off the main thread, once per set of [keys] (normally the data snapshot and the chart's
  * options), so years of history stay smooth. Returns null until the first result is ready, then keeps showing the
@@ -200,12 +199,19 @@ internal fun ChartEmpty(modifier: Modifier, height: Dp) {
 }
 
 /**
+ * A graph's height on its screen (#115): about 45% of the screen's height, at least 260dp and at most 480dp, so the data
+ * has the room rather than the controls around it.
+ */
+@Composable
+fun graphHeight(): Dp = (LocalConfiguration.current.screenHeightDp * 0.45f).dp.coerceIn(260.dp, 480.dp)
+
+/**
  * Line chart over time, with one or more [series].
  *
  * - Tap to select the nearest point; double tap calls [onExpand] (full screen) when it's given.
  * - A legend appears for more than one series or when [showTrend] is on. Tapping a series in it hides or shows it.
  * - [showTrend] adds a dashed least-squares trend per series. [yFromZero] starts the y axis at zero.
- * - A gap of more than [breakDays] between points is left as a gap.
+ * - The line joins every point, however far apart, so it's never broken (owner, #116).
  * - Days with progress photos get a tick on the time axis and a ring on their point.
  * - [viewport] shows part of the time range (full screen zoom).
  */
@@ -213,7 +219,8 @@ internal fun ChartEmpty(modifier: Modifier, height: Dp) {
 fun LineChart(
     series: List<LineSeries>,
     modifier: Modifier = Modifier,
-    height: Dp = 240.dp,
+    /** Unspecified sizes the graph from the screen ([graphHeight]). */
+    height: Dp = Dp.Unspecified,
     photoDays: Set<Long> = emptySet(),
     goal: Double? = null,
     selected: ChartSelection? = null,
@@ -222,18 +229,18 @@ fun LineChart(
     unit: String = "",
     showTrend: Boolean = false,
     yFromZero: Boolean = false,
-    breakDays: Long = DEFAULT_BREAK_DAYS,
     viewport: ChartViewport = ChartViewport(),
     onExpand: (() -> Unit)? = null
 ) {
     var hidden by remember(series.size) { mutableStateOf(emptySet<Int>()) }
     val visible = series.indices.filter { it !in hidden && series[it].points.isNotEmpty() }
     val all = visible.flatMap { series[it].points }
+    val plotHeight = if (height == Dp.Unspecified) graphHeight() else height
     Column(modifier) {
         if (all.isEmpty()) {
-            ChartEmpty(Modifier, height)
+            ChartEmpty(Modifier, plotHeight)
         } else {
-            LinePlot(series, visible, height, photoDays, goal, selected, onSelect, yFormat, unit, showTrend, yFromZero, breakDays, viewport, onExpand)
+            LinePlot(series, visible, plotHeight, photoDays, goal, selected, onSelect, yFormat, unit, showTrend, yFromZero, viewport, onExpand)
         }
         if (series.size > 1 || showTrend) {
             ChartLegend(series.map { it.label }, hidden, showTrend) { i ->
@@ -256,7 +263,6 @@ private fun LinePlot(
     unit: String,
     showTrend: Boolean,
     yFromZero: Boolean,
-    breakDays: Long,
     viewport: ChartViewport,
     onExpand: (() -> Unit)?
 ) {
@@ -393,7 +399,7 @@ private fun LinePlot(
                 pts.forEachIndexed { i, p ->
                     val x = px(p.x)
                     val y = py(p.y)
-                    if (i == 0 || p.x - pts[i - 1].x > breakDays) path.moveTo(x, y) else path.lineTo(x, y)
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 }
                 drawPath(path, color, style = Stroke(width = 2.dp.toPx()))
                 trends[si]?.let { tr ->

@@ -1,5 +1,9 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.ToggleOption
+import com.fitlens.companion.ui.design.OptionsMenu
+import com.fitlens.companion.ui.design.DropdownPill
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -85,134 +89,8 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-// More shared chart components (#50): bars for period totals, a donut for breakdowns, and the full-screen viewer
+// More shared chart components (#50): a donut for breakdowns, the compact graph controls and the full-screen viewer
 // every chart can open.
-
-/** One bar: a period such as a week or month, its short axis label, and its total. */
-data class BarDatum(val label: String, val value: Double)
-
-/**
- * Bars for period totals. The y axis always starts at zero. An empty period is a zero-height bar (a short mark on the
- * axis), never a line dropping to zero. Tap a bar to select it; the screen shows its total and can open the period.
- * Double tap calls [onExpand] when it's given.
- */
-@Composable
-fun BarChart(
-    bars: List<BarDatum>,
-    modifier: Modifier = Modifier,
-    height: Dp = 220.dp,
-    selected: Int? = null,
-    onSelect: (Int) -> Unit = {},
-    yFormat: (Double) -> String = { fmtNum(it, 0) },
-    unit: String = "",
-    viewport: ChartViewport = ChartViewport(),
-    onExpand: (() -> Unit)? = null,
-    /** A dashed least-squares line through the bars (#51). */
-    showTrend: Boolean = false,
-    /** The last bar is a period still in progress: drawn dimmer, so a partial week doesn't read as a drop (#51). */
-    lastIsPartial: Boolean = false
-) {
-    if (bars.isEmpty()) {
-        ChartEmpty(modifier, height)
-        return
-    }
-    val colors = LocalChartColors.current
-    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val gridColor = Brand.Hairline.copy(alpha = 0.35f)
-    val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(fontSize = 11.sp, color = textColor)
-
-    val n = bars.size
-    val first = floor(viewport.from * n).toInt().coerceIn(0, n - 1)
-    val last = (ceil(viewport.to * n).toInt() - 1).coerceIn(first, n - 1)
-    val shownBars = first..last
-    val maxV = shownBars.maxOf { bars[it].value }.coerceAtLeast(0.0)
-    val trend = if (showTrend) trendOf(bars.mapIndexed { i, b -> ChartPoint(i.toLong(), b.value, "") }) else null
-    val step = niceStep(if (maxV > 0) maxV else 1.0)
-    val hi = (ceil(maxV / step) * step).coerceAtLeast(step)
-
-    val u = if (unit.isBlank()) "" else " $unit"
-    val description = "Bar chart, ${bars.first().label} to ${bars.last().label}. " +
-        "Highest ${yFormat(bars.maxOf { it.value })}$u, latest ${yFormat(bars.last().value)}$u."
-    val selectedText = selected?.let { bars.getOrNull(it) }?.let { "${it.label}: ${yFormat(it.value)}$u" }
-
-    Canvas(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .semantics {
-                contentDescription = description
-                if (selectedText != null) stateDescription = selectedText
-                liveRegion = LiveRegionMode.Polite
-            }
-            .pointerInput(bars, viewport) {
-                detectTapGestures(
-                    onDoubleTap = if (onExpand != null) { _ -> onExpand() } else null,
-                    onTap = { off ->
-                        val left = 44.dp.toPx()
-                        val right = size.width - 12.dp.toPx()
-                        val slot = (right - left) / shownBars.count()
-                        val i = first + ((off.x - left) / slot).toInt()
-                        if (off.x >= left && i in shownBars) onSelect(i)
-                    }
-                )
-            }
-    ) {
-        val left = 44.dp.toPx()
-        val right = size.width - 12.dp.toPx()
-        val top = 8.dp.toPx()
-        val bottom = size.height - 22.dp.toPx()
-        fun py(y: Double) = bottom - (y / hi).toFloat() * (bottom - top)
-
-        var t = 0.0
-        var guard = 0
-        while (t <= hi + step / 2 && guard++ < 20) {
-            val y = py(t)
-            drawLine(gridColor, Offset(left, y), Offset(right, y), strokeWidth = 1f)
-            val layout = measurer.measure(yFormat(t), labelStyle)
-            drawText(layout, topLeft = Offset(left - layout.size.width - 6.dp.toPx(), y - layout.size.height / 2f))
-            t += step
-        }
-        val slot = (right - left) / shownBars.count()
-        val barW = slot * 0.7f
-        // Label every k-th bar so labels never overlap.
-        val widest = shownBars.maxOf { measurer.measure(bars[it].label, labelStyle).size.width }.toFloat()
-        val every = ceil((widest + 8.dp.toPx()) / slot).toInt().coerceAtLeast(1)
-        shownBars.forEachIndexed { k, i ->
-            val b = bars[i]
-            val x = left + k * slot + (slot - barW) / 2f
-            val isSel = i == selected
-            if (b.value > 0) {
-                val y = py(b.value)
-                val fill = if (lastIsPartial && i == n - 1) colors.seriesColor(0).copy(alpha = 0.45f) else colors.seriesColor(0)
-                drawRect(fill, topLeft = Offset(x, y), size = Size(barW, bottom - y))
-                if (isSel) drawRect(Brand.GoldLight, topLeft = Offset(x, y), size = Size(barW, bottom - y), style = Stroke(width = 2.dp.toPx()))
-            } else {
-                // An empty period: a zero-height bar, shown as a short mark on the axis.
-                drawLine(textColor.copy(alpha = 0.5f), Offset(x, bottom), Offset(x + barW, bottom), strokeWidth = 2.dp.toPx())
-            }
-            if (isSel && b.value <= 0) {
-                drawRect(Brand.GoldLight, topLeft = Offset(x, bottom - 4.dp.toPx()), size = Size(barW, 4.dp.toPx()), style = Stroke(width = 2.dp.toPx()))
-            }
-            if (k % every == 0) {
-                val layout = measurer.measure(b.label, labelStyle)
-                val lx = (x + barW / 2f - layout.size.width / 2f).coerceIn(left, right - layout.size.width)
-                drawText(layout, topLeft = Offset(lx, bottom + 5.dp.toPx()))
-            }
-        }
-        if (trend != null) {
-            // Through the centres of the first and last bars shown, clipped to the plot.
-            val x0 = left + slot / 2f
-            val x1 = left + (shownBars.count() - 1) * slot + slot / 2f
-            val y0 = py(trend.at(first.toLong()).coerceIn(0.0, hi))
-            val y1 = py(trend.at(last.toLong()).coerceIn(0.0, hi))
-            drawLine(
-                colors.accent, Offset(x0, y0), Offset(x1, y1), strokeWidth = 2.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10.dp.toPx(), 6.dp.toPx()))
-            )
-        }
-    }
-}
 
 /** One segment of a [DonutChart]. */
 data class DonutSlice(val label: String, val value: Double)
@@ -508,10 +386,10 @@ fun FullScreenDonut(
 }
 
 /**
- * A graph's range and options as one scrolling row of chips: the [RANGES] presets, Trend and From zero. Used inside
- * [FullScreenChart] (#96), so the view can change without closing it.
+ * A graph's controls in one compact row (#115): any [leading] dropdowns (the graph type, say), the range as a dropdown,
+ * the on/off options (Trend, From zero and [extra]) in a ⋮ menu, and [trailing] (usually [ExpandGraphButton]). It
+ * takes one line instead of three rows of chips, so the graph gets the room. Also used inside [FullScreenChart] (#96).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GraphOptionChips(
     rangeIdx: Int,
@@ -519,16 +397,31 @@ fun GraphOptionChips(
     showTrend: Boolean,
     onTrend: () -> Unit,
     fromZero: Boolean = false,
-    onFromZero: (() -> Unit)? = null
+    onFromZero: (() -> Unit)? = null,
+    extra: List<ToggleOption> = emptyList(),
+    leading: @Composable RowScope.() -> Unit = {},
+    trailing: @Composable RowScope.() -> Unit = {}
 ) {
     Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { onRange(i) }, label = { Text(r.first) }) }
-        FilterChip(selected = showTrend, onClick = onTrend, label = { Text("Trend") })
-        if (onFromZero != null) FilterChip(selected = fromZero, onClick = onFromZero, label = { Text("From zero") })
+        leading()
+        DropdownPill("Range", RANGES.map { rangeName(it.first) }, rangeIdx, onSelect = onRange)
+        Spacer(Modifier.weight(1f))
+        OptionsMenu(
+            listOfNotNull(
+                ToggleOption("Trend line", showTrend, onTrend),
+                onFromZero?.let { ToggleOption("Start from zero", fromZero, it) }
+            ) + extra
+        )
+        trailing()
     }
+}
+
+/** A range preset's name in a menu: "1M" reads as "1 month". */
+private fun rangeName(short: String): String = when (short) {
+    "1M" -> "1 month"; "3M" -> "3 months"; "6M" -> "6 months"; "1Y" -> "1 year"; "All" -> "All time"; else -> short
 }
 
 /**

@@ -1,5 +1,7 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.ToggleOption
+import com.fitlens.companion.ui.design.DropdownPill
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -183,41 +185,31 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                graphTypes.forEachIndexed { i, t -> FilterChip(selected = gIdx == i, onClick = { gIdx = i }, label = { Text(t.label) }) }
-            }
-            // "Max weight for reps" (#22): which rep count, 1 to 15, kept for this exercise while the app is open.
-            if (g.label == GRAPH_WEIGHT_FOR_REPS) {
-                StepperField(
-                    label = "Reps",
-                    value = repsFor.toString(),
-                    onValue = { v -> v.trim().toIntOrNull()?.coerceIn(1, Records.MAX_REPS)?.let { repsFor = it; RepsForGraph.set(exId, it) } },
-                    onStep = { dir -> (repsFor + dir).coerceIn(1, Records.MAX_REPS).let { repsFor = it; RepsForGraph.set(exId, it) } },
-                    keyboard = KeyboardType.Number,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                )
-            }
+            // One compact row (#115): the graph, its rep count where it has one, the range, options and full screen.
+            GraphOptionChips(
+                rangeIdx, { rangeIdx = it },
+                showTrend, { showTrend = !showTrend },
+                fromZero, { fromZero = !fromZero },
+                extra = if (goalTarget != null) listOf(ToggleOption("Goal line", showGoal) { showGoal = !showGoal }) else emptyList(),
+                leading = {
+                    DropdownPill("Graph", graphTypes.map { it.label }, gIdx.coerceIn(0, graphTypes.lastIndex)) { gIdx = it }
+                    // "Max weight for reps" (#22): which rep count, 1 to 15, kept for this exercise while the app is open.
+                    if (g.label == GRAPH_WEIGHT_FOR_REPS) {
+                        DropdownPill("Reps", (1..Records.MAX_REPS).map { "$it reps" }, repsFor - 1) { i ->
+                            repsFor = i + 1
+                            RepsForGraph.set(exId, i + 1)
+                        }
+                    }
+                },
+                trailing = { ExpandGraphButton { fullScreen = true } }
+            )
             if (g.label == GRAPH_RECORDS) {
                 Text(
                     "Each point is a day you set a personal record, at the best estimated 1RM of your records so far.",
-                    Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    Modifier.padding(horizontal = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { rangeIdx = i }, label = { Text(r.first) }) }
-            }
-            // Graph options (#50): a least-squares trend, and the y axis from zero.
-            Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
-                FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
-                if (goalTarget != null) FilterChip(selected = showGoal, onClick = { showGoal = !showGoal }, label = { Text("Goal") })
-                Spacer(Modifier.weight(1f))
-                ExpandGraphButton { fullScreen = true }
             }
         }
         item {

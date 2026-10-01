@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.DropdownPill
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -99,38 +100,31 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
         if (measurements.isNotEmpty() && tab == 0) {
             TrackList(snap, measurements) { logName = it }
         } else if (measurements.isNotEmpty()) {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                measurements.forEach { m ->
-                    FilterChip(selected = m.name == selectedName, onClick = { chosenName = m.name }, label = { Text(m.name) })
-                }
-            }
             val def = measurements.firstOrNull { it.name == selectedName }
-            // The measurement's goal and the order of the chips above (#27).
+            // One compact row (#115): the measurement as a dropdown, then its goal (#27).
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { editingGoal = true }, enabled = def != null) { Text(goalText(def)) }
+                DropdownPill(
+                    "Measurement",
+                    measurements.map { it.name },
+                    measurements.indexOfFirst { it.name == selectedName }.coerceAtLeast(0)
+                ) { i -> chosenName = measurements[i].name }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { editingGoal = true }, enabled = def != null) {
+                    Text(goalText(def), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                }
             }
             val all = remember(snap, selectedName) { snap.dailySeries(selectedName) }
             val shown = remember(all, rangeIdx) { inRange(all, RANGES[rangeIdx].second) { it.date } }
             if (tab == 2) {
                 LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                     item {
-                        Row(Modifier.padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            RANGES.forEachIndexed { i, r ->
-                                FilterChip(selected = rangeIdx == i, onClick = { rangeIdx = i }, label = { Text(r.first) })
-                            }
-                        }
-                    }
-                    item {
-                        // Graph options (#50): a least-squares trend, and the y axis from zero.
-                        Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(selected = showTrend, onClick = { showTrend = !showTrend }, label = { Text("Trend") })
-                            FilterChip(selected = fromZero, onClick = { fromZero = !fromZero }, label = { Text("From zero") })
-                            Spacer(Modifier.weight(1f))
-                            ExpandGraphButton { fullScreen = true }
-                        }
+                        // Range, trend and from-zero in one compact row (#115).
+                        GraphOptionChips(
+                            rangeIdx, { rangeIdx = it },
+                            showTrend, { showTrend = !showTrend },
+                            fromZero, { fromZero = !fromZero },
+                            trailing = { ExpandGraphButton { fullScreen = true } }
+                        )
                     }
                     item {
                         val points = rememberChartData(shown) {
