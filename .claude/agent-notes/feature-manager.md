@@ -98,3 +98,9 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   graphs only at the end of `graphLabels`, because `exercise.default_graph` stores the index. Analysis has five tabs
   (`TAB_*` in `AnalysisScreen.kt`). The launcher icon is the owner's artwork, unedited (`branding/`); never redraw it.
   Left on #22: cardio pace/speed graphs (need #7) and share a graph as an image. Left on #24: pace tiles (#7).
+- 1.0.58 (#86 slice, #87 slice, README refresh): settings pages use `ui/design/SettingsRows.kt`; a new setting adds a
+  row there and an entry to `CATALOGUE` in `SettingsScreen.kt` so search finds it. Rest-timer options live once, in
+  `RestAlertOptions`. `FitTopBar` needs `@OptIn(ExperimentalMaterial3Api::class)` on the calling composable (1.0.57
+  CI failure). A failed CI run uses up its version number, so the README refresh is checked against the version the
+  release actually gets. Left on #86: Backups / Import / Data tools pages on the rows, sub-screen transitions. Left
+  on #87: share.
