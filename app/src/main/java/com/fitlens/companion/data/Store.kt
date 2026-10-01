@@ -69,8 +69,21 @@ class NotesPart internal constructor(
     val exerciseComments: Map<String, Map<Long, String>>
 )
 
-/** The body area: measurement definitions and values, with the lists the body screens use. */
-class BodyPart internal constructor(val measurementDefs: List<MeasurementDef>, val records: List<MRecord>) {
+/**
+ * The body area: measurement definitions and values, with the lists the body screens use. Values in a weight unit
+ * are shown in [weightUnit] (#117): [rawDefs] and [rawRecords] are as stored, the rest is converted.
+ */
+class BodyPart internal constructor(
+    internal val rawDefs: List<MeasurementDef>,
+    internal val rawRecords: List<MRecord>,
+    val weightUnit: String
+) {
+    val measurementDefs: List<MeasurementDef> = rawDefs.map { WeightUnits.shown(it, weightUnit) }
+    val records: List<MRecord> = rawRecords.map { WeightUnits.shown(it, weightUnit) }
+
+    /** The same values shown in another weight unit: converted from memory, never re-read. */
+    internal fun withUnit(unit: String): BodyPart = if (unit == weightUnit) this else BodyPart(rawDefs, rawRecords, unit)
+
     val recordsByDate: Map<String, List<MRecord>> = records.groupBy { it.date }
     val recordsByName: Map<String, List<MRecord>> =
         records.groupBy { it.name }.mapValues { e -> e.value.sortedWith(compareBy({ it.date }, { it.time })) }
@@ -302,7 +315,7 @@ object Store {
             setPart = if (old == null || Area.SETS in areas) SetPart(loadSets(r, null, emptyArray()), prefs.warmupsCount)
                 else old.setPart.withWarmups(prefs.warmupsCount),
             notes = if (old == null || Area.NOTES in areas) loadNotes(r) else old.notes,
-            body = if (old == null || Area.BODY in areas) loadBody(r) else old.body,
+            body = (if (old == null || Area.BODY in areas) loadBody(r, prefs.weightUnit) else old.body).withUnit(prefs.weightUnit),
             photoPart = if (old == null || Area.PHOTOS in areas) loadPhotos(r) else old.photoPart,
             weightUnit = prefs.weightUnit,
             photoDir = photoDir,
@@ -372,7 +385,7 @@ object Store {
         return NotesPart(comments, times, exerciseComments)
     }
 
-    private fun loadBody(r: SQLiteDatabase): BodyPart {
+    private fun loadBody(r: SQLiteDatabase, weightUnit: String): BodyPart {
         val defs = ArrayList<MeasurementDef>()
         r.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link FROM measurement ORDER BY sort_order, name", null).use { c ->
             while (c.moveToNext()) defs.add(
@@ -385,7 +398,7 @@ object Store {
                 MRecord(c.lng(0), c.strOr(1), c.strOr(2), c.strOr(3), c.strOr(4), c.dbl(5), c.str(6), c.strOr(7))
             )
         }
-        return BodyPart(defs, records)
+        return BodyPart(defs, records, weightUnit)
     }
 
     private fun loadPhotos(r: SQLiteDatabase): PhotoPart {
@@ -458,22 +471,32 @@ object Store {
     suspend fun addManualRecord(name: String, unit: String, date: String, time: String, value: Double, comment: String?) =
         withContext(Dispatchers.IO) {
             val w = db.writableDatabase
-            val def = ContentValues().apply { put("name", name); put("unit", unit); put("sort_order", 999) }
-            w.insertWithOnConflict("measurement", null, def, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
-            val cv = ContentValues().apply {
-                put("name", name); put("unit", unit); put("date", date); put("time", time)
-                put("value", value); put("comment", comment); put("source", "manual")
-            }
-            w.insert("mrecord", null, cv)
+            // A value typed in the display unit is stored in the unit the measurement already uses (#117).
+            val stored = loadDef(w, name)?.unit?.takeIf { WeightUnits.of(it) != null && WeightUnits.of(unit) != null }
+            addRecordRow(w, name, stored ?: unit, date, time, WeightUnits.convert(value, unit, stored ?: unit), comment)
             refresh(Area.BODY)
         }
+
+    private fun addRecordRow(
+        w: SQLiteDatabase, name: String, unit: String, date: String, time: String, value: Double, comment: String?
+    ) {
+        val def = ContentValues().apply { put("name", name); put("unit", unit); put("sort_order", 999) }
+        w.insertWithOnConflict("measurement", null, def, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
+        val cv = ContentValues().apply {
+            put("name", name); put("unit", unit); put("date", date); put("time", time)
+            put("value", value); put("comment", comment); put("source", "manual")
+        }
+        w.insert("mrecord", null, cv)
+    }
 
     /** Sets a measurement's goal (#27), and marks it so a FitNotes import keeps the user's choice. */
     suspend fun setMeasurementGoal(name: String, unit: String, type: Int, value: Double) = withContext(Dispatchers.IO) {
         val w = db.writableDatabase
         ensureMeasurement(w, name, unit, 999)
+        // The goal is typed in the display unit and kept in the measurement's own (#117).
+        val stored = loadDef(w, name)?.unit
         w.update("measurement", ContentValues().apply {
-            put("goal_type", type); put("goal_value", value); put("edited", 1)
+            put("goal_type", type); put("goal_value", WeightUnits.convert(value, unit, stored)); put("edited", 1)
         }, "name=?", arrayOf(name))
         refresh(Area.BODY)
     }
@@ -519,8 +542,11 @@ object Store {
                 }
             }
             val existing = loadDef(w, name)
+            // A weight metric keeps the unit its values are stored in: the editor shows it in the display unit, and
+            // saving it there must not relabel kilograms as pounds (#117).
+            val keptUnit = (old ?: existing)?.unit?.takeIf { WeightUnits.of(it) != null && WeightUnits.of(unit) != null } ?: unit
             w.insertWithOnConflict("measurement", null, ContentValues().apply {
-                put("name", name); put("unit", unit); put("sort_order", existing?.sortOrder ?: old?.sortOrder ?: 900)
+                put("name", name); put("unit", keptUnit); put("sort_order", existing?.sortOrder ?: old?.sortOrder ?: 900)
                 put("goal_type", existing?.goalType ?: 0); put("goal_value", existing?.goalValue ?: 0.0)
                 put("enabled", 1); put("custom", 1); put("link", link?.takeIf { it.isNotBlank() })
             }, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
@@ -529,7 +555,7 @@ object Store {
                 "UPDATE mrecord SET name=? WHERE source IN ('fitnotes','csv') AND lower(trim(name))=?",
                 arrayOf(name, key)
             )
-            if (unit.isBlank()) {
+            if (keptUnit.isBlank()) {
                 w.execSQL(
                     "UPDATE measurement SET unit=IFNULL((SELECT unit FROM mrecord WHERE name=? AND unit<>'' LIMIT 1), '') WHERE name=?",
                     arrayOf(name, name)
@@ -619,8 +645,14 @@ object Store {
 
     /** Changes a value entered by hand (#27). Imported values aren't edited: the next import would restore them. */
     suspend fun updateRecord(id: Long, date: String, time: String, value: Double, comment: String?) = withContext(Dispatchers.IO) {
-        db.writableDatabase.update("mrecord", ContentValues().apply {
-            put("date", date); put("time", time); put("value", value); put("comment", comment)
+        val w = db.writableDatabase
+        // The value is edited in the display unit and kept in the record's own (#117).
+        val stored = w.rawQuery("SELECT unit FROM mrecord WHERE id=?", arrayOf(id.toString())).use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
+        val stores = WeightUnits.convert(value, Settings.currentPortable().weightUnit, stored)
+        w.update("mrecord", ContentValues().apply {
+            put("date", date); put("time", time); put("value", stores); put("comment", comment)
         }, "id=? AND source='manual'", arrayOf(id.toString()))
         refresh(Area.BODY)
     }

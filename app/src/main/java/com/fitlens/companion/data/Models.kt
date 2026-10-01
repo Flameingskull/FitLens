@@ -359,3 +359,37 @@ fun fmtDuration(sec: Int): String {
         else -> String.format(Locale.US, "%d:%02d", m, s)
     }
 }
+
+/**
+ * Weight units for values that carry their own unit, such as body measurements (#117). Those keep the unit they were
+ * stored in; everything shown or typed follows the weight unit setting, and is converted back before it's saved, so
+ * switching between kg and lbs never changes or rounds what's stored.
+ */
+object WeightUnits {
+    const val LB_PER_KG = 2.2046226
+
+    /** "kg" or "lbs" for a unit that's a weight (any common spelling), otherwise null. */
+    fun of(unit: String?): String? = when (unit?.trim()?.lowercase()) {
+        "kg", "kgs", "kilo", "kilos", "kilogram", "kilograms" -> "kg"
+        "lb", "lbs", "pound", "pounds" -> "lbs"
+        else -> null
+    }
+
+    /** [value] in [from] expressed in [to]; unchanged unless both are weights and differ. */
+    fun convert(value: Double, from: String?, to: String?): Double {
+        val f = of(from) ?: return value
+        val t = of(to) ?: return value
+        return when {
+            f == t -> value
+            t == "lbs" -> value * LB_PER_KG
+            else -> value / LB_PER_KG
+        }
+    }
+
+    /** A measurement as shown in [display]: its weight values and unit converted, anything else unchanged. */
+    fun shown(d: MeasurementDef, display: String): MeasurementDef =
+        if (of(d.unit) == null) d else d.copy(unit = display, goalValue = convert(d.goalValue, d.unit, display))
+
+    fun shown(r: MRecord, display: String): MRecord =
+        if (of(r.unit) == null) r else r.copy(unit = display, value = convert(r.value, r.unit, display))
+}

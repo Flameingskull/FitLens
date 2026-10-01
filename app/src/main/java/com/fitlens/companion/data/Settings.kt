@@ -200,7 +200,7 @@ object Settings {
     /** Changes the user's preferences, saves them to `meta` and refreshes the data snapshot that shows them. */
     fun updatePortable(change: (PortableSettings) -> PortableSettings) {
         currentPortable()
-        _portable.updateAndGet(change)
+        _portable.updateAndGet { old -> withPlatesConverted(old, change(old)) }
         scope.launch {
             writeLock.withLock { savePortable(_portable.value) }
             // Preferences only change how the data is shown, so nothing is re-read (#60).
@@ -423,4 +423,15 @@ private object MetaToDeviceMigration : DataMigration<Preferences> {
     }
 
     override suspend fun cleanUp() {}
+}
+
+/**
+ * Switching between kg and lbs converts the plate calculator's plate list (#117), the only weight setting stored in
+ * the display unit rather than in kg. A list the same change edited is left as it was given.
+ */
+internal fun withPlatesConverted(old: PortableSettings, new: PortableSettings): PortableSettings {
+    if (old.weightUnit == new.weightUnit || new.plates == null || new.plates != old.plates) return new
+    val converted = new.plates.split(',', ' ', ';').mapNotNull { it.trim().replace(',', '.').toDoubleOrNull() }
+        .joinToString(", ") { fmtNum(WeightUnits.convert(it, old.weightUnit, new.weightUnit), 2) }
+    return new.copy(plates = converted.ifBlank { null })
 }
