@@ -52,8 +52,7 @@ fun FitNotesImportPage(snap: Snapshot) {
     SettingsNote(
         if (lastName == null) "Nothing imported yet." else {
             val at = lastAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")) } ?: ""
-            "Last import: $lastName ($at)
-${snap.setsByDate.size} workouts · ${snap.sets.size} sets · ${snap.records.size} body records"
+            "Last import: $lastName ($at)\n${snap.setsByDate.size} workouts · ${snap.sets.size} sets · ${snap.records.size} body records"
         }
     )
     SettingsActionRow(
