@@ -182,16 +182,15 @@ custom metrics.
     lower rep count too. By default, estimated maxes blend the Epley and Brzycki formulas up to 10 reps and use a
     gentler curve for 11 to 20 reps, so high-rep sets don't overstate your strength; **Settings → Personal records**
     can switch to Epley, Brzycki, Lombardi, O'Conner or Wathan instead, with a worked example of each. Records can also cover a date range you choose.
-  - **Analysis:** **Workouts** shows your workouts, volume, sets, reps or duration per week, month or year, for all
+  - **Analysis:** **Workouts** shows your workouts, volume, sets, reps or duration per week, month or year as a line, for all
     training, a category or an exercise; duration can be a total or an average per workout, with a graph of every
     workout's length. **Breakdown** splits your training by category or exercise in a donut chart,
     with a comparison to the period before. **Exercises** shows any exercise's graphs, with the same options as its
     Graph tab. **Goals** lists every exercise goal with its progress; **+** adds one for any exercise. **Records** puts
     1RM to 15RM for many exercises side by side, for all training, a category or the exercises you choose.
   - **Graphs** (Body tracker, exercise screen and Analysis) can add a dashed **trend line** with its change per month, start their scale **from
-    zero**, and show long breaks in training as gaps. Every graph opens **full screen** (the expand button or a double
-    tap), where pinching across zooms the timeline and pinching up and down zooms the values (bar charts keep their
-    zero line), dragging moves around, and the range and options can change. TalkBack reads each graph's range and
+    zero**, and join every point with an unbroken line. Every graph opens **full screen** (the expand button or a double
+    tap), where pinching across zooms the timeline and pinching up and down zooms the values, dragging moves around, and the range and options can change. TalkBack reads each graph's range and
     values and offers zoom and move actions for both.
   - **Photos:** a gallery you can group by month or by pose, with pose filters and counts. It also has multi-select
     for bulk pose tagging, a full-screen viewer with that day's measurements, and a **before/after compare** you can

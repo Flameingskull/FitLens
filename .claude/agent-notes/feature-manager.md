@@ -104,3 +104,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   CI failure). A failed CI run uses up its version number, so the README refresh is checked against the version the
   release actually gets. Left on #86: Backups / Import / Data tools pages on the rows, sub-screen transitions. Left
   on #87: share.
+- 1.0.62 (#115 slice, #116, #117; owner chat requests): graphs size from the screen and use one compact control row
+  (`GraphOptionChips` with `DropdownPill` / `OptionsMenu`); lines never break; no bar charts. Body values in kg or lbs
+  are converted for display in `BodyPart` and back in `Store` writes, so stored values never change. Left on #115: the
+  same compact-controls pass on every other screen.

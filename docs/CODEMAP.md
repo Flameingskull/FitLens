@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.58.
+Last updated: 1.0.62.
 
 ## How data flows
 
@@ -76,7 +76,7 @@ Last updated: 1.0.58.
 | `SetMarks.kt` | `setMarks(set)`: a set's type badge and effort text (shown and spoken), following the settings. Every set list uses it |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`, `fitDatePickerColors` / `fitTimePickerColors` (#104). **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (back arrow from `LocalNavBack`, for screens opened from the day log's menu), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
-| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`; sheet content keeps its own scroll so a list never drags its sheet closed, and the picker stays open while anything is ticked, #103), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow` with `SetCell` columns, `showIndex` and the `onComment` button, `SetCommentSheet`, `ExerciseCommentRow` (#107), `ExerciseCard`), `Icons.kt` (`FitIcons`: comment and alarm glyphs not in icons-core), `Glass.kt` (#102: `raisedGlass`, `recessedGlass`, `ambientBackdrop`, `GoldButton` (purple glass, gold rim and gold text, #104), `GlassOutlinedButton`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets), `SettingsRows.kt` (#86: `SettingsGroup`, `SettingsSwitchRow`, `SettingsChoiceRow` with its bottom-sheet picker, `SettingsActionRow`, `SettingsNote`; every settings page is built from these). New screens use these |
+| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`; sheet content keeps its own scroll so a list never drags its sheet closed, and the picker stays open while anything is ticked, #103), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow` with `SetCell` columns, `showIndex` and the `onComment` button, `SetCommentSheet`, `ExerciseCommentRow` (#107), `ExerciseCard`), `Icons.kt` (`FitIcons`: comment and alarm glyphs not in icons-core), `Glass.kt` (#102: `raisedGlass`, `recessedGlass`, `ambientBackdrop`, `GoldButton` (purple glass, gold rim and gold text, #104), `GlassOutlinedButton`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets), `CompactControls.kt` (#115: `DropdownPill`, `OptionsMenu` with `ToggleOption`; use them instead of rows of chips), `SettingsRows.kt` (#86: `SettingsGroup`, `SettingsSwitchRow`, `SettingsChoiceRow` with its bottom-sheet picker, `SettingsActionRow`, `SettingsNote`; every settings page is built from these). New screens use these |
 | `TimelineScreen.kt` | All days (every day with photos, measurements, workout), from the Calendar's top bar |
 | `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the rest countdown while resting (#109), the ⋮ menu: day actions, then Analysis, Body tracker, Photos, Settings; #111, #106), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet` (one-line "80 kg · 8 reps" for toasts, PDFs and summaries), `defOrder`, `AddMeasurementDialog` |
 | `SetColumns.kt` | #101: `SetField`, `setFields` (an exercise's set columns, from its type plus anything recorded) and `setCells` (a set's values and units as `SetCell`s for `SetRow`, #112), `spokenDuration` |
@@ -98,8 +98,8 @@ Last updated: 1.0.58.
 | `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
 | `BodyScreen.kt` | Body tracker (#88): Track (latest value, change, goal; tap logs via `AddMeasurementDialog(initialName)`), History and Graph tabs. Also `RANGES` and `inRange` for charts |
-| `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, gaps, markers), `ChartSelection`, `ChartViewport` (time `from`/`to` and values `yFrom`/`yTo`, #96), `trendOf`, `rememberChartData` (off-main-thread data) |
-| `ChartViews.kt` | `BarChart` (trend, partial last bar), `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch split by direction: across zooms time, up and down zooms values unless `valueZoom = false` for bar charts, #96; pan, reset, TalkBack actions, a `controls` slot; `detectAxisTransformGestures`), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
+| `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, markers; the line is never broken, #116; `height` defaults to `graphHeight()`, about 45% of the screen, #115), `ChartSelection`, `ChartViewport` (time `from`/`to` and values `yFrom`/`yTo`, #96), `trendOf`, `rememberChartData` (off-main-thread data) |
+| `ChartViews.kt` | `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch split by direction: across zooms time, up and down zooms values unless `valueZoom = false` for bar charts, #96; pan, reset, TalkBack actions, a `controls` slot; `detectAxisTransformGestures`), `GraphOptionChips` (one compact row, #115: `leading` dropdowns, the range as a `DropdownPill`, Trend, From zero and `extra` in an `OptionsMenu`, `trailing`), `ExpandGraphButton`, `ChartHint` |
 | `CalendarScreen.kt` | FitNotes-style calendar (#87): month grid with swipe, category dots, selected day below (beside it on `WidthBucket.Expanded`, #87) with Open day (`nav.home(date)`), the filter bar and dimmed non-matching days (#9) |
 | `CalendarFilter.kt` | The calendar filter (#9): `CalendarFilter` (conditions one set must meet, `days`, `describe`, `encode`/`decode` into `DeviceSettings.calendarFilter`) and `CalendarFilterSheet` |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
@@ -146,7 +146,10 @@ Last updated: 1.0.58.
   (#43). Lists and history use `sets`. New records, graphs or analysis must use the stat sets.
 - **Order within a day** is `SetRow.position` (#70): the snapshot is sorted by date then position, and exercises follow
   their first set's position. Never order a day by set id.
-- **Units:** store kg, and show values with `snap.weight(kg)` / `snap.fmtWeight(kg)` plus `snap.weightUnit`.
+- **Units:** store kg, and show values with `snap.weight(kg)` / `snap.fmtWeight(kg)` plus `snap.weightUnit`. Body
+  values keep their own unit in the database; `BodyPart` shows weight units in `weightUnit` (`WeightUnits` in
+  `Models.kt`), and `Store` converts typed values back before saving (#117). The plate list is converted on a unit
+  change (`withPlatesConverted`).
 - **Comments** explain why and cite the issue (`// … (#69)`), like the code around them.
 - **Toolchain:** Kotlin 2.0.21, Compose with Material 3, `compileSdk` 35, `minSdk` 29. There's no local Android SDK,
   so CI is the compiler.
@@ -165,5 +168,5 @@ Last updated: 1.0.58.
 | New workout data field | `Db.kt` (VERSION and `onUpgrade`), `Models.kt`, `Store.load`, `Workouts.kt`, and `Backups.kt` if it's a new table |
 | New setting | A field in `DeviceSettings` (phone-only) or `PortableSettings` (travels in backups) in `data/Settings.kt`, with its key and default, then a row in the matching `SettingsSection` page |
 | Records or 1RM logic | `data/Records.kt` only. Screens and the PDF call it |
-| New graph | Build its points in `rememberChartData(keys) { … }`, draw with `LineChart` / `BarChart` / `DonutChart`, add an `ExpandGraphButton` and a `FullScreenChart` (#96) with `GraphOptionChips` as its `controls`, and a `ChartHint` under it |
+| New graph | Build its points in `rememberChartData(keys) { … }`, draw with `LineChart` (no bar charts, #116) or `DonutChart`, add an `ExpandGraphButton` and a `FullScreenChart` (#96) with `GraphOptionChips` as its `controls`, and a `ChartHint` under it |
 | New screen | `Screen` and `AppRoot` in `MainActivity.kt`, and a new `ui/XScreen.kt` built from `ui/design/` |
