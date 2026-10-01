@@ -2,6 +2,7 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.SettingsSwitchRow
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
 import android.Manifest
@@ -33,6 +34,7 @@ import com.fitlens.companion.ui.design.FitIcons
 import com.fitlens.companion.ui.design.StepperField
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -340,17 +342,15 @@ fun RestLengthStepper(
 }
 
 /**
- * The rest timer sheet (#20): a large gold countdown, −15 s / +15 s, pause or resume, restart and stop, and its
- * settings (length, start after each saved set, sound, vibrate), which apply everywhere. On an exercise with its own
- * rest time (#15), [exercise]'s length is the one started.
+ * What happens when a rest ends, and whether one starts by itself (#20): start after saving a set, vibrate, the sound,
+ * its volume and a test. Shared by the rest timer sheet and Settings → Rest timer (#86), so both always agree.
  */
 @Composable
-fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
+internal fun RestAlertOptions() {
     val ctx = LocalContext.current
     val prefs by Settings.portable.collectAsState()
     val device by Settings.device.collectAsState()
-    val own = exercise?.restSeconds
-    val length = own ?: prefs.restSeconds
+    val askNotify = rememberNotificationAsk()
     val pickSound = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         if (res.resultCode == Activity.RESULT_OK) {
             val picked: Uri? = if (Build.VERSION.SDK_INT >= 33) {
@@ -363,6 +363,65 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
             Settings.updateDevice { it.copy(restSoundUri = picked?.takeIf { u -> u != default }?.toString()) }
         }
     }
+        SettingsSwitchRow("Start after saving a set", prefs.restAutoStart) { on ->
+            if (on) askNotify()
+            Settings.updatePortable { it.copy(restAutoStart = on) }
+        }
+        SettingsSwitchRow("Vibrate when rest is over", prefs.restVibrate) { on -> Settings.updatePortable { it.copy(restVibrate = on) } }
+        SettingsSwitchRow("Play a sound when rest is over", prefs.restSound) { on -> Settings.updatePortable { it.copy(restSound = on) } }
+        if (prefs.restSound) {
+            ListRowWithMenu(
+                title = "Sound",
+                subtitle = remember(device.restSoundUri) { RestSound.title(ctx, device.restSoundUri) },
+                onClick = {
+                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION or RingtoneManager.TYPE_ALARM)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Rest over sound")
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, RestSound.uri(device.restSoundUri))
+                    }
+                    try {
+                        pickSound.launch(intent)
+                    } catch (e: ActivityNotFoundException) {
+                        UiEvents.show("This phone has no sound picker, so the notification sound is used.")
+                    }
+                }
+            )
+            var volume by remember(prefs.restVolume) { mutableFloatStateOf(prefs.restVolume.toFloat()) }
+            // Lined up with the rows above (#86).
+            Column(Modifier.padding(horizontal = Spacing.lg)) {
+                Text("VOLUME  ·  ${volume.toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Slider(
+                    value = volume,
+                    onValueChange = { volume = it },
+                    valueRange = 10f..100f,
+                    onValueChangeFinished = {
+                        val v = volume.toInt()
+                        Settings.updatePortable { it.copy(restVolume = v) }
+                        RestSound.play(ctx, device.restSoundUri, v)
+                    },
+                    modifier = Modifier.semantics { contentDescription = "Rest over sound volume" }
+                )
+                TextButton(
+                    onClick = { RestSound.play(ctx, device.restSoundUri, volume.toInt()) },
+                    modifier = Modifier.heightIn(min = Spacing.touch)
+                ) { Text("Play the sound") }
+            }
+        }
+}
+
+/**
+ * The rest timer sheet (#20): a large gold countdown, −15 s / +15 s, pause or resume, restart and stop, and its
+ * settings (length, start after each saved set, sound, vibrate), which apply everywhere. On an exercise with its own
+ * rest time (#15), [exercise]'s length is the one started.
+ */
+@Composable
+fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    val prefs by Settings.portable.collectAsState()
+    val own = exercise?.restSeconds
+    val length = own ?: prefs.restSeconds
     DisposableEffect(Unit) { onDispose { RestSound.stop() } }
     val (st, left) = rememberRest()
     val askNotify = rememberNotificationAsk()
@@ -442,49 +501,7 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
             ) { Text("Use the default length for ${exercise.name}") }
         }
         GoldHairline()
-        ToggleRow("Start after saving a set", prefs.restAutoStart) { on ->
-            if (on) askNotify()
-            Settings.updatePortable { it.copy(restAutoStart = on) }
-        }
-        ToggleRow("Vibrate when rest is over", prefs.restVibrate) { on -> Settings.updatePortable { it.copy(restVibrate = on) } }
-        ToggleRow("Play a sound when rest is over", prefs.restSound) { on -> Settings.updatePortable { it.copy(restSound = on) } }
-        if (prefs.restSound) {
-            ListRowWithMenu(
-                title = "Sound",
-                subtitle = remember(device.restSoundUri) { RestSound.title(ctx, device.restSoundUri) },
-                onClick = {
-                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION or RingtoneManager.TYPE_ALARM)
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Rest over sound")
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, RestSound.uri(device.restSoundUri))
-                    }
-                    try {
-                        pickSound.launch(intent)
-                    } catch (e: ActivityNotFoundException) {
-                        UiEvents.show("This phone has no sound picker, so the notification sound is used.")
-                    }
-                }
-            )
-            var volume by remember(prefs.restVolume) { mutableFloatStateOf(prefs.restVolume.toFloat()) }
-            Text("VOLUME  ·  ${volume.toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Slider(
-                value = volume,
-                onValueChange = { volume = it },
-                valueRange = 10f..100f,
-                onValueChangeFinished = {
-                    val v = volume.toInt()
-                    Settings.updatePortable { it.copy(restVolume = v) }
-                    RestSound.play(ctx, device.restSoundUri, v)
-                },
-                modifier = Modifier.semantics { contentDescription = "Rest over sound volume" }
-            )
-            TextButton(
-                onClick = { RestSound.play(ctx, device.restSoundUri, volume.toInt()) },
-                modifier = Modifier.heightIn(min = Spacing.touch)
-            ) { Text("Play the sound") }
-        }
+        RestAlertOptions()
         Text(
             "The timer keeps running as you move between exercises, and with the screen off, where a notification shows it.",
             style = MaterialTheme.typography.bodySmall,
