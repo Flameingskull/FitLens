@@ -127,7 +127,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
         FitTabRow(titles = listOf("Records", "Stats", "Goals"), selected = tab, onSelect = { tab = it })
         when (tab) {
             0 -> RecordsTab(snap, statSets, timeBased)
-            1 -> ExerciseStatsTab(snap, statSets, timeBased)
+            1 -> ExerciseStatsTab(snap, nav, exId, statSets, timeBased)
             else -> GoalsTab(snap, exId, timeBased)
         }
     }

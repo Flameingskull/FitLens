@@ -70,7 +70,7 @@ fun ExerciseOverviewSheet(snap: Snapshot, nav: Nav, exId: Long, date: String, on
                     0 -> ExerciseHistoryPane(snap, nav, exId)
                     1 -> ExerciseGraphPane(snap, nav, exId)
                     2 -> RecordsTab(snap, statSets, timeBased)
-                    3 -> ExerciseStatsTab(snap, statSets, timeBased)
+                    3 -> ExerciseStatsTab(snap, nav, exId, statSets, timeBased)
                     else -> GoalsTab(snap, exId, timeBased)
                 }
             }

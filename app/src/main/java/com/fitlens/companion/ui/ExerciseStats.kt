@@ -2,6 +2,7 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,27 +32,51 @@ import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.StatTile
 import com.fitlens.companion.ui.design.StepperField
 import kotlin.math.max
 
-/** The periods the Stats tab offers, in days back from today; 0 is all time. */
+/** The periods the Stats tab offers, in days back from today; 0 is all time. Custom follows them (#24). */
 private val STAT_PERIODS = listOf("All" to 0L, "1Y" to 365L, "3M" to 91L, "1M" to 30L)
 
+/** One Stats tile: its value, a line under it, and the day it happened, which a tap opens (#24). */
+private data class StatItem(val label: String, val value: String, val line: String? = null, val date: String? = null)
+
 /**
- * An exercise's Stats tab (#24, #89): best set, best estimated 1RM, heaviest weight, best workout volume, totals and
- * first and last logged, for a chosen period. Warm-ups follow the stats setting (#43), since [sets] are stat sets.
+ * An exercise's Stats tab (#24, #89), with FitNotes's tiles: max weight, estimated 1RM, max reps, max volume (the best
+ * single set), workout reps and workout volume (the best day), each with its date, then the totals and first and last
+ * logged, for a period or a custom date range. A tile with a date opens that day on the exercise screen. Warm-ups
+ * follow the stats setting (#43), since [sets] are stat sets.
  */
 @Composable
-fun ExerciseStatsTab(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean) {
+fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, timeBased: Boolean) {
+    // -1 is the Custom range, customFrom..customTo, kept while the screen is open.
     var period by rememberSaveable { mutableIntStateOf(0) }
-    val days = STAT_PERIODS[period].second
-    val shown = remember(sets, days) {
-        if (days == 0L) sets else {
-            val from = Dates.epochDay(Dates.today()) - days
-            sets.filter { Dates.epochDay(it.date) >= from }
+    var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
+    var customTo by rememberSaveable { mutableStateOf<String?>(null) }
+    var picking by remember { mutableStateOf(false) }
+    val from = customFrom
+    val to = customTo
+    val shown = remember(sets, period, from, to) {
+        val days = STAT_PERIODS.getOrNull(period)?.second
+        when {
+            days == null -> if (from != null && to != null) Records.between(sets, from, to) else sets
+            days == 0L -> sets
+            else -> {
+                val start = Dates.epochDay(Dates.today()) - days
+                sets.filter { Dates.epochDay(it.date) >= start }
+            }
         }
+    }
+    if (picking) {
+        DateRangePickerDialog(
+            initialFrom = customFrom,
+            initialTo = customTo,
+            onDismiss = { picking = false },
+            onPicked = { f, t -> customFrom = f; customTo = t; period = -1 }
+        )
     }
     val unit = snap.weightUnit
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -59,6 +84,8 @@ fun ExerciseStatsTab(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean) {
             STAT_PERIODS.forEachIndexed { i, (label, _) ->
                 FilterChip(selected = period == i, onClick = { period = i }, label = { Text(label) })
             }
+            val customLabel = if (period < 0 && from != null && to != null) "${Dates.medium(from)} – ${Dates.medium(to)}" else "Custom"
+            FilterChip(selected = period < 0, onClick = { picking = true }, label = { Text(customLabel) })
         }
         if (shown.isEmpty()) {
             Text("Nothing logged in this period.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -66,38 +93,46 @@ fun ExerciseStatsTab(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean) {
         }
         val byDay = shown.groupBy { it.date }
         val sessions = byDay.size
-        val tiles = ArrayList<Triple<String, String, String?>>()
+        val tiles = ArrayList<StatItem>()
+        fun dated(label: String, value: String, date: String) = StatItem(label, value, Dates.medium(date), date)
         if (timeBased) {
             val longest = shown.maxBy { it.durationSec }
             val farthest = byDay.maxBy { e -> e.value.sumOf { it.distance } }
-            tiles += Triple("Longest set", fmtDuration(longest.durationSec), Dates.medium(longest.date))
-            tiles += Triple("Most distance in a workout", fmtNum(farthest.value.sumOf { it.distance }, 2), Dates.medium(farthest.key))
-            tiles += Triple("Total time", fmtDuration(shown.sumOf { it.durationSec }), null)
-            tiles += Triple("Total distance", fmtNum(shown.sumOf { it.distance }, 2), null)
+            val longestDay = byDay.maxBy { e -> e.value.sumOf { it.durationSec } }
+            tiles += dated("Longest set", fmtDuration(longest.durationSec), longest.date)
+            tiles += dated("Longest workout", fmtDuration(longestDay.value.sumOf { it.durationSec }), longestDay.key)
+            tiles += dated("Most distance in a workout", fmtNum(farthest.value.sumOf { it.distance }, 2), farthest.key)
+            tiles += StatItem("Total time", fmtDuration(shown.sumOf { it.durationSec }))
+            tiles += StatItem("Total distance", fmtNum(shown.sumOf { it.distance }, 2))
         } else {
             val heaviest = shown.maxBy { it.weightKg }
             val best1rm = shown.maxBy { Records.oneRepMax(it) }
+            val mostReps = shown.maxBy { it.reps }
             val bestSet = shown.maxBy { Analysis.volumeKg(it) }
             val bestDay = byDay.maxBy { e -> e.value.sumOf { Analysis.volumeKg(it) } }
-            tiles += Triple("Heaviest weight", "${snap.fmtWeight(heaviest.weightKg)} $unit × ${heaviest.reps}", Dates.medium(heaviest.date))
-            tiles += Triple("Best est. 1RM", "${snap.fmtWeight(Records.oneRepMax(best1rm))} $unit", Dates.medium(best1rm.date))
-            tiles += Triple("Best set (volume)", "${snap.fmtWeight(bestSet.weightKg)} $unit × ${bestSet.reps}", Dates.medium(bestSet.date))
-            tiles += Triple(
-                "Best workout volume",
-                "${fmtNum(snap.weight(bestDay.value.sumOf { Analysis.volumeKg(it) }), 0)} $unit",
-                Dates.medium(bestDay.key)
-            )
-            tiles += Triple("Total reps", "${shown.sumOf { it.reps }}", null)
-            tiles += Triple("Total volume", "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }), 0)} $unit", null)
+            val repsDay = byDay.maxBy { e -> e.value.sumOf { it.reps } }
+            tiles += dated("Max weight", "${snap.fmtWeight(heaviest.weightKg)} $unit × ${heaviest.reps}", heaviest.date)
+            tiles += dated("Estimated 1RM", "${snap.fmtWeight(Records.oneRepMax(best1rm))} $unit", best1rm.date)
+            tiles += dated("Max reps", "${mostReps.reps} × ${snap.fmtWeight(mostReps.weightKg)} $unit", mostReps.date)
+            tiles += dated("Max volume", "${snap.fmtWeight(bestSet.weightKg)} $unit × ${bestSet.reps}", bestSet.date)
+            tiles += dated("Workout reps", "${repsDay.value.sumOf { it.reps }}", repsDay.key)
+            tiles += dated("Workout volume", "${fmtNum(snap.weight(bestDay.value.sumOf { Analysis.volumeKg(it) }), 0)} $unit", bestDay.key)
+            tiles += StatItem("Total reps", "${shown.sumOf { it.reps }}")
+            tiles += StatItem("Total volume", "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }), 0)} $unit")
         }
-        tiles += Triple("Workouts", "$sessions", null)
-        tiles += Triple("Sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
-        tiles += Triple("First logged", Dates.medium(shown.minOf { it.date }), null)
-        tiles += Triple("Last logged", Dates.medium(shown.maxOf { it.date }), null)
+        tiles += StatItem("Workouts", "$sessions")
+        tiles += StatItem("Sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
+        val first = shown.minOf { it.date }
+        val last = shown.maxOf { it.date }
+        tiles += StatItem("First logged", Dates.medium(first), date = first)
+        tiles += StatItem("Last logged", Dates.medium(last), date = last)
         tiles.chunked(2).forEach { pair ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                pair.forEach { (label, value, line) ->
-                    StatTile(label = label, value = value, modifier = Modifier.weight(1f), dateLine = line)
+                pair.forEach { t ->
+                    val open = t.date?.let { d ->
+                        Modifier.clickable(onClickLabel = "Open ${Dates.long(d)}") { nav.push(Screen.SetEntry(d, exId)) }
+                    } ?: Modifier
+                    StatTile(label = t.label, value = t.value, modifier = Modifier.weight(1f).then(open), dateLine = t.line)
                 }
                 if (pair.size == 1) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
             }
