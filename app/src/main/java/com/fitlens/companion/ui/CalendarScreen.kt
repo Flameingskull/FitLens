@@ -61,6 +61,7 @@ import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.FitTopBar
+import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.TopBarAction
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -87,6 +88,7 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
     val matches = remember(snap, filter) { filter.days(snap) }
     var filtering by remember { mutableStateOf(false) }
     var overview by remember { mutableStateOf<Long?>(null) }
+    var sharing by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
@@ -99,7 +101,10 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                 },
                 TopBarAction(Icons.Filled.Search, if (filter.active) "Change the filter" else "Filter days") { filtering = true },
                 TopBarAction(Icons.Filled.List, "List of every day") { nav.push(Screen.Timeline) }
-            )
+            ),
+            // Share the selected day's workout (#87), offered only when that day has sets to share.
+            overflow = if (snap.setsByDate[selected].isNullOrEmpty()) emptyList()
+                else listOf(MenuAction("Share ${Dates.medium(selected)}'s workout") { sharing = true })
         )
         if (filter.active) FilterBar(snap, filter, month, matches, onEdit = { filtering = true }) {
             Settings.updateDevice { it.copy(calendarFilter = null) }
@@ -192,6 +197,7 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
         }
     }
     overview?.let { id -> ExerciseOverviewSheet(snap, nav, id, selected) { overview = null } }
+    if (sharing) ShareWorkoutSheet(snap, selected) { sharing = false }
     if (filtering) {
         CalendarFilterSheet(
             snap,
