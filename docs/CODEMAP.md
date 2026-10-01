@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.62.
+Last updated: 1.0.64.
 
 ## How data flows
 
@@ -67,16 +67,16 @@ Last updated: 1.0.62.
 ### `ui/`
 | File | Owns |
 | --- | --- |
-| `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop` / `home(date)`, `atHome`), `AppRoot` and `LocalNavBack`. FitNotes-style navigation (#79): no bottom bar; the day log (`Screen.Day`) is the root and every other screen is pushed on it. Shared files open their Settings page (`openSettingsPage`) |
+| `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop` / `home(date)`, `atHome`), `AppRoot` and `LocalNavBack`. FitNotes-style navigation (#79): no bottom bar; the day log (`Screen.Day`) is the root and every other screen is pushed on it. Shared files open their Settings page (`openSettingsPage`). `AppRoot` wraps the top screen in `AnimatedContent` keyed on its class and stack depth: screens slide in and out, and replacing the top screen with one of the same kind (another day, the next exercise) stays in place (#86, #93) |
 | `SettingsScreen.kt` | Settings (#86): a search field over `CATALOGUE` (every setting, its keywords and page; a new row belongs there too), `SettingsSection` groups, "Run setup again", and the sub-screens: Backups, FitNotes import and Data tools (cards), Units & display, Workout & logging, Rest timer (`RestPage`: `RestLengthStepper` plus `RestAlertOptions`) and Personal records (row pages, edge to edge) |
-| `DataToolsScreen.kt` | Settings → Data tools: CSV export (save or share) and Delete workout history (safety copy first), each with its own `RangeChips` range |
+| `DataToolsScreen.kt` | Settings → Data tools: CSV export (save or share) and Delete workout history (safety copy first), built from the settings rows, each with its own date-range choice row |
 | `SetupScreen.kt` | The guided first-run setup (#29): welcome/restore, units, automatic backups, FitNotes import, photos, starter library. Shown once when a phone has no data (`DeviceSettings.setupDone`, checked in `AppRoot`) |
 | `GoalsTab.kt` | An exercise's Goals tab and goal editor; `goalKindForGraph` and `goalShown` for goal lines on its graphs |
 | `MeasurementGoals.kt` | Body tab: `MeasurementGoalSheet`, `MeasurementOrderSheet`, `changeColour` (by goal direction), `goalText` |
 | `SetMarks.kt` | `setMarks(set)`: a set's type badge and effort text (shown and spoken), following the settings. Every set list uses it |
 | `Theme.kt` | `Brand` colours, `ChartColors`, `Spacing`, `FitShapes`, `Motion`, `FitLensTheme`, `fitDatePickerColors` / `fitTimePickerColors` (#104). **The only place colours are defined** |
 | `Components.kt` | Shared basics: `BackTopBar`, `PlainTopBar` (back arrow from `LocalNavBack`, for screens opened from the day log's menu), `GoldHairline`, `EmptyState`, `Dot`, `SectionTitle`, `UiEvents` / `AppResult` messages |
-| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeChips`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`; sheet content keeps its own scroll so a list never drags its sheet closed, and the picker stays open while anything is ticked, #103), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow` with `SetCell` columns, `showIndex` and the `onComment` button, `SetCommentSheet`, `ExerciseCommentRow` (#107), `ExerciseCard`), `Icons.kt` (`FitIcons`: comment and alarm glyphs not in icons-core), `Glass.kt` (#102: `raisedGlass`, `recessedGlass`, `ambientBackdrop`, `GoldButton` (purple glass, gold rim and gold text, #104), `GlassOutlinedButton`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets), `CompactControls.kt` (#115: `DropdownPill`, `OptionsMenu` with `ToggleOption`; use them instead of rows of chips), `SettingsRows.kt` (#86: `SettingsGroup`, `SettingsSwitchRow`, `SettingsChoiceRow` with its bottom-sheet picker, `SettingsActionRow`, `SettingsNote`; every settings page is built from these). New screens use these |
+| `design/` | The redesign's building blocks (#79): `TopBar.kt` (`FitTopBar`), `Tabs.kt` (`FitTabRow`, `RangeDropdown`, `DateRangePickerDialog`), `Sheets.kt` (`FitSheet`, `ConfirmSheet`, `SearchablePicker`; sheet content keeps its own scroll so a list never drags its sheet closed, and the picker stays open while anything is ticked, #103), `Rows.kt` (`StatTile`, `ListRowWithMenu`), `SetViews.kt` (`StepperField`, `SetRow` with `SetCell` columns, `showIndex` and the `onComment` button, `SetCommentSheet`, `ExerciseCommentRow` (#107), `ExerciseCard`), `Icons.kt` (`FitIcons`: comment and alarm glyphs not in icons-core), `Glass.kt` (#102: `raisedGlass`, `recessedGlass`, `ambientBackdrop`, `GoldButton` (purple glass, gold rim and gold text, #104), `GlassOutlinedButton`), `DayNavigator.kt`, `Feedback.kt` (`UndoSnackbarHost`), `Adaptive.kt` (width buckets), `CompactControls.kt` (#115: `DropdownPill`, `PeriodDropdown` (presets plus a custom date range), `OptionsMenu` with `ToggleOption`; use them instead of rows of chips), `SettingsRows.kt` (#86: `SettingsGroup`, `SettingsSwitchRow`, `SettingsChoiceRow` with its bottom-sheet picker, `SettingsActionRow` (with an optional gold `value` and `enabled`), `SettingsNote` (with `error`); every settings page is built from these). New screens use these |
 | `TimelineScreen.kt` | All days (every day with photos, measurements, workout), from the Calendar's top bar |
 | `DayScreen.kt` | The day log, home (#81, #8): top bar (Calendar, +, the rest countdown while resting (#109), the ⋮ menu: day actions, then Analysis, Body tracker, Photos, Settings; #111, #106), `DayNavigator` and page swipe by calendar day, photo strip, body values card, summary and comment, `ExerciseCard`s, empty-day actions. Also `describeSet` (one-line "80 kg · 8 reps" for toasts, PDFs and summaries), `defOrder`, `AddMeasurementDialog` |
 | `SetColumns.kt` | #101: `SetField`, `setFields` (an exercise's set columns, from its type plus anything recorded) and `setCells` (a set's values and units as `SetCell`s for `SetRow`, #112), `spokenDuration` |
@@ -104,8 +104,8 @@ Last updated: 1.0.62.
 | `CalendarFilter.kt` | The calendar filter (#9): `CalendarFilter` (conditions one set must meet, `days`, `describe`, `encode`/`decode` into `DeviceSettings.calendarFilter`) and `CalendarFilterSheet` |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |
-| `FitNotesCards.kt` | `FitNotesCards`: FitNotes backup import and the backup-folder sync, shown in Settings → FitNotes import (the Sync tab was removed in 1.0.23, #35). Photo import lives on the Photos screen and the day log |
-| `BackupUi.kt` | `BackupsCard`, shown in Settings → Backups, with Save, Share and Restore and the file-name timestamp toggle |
+| `FitNotesImportPage.kt` | `FitNotesImportPage`: FitNotes backup import and the backup-folder sync, shown in Settings → FitNotes import (the Sync tab was removed in 1.0.23, #35). Photo import lives on the Photos screen and the day log |
+| `BackupUi.kt` | `BackupsPage`, shown in Settings → Backups, with Save, Share and Restore and the file-name timestamp toggle |
 | `FitNotesImportUi.kt`, `ImportActions.kt` | Import hosts and flows, `runBusy`, `AppScope` |
 | `CustomMetrics.kt` | `CustomMetricEditor` (create or edit a custom measurement) |
 | `MeasurementsScreen.kt` | `Screen.Measurements` (#88): every measurement with on/off, custom ones, the standard set |
