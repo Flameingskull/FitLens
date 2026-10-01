@@ -92,7 +92,8 @@ sealed interface Screen {
         val page: Int = 0,
         val setId: Long? = null
     ) : Screen
-    data class ExerciseDetail(val id: Long) : Screen
+    /** An exercise's Records, Stats and Goals; [tab] is the one it opens on (2 is Goals, from Analysis, #90). */
+    data class ExerciseDetail(val id: Long, val tab: Int = 0) : Screen
     data class PhotoViewer(val ids: List<Long>, val index: Int) : Screen
     data class Compare(val a: Long, val b: Long) : Screen
     data class Slideshow(val ids: List<Long>? = null) : Screen
@@ -287,7 +288,7 @@ fun AppRoot(nav: Nav) {
                     is Screen.SetEntry -> key(top.setId) {
                         SetEntryScreen(s, nav, top.date, top.exerciseId, top.queue, top.page, top.setId)
                     }
-                    is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, top.id)
+                    is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, top.id, top.tab)
                     is Screen.PhotoViewer -> PhotoViewerScreen(s, nav, top.ids, top.index)
                     is Screen.Compare -> CompareScreen(s, nav, top.a, top.b)
                     is Screen.Slideshow -> SlideshowScreen(s, nav, top.ids)

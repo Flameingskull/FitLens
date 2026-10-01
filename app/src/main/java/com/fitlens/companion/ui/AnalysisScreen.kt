@@ -1,5 +1,9 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.TopBarAction
+import com.fitlens.companion.ui.design.FitTopBar
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,31 +47,52 @@ import java.time.LocalDate
  */
 @Composable
 fun AnalysisScreen(snap: Snapshot, nav: Nav) {
+    var tab by rememberSaveable { mutableIntStateOf(TAB_WORKOUTS) }
+    var addingGoal by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Analysis")
+        FitTopBar(
+            title = "Analysis",
+            onBack = LocalNavBack.current,
+            // Goals has + to add a goal for any exercise, as in FitNotes (#90).
+            actions = if (tab == TAB_GOALS && snap.sets.isNotEmpty()) {
+                listOf(TopBarAction(Icons.Filled.Add, "Add a goal") { addingGoal = true })
+            } else emptyList()
+        )
         if (snap.sets.isEmpty()) {
             EmptyState("Nothing to analyse yet", "Log a workout, or import a FitNotes backup from Settings, and your training totals, breakdown and records appear here.")
         } else {
-            AnalysisHub(snap, nav)
+            AnalysisHub(snap, nav, tab, { tab = it }, addingGoal) { addingGoal = false }
         }
     }
 }
 
+private const val TAB_WORKOUTS = 0
+private const val TAB_BREAKDOWN = 1
+private const val TAB_EXERCISES = 2
+private const val TAB_GOALS = 3
+private const val TAB_RECORDS = 4
+
 /**
- * The Analysis hub (#90, the #58 hub): Workouts (#51), Breakdown (#52) and Records (#54).
- * The filter is held here so the Breakdown can open a category or exercise in Workouts.
+ * The Analysis hub (#90, the #58 hub), with FitNotes's tabs: Workouts (#51), Breakdown (#52), Exercises (#22's graphs
+ * for any exercise), Goals (every exercise goal) and Records (#54). The filter is held here so the Breakdown can open
+ * a category or exercise in Workouts.
  */
 @Composable
-fun AnalysisHub(snap: Snapshot, nav: Nav) {
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+fun AnalysisHub(snap: Snapshot, nav: Nav, tab: Int, onTab: (Int) -> Unit, addingGoal: Boolean, onAddingGoalDone: () -> Unit) {
     var filter by remember { mutableStateOf(Analysis.Filter()) }
     Column(Modifier.fillMaxSize()) {
-        FitTabRow(titles = listOf("Workouts", "Breakdown", "Records"), selected = tab, onSelect = { tab = it })
+        FitTabRow(
+            titles = listOf("Workouts", "Breakdown", "Exercises", "Goals", "Records"),
+            selected = tab,
+            onSelect = onTab
+        )
         when (tab) {
-            2 -> RecordsBoard(snap, nav)
-            1 -> BreakdownTab(snap, nav) { f ->
+            TAB_RECORDS -> RecordsBoard(snap, nav)
+            TAB_GOALS -> AnalysisGoalsTab(snap, nav, addingGoal, onAddingGoalDone)
+            TAB_EXERCISES -> AnalysisExercisesTab(snap, nav)
+            TAB_BREAKDOWN -> BreakdownTab(snap, nav) { f ->
                 filter = f
-                tab = 0
+                onTab(TAB_WORKOUTS)
             }
             else -> WorkoutsTab(snap, nav, filter) { filter = it }
         }

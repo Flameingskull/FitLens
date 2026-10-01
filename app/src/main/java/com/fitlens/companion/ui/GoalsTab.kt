@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ExerciseGoal
 import com.fitlens.companion.data.GoalKinds
+import com.fitlens.companion.data.GoalProgress
 import com.fitlens.companion.data.Goals
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtNum
@@ -96,16 +97,9 @@ fun GoalsTab(snap: Snapshot, exId: Long, timeBased: Boolean) {
         }
         goals.forEachIndexed { i, g ->
             val p = remember(sets, g) { GoalKinds.progress(g.kind, g.target, sets) }
-            val unit = goalUnit(snap, g.kind)
-            val target = "${fmtNum(goalShown(snap, g.kind, g.target), 1)} $unit".trim()
-            val best = "${fmtNum(goalShown(snap, g.kind, p.best), 1)} $unit".trim()
-            val status = when {
-                p.achievedDate != null -> "Reached on ${Dates.medium(p.achievedDate)}"
-                p.bestDate != null -> "Best so far $best on ${Dates.medium(p.bestDate)}"
-                else -> "Nothing logged towards it yet"
-            }
+            val (title, status) = goalText(snap, g, p)
             ListRowWithMenu(
-                title = "${GoalKinds.label(g.kind)}: $target",
+                title = title,
                 subtitle = status,
                 onClick = { editing = g },
                 menu = listOf(
@@ -146,9 +140,23 @@ fun GoalsTab(snap: Snapshot, exId: Long, timeBased: Boolean) {
     }
 }
 
+/** A goal's title ("Max weight: 120 kg") and where it stands, for the goal lists (#25, #90). */
+internal fun goalText(snap: Snapshot, g: ExerciseGoal, p: GoalProgress): Pair<String, String> {
+    val unit = goalUnit(snap, g.kind)
+    val target = "${fmtNum(goalShown(snap, g.kind, g.target), 1)} $unit".trim()
+    val best = "${fmtNum(goalShown(snap, g.kind, p.best), 1)} $unit".trim()
+    val status = when {
+        p.achievedDate != null -> "Reached on ${Dates.medium(p.achievedDate)}"
+        p.bestDate != null -> "Best so far $best on ${Dates.medium(p.bestDate)}"
+        else -> "Nothing logged towards it yet"
+    }
+    return "${GoalKinds.label(g.kind)}: $target" to status
+}
+
+/** The goal editor (#25): its kind and target. Also opened from Analysis → Goals (#90). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun GoalEditor(snap: Snapshot, goal: ExerciseGoal, timeBased: Boolean, onDismiss: () -> Unit) {
+internal fun GoalEditor(snap: Snapshot, goal: ExerciseGoal, timeBased: Boolean, onDismiss: () -> Unit) {
     val kinds = if (timeBased) GoalKinds.timed else GoalKinds.strength
     var kind by remember { mutableIntStateOf(goal.kind) }
     var text by remember {

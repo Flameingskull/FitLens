@@ -111,13 +111,13 @@ private object RepsForGraph {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long) {
+fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long, initialTab: Int = 0) {
     val ex = snap.exercises[exId]
     val sets = snap.setsByExercise[exId] ?: emptyList()
     val timeBased = isTimeBased(snap, exId, sets)
     // Records leave out warm-ups unless Settings counts them (#43).
     val statSets = snap.statSetsByExercise[exId] ?: emptyList()
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
     var calculator by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() }) {
