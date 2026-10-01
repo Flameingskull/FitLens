@@ -297,7 +297,7 @@ private fun ReviewWorkoutSheet(
                 Column(Modifier.weight(1f).padding(start = Spacing.sm)) {
                     Text(snap.exercises[p.exerciseId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        if (sets.isEmpty()) "No sets to add: it opens for you to log" else Routines.describe(snap, sets),
+                        if (sets.isEmpty()) "No sets to add: it opens for you to log" else Routines.describe(snap, sets, p.exerciseId),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -422,7 +422,7 @@ fun SaveAsWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         exercises.forEach { p ->
             Column(Modifier.fillMaxWidth().padding(vertical = Spacing.xs)) {
                 Text(snap.exercises[p.exerciseId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
-                Text(Routines.describe(snap, p.sets), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(Routines.describe(snap, p.sets, p.exerciseId), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 14
+        const val VERSION = 15
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -86,7 +86,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE TABLE exercise(id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0, notes TEXT, " +
                 "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, " +
-                "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1, rest_seconds INTEGER)",
+                "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1, rest_seconds INTEGER, distance_unit TEXT)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
                 "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0)",
@@ -236,6 +236,12 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // ---- 1.0.52: exercise comments (#107) ------------------------------------------------------------------
             // One new table; nothing existing changes, and the step replays safely (#77).
             db.execSQL(CREATE_EXERCISE_COMMENT.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
+        }
+        if (oldVersion < 15) {
+            // ---- 1.0.65: distance units (#7) ---------------------------------------------------------------------
+            // An exercise's own distance unit; NULL uses the global one. Distances themselves are untouched, and the
+            // step replays safely (#77).
+            addColumn(db, "exercise", "distance_unit", "TEXT")
         }
     }
 

@@ -506,7 +506,7 @@ private fun ExerciseOnDay(
             val marks = setMarks(s)
             SetRow(
                 index = i + 1,
-                summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
                 cells = setCells(snap, fields, s),
                 comment = s.comment,
                 isPr = s.isPr,
@@ -614,12 +614,13 @@ private fun ExerciseOnDay(
 fun defOrder(snap: Snapshot, name: String): Int =
     snap.measurementDefs.firstOrNull { it.name == name }?.sortOrder ?: 999
 
-fun describeSet(snap: Snapshot, weightKg: Double, reps: Int, distance: Double, duration: Int): String {
+fun describeSet(snap: Snapshot, weightKg: Double, reps: Int, distance: Double, duration: Int, exerciseId: Long? = null): String {
     val parts = ArrayList<String>()
     // A bodyweight set has no weight to show; "0 kg x 10 reps" read as though the weight had been lost (#74).
     if (weightKg != 0.0) parts.add("${snap.fmtWeight(weightKg)} ${snap.weightUnit}")
     if (reps > 0) parts.add("$reps reps")
-    if (distance > 0) parts.add("${fmtNum(distance)} distance")
+    // Distances carry their exercise's unit, or the global one when the exercise isn't known (#7).
+    if (distance > 0) parts.add("${fmtNum(distance)} ${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit}")
     if (duration > 0) parts.add(fmtDuration(duration))
     return parts.joinToString(" · ").ifBlank { "—" }
 }

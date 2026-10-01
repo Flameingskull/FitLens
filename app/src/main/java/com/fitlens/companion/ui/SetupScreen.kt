@@ -183,6 +183,7 @@ private fun UnitsStep() {
         }
     )
     StepText("Weights are stored exactly, so you can switch at any time in Settings → Units & display.")
+    DistanceAndLengthSetting(prefs.distanceUnit, prefs.lengthUnit)
     WeekStartSetting(prefs.weekStart)
 }
 

@@ -408,10 +408,10 @@ private fun DayCard(
 /** How an exercise's sets read in the editor and on the library's day cards. */
 fun planSummary(snap: Snapshot, p: PlannedExercise): String = when (p.fill) {
     Routines.FILL_NONE -> "No sets: log them as you go"
-    Routines.FILL_PLANNED -> Routines.describe(snap, p.sets.filter { !it.isEmpty })
+    Routines.FILL_PLANNED -> Routines.describe(snap, p.sets.filter { !it.isEmpty }, p.exerciseId)
     else -> {
         val last = Routines.resolve(snap, p, "9999-12-31")
-        if (last.isEmpty()) "Copy previous sets · not logged yet" else "Copy previous sets · ${Routines.describe(snap, last)}"
+        if (last.isEmpty()) "Copy previous sets · not logged yet" else "Copy previous sets · ${Routines.describe(snap, last, p.exerciseId)}"
     }
 }
 
@@ -486,7 +486,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
         when (fill) {
             Routines.FILL_LAST -> Text(
                 if (last.isEmpty()) "It hasn't been logged yet, so there's nothing to copy. Choose Predefined to plan its sets."
-                else "Each time you log this day, it copies what you did the previous time: ${Routines.describe(snap, last)}.",
+                else "Each time you log this day, it copies what you did the previous time: ${Routines.describe(snap, last, planned.exerciseId)}.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -511,7 +511,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                             SmallField(r.reps, "reps", KeyboardType.Number, Modifier.weight(1f)) { rows[i] = r.copy(reps = it) }
                         }
                         if (ExerciseTypes.usesDistance(type)) {
-                            SmallField(r.distance, "dist", KeyboardType.Decimal, Modifier.weight(1f)) { rows[i] = r.copy(distance = it) }
+                            SmallField(r.distance, snap.distanceUnit(planned.exerciseId), KeyboardType.Decimal, Modifier.weight(1f)) { rows[i] = r.copy(distance = it) }
                         }
                         if (ExerciseTypes.usesDuration(type)) {
                             SmallField(r.time, "m:ss", KeyboardType.Text, Modifier.weight(1f)) { rows[i] = r.copy(time = it) }

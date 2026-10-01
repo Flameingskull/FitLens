@@ -12,7 +12,7 @@ object CsvExport {
     const val MIME = "text/csv"
 
     fun workoutColumns(unit: String) =
-        listOf("Date", "Exercise", "Category", "Set", "Weight ($unit)", "Reps", "Distance", "Time (seconds)", "PR", "Comment", "set_type", "RPE", "Exercise comment")
+        listOf("Date", "Exercise", "Category", "Set", "Weight ($unit)", "Reps", "Distance", "Time (seconds)", "PR", "Comment", "set_type", "RPE", "Exercise comment", "Distance unit")
 
     val BODY_COLUMNS = listOf("Date", "Time", "Measurement", "Value", "Unit", "Comment")
 
@@ -50,7 +50,9 @@ object CsvExport {
                         SetTypes.csv(s.setType),
                         s.rpe?.let { fmtNum(it, 1) } ?: "",
                         // The exercise's comment in that day's workout (#107), on every set row of the exercise.
-                        snap.exerciseComments[date]?.get(s.exerciseId) ?: ""
+                        snap.exerciseComments[date]?.get(s.exerciseId) ?: "",
+                        // Added last (#7) so spreadsheets built on older exports keep their columns.
+                        if (s.distance > 0) snap.distanceUnit(s.exerciseId) else ""
                     )
                 )
             }

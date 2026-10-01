@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.Category
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.DistanceUnits
 import com.fitlens.companion.data.Exercise
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.Routine
@@ -93,6 +94,7 @@ import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.ConfirmSheet
+import com.fitlens.companion.ui.design.DropdownPill
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.ListRowWithMenu
@@ -676,6 +678,8 @@ fun ExerciseEditorSheet(
     var stepKg by remember { mutableStateOf(existing?.weightStepKg) }
     var defaultGraph by remember { mutableStateOf(existing?.defaultGraph ?: -1) }
     var restSec by remember { mutableStateOf(existing?.restSeconds) }
+    // Its own distance unit (#7), or null for the global one.
+    var distUnit by remember { mutableStateOf(existing?.distanceUnit) }
 
     fun save(keepOpen: Boolean) {
         val n = name.trim()
@@ -689,6 +693,7 @@ fun ExerciseEditorSheet(
         val step = stepKg
         val graph = defaultGraph
         val rest = restSec
+        val dUnit = distUnit
         if (!keepOpen) onDismiss()
         AppScope.scope.launch {
             try {
@@ -698,8 +703,10 @@ fun ExerciseEditorSheet(
                     Workouts.updateExercise(existing.id, n, c, t, note)
                     existing.id
                 }
-                if (step != existing?.weightStepKg || graph != (existing?.defaultGraph ?: -1) || rest != existing?.restSeconds) {
-                    Workouts.setExerciseDefaults(id, step, graph, rest)
+                if (step != existing?.weightStepKg || graph != (existing?.defaultGraph ?: -1) || rest != existing?.restSeconds ||
+                    dUnit != existing?.distanceUnit
+                ) {
+                    Workouts.setExerciseDefaults(id, step, graph, rest, dUnit)
                 }
                 if (keepOpen) {
                     // Ready for the next one in the same category (#83). onSaved isn't fired: it would open the
@@ -786,6 +793,23 @@ fun ExerciseEditorSheet(
                         label = { Text("${fmtNum(v, 2)} ${snap.weightUnit}") }
                     )
                 }
+            }
+        }
+        // Its own distance unit (#7): distances are kept as typed, so a change relabels them without converting.
+        if (ExerciseTypes.usesDistance(type) || (existing != null && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 })) {
+            val global = Settings.portable.collectAsState().value.distanceUnit
+            FieldLabel("Distance unit")
+            DropdownPill(
+                "Distance unit",
+                listOf("As in Settings ($global)") + DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
+                distUnit?.let { DistanceUnits.ALL.indexOf(it) + 1 } ?: 0
+            ) { i -> distUnit = if (i == 0) null else DistanceUnits.ALL[i - 1] }
+            if (existing != null && distUnit != existing.distanceUnit && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 }) {
+                Text(
+                    "Distances already logged keep their numbers and are shown in the new unit.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Brand.GoldLight
+                )
             }
         }
         // Its own rest length (#15), any exact length (#105): the rest timer uses it after this exercise's sets.

@@ -67,6 +67,11 @@ data class PortableSettings(
     val weightUnit: String = "kg",
     /** Set when the user chose the unit by hand, so a FitNotes import doesn't change it back. */
     val weightUnitManual: Boolean = false,
+    /** Distances are logged and shown in this unit unless the exercise has its own (#7): "km", "mi" or "m".
+     *  Distances are stored as typed, so changing it relabels them rather than converting them. */
+    val distanceUnit: String = DistanceUnits.KM,
+    /** Body lengths are shown in this unit (#7): "cm" or "in". They're stored as logged and converted for display. */
+    val lengthUnit: String = LengthUnits.CM,
     /** The weight stepper's step in kg, or null for the default. */
     val weightIncrementKg: Double? = null,
     val keepScreenOn: Boolean = true,
@@ -242,6 +247,8 @@ object Settings {
         db.setMeta(P_WEIGHT_UNIT, s.weightUnit)
         db.setMeta(P_WEIGHT_UNIT_MANUAL, if (s.weightUnitManual) "1" else null)
         db.setMeta(P_WEIGHT_INCREMENT, s.weightIncrementKg?.toString())
+        db.setMeta(P_DISTANCE_UNIT, s.distanceUnit.takeIf { it != DistanceUnits.KM })
+        db.setMeta(P_LENGTH_UNIT, s.lengthUnit.takeIf { it != LengthUnits.CM })
         db.setMeta(P_KEEP_SCREEN_ON, if (s.keepScreenOn) null else "0")
         db.setMeta(P_CELEBRATE_PRS, if (s.celebratePrs) null else "0")
         db.setMeta(P_AUTOFILL, s.autofillSource.takeIf { it != PortableSettings.AUTOFILL_LAST })
@@ -300,6 +307,8 @@ object Settings {
     private const val P_WEIGHT_UNIT = "weight_unit"
     private const val P_WEIGHT_UNIT_MANUAL = "weight_unit_manual"
     private const val P_WEIGHT_INCREMENT = "weight_increment"
+    private const val P_DISTANCE_UNIT = "distance_unit"
+    private const val P_LENGTH_UNIT = "length_unit"
     private const val P_KEEP_SCREEN_ON = "keep_screen_on"
     private const val P_CELEBRATE_PRS = "celebrate_prs"
     private const val P_AUTOFILL = "autofill_source"
@@ -376,6 +385,9 @@ object Settings {
         weightUnit = get(P_WEIGHT_UNIT) ?: "kg",
         weightUnitManual = get(P_WEIGHT_UNIT_MANUAL) != null,
         weightIncrementKg = get(P_WEIGHT_INCREMENT)?.toDoubleOrNull()?.takeIf { it > 0 },
+        // An unknown unit (from a later build's backup) falls back to the default.
+        distanceUnit = DistanceUnits.of(get(P_DISTANCE_UNIT)) ?: DistanceUnits.KM,
+        lengthUnit = LengthUnits.of(get(P_LENGTH_UNIT)) ?: LengthUnits.CM,
         keepScreenOn = get(P_KEEP_SCREEN_ON) != "0",
         celebratePrs = get(P_CELEBRATE_PRS) != "0",
         // An unknown value (say, "routine" from a later build's backup) falls back to the default.

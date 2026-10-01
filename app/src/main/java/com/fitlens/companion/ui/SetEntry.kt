@@ -382,7 +382,7 @@ fun SetEntryScreen(
                     }
                     if (showDistance) {
                         StepperField(
-                            label = "Distance",
+                            label = "Distance (${snap.distanceUnit(exerciseId)})",
                             value = distance,
                             onValue = { distance = it },
                             onStep = { dir -> distance = fmtNum(max(0.0, num(distance) + dir * DISTANCE_STEP), 2) }
@@ -518,7 +518,7 @@ fun SetEntryScreen(
                     val marks = setMarks(s, prefs)
                     SetRowView(
                         index = i + 1,
-                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
                         cells = setCells(snap, fields, s),
                         comment = s.comment,
                         isPr = s.isPr,
@@ -579,7 +579,7 @@ fun SetEntryScreen(
     deleting?.let { s ->
         ConfirmDialog(
             title = "Delete this set?",
-            text = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+            text = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
             onDismiss = { deleting = null }
         ) {
             selected = null
@@ -611,7 +611,7 @@ fun SetEntryScreen(
     commenting?.let { s ->
         val number = sets.indexOfFirst { it.id == s.id } + 1
         SetCommentSheet(
-            describe = "Set $number · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+            describe = "Set $number · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
             initial = s.comment,
             onSave = { text ->
                 AppScope.scope.launch {

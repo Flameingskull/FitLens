@@ -341,7 +341,7 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
                 Column(Modifier.weight(1f)) {
                     Text(snap.exercises[exId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        exSets.joinToString(", ") { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec) },
+                        exSets.joinToString(", ") { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec, it.exerciseId) },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,

@@ -219,4 +219,17 @@ class DbMigrationTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM exercise_comment WHERE source='fitlens'"))
         }
     }
+
+    @Test
+    fun v14ExercisesGainADistanceUnitAndKeepTheirRows() {
+        oldDatabase(14, v12Schema + listOf(Routines.CREATE_EXERCISE, Routines.CREATE_SET, Db.CREATE_EXERCISE_COMMENT)) { db ->
+            db.row("exercise", "id" to 7L, "name" to "Outdoor Run")
+            db.row("workout_set", "exercise_id" to 7L, "date" to "2026-09-30", "weight" to 0.0, "reps" to 0)
+        }
+        Db(app).writableDatabase.use { db ->
+            assertEquals(Db.VERSION, db.version)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE id=7 AND distance_unit IS NULL"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=7"))
+        }
+    }
 }

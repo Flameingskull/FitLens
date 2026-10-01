@@ -71,18 +71,21 @@ class NotesPart internal constructor(
 
 /**
  * The body area: measurement definitions and values, with the lists the body screens use. Values in a weight unit
- * are shown in [weightUnit] (#117): [rawDefs] and [rawRecords] are as stored, the rest is converted.
+ * are shown in [weightUnit] (#117) and lengths in [lengthUnit] (#7): [rawDefs] and [rawRecords] are as stored, the
+ * rest is converted.
  */
 class BodyPart internal constructor(
     internal val rawDefs: List<MeasurementDef>,
     internal val rawRecords: List<MRecord>,
-    val weightUnit: String
+    val weightUnit: String,
+    val lengthUnit: String = LengthUnits.CM
 ) {
-    val measurementDefs: List<MeasurementDef> = rawDefs.map { WeightUnits.shown(it, weightUnit) }
-    val records: List<MRecord> = rawRecords.map { WeightUnits.shown(it, weightUnit) }
+    val measurementDefs: List<MeasurementDef> = rawDefs.map { MeasureUnits.shown(it, weightUnit, lengthUnit) }
+    val records: List<MRecord> = rawRecords.map { MeasureUnits.shown(it, weightUnit, lengthUnit) }
 
-    /** The same values shown in another weight unit: converted from memory, never re-read. */
-    internal fun withUnit(unit: String): BodyPart = if (unit == weightUnit) this else BodyPart(rawDefs, rawRecords, unit)
+    /** The same values shown in other units: converted from memory, never re-read. */
+    internal fun withUnits(weight: String, length: String): BodyPart =
+        if (weight == weightUnit && length == lengthUnit) this else BodyPart(rawDefs, rawRecords, weight, length)
 
     val recordsByDate: Map<String, List<MRecord>> = records.groupBy { it.date }
     val recordsByName: Map<String, List<MRecord>> =
@@ -125,11 +128,19 @@ class Snapshot internal constructor(
     val weightUnit: String,
     val photoDir: File,
     /** The first day of the week, 1 = Monday … 7 = Sunday (#7). */
-    val weekStart: Int = 1
+    val weekStart: Int = 1,
+    /** The global distance unit (#7); an exercise may have its own, see [distanceUnit]. */
+    val globalDistanceUnit: String = DistanceUnits.KM
 ) {
     /** A snapshot with its sets replaced, for a write that changed only those. */
     internal fun replacing(setPart: SetPart): Snapshot =
-        Snapshot(library, setPart, notes, body, photoPart, weightUnit, photoDir, weekStart)
+        Snapshot(library, setPart, notes, body, photoPart, weightUnit, photoDir, weekStart, globalDistanceUnit)
+
+    /** Body lengths are shown in this unit (#7). */
+    val lengthUnit: String get() = body.lengthUnit
+
+    /** The unit [exerciseId]'s distances are logged and shown in: its own, or the global one (#7). */
+    fun distanceUnit(exerciseId: Long): String = exercises[exerciseId]?.distanceUnit ?: globalDistanceUnit
 
     val categories: Map<Long, Category> get() = library.categories
     val exercises: Map<Long, Exercise> get() = library.exercises
@@ -315,11 +326,13 @@ object Store {
             setPart = if (old == null || Area.SETS in areas) SetPart(loadSets(r, null, emptyArray()), prefs.warmupsCount)
                 else old.setPart.withWarmups(prefs.warmupsCount),
             notes = if (old == null || Area.NOTES in areas) loadNotes(r) else old.notes,
-            body = (if (old == null || Area.BODY in areas) loadBody(r, prefs.weightUnit) else old.body).withUnit(prefs.weightUnit),
+            body = (if (old == null || Area.BODY in areas) loadBody(r, prefs.weightUnit) else old.body)
+                .withUnits(prefs.weightUnit, prefs.lengthUnit),
             photoPart = if (old == null || Area.PHOTOS in areas) loadPhotos(r) else old.photoPart,
             weightUnit = prefs.weightUnit,
             photoDir = photoDir,
-            weekStart = prefs.weekStart
+            weekStart = prefs.weekStart,
+            globalDistanceUnit = prefs.distanceUnit
         )
     }
 
@@ -329,12 +342,12 @@ object Store {
             while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
         }
         val exercises = HashMap<Long, Exercise>()
-        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph, rest_seconds FROM exercise", null).use { c ->
+        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph, rest_seconds, distance_unit FROM exercise", null).use { c ->
             while (c.moveToNext()) exercises[c.lng(0)] =
                 Exercise(
                     c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0,
                     if (c.isNull(7)) null else c.getDouble(7), if (c.isNull(8)) -1 else c.getInt(8),
-                    if (c.isNull(9)) null else c.getInt(9)
+                    if (c.isNull(9)) null else c.getInt(9), DistanceUnits.of(c.str(10))
                 )
         }
         val goals = ArrayList<ExerciseGoal>()
@@ -472,8 +485,8 @@ object Store {
         withContext(Dispatchers.IO) {
             val w = db.writableDatabase
             // A value typed in the display unit is stored in the unit the measurement already uses (#117).
-            val stored = loadDef(w, name)?.unit?.takeIf { WeightUnits.of(it) != null && WeightUnits.of(unit) != null }
-            addRecordRow(w, name, stored ?: unit, date, time, WeightUnits.convert(value, unit, stored ?: unit), comment)
+            val stored = loadDef(w, name)?.unit?.takeIf { MeasureUnits.sameKind(it, unit) }
+            addRecordRow(w, name, stored ?: unit, date, time, MeasureUnits.convert(value, unit, stored ?: unit), comment)
             refresh(Area.BODY)
         }
 
@@ -496,7 +509,7 @@ object Store {
         // The goal is typed in the display unit and kept in the measurement's own (#117).
         val stored = loadDef(w, name)?.unit
         w.update("measurement", ContentValues().apply {
-            put("goal_type", type); put("goal_value", WeightUnits.convert(value, unit, stored)); put("edited", 1)
+            put("goal_type", type); put("goal_value", MeasureUnits.convert(value, unit, stored)); put("edited", 1)
         }, "name=?", arrayOf(name))
         refresh(Area.BODY)
     }
@@ -544,7 +557,7 @@ object Store {
             val existing = loadDef(w, name)
             // A weight metric keeps the unit its values are stored in: the editor shows it in the display unit, and
             // saving it there must not relabel kilograms as pounds (#117).
-            val keptUnit = (old ?: existing)?.unit?.takeIf { WeightUnits.of(it) != null && WeightUnits.of(unit) != null } ?: unit
+            val keptUnit = (old ?: existing)?.unit?.takeIf { MeasureUnits.sameKind(it, unit) } ?: unit
             w.insertWithOnConflict("measurement", null, ContentValues().apply {
                 put("name", name); put("unit", keptUnit); put("sort_order", existing?.sortOrder ?: old?.sortOrder ?: 900)
                 put("goal_type", existing?.goalType ?: 0); put("goal_value", existing?.goalValue ?: 0.0)
@@ -650,7 +663,8 @@ object Store {
         val stored = w.rawQuery("SELECT unit FROM mrecord WHERE id=?", arrayOf(id.toString())).use { c ->
             if (c.moveToFirst()) c.getString(0) else null
         }
-        val stores = WeightUnits.convert(value, Settings.currentPortable().weightUnit, stored)
+        val prefs = Settings.currentPortable()
+        val stores = MeasureUnits.convert(value, MeasureUnits.display(stored, prefs.weightUnit, prefs.lengthUnit), stored)
         w.update("mrecord", ContentValues().apply {
             put("date", date); put("time", time); put("value", stores); put("comment", comment)
         }, "id=? AND source='manual'", arrayOf(id.toString()))

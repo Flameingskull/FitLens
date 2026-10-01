@@ -104,7 +104,9 @@ data class Exercise(
     /** The graph the exercise opens on, as an index into its graph list, or -1 for the first (#15). */
     val defaultGraph: Int = -1,
     /** This exercise's rest length in seconds, or null for the global rest timer length (#15, #20). */
-    val restSeconds: Int? = null
+    val restSeconds: Int? = null,
+    /** The unit this exercise's distances are logged in ([DistanceUnits]), or null for the global one (#7). */
+    val distanceUnit: String? = null
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
 }
@@ -392,4 +394,86 @@ object WeightUnits {
 
     fun shown(r: MRecord, display: String): MRecord =
         if (of(r.unit) == null) r else r.copy(unit = display, value = convert(r.value, r.unit, display))
+}
+
+/**
+ * Distance units (#7). Distances are stored as typed, with no unit of their own: an exercise's distances are in its
+ * own unit when it has one, otherwise in the global unit. Changing either relabels them; nothing is converted.
+ */
+object DistanceUnits {
+    const val KM = "km"
+    const val MI = "mi"
+    const val M = "m"
+    val ALL = listOf(KM, MI, M)
+
+    /** A known unit, or null. */
+    fun of(unit: String?): String? = unit?.trim()?.lowercase()?.takeIf { it in ALL }
+
+    fun label(unit: String): String = when (unit) {
+        MI -> "Miles"
+        M -> "Metres"
+        else -> "Kilometres"
+    }
+
+    /** The unit as TalkBack reads it. */
+    fun spoken(unit: String): String = when (unit) {
+        MI -> "miles"
+        M -> "metres"
+        else -> "kilometres"
+    }
+}
+
+/** Length units for body measurements (#7): values keep the unit they were logged in and are shown in the user's. */
+object LengthUnits {
+    const val CM = "cm"
+    const val IN = "in"
+    const val CM_PER_IN = 2.54
+
+    /** "cm" or "in" for a unit that's a length (any common spelling), otherwise null. */
+    fun of(unit: String?): String? = when (unit?.trim()?.lowercase()) {
+        "cm", "cms", "centimetre", "centimetres", "centimeter", "centimeters" -> CM
+        "in", "ins", "inch", "inches", "\"" -> IN
+        else -> null
+    }
+
+    fun convert(value: Double, from: String?, to: String?): Double {
+        val f = of(from) ?: return value
+        val t = of(to) ?: return value
+        return when {
+            f == t -> value
+            t == IN -> value / CM_PER_IN
+            else -> value * CM_PER_IN
+        }
+    }
+}
+
+/**
+ * Body measurement units (#117, #7): a weight is shown in the weight unit and a length in the length unit; any other
+ * unit (%, bpm, a custom one) is left alone. Values are stored in the unit they were logged in.
+ */
+object MeasureUnits {
+    /** The unit [unit] is shown in, given the user's weight and length units. */
+    fun display(unit: String?, weightUnit: String, lengthUnit: String): String? = when {
+        WeightUnits.of(unit) != null -> weightUnit
+        LengthUnits.of(unit) != null -> lengthUnit
+        else -> unit
+    }
+
+    /** Both are weights, or both are lengths, so one converts to the other. */
+    fun sameKind(a: String?, b: String?): Boolean =
+        (WeightUnits.of(a) != null && WeightUnits.of(b) != null) || (LengthUnits.of(a) != null && LengthUnits.of(b) != null)
+
+    /** [value] in [from] expressed in [to]; unchanged unless they're the same kind and differ. */
+    fun convert(value: Double, from: String?, to: String?): Double =
+        if (WeightUnits.of(from) != null) WeightUnits.convert(value, from, to) else LengthUnits.convert(value, from, to)
+
+    fun shown(d: MeasurementDef, weightUnit: String, lengthUnit: String): MeasurementDef {
+        val to = display(d.unit, weightUnit, lengthUnit) ?: return d
+        return if (to == d.unit) d else d.copy(unit = to, goalValue = convert(d.goalValue, d.unit, to))
+    }
+
+    fun shown(r: MRecord, weightUnit: String, lengthUnit: String): MRecord {
+        val to = display(r.unit, weightUnit, lengthUnit) ?: return r
+        return if (to == r.unit) r else r.copy(unit = to, value = convert(r.value, r.unit, to))
+    }
 }

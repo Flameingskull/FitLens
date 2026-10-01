@@ -223,7 +223,12 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
             } ?: emptyList()
             val shown = inRange(daily, RANGES[rangeIdx].second) { it.date }
             val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
-            val unit = if (g.isWeight) snap.weightUnit else if (g.isTime) "min" else ""
+            val unit = when {
+                g.isWeight -> snap.weightUnit
+                g.isTime -> "min"
+                g.label == GRAPH_DISTANCE -> snap.distanceUnit(exId)
+                else -> ""
+            }
             LineChart(
                 listOf(LineSeries(g.label, shown)),
                 Modifier.padding(horizontal = 8.dp),
@@ -318,7 +323,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                     }
                     // The day's totals (#22): volume and reps for strength, distance and time for cardio.
                     Text(
-                        dayTotals(snap, l).uppercase(),
+                        dayTotals(snap, exId, l).uppercase(),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -326,7 +331,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                         val marks = setMarks(s)
                         SetRowView(
                             index = i + 1,
-                            summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec),
+                            summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
                             cells = setCells(snap, fields, s),
                             comment = s.comment,
                             isPr = s.isPr,
@@ -364,7 +369,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
 }
 
 /** One day's totals for an exercise's history: sets, then reps and volume, or distance and time (#22). */
-private fun dayTotals(snap: Snapshot, sets: List<SetRow>): String {
+private fun dayTotals(snap: Snapshot, exId: Long, sets: List<SetRow>): String {
     val parts = mutableListOf("${sets.size} set${if (sets.size == 1) "" else "s"}")
     val reps = sets.sumOf { it.reps }
     val volume = sets.sumOf { it.weightKg * it.reps }
@@ -372,7 +377,7 @@ private fun dayTotals(snap: Snapshot, sets: List<SetRow>): String {
     val time = sets.sumOf { it.durationSec }
     if (reps > 0) parts += "$reps reps"
     if (volume > 0) parts += "${fmtNum(snap.weight(volume), 0)} ${snap.weightUnit} volume"
-    if (distance > 0) parts += "${fmtNum(distance)} distance"
+    if (distance > 0) parts += "${fmtNum(distance)} ${snap.distanceUnit(exId)}"
     if (time > 0) parts += fmtDuration(time)
     return parts.joinToString("  ·  ")
 }

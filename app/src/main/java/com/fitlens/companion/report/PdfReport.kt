@@ -374,8 +374,8 @@ object PdfReport {
             c.drawText(shown, cols[0], w.y + 9f, boldP)
             c.drawText(exSets.map { it.date }.distinct().size.toString(), cols[1], w.y + 9f, rowP)
             val best = exSets.maxByOrNull { e1rm(it) }?.takeIf { e1rm(it) > 0 }
-            val bestText = if (best != null) describeSet(snap, best.weightKg, best.reps, best.distance, best.durationSec)
-            else exSets.maxByOrNull { it.distance + it.durationSec }?.let { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec) } ?: "—"
+            val bestText = if (best != null) describeSet(snap, best.weightKg, best.reps, best.distance, best.durationSec, best.exerciseId)
+            else exSets.maxByOrNull { it.distance + it.durationSec }?.let { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec, it.exerciseId) } ?: "—"
             c.drawText(bestText, cols[2], w.y + 9f, rowP)
             c.drawText(best?.let { "${fmtNum(snap.weight(e1rm(it)), 1)} ${snap.weightUnit}" } ?: "—", cols[3], w.y + 9f, rowP)
             w.y += 15f
@@ -465,7 +465,7 @@ object PdfReport {
                     w.c.drawText(snap.exercises[exId]?.name ?: "Exercise #$exId", M + 10f, w.y + 9.5f, bold)
                     w.y += 14f
                     val setText = exSets.mapIndexed { i, s ->
-                        "${i + 1}. " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec) + if (s.isPr) " (PR)" else ""
+                        "${i + 1}. " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId) + if (s.isPr) " (PR)" else ""
                     }.joinToString("     ")
                     wrap(setText, text, CW - 10f).forEach { l -> line(12.5f); w.c.drawText(l, M + 10f, w.y + 9f, text); w.y += 12.5f }
                     exSets.filter { !it.comment.isNullOrBlank() }.forEach { s ->

@@ -327,7 +327,7 @@ private fun ExerciseLines(snap: Snapshot, day: String, exId: Long) {
     val exSets = snap.setsByDate[day].orEmpty().filter { it.exerciseId == exId }
     Text(snap.exercises[exId]?.name ?: "Exercise #$exId", style = MaterialTheme.typography.bodyLarge)
     Text(
-        exSets.joinToString(", ") { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec) },
+        exSets.joinToString(", ") { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec, it.exerciseId) },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 2,

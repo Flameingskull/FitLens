@@ -62,7 +62,7 @@ data class CalendarFilter(
         maxWeightKg?.let { "≤ ${snap.fmtWeight(it)} ${snap.weightUnit}" },
         minReps?.let { "≥ $it reps" },
         maxReps?.let { "≤ $it reps" },
-        minDistance?.let { "≥ ${fmtNum(it)} distance" },
+        minDistance?.let { "≥ ${fmtNum(it)} ${exerciseId?.let { id -> snap.distanceUnit(id) } ?: snap.globalDistanceUnit}" },
         minDurationSec?.let { "≥ ${fmtDuration(it)}" }
     ).joinToString("  ·  ")
 
@@ -146,7 +146,8 @@ fun CalendarFilterSheet(snap: Snapshot, initial: CalendarFilter, onApply: (Calen
         )
         NumberPair("Weight at least (${snap.weightUnit})", minW, { minW = it }, "at most", maxW, { maxW = it })
         NumberPair("Reps at least", minR, { minR = it }, "at most", maxR, { maxR = it }, decimal = false)
-        NumberPair("Distance at least", minD, { minD = it }, "Time at least (min)", minT, { minT = it })
+        // Distances are compared as logged, in the chosen exercise's unit or the global one (#7).
+        NumberPair("Distance at least (${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit})", minD, { minD = it }, "Time at least (min)", minT, { minT = it })
     }
 
     when (picking) {

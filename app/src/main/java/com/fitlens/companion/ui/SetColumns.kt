@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.data.DistanceUnits
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
@@ -50,8 +51,8 @@ fun spokenDuration(sec: Int): String {
 
 /**
  * A set's values in the order of [fields], ready for `SetRow(cells = …)`, each with its unit after it as FitNotes shows
- * them (#112): "85 kg", "6 reps", "1:30". FitLens has no distance unit yet (#7), so distance says "dist". An empty
- * value shows as a dash.
+ * them (#112): "85 kg", "6 reps", "5 km", "1:30". Distance is in the exercise's unit (#7). An empty value shows as
+ * a dash.
  */
 fun setCells(snap: Snapshot, fields: List<SetField>, s: SetRow): List<SetCell> = fields.map { f ->
     when (f) {
@@ -69,7 +70,10 @@ fun setCells(snap: Snapshot, fields: List<SetField>, s: SetRow): List<SetCell> =
             if (s.reps > 0) SetCell("${s.reps}", if (s.reps == 1) "rep" else "reps", "${s.reps} rep${if (s.reps == 1) "" else "s"}")
             else SetCell("—", spoken = "no reps")
         SetField.DISTANCE ->
-            if (s.distance > 0) fmtNum(s.distance).let { SetCell(it, "dist", "distance $it") }
+            if (s.distance > 0) {
+                val unit = snap.distanceUnit(s.exerciseId)
+                fmtNum(s.distance).let { SetCell(it, unit, "$it ${DistanceUnits.spoken(unit)}") }
+            }
             else SetCell("—", spoken = "no distance")
         SetField.TIME ->
             if (s.durationSec > 0) SetCell(fmtDuration(s.durationSec), spoken = spokenDuration(s.durationSec), unitSlot = false)

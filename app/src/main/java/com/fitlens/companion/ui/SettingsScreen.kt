@@ -28,8 +28,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.DistanceUnits
 import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.ImportSummary
+import com.fitlens.companion.data.LengthUnits
 import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.Settings
@@ -55,7 +57,7 @@ enum class SettingsSection(val title: String, val summary: String, val group: St
     // FitNotes imports lived on the Sync tab until #35 moved them here.
     Import("FitNotes import", "Import a FitNotes backup any time, or sync its backup folder", "Data, backup & import"),
     DataTools("Data tools", "Export to CSV, delete workout history", "Data, backup & import"),
-    Units("Units & display", "Kilograms or pounds, weight step, week start and the day log", "Training"),
+    Units("Units & display", "Weight, distance and length units, weight step, week start and the day log", "Training"),
     Logging("Workout & logging", "Screen on, filling in new sets, effort, set types and the workout timer", "Training"),
     // The rest timer's options lived only in its sheet until #86 gave them a page.
     Rest("Rest timer", "Rest length, starting after a set, vibration and sound", "Training"),
@@ -81,6 +83,8 @@ private val CATALOGUE = listOf(
     SettingEntry("Delete workout history", SettingsSection.DataTools, "erase remove clear"),
     SettingEntry("Weight unit", SettingsSection.Units, "kg kilograms lbs pounds"),
     SettingEntry("Weight step", SettingsSection.Units, "increment plus minus stepper"),
+    SettingEntry("Distance unit", SettingsSection.Units, "km kilometres miles metres cardio running"),
+    SettingEntry("Length unit", SettingsSection.Units, "cm centimetres inches body measurements waist"),
     SettingEntry("Week starts on", SettingsSection.Units, "monday sunday saturday calendar"),
     SettingEntry("Show categories on the day log", SettingsSection.Units, "colour home"),
     SettingEntry("Sets shown per exercise", SettingsSection.Units, "day log home cards"),
@@ -190,6 +194,20 @@ private fun UnitsPage() {
         Settings.updatePortable { it.copy(weightUnit = unit, weightUnitManual = true) }
     }
     WeightStepRow(prefs.weightUnit, prefs.weightIncrementKg)
+    // Distance and length units (#7).
+    SettingsGroup("Distance and length")
+    SettingsChoiceRow(
+        "Distance unit",
+        DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
+        DistanceUnits.ALL.indexOf(prefs.distanceUnit).coerceAtLeast(0),
+        summary = "The unit distances are logged in. An exercise can have its own. Logged distances aren't converted."
+    ) { i -> Settings.updatePortable { it.copy(distanceUnit = DistanceUnits.ALL[i]) } }
+    SettingsChoiceRow(
+        "Length unit",
+        listOf("Centimetres (cm)", "Inches (in)"),
+        if (prefs.lengthUnit == LengthUnits.IN) 1 else 0,
+        summary = "How body measurements such as your waist are shown and entered. Your logged values aren't changed."
+    ) { i -> Settings.updatePortable { it.copy(lengthUnit = if (i == 1) LengthUnits.IN else LengthUnits.CM) } }
     SettingsGroup("Calendar")
     val days = listOf(1 to "Monday", 6 to "Saturday", 7 to "Sunday")
     SettingsChoiceRow(
@@ -230,6 +248,23 @@ private fun WeightStepRow(unit: String, currentKg: Double?) {
         val kg = if (i == 0) null else toKg(choices[i - 1])
         Settings.updatePortable { it.copy(weightIncrementKg = kg) }
     }
+}
+
+/** The distance and length units (#7), as first-run setup asks them. */
+@Composable
+internal fun DistanceAndLengthSetting(distanceUnit: String, lengthUnit: String) {
+    SectionTitle("Distances")
+    com.fitlens.companion.ui.design.SegmentedSwitch(
+        options = DistanceUnits.ALL.map { DistanceUnits.label(it) },
+        selected = DistanceUnits.ALL.indexOf(distanceUnit).coerceAtLeast(0),
+        onSelect = { i -> Settings.updatePortable { it.copy(distanceUnit = DistanceUnits.ALL[i]) } }
+    )
+    SectionTitle("Body measurements")
+    com.fitlens.companion.ui.design.SegmentedSwitch(
+        options = listOf("Centimetres", "Inches"),
+        selected = if (lengthUnit == LengthUnits.IN) 1 else 0,
+        onSelect = { i -> Settings.updatePortable { it.copy(lengthUnit = if (i == 1) LengthUnits.IN else LengthUnits.CM) } }
+    )
 }
 
 /** The first day of the week for the calendar and weekly analysis (#7), as first-run setup asks it. */

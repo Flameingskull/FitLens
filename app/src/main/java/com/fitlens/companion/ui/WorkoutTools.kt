@@ -208,7 +208,7 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         exercises.filter { it in ticked }.forEach { exId ->
             append('\n').append(snap.exercises[exId]?.name ?: "Exercise").append('\n')
             sets.filter { it.exerciseId == exId }.forEachIndexed { i, s ->
-                append("  ").append(i + 1).append(". ").append(describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec))
+                append("  ").append(i + 1).append(". ").append(describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId))
                 if (withPrs && s.isPr) append("  (PR)")
                 if (!s.comment.isNullOrBlank()) append("  “").append(s.comment).append('”')
                 append('\n')
