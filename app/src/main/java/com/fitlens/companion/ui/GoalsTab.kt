@@ -57,12 +57,13 @@ internal fun goalUnit(snap: Snapshot, kind: Int): String = when {
 
 /** The goal kind whose line belongs on the exercise graph called [graphLabel], or null (#25). */
 internal fun goalKindForGraph(graphLabel: String): Int? = when (graphLabel) {
-    "Est. 1RM" -> GoalKinds.E1RM
-    "Max weight" -> GoalKinds.MAX_WEIGHT
-    "Volume" -> GoalKinds.WORKOUT_VOLUME
-    "Max reps" -> GoalKinds.MAX_REPS
-    "Longest set" -> GoalKinds.LONGEST_SET
-    "Distance" -> GoalKinds.WORKOUT_DISTANCE
+    GRAPH_E1RM -> GoalKinds.E1RM
+    GRAPH_MAX_WEIGHT -> GoalKinds.MAX_WEIGHT
+    GRAPH_WORKOUT_VOLUME -> GoalKinds.WORKOUT_VOLUME
+    GRAPH_MAX_REPS -> GoalKinds.MAX_REPS
+    GRAPH_MAX_VOLUME -> GoalKinds.SET_VOLUME
+    GRAPH_LONGEST -> GoalKinds.LONGEST_SET
+    GRAPH_DISTANCE -> GoalKinds.WORKOUT_DISTANCE
     else -> null
 }
 

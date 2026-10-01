@@ -46,6 +46,8 @@ import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.FitTabRow
+import com.fitlens.companion.ui.design.StepperField
+import androidx.compose.ui.text.input.KeyboardType
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 
 /** Estimated one-rep max in kg (see [Records.factor] for the formula). */
@@ -56,19 +58,52 @@ internal fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolea
 
 /**
  * The graph names an exercise offers, in order: the same lists [ExerciseGraphPane] builds (#15 stores the index). A
- * time-based FitLens type that also records weight or reps (#14) gets those graphs after the time ones, so the
- * indices of the older lists never move.
+ * time-based FitLens type that also records weight or reps (#14) gets those graphs after the time ones, and FitNotes's
+ * extra graphs (#22) come after the older ones, so a saved default graph keeps pointing at the same graph. The names
+ * are FitNotes's (#22): "Estimated 1RM", "Workout volume", "Workout reps".
  */
 fun graphLabels(type: Int, timeBased: Boolean): List<String> =
     if (timeBased) {
-        listOf("Longest set", "Total time", "Distance") +
-            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesWeight(type)) listOf("Max weight") else emptyList()) +
-            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesReps(type)) listOf("Total reps") else emptyList())
+        listOf(GRAPH_LONGEST, GRAPH_TOTAL_TIME, GRAPH_DISTANCE) +
+            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesWeight(type)) listOf(GRAPH_MAX_WEIGHT) else emptyList()) +
+            (if (type > ExerciseTypes.TIME && ExerciseTypes.usesReps(type)) listOf(GRAPH_WORKOUT_REPS) else emptyList())
     } else {
-        listOf("Est. 1RM", "Max weight", "Volume", "Total reps", "Max reps")
+        listOf(
+            GRAPH_E1RM, GRAPH_MAX_WEIGHT, GRAPH_WORKOUT_VOLUME, GRAPH_WORKOUT_REPS, GRAPH_MAX_REPS,
+            GRAPH_MAX_VOLUME, GRAPH_WEIGHT_FOR_REPS, GRAPH_RECORDS
+        )
     }
 
-private data class GraphType(val label: String, val fn: (List<SetRow>) -> Double, val isWeight: Boolean, val isTime: Boolean = false)
+internal const val GRAPH_E1RM = "Estimated 1RM"
+internal const val GRAPH_MAX_WEIGHT = "Max weight"
+internal const val GRAPH_WORKOUT_VOLUME = "Workout volume"
+internal const val GRAPH_WORKOUT_REPS = "Workout reps"
+internal const val GRAPH_MAX_REPS = "Max reps"
+internal const val GRAPH_MAX_VOLUME = "Max volume"
+internal const val GRAPH_WEIGHT_FOR_REPS = "Max weight for reps"
+internal const val GRAPH_RECORDS = "Personal records"
+internal const val GRAPH_LONGEST = "Longest set"
+internal const val GRAPH_TOTAL_TIME = "Total time"
+internal const val GRAPH_DISTANCE = "Distance"
+
+/**
+ * One graph: [fn] gives a day's value from its sets, or [series] gives the whole line at once for a graph that
+ * depends on earlier days (Personal records).
+ */
+private data class GraphType(
+    val label: String,
+    val fn: (List<SetRow>) -> Double,
+    val isWeight: Boolean,
+    val isTime: Boolean = false,
+    val series: ((Map<String, List<SetRow>>) -> List<Pair<String, Double>>)? = null
+)
+
+/** The rep count each exercise's "Max weight for reps" graph shows (#22), kept while the app is open. */
+private object RepsForGraph {
+    private val chosen = HashMap<Long, Int>()
+    fun get(exId: Long): Int = chosen[exId] ?: 5
+    fun set(exId: Long, reps: Int) { chosen[exId] = reps }
+}
 
 /**
  * An exercise's records, stats and goals (#89). Its graph and history now sit on the exercise screen's tabs (#82), as in
@@ -106,16 +141,21 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     val sets = snap.setsByExercise[exId] ?: emptyList()
     val timeBased = isTimeBased(snap, exId, sets)
     val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
-    val graphTypes = remember(timeBased, type) {
+    var repsFor by remember(exId) { mutableIntStateOf(RepsForGraph.get(exId)) }
+    val graphTypes = remember(timeBased, type, repsFor) {
         val all = listOf(
-            GraphType("Longest set", { l -> l.maxOf { it.durationSec }.toDouble() }, false, true),
-            GraphType("Total time", { l -> l.sumOf { it.durationSec }.toDouble() }, false, true),
-            GraphType("Distance", { l -> l.sumOf { it.distance } }, false),
-            GraphType("Est. 1RM", { l -> l.maxOf { e1rm(it) } }, true),
-            GraphType("Max weight", { l -> l.maxOf { it.weightKg } }, true),
-            GraphType("Volume", { l -> l.sumOf { it.weightKg * it.reps } }, true),
-            GraphType("Total reps", { l -> l.sumOf { it.reps }.toDouble() }, false),
-            GraphType("Max reps", { l -> l.maxOf { it.reps }.toDouble() }, false)
+            GraphType(GRAPH_LONGEST, { l -> l.maxOf { it.durationSec }.toDouble() }, false, true),
+            GraphType(GRAPH_TOTAL_TIME, { l -> l.sumOf { it.durationSec }.toDouble() }, false, true),
+            GraphType(GRAPH_DISTANCE, { l -> l.sumOf { it.distance } }, false),
+            GraphType(GRAPH_E1RM, { l -> l.maxOf { e1rm(it) } }, true),
+            GraphType(GRAPH_MAX_WEIGHT, { l -> l.maxOf { it.weightKg } }, true),
+            GraphType(GRAPH_WORKOUT_VOLUME, { l -> l.sumOf { it.weightKg * it.reps } }, true),
+            GraphType(GRAPH_WORKOUT_REPS, { l -> l.sumOf { it.reps }.toDouble() }, false),
+            GraphType(GRAPH_MAX_REPS, { l -> l.maxOf { it.reps }.toDouble() }, false),
+            // FitNotes's extra graphs (#22): the best single set, the heaviest at a chosen rep count, and the records.
+            GraphType(GRAPH_MAX_VOLUME, { l -> l.maxOf { it.weightKg * it.reps } }, true),
+            GraphType(GRAPH_WEIGHT_FOR_REPS, { l -> Records.maxWeightForReps(l, repsFor) }, true),
+            GraphType(GRAPH_RECORDS, { 0.0 }, true, series = { byDate -> Records.recordProgress(byDate) })
         ).associateBy { it.label }
         graphLabels(type, timeBased).map { all.getValue(it) }
     }
@@ -149,6 +189,25 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
             ) {
                 graphTypes.forEachIndexed { i, t -> FilterChip(selected = gIdx == i, onClick = { gIdx = i }, label = { Text(t.label) }) }
             }
+            // "Max weight for reps" (#22): which rep count, 1 to 15, kept for this exercise while the app is open.
+            if (g.label == GRAPH_WEIGHT_FOR_REPS) {
+                StepperField(
+                    label = "Reps",
+                    value = repsFor.toString(),
+                    onValue = { v -> v.trim().toIntOrNull()?.coerceIn(1, Records.MAX_REPS)?.let { repsFor = it; RepsForGraph.set(exId, it) } },
+                    onStep = { dir -> (repsFor + dir).coerceIn(1, Records.MAX_REPS).let { repsFor = it; RepsForGraph.set(exId, it) } },
+                    keyboard = KeyboardType.Number,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+            }
+            if (g.label == GRAPH_RECORDS) {
+                Text(
+                    "Each point is a day you set a personal record, at the best estimated 1RM of your records so far.",
+                    Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { rangeIdx = i }, label = { Text(r.first) }) }
             }
@@ -164,9 +223,9 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
         item {
             // Worked out off the main thread, once per snapshot and graph type (#50).
             val daily = rememberChartData(statByDate, g, snap.weightUnit) {
-                statByDate.entries.map { (d, l) ->
-                    val raw = g.fn(l)
-                    ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(raw) else if (g.isTime) raw / 60.0 else raw, d)
+                val raw = g.series?.invoke(statByDate) ?: statByDate.entries.map { (d, l) -> d to g.fn(l) }
+                raw.map { (d, v) ->
+                    ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(v) else if (g.isTime) v / 60.0 else v, d)
                 }.filter { it.y > 0 }
             } ?: emptyList()
             val shown = inRange(daily, RANGES[rangeIdx].second) { it.date }
@@ -283,7 +342,9 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                             badge = marks.badge,
                             badgeSpoken = marks.badgeSpoken,
                             effort = marks.effort,
-                            effortSpoken = marks.effortSpoken
+                            effortSpoken = marks.effortSpoken,
+                            // Tapping a set opens it on the exercise screen, selected for Update or Delete (#22).
+                            onClick = { nav.push(Screen.SetEntry(d, exId, setId = s.id)) }
                         )
                     }
                     // The exercise's comment in that day's workout (#107).

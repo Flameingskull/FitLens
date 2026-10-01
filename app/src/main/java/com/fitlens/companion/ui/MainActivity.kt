@@ -34,6 +34,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,9 +83,15 @@ sealed interface Screen {
     /**
      * The exercise screen (#16, #82): Track, History and Graph for one exercise on one day. [queue] holds the exercises
      * chosen together in the library (#83), opened one after another with "Next exercise". [page] is the tab it opens
-     * on: 0 Track, 1 History, 2 Graph.
+     * on: 0 Track, 1 History, 2 Graph. [setId] opens Track with that set selected for Update or Delete (#22).
      */
-    data class SetEntry(val date: String, val exerciseId: Long, val queue: List<Long> = emptyList(), val page: Int = 0) : Screen
+    data class SetEntry(
+        val date: String,
+        val exerciseId: Long,
+        val queue: List<Long> = emptyList(),
+        val page: Int = 0,
+        val setId: Long? = null
+    ) : Screen
     data class ExerciseDetail(val id: Long) : Screen
     data class PhotoViewer(val ids: List<Long>, val index: Int) : Screen
     data class Compare(val a: Long, val b: Long) : Screen
@@ -276,7 +283,10 @@ fun AppRoot(nav: Nav) {
                     Screen.Photos -> PhotosScreen(s, nav)
                     is Screen.Day -> DayScreen(s, nav, top.date)
                     is Screen.Library -> ExerciseLibraryScreen(s, nav, top.date)
-                    is Screen.SetEntry -> SetEntryScreen(s, nav, top.date, top.exerciseId, top.queue, top.page)
+                    // A set opened from History is a fresh screen, on Track with that set selected (#22).
+                    is Screen.SetEntry -> key(top.setId) {
+                        SetEntryScreen(s, nav, top.date, top.exerciseId, top.queue, top.page, top.setId)
+                    }
                     is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, top.id)
                     is Screen.PhotoViewer -> PhotoViewerScreen(s, nav, top.ids, top.index)
                     is Screen.Compare -> CompareScreen(s, nav, top.a, top.b)

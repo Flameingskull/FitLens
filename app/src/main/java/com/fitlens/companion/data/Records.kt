@@ -96,6 +96,26 @@ object Records {
     fun isNewRecord(weightKg: Double, reps: Int, bestKg: Double?): Boolean =
         weightKg > 0 && reps > 0 && (bestKg == null || weightKg > bestKg)
 
+    /** The heaviest weight in [sets] lifted for exactly [reps] reps, or 0 when there's none ("Max weight for reps", #22). */
+    fun maxWeightForReps(sets: List<SetRow>, reps: Int): Double =
+        sets.filter { it.reps == reps && it.weightKg > 0 }.maxOfOrNull { it.weightKg } ?: 0.0
+
+    /**
+     * The "Personal records" graph (#22): one point for each date, in date order, that has a set marked as a PR,
+     * valued at the best estimated 1RM of all the PR sets so far. Built from the PR marks themselves, so it agrees with
+     * the trophies, and it never falls.
+     */
+    fun recordProgress(byDate: Map<String, List<SetRow>>, formula: Formula = chosen()): List<Pair<String, Double>> {
+        var best = 0.0
+        return byDate.entries.sortedBy { it.key }.mapNotNull { (date, sets) ->
+            val prs = sets.filter { it.isPr && it.weightKg > 0 && it.reps > 0 }
+            if (prs.isEmpty()) null else {
+                best = maxOf(best, prs.maxOf { oneRepMax(it.weightKg, it.reps, formula) })
+                date to best
+            }
+        }
+    }
+
     /** Record periods for the Records tab. */
     enum class Period(val label: String) { WORKOUT("Workout"), WEEK("Week"), MONTH("Month"), YEAR("Year"), ALL("All") }
 

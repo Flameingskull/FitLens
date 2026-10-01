@@ -119,7 +119,16 @@ private fun parseDuration(s: String): Int {
 }
 
 @Composable
-fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, queue: List<Long> = emptyList(), page: Int = 0) {
+fun SetEntryScreen(
+    snap: Snapshot,
+    nav: Nav,
+    date: String,
+    exerciseId: Long,
+    queue: List<Long> = emptyList(),
+    page: Int = 0,
+    /** A set to open selected, from History (#22). */
+    selectSet: Long? = null
+) {
     val ex = snap.exercises[exerciseId]
     val allSets = snap.setsByExercise[exerciseId] ?: emptyList()
     val sets = remember(snap, date, exerciseId) { allSets.filter { it.date == date } }
@@ -146,7 +155,7 @@ fun SetEntryScreen(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, que
         }
     }
 
-    var selected by remember(date, exerciseId) { mutableStateOf<Long?>(null) }
+    var selected by remember(date, exerciseId) { mutableStateOf(selectSet) }
     var weight by remember(date, exerciseId) { mutableStateOf("") }
     var reps by remember(date, exerciseId) { mutableStateOf("") }
     var distance by remember(date, exerciseId) { mutableStateOf("") }

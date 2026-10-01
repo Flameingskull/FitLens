@@ -30,7 +30,7 @@ object GoalKinds {
 
     fun label(k: Int): String = when (k) {
         MAX_WEIGHT -> "Max weight"
-        E1RM -> "Est. 1RM"
+        E1RM -> "Estimated 1RM"
         MAX_REPS -> "Max reps in a set"
         SET_VOLUME -> "Volume in one set"
         WORKOUT_VOLUME -> "Volume in one workout"
