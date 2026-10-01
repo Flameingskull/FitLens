@@ -88,3 +88,9 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   Release runs share one concurrency group and skip a commit that already has a `build-*` tag, after one push
   published 1.0.52 and 1.0.53 twice. A release's number is run number + 3 and can jump if a run is used up; read the
   actual release name from `gh release list` after the build rather than assuming latest + 1.
+- 1.0.54 (#60 slice, #96): writes no longer reload everything. `Workouts.write(areas)` refreshes only the named
+  `Area`s; set-only writes that don't replay PRs use `writeSets` and name their exercises or dates in the scope
+  (look up a set's exercise *before* deleting it). A write that forgets an area leaves that part of the screen stale,
+  so name every area a new write touches. Still open on #60: per-area flows so unrelated screens don't recompose, and
+  timing on a large real dataset. Full-screen graphs zoom values via `ChartViewport.yFrom`/`yTo`; bar charts pass
+  `valueZoom = false`.

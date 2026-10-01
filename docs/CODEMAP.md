@@ -24,10 +24,17 @@ Last updated: 1.0.54.
 - **Reads:** `data/Store.kt` loads everything into one immutable `Snapshot` and publishes it as
   `Store.snapshot: StateFlow<Snapshot?>`. Screens take `snap: Snapshot` as a parameter. `Snapshot` has the lookups
   (`exercises`, `categories`, `setsByExercise`, `setsByDate`, `photosByDate`, `recordsByName`) and unit helpers
-  (`weight(kg)`, `toKg(shown)`, `fmtWeight(kg)`, `weightUnit`).
-- **Writes:** workout data goes through `data/Workouts.kt`. Its private `write { w -> }` runs one transaction on
-  `Dispatchers.IO`, then calls `Store.reload()`, so the UI updates on its own. Photo and measurement writes live in
-  `Store` itself. Every write reloads the whole snapshot (#60 tracks making this incremental).
+  (`weight(kg)`, `toKg(shown)`, `fmtWeight(kg)`, `weightUnit`). Since 1.0.54 (#60) the snapshot is built from one
+  part per `Area` (`LibraryPart`, `SetPart`, `NotesPart`, `BodyPart`, `PhotoPart`, each with its own lookups); its
+  public properties delegate to them, so screens don't see the split.
+- **Writes:** workout data goes through `data/Workouts.kt`. Its private `write(areas) { w -> }` runs one transaction
+  on `Dispatchers.IO`, then `Store.refresh(areas)` re-reads only those areas and shares the rest (default
+  `Area.WORKOUT`; library-only writes pass `LIBRARY`, comments and times `NOTES`). Small set writes that don't replay
+  PRs use `writeSets { w, scope -> }`: name the touched exercises or dates in `scope` (before a delete, while the rows
+  exist) and `Store.refreshSets` re-reads just those and merges them (`mergeSets`). Photo and measurement writes live
+  in `Store` and refresh `PHOTOS` / `BODY`; `Goals` and `Routines` refresh `LIBRARY`; a preference change calls
+  `Store.refresh()` (no read). `Store.reload()` (everything, preferences included) is for start-up, imports and restores.
+  **A new write must name every area it changes**, or the screen shows stale data.
 - **Ownership:** each row has `source` = `Sources.FITLENS` or `Sources.FITNOTES` (`data/Models.kt`). FitNotes
   imports merge and never overwrite FitLens rows. Editing or deleting an imported row records an `import_rule` so
   re-imports respect the change.
@@ -41,7 +48,7 @@ Last updated: 1.0.54.
 | --- | --- |
 | `Db.kt` | Schema, `VERSION`, `onUpgrade` migrations, `meta` get/set/`deleteMeta`, `Cursor` helpers (`str`, `dbl`, `int`, `lng`) |
 | `Models.kt` | Row types (`Category`, `Exercise`, `SetRow` with `setType` and `rpe`, `MeasurementDef`, `MRecord`, `Photo`, `WorkoutTime`), `Sources`, `ExerciseTypes` (FitNotes ids 0–3 plus FitLens types 4–9, #14; `uses*` and `timeBased` drive fields, columns, graphs and records), `SetTypes` (W/D/F badges), `Effort` (RPE/RIR), `Poses`, `Dates` |
-| `Store.kt` | `Snapshot` (`exerciseComments`: date → exercise → comment, #107; `allMeasurements`; `usedMeasurements` leaves out those switched off, #27) and `Store` (load and reload, photo and measurement writes: `addManualRecord`, `updateRecord`, `setMeasurementEnabled`, `addStandardMeasurements`, custom metrics) |
+| `Store.kt` | `Area`, the snapshot parts and `mergeSets` (#60); `Snapshot` (`exerciseComments`: date → exercise → comment, #107; `allMeasurements`; `usedMeasurements` leaves out those switched off, #27) and `Store` (`reload`, `refresh(areas)`, `refreshSets`, one `Mutex` for snapshot updates; photo and measurement writes: `addManualRecord`, `updateRecord`, `setMeasurementEnabled`, `addStandardMeasurements`, custom metrics) |
 | `Workouts.kt` | Categories, exercises and sets: add, update, delete, copy or move workouts (`copyWorkout` returns the new ids), workout comments, exercise comments (#107: `setExerciseComment`, `setExerciseComments` for Undo; copy, move, delete, `deleteHistory`, `deleteSets` and merges carry them), times, undo helpers (`addSets`, `deleteSets`, `moveSets`), `reorderCategories`, `logPlanned` (a workout day's sets, PR replay), `swapExercise` / `setExerciseOf`, `recalculatePrs`, `deleteHistory` (range and/or exercises, skip rules, PR replay in one transaction), `mergeExercises` (#57: moves sets, goals and workout-day entries, re-points import rules and re-keys set skips, PR replay) |
 | `Records.kt` | 1RM estimate (`factor`, `oneRepMax`, `weightFor`; `Formula` and `chosen()`, the user's formula, #42), rep maxes (`repMax`, superseding rule), `isNewRecord`, `Period` and `between` filters. `Workouts.recalculatePrs` replays history with it |
 | `FitNotesImporter.kt` | `.fitnotes` import (merge-only), body CSV import, `ImportSummary` |
@@ -90,8 +97,8 @@ Last updated: 1.0.54.
 | `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
 | `BodyScreen.kt` | Body tracker (#88): Track (latest value, change, goal; tap logs via `AddMeasurementDialog(initialName)`), History and Graph tabs. Also `RANGES` and `inRange` for charts |
-| `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, gaps, markers), `ChartSelection`, `ChartViewport`, `trendOf`, `rememberChartData` (off-main-thread data) |
-| `ChartViews.kt` | `BarChart` (trend, partial last bar), `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch, pan, reset, TalkBack actions, a `controls` slot), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
+| `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, gaps, markers), `ChartSelection`, `ChartViewport` (time `from`/`to` and values `yFrom`/`yTo`, #96), `trendOf`, `rememberChartData` (off-main-thread data) |
+| `ChartViews.kt` | `BarChart` (trend, partial last bar), `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch split by direction: across zooms time, up and down zooms values unless `valueZoom = false` for bar charts, #96; pan, reset, TalkBack actions, a `controls` slot; `detectAxisTransformGestures`), `GraphOptionChips` (range, Trend, From zero), `ExpandGraphButton`, `ChartHint` |
 | `CalendarScreen.kt` | FitNotes-style calendar (#87): month grid with swipe, category dots, selected day below with Open day (`nav.home(date)`), the filter bar and dimmed non-matching days (#9) |
 | `CalendarFilter.kt` | The calendar filter (#9): `CalendarFilter` (conditions one set must meet, `days`, `describe`, `encode`/`decode` into `DeviceSettings.calendarFilter`) and `CalendarFilterSheet` |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
@@ -144,7 +151,7 @@ Last updated: 1.0.54.
 - **Tests (#40):** JVM unit tests with Robolectric in `app/src/test` (`./gradlew testDebugUnitTest`), run by CI before
   every release build; a failure stops the release and its names land in `errors.txt`. `data/DbMigrationTest.kt`
   builds older databases by hand (v1, v2, v12, v13; schemas in `OldSchemas.kt`) and opens them with `Db`;
-  `FitNotesImporterTest` merges a synthetic FitNotes backup through `FitNotesImporter.merge`; `BackupsTest` covers
+  `FitNotesImporterTest` merges a synthetic FitNotes backup through `FitNotesImporter.merge`; `StoreMergeTest` checks `mergeSets` against a full reload (#60); `ui/ChartViewportTest` covers full-screen zoom; `BackupsTest` covers
   `Backups.writeArchive`, `unpack` and `installDatabase`. All use a plain `Application`, so `Store` and `Settings`
   don't start: test seams take a database or file, not the singletons. **Every database change adds an upgrade test**,
   and every change to the importer's rules or the archive format adds a case.

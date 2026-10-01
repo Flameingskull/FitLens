@@ -297,14 +297,13 @@ object Store {
         val prefs = Settings.currentPortable()
         // Weekly analysis follows the week-start setting (#7).
         Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
-        val keep = old
         return Snapshot(
-            library = if (keep == null || Area.LIBRARY in areas) loadLibrary(r) else keep.library,
-            setPart = if (keep == null || Area.SETS in areas) SetPart(loadSets(r, null, emptyArray()), prefs.warmupsCount)
-                else keep.setPart.withWarmups(prefs.warmupsCount),
-            notes = if (keep == null || Area.NOTES in areas) loadNotes(r) else keep.notes,
-            body = if (keep == null || Area.BODY in areas) loadBody(r) else keep.body,
-            photoPart = if (keep == null || Area.PHOTOS in areas) loadPhotos(r) else keep.photoPart,
+            library = if (old == null || Area.LIBRARY in areas) loadLibrary(r) else old.library,
+            setPart = if (old == null || Area.SETS in areas) SetPart(loadSets(r, null, emptyArray()), prefs.warmupsCount)
+                else old.setPart.withWarmups(prefs.warmupsCount),
+            notes = if (old == null || Area.NOTES in areas) loadNotes(r) else old.notes,
+            body = if (old == null || Area.BODY in areas) loadBody(r) else old.body,
+            photoPart = if (old == null || Area.PHOTOS in areas) loadPhotos(r) else old.photoPart,
             weightUnit = prefs.weightUnit,
             photoDir = photoDir,
             weekStart = prefs.weekStart
