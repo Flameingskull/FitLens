@@ -40,7 +40,7 @@ class StoreMergeTest {
     @Test
     fun editingADeletingAndMovingBetweenExercises() {
         // Set 2 is edited and moved from exercise 10 to 30; set 5 is deleted.
-        val database = before.filter { it.id != 5L }.map { if (it.id == 2L) it.copy(exerciseId = 30, weight = 90.0) else it }
+        val database = before.filter { it.id != 5L }.map { if (it.id == 2L) it.copy(exerciseId = 30, weightKg = 90.0) else it }
         val named = setOf(10L, 30L)
         val fresh = database.filter { it.exerciseId in named }.sortedWith(SET_ORDER)
 
