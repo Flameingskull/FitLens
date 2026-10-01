@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.DistanceUnits
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
@@ -37,6 +38,7 @@ import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.StatTile
 import com.fitlens.companion.ui.design.StepperField
 import kotlin.math.max
+import kotlin.math.roundToInt
 import com.fitlens.companion.ui.design.PeriodDropdown
 
 /** The periods the Stats tab offers, in days back from today; 0 is all time. Custom follows them (#24). */
@@ -94,9 +96,24 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             val longestDay = byDay.maxBy { e -> e.value.sumOf { it.durationSec } }
             tiles += dated("Longest set", fmtDuration(longest.durationSec), longest.date)
             tiles += dated("Longest workout", fmtDuration(longestDay.value.sumOf { it.durationSec }), longestDay.key)
-            tiles += dated("Most distance in a workout", fmtNum(farthest.value.sumOf { it.distance }, 2), farthest.key)
+            // Distances are in the exercise's unit (#7); pace needs a set with both a distance and a time (#24).
+            val dUnit = snap.distanceUnit(exId)
+            val farthestSet = shown.maxBy { it.distance }
+            if (farthestSet.distance > 0) {
+                tiles += dated("Longest distance", "${fmtNum(farthestSet.distance, 2)} $dUnit", farthestSet.date)
+                tiles += dated("Most distance in a workout", "${fmtNum(farthest.value.sumOf { it.distance }, 2)} $dUnit", farthest.key)
+            }
+            val paced = shown.filter { it.distance > 0 && it.durationSec > 0 }
+            if (paced.isNotEmpty()) {
+                val fastest = paced.minBy { it.durationSec / it.distance }
+                tiles += dated("Best pace", pace(fastest.durationSec.toDouble(), fastest.distance, dUnit), fastest.date)
+                tiles += StatItem(
+                    "Average pace",
+                    pace(paced.sumOf { it.durationSec }.toDouble(), paced.sumOf { it.distance }, dUnit)
+                )
+            }
             tiles += StatItem("Total time", fmtDuration(shown.sumOf { it.durationSec }))
-            tiles += StatItem("Total distance", fmtNum(shown.sumOf { it.distance }, 2))
+            if (farthestSet.distance > 0) tiles += StatItem("Total distance", "${fmtNum(shown.sumOf { it.distance }, 2)} $dUnit")
         } else {
             val heaviest = shown.maxBy { it.weightKg }
             val best1rm = shown.maxBy { Records.oneRepMax(it) }
@@ -189,4 +206,15 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
             Text("Weights in $unit. Estimates are most reliable from sets of 10 reps or fewer.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+/**
+ * Time per distance, as runners read it (#24): "5:12 /km" or "8:30 /mi". Metres are paced per 100 m, as swimmers
+ * count them.
+ */
+internal fun pace(seconds: Double, distance: Double, unit: String): String {
+    if (distance <= 0) return "—"
+    val per = if (unit == DistanceUnits.M) 100.0 else 1.0
+    val secs = (seconds / distance * per).roundToInt()
+    return "${fmtDuration(secs)} /${if (unit == DistanceUnits.M) "100 m" else unit}"
 }
