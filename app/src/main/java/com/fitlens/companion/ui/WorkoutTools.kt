@@ -38,6 +38,13 @@ import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.ui.design.FitSheet
+import com.fitlens.companion.ui.design.DropdownPill
+import com.fitlens.companion.ui.design.SegmentedSwitch
+import com.fitlens.companion.video.FrameRenderer
+import androidx.compose.foundation.selection.triStateToggleable
+import androidx.compose.material3.TriStateCheckbox
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.state.ToggleableState
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -185,29 +192,37 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
 }
 
 /**
- * Shares the workout on [date] as plain text through Android's share sheet (#11, #84): a checklist of exercises, all
- * ticked, and options for the date, duration, comment and PR marks. Body values are never included.
+ * Shares the workout on [date] through Android's share sheet (#11, #84), as plain text or as a branded image (black,
+ * purple and gold, drawn by [ShareImages]). A checklist of exercises and their sets, all ticked, picks what's shared;
+ * options cover the date, duration, comment and PR marks. The image includes one of the day's progress photos only
+ * when it's chosen. Body values are never included.
  */
 @Composable
 fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val sets = snap.setsByDate[date].orEmpty()
     val exercises = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }.map { it.key } }
-    var ticked by remember(date) { mutableStateOf(exercises.toSet()) }
+    // Set-level selection (#11): ticking an exercise ticks all of its sets.
+    var ticked by remember(date) { mutableStateOf(sets.map { it.id }.toSet()) }
+    var asImage by remember { mutableStateOf(false) }
     var withDate by remember { mutableStateOf(true) }
     var withDuration by remember { mutableStateOf(true) }
     var withComment by remember { mutableStateOf(true) }
     var withPrs by remember { mutableStateOf(true) }
+    // The day's progress photos; none goes on the image unless one is picked (#11).
+    val photos = snap.photosByDate[date].orEmpty()
+    var photoIdx by remember(date) { mutableIntStateOf(-1) }
+
+    fun setsOf(exId: Long) = sets.filter { it.exerciseId == exId }
+    val chosen = exercises.filter { exId -> setsOf(exId).any { it.id in ticked } }
+    val durationSecs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
 
     fun text(): String = buildString {
         if (withDate) append("Workout · ").append(Dates.long(date)).append('\n')
-        if (withDuration) {
-            val secs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
-            if (secs > 0) append("Duration ").append(fmtDuration(secs.toInt())).append('\n')
-        }
-        exercises.filter { it in ticked }.forEach { exId ->
+        if (withDuration && durationSecs > 0) append("Duration ").append(fmtDuration(durationSecs.toInt())).append('\n')
+        chosen.forEach { exId ->
             append('\n').append(snap.exercises[exId]?.name ?: "Exercise").append('\n')
-            sets.filter { it.exerciseId == exId }.forEachIndexed { i, s ->
+            setsOf(exId).filter { it.id in ticked }.forEachIndexed { i, s ->
                 append("  ").append(i + 1).append(". ").append(describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId))
                 if (withPrs && s.isPr) append("  (PR)")
                 if (!s.comment.isNullOrBlank()) append("  “").append(s.comment).append('”')
@@ -220,22 +235,62 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         append("\nLogged with FitLens")
     }
 
+    /** The image's content, without the photo, which is loaded off the main thread while the image is drawn. */
+    fun card(): ShareImages.WorkoutCard {
+        val n = ticked.size
+        val subtitle = listOfNotNull(
+            "Workout",
+            fmtDuration(durationSecs.toInt()).takeIf { withDuration && durationSecs > 0 },
+            "$n set${if (n == 1) "" else "s"}"
+        ).joinToString("  ·  ")
+        return ShareImages.WorkoutCard(
+            title = if (withDate) Dates.long(date) else "Workout",
+            subtitle = subtitle,
+            exercises = chosen.map { exId ->
+                ShareImages.CardExercise(
+                    snap.exercises[exId]?.name ?: "Exercise",
+                    setsOf(exId).filter { it.id in ticked }.map { s ->
+                        describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId) to (withPrs && s.isPr)
+                    },
+                    if (withComment) snap.exerciseComments[date.take(10)]?.get(exId) else null
+                )
+            },
+            comments = if (withComment) snap.workoutComments[date].orEmpty() else emptyList(),
+            photo = null
+        )
+    }
+
     FitSheet(
         title = "Share workout",
         onDismiss = onDismiss,
-        confirmLabel = "Share",
+        confirmLabel = if (asImage) "Share image" else "Share",
         confirmEnabled = ticked.isNotEmpty(),
         onConfirm = {
-            val body = text()
-            onDismiss()
-            val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(android.content.Intent.EXTRA_TEXT, body)
-                putExtra(android.content.Intent.EXTRA_SUBJECT, "Workout · ${Dates.long(date)}")
+            if (asImage) {
+                val c = card()
+                val photo = photos.getOrNull(photoIdx)?.let { snap.photoFile(it) }
+                onDismiss()
+                ShareImages.share(ctx, "Creating workout image…", ShareImages.fileName("workout", date)) {
+                    val bmp = photo?.let { FrameRenderer.loadBitmap(it, 1000, 1300) }
+                    try {
+                        ShareImages.renderWorkout(ShareImages.WorkoutCard(c.title, c.subtitle, c.exercises, c.comments, bmp))
+                    } finally {
+                        bmp?.recycle()
+                    }
+                }
+            } else {
+                val body = text()
+                onDismiss()
+                val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, body)
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Workout · ${Dates.long(date)}")
+                }
+                ctx.startActivity(android.content.Intent.createChooser(send, "Share workout"))
             }
-            ctx.startActivity(android.content.Intent.createChooser(send, "Share workout"))
         }
     ) {
+        SegmentedSwitch(options = listOf("Text", "Image"), selected = if (asImage) 1 else 0, onSelect = { asImage = it == 1 })
         Text("INCLUDE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -246,21 +301,59 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             FilterChip(selected = withComment, onClick = { withComment = !withComment }, label = { Text("Comment") })
             FilterChip(selected = withPrs, onClick = { withPrs = !withPrs }, label = { Text("PR marks") })
         }
-        Text("EXERCISES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        // A progress photo goes on the image only when one is chosen here (#11).
+        if (asImage && photos.isNotEmpty()) {
+            Text("PROGRESS PHOTO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            DropdownPill(
+                "Progress photo",
+                listOf("No photo") + photos.mapIndexed { i, p -> "Photo ${i + 1}" + if (p.pose.isNotBlank()) " · ${p.pose}" else "" },
+                photoIdx + 1
+            ) { i -> photoIdx = i - 1 }
+        }
+        Text("EXERCISES AND SETS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         exercises.forEach { exId ->
-            val on = exId in ticked
+            val own = setsOf(exId)
+            val count = own.count { it.id in ticked }
+            val state = when (count) {
+                0 -> ToggleableState.Off
+                own.size -> ToggleableState.On
+                else -> ToggleableState.Indeterminate
+            }
             Row(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = Spacing.row)
-                    .toggleable(value = on, role = Role.Checkbox, onValueChange = { ticked = if (it) ticked + exId else ticked - exId }),
+                    .triStateToggleable(state = state, role = Role.Checkbox, onClick = {
+                        val ids = own.map { it.id }.toSet()
+                        ticked = if (state == ToggleableState.On) ticked - ids else ticked + ids
+                    }),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(checked = on, onCheckedChange = null)
+                TriStateCheckbox(state = state, onClick = null)
                 Text(
-                    "${snap.exercises[exId]?.name ?: "Exercise"} · ${sets.count { it.exerciseId == exId }} sets",
+                    "${snap.exercises[exId]?.name ?: "Exercise"} · $count of ${own.size} sets",
                     Modifier.padding(start = Spacing.sm)
                 )
+            }
+            own.forEachIndexed { i, s ->
+                val on = s.id in ticked
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.touch)
+                        .padding(start = Spacing.xl)
+                        .toggleable(value = on, role = Role.Checkbox, onValueChange = { ticked = if (it) ticked + s.id else ticked - s.id }),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(checked = on, onCheckedChange = null)
+                    Text(
+                        "${i + 1}. ${describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId)}" +
+                            if (s.isPr) "  · PR" else "",
+                        Modifier.padding(start = Spacing.sm),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
