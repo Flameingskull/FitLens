@@ -19,7 +19,7 @@ import com.fitlens.companion.R
 
 /**
  * The leading icon of every search field: the magnifying glass, so it still reads as search, with the FitLens
- * character beside it (the owner's artwork in `branding/character/`, placed unedited).
+ * character beside it (the owner's torso art, `branding/torso/`, placed unedited and uncropped).
  */
 @Composable
 fun SearchFieldIcon() {
@@ -32,7 +32,8 @@ fun SearchFieldIcon() {
         Image(
             painterResource(R.drawable.search_character),
             contentDescription = null,
-            modifier = Modifier.size(24.dp).clip(RoundedCornerShape(6.dp))
+            // The torso art is wider than tall (665 × 414), so the badge keeps that shape.
+            modifier = Modifier.size(width = 38.dp, height = 24.dp).clip(RoundedCornerShape(4.dp))
         )
     }
 }

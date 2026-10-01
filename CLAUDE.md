@@ -20,13 +20,12 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    in `.claude/agents/` (details below).
 4. **Brand look:** luxury black, imperial purple and gold. Use the `Brand` colours and the theme in `ui/Theme.kt`.
    Don't hard-code other colours. Serif headings, letter-spaced labels, gold hairlines.
-   **The icon and branding image is `branding/fitlens-icon-source.png`** (owner, 2026-10-01). It's final: use it, unedited,
-   as the source for every icon or branding image (launcher icon, store icon, README). Only resize or place it, never
-   redraw or recolour it.
-   The close-up **character icons** in `branding/character/` (owner, 2026-10-01) are for notifications (the picture
-   beside each one) and search fields (beside the magnifying glass), used unedited the same way. The **upper-body set**
-   in `branding/upper-body/` sits between them: the smaller an icon, the more it should use the upper-body or
-   close-up art rather than the full body. The full-body art is also the faint background behind every screen.
+   **Branding art (owner, 2026-10-01, updated to be clearer at small sizes):** the full-body character,
+   `branding/full-body-icon-source.jpg` (as PNG: `branding/fitlens-icon-source.png`), and the torso,
+   `branding/torso/torso-icon-source.jpg`. They're final: use them unedited for every icon or branding image, only
+   resized or placed, never redrawn, recoloured or cropped. The smaller the icon, the more it should use the torso
+   rather than the full body. Today: the launcher, store and README icons and the faint background behind every
+   screen use the full body; the notification picture and the search-field badge use the torso.
 5. **Log every significant gap.** Whenever any agent (or the main session) finds a significant gap, missing
    feature or function, or a more stable or maintainable way of doing something, it searches for an existing issue.
    If there isn't one, it files a feature request (`enhancement`, `needs-triage`) and mentions it in its report.

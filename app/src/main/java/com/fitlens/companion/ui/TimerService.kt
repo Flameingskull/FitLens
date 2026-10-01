@@ -132,7 +132,7 @@ class TimerService : Service() {
             channels(context)
             val n = NotificationCompat.Builder(context, CHANNEL_ALERT)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                // The FitLens character beside the notification, in colour (branding/character/). The status-bar icon has to
+                // The FitLens character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
                 // stay a plain glyph: Android keeps only its outline.
                 .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_character))
                 .setColor(Brand.Gold.toArgb())
@@ -191,7 +191,7 @@ class TimerService : Service() {
             val workout = workoutStart()
             val b = NotificationCompat.Builder(context, CHANNEL_ONGOING)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                // The FitLens character beside the notification, in colour (branding/character/). The status-bar icon has to
+                // The FitLens character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
                 // stay a plain glyph: Android keeps only its outline.
                 .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_character))
                 .setColor(Brand.Gold.toArgb())
