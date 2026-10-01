@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import com.fitlens.companion.ui.design.CharacterBackdrop
 import com.fitlens.companion.ui.design.ambientBackdrop
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -268,6 +269,8 @@ fun AppRoot(nav: Nav) {
     ) { inner ->
         // With no bottom bar any more, the content keeps itself clear of the navigation bar (edge-to-edge, #81).
         Box(Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).navigationBarsPadding()) {
+            // The full-body character, faint, behind every screen (owner's branding, 2026-10-01).
+            CharacterBackdrop()
             val s = snap
             if (s == null) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
