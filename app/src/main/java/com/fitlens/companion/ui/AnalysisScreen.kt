@@ -313,6 +313,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             "${metric.label} · ${filterLabel(snap, filter)}",
             onDismiss = { fullScreen = false },
             controls = { GraphOptionChips(rangeIdx, { rangeIdx = it }, showTrend, { showTrend = !showTrend }) },
+            valueZoom = false,
             footer = {
                 sel?.let { totals.getOrNull(it) }?.let { t ->
                     Text(

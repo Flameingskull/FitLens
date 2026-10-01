@@ -7,7 +7,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -42,7 +47,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -69,6 +76,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.fmtNum
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
@@ -381,9 +389,10 @@ fun ChartHint(modifier: Modifier = Modifier) {
 }
 
 /**
- * The full-screen viewer every chart can open (#50, #96): the whole screen, landscape allowed, pinch to zoom the time
- * axis, drag to pan, a reset control (or double tap), and the chart's own tap-for-details. [chart] draws the chart for
- * the current zoom at the height available, and gets a reset function to use as its double tap. The zoom survives
+ * The full-screen viewer every chart can open (#50, #96): the whole screen, landscape allowed, pinch to zoom, drag to
+ * pan, a reset control (or double tap), and the chart's own tap-for-details. A pinch is split by direction: across
+ * zooms the time axis and, when [valueZoom] is on (line charts), up and down zooms the values. [chart] draws the chart
+ * for the current zoom at the height available, and gets a reset function to use as its double tap. The zoom survives
  * rotation. TalkBack users get zoom and move actions instead of gestures. [controls] sits under the top bar, usually
  * [GraphOptionChips], so the range and options can change without leaving full screen.
  */
@@ -393,12 +402,16 @@ fun FullScreenChart(
     onDismiss: () -> Unit,
     controls: @Composable () -> Unit = {},
     footer: @Composable () -> Unit = {},
+    /** Lets a vertical pinch or drag zoom and move the values. Off for bar charts, which always start at zero. */
+    valueZoom: Boolean = true,
     chart: @Composable (viewport: ChartViewport, height: Dp, resetZoom: () -> Unit) -> Unit
 ) {
     var from by rememberSaveable { mutableFloatStateOf(0f) }
     var to by rememberSaveable { mutableFloatStateOf(1f) }
-    val viewport = ChartViewport(from, to)
-    val set: (ChartViewport) -> Unit = { v -> from = v.from; to = v.to }
+    var yFrom by rememberSaveable { mutableFloatStateOf(0f) }
+    var yTo by rememberSaveable { mutableFloatStateOf(1f) }
+    val viewport = ChartViewport(from, to, yFrom, yTo)
+    val set: (ChartViewport) -> Unit = { v -> from = v.from; to = v.to; yFrom = v.yFrom; yTo = v.yTo }
     val reset: () -> Unit = { set(ChartViewport()) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -420,12 +433,20 @@ fun FullScreenChart(
                                 CustomAccessibilityAction("Zoom out") { set(viewport.transform(0.5f, 0f, 0.5f)); true },
                                 CustomAccessibilityAction("Move earlier") { set(viewport.transform(0.5f, 0.5f, 1f)); true },
                                 CustomAccessibilityAction("Move later") { set(viewport.transform(0.5f, -0.5f, 1f)); true }
+                            ) + if (!valueZoom) emptyList<CustomAccessibilityAction>() else listOf(
+                                CustomAccessibilityAction("Zoom in on values") { set(viewport.transformY(0.5f, 0f, 2f)); true },
+                                CustomAccessibilityAction("Zoom out on values") { set(viewport.transformY(0.5f, 0f, 0.5f)); true },
+                                CustomAccessibilityAction("Show higher values") { set(viewport.transformY(0.5f, 0.5f, 1f)); true },
+                                CustomAccessibilityAction("Show lower values") { set(viewport.transformY(0.5f, -0.5f, 1f)); true }
                             )
                         }
-                        .pointerInput(Unit) {
-                            detectTransformGestures { centroid, pan, zoom, _ ->
+                        .pointerInput(valueZoom) {
+                            detectAxisTransformGestures { centroid, pan, zoomX, zoomY ->
                                 val w = size.width.toFloat().coerceAtLeast(1f)
-                                set(ChartViewport(from, to).transform(centroid.x / w, pan.x / w, zoom))
+                                val h = size.height.toFloat().coerceAtLeast(1f)
+                                var v = ChartViewport(from, to, yFrom, yTo).transform(centroid.x / w, pan.x / w, zoomX)
+                                if (valueZoom) v = v.transformY(1f - centroid.y / h, pan.y / h, zoomY)
+                                set(v)
                             }
                         }
                 ) {
@@ -434,7 +455,8 @@ fun FullScreenChart(
                 }
                 footer()
                 Text(
-                    "Pinch to zoom, drag to move along the timeline, tap for details.",
+                    if (valueZoom) "Pinch across to zoom the timeline, up and down to zoom the values. Drag to move, tap for details."
+                    else "Pinch to zoom, drag to move along the timeline, tap for details.",
                     Modifier.fillMaxWidth().padding(12.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -506,5 +528,57 @@ fun GraphOptionChips(
         RANGES.forEachIndexed { i, r -> FilterChip(selected = rangeIdx == i, onClick = { onRange(i) }, label = { Text(r.first) }) }
         FilterChip(selected = showTrend, onClick = onTrend, label = { Text("Trend") })
         if (onFromZero != null) FilterChip(selected = fromZero, onClick = onFromZero, label = { Text("From zero") })
+    }
+}
+
+/**
+ * Pinch and drag for [FullScreenChart] (#96). It works like detectTransformGestures, with the same touch slop so a tap
+ * still reaches the chart, but measures the pinch along each axis: [onGesture] gets the horizontal and vertical zoom
+ * apart, so pinching across zooms time and pinching up and down zooms values. An axis the fingers barely span (two
+ * fingers side by side have almost no height between them) keeps a zoom of 1, so it doesn't jump.
+ */
+private suspend fun PointerInputScope.detectAxisTransformGestures(
+    onGesture: (centroid: Offset, pan: Offset, zoomX: Float, zoomY: Float) -> Unit
+) {
+    val minSpread = 24.dp.toPx()
+    awaitEachGesture {
+        var zoom = 1f
+        var pan = Offset.Zero
+        var pastTouchSlop = false
+        val touchSlop = viewConfiguration.touchSlop
+        awaitFirstDown(requireUnconsumed = false)
+        do {
+            val event = awaitPointerEvent()
+            val canceled = event.changes.any { it.isConsumed }
+            if (!canceled) {
+                val zoomChange = event.calculateZoom()
+                val panChange = event.calculatePan()
+                if (!pastTouchSlop) {
+                    zoom *= zoomChange
+                    pan += panChange
+                    val zoomMotion = abs(1 - zoom) * event.calculateCentroidSize(useCurrent = false)
+                    if (zoomMotion > touchSlop || pan.getDistance() > touchSlop) pastTouchSlop = true
+                }
+                if (pastTouchSlop) {
+                    val down = event.changes.filter { it.pressed && it.previousPressed }
+                    fun spread(values: List<Float>): Float {
+                        val mid = values.average().toFloat()
+                        return values.map { abs(it - mid) }.average().toFloat()
+                    }
+                    fun axisZoom(axis: (Offset) -> Float): Float {
+                        if (down.size < 2) return 1f
+                        val before = spread(down.map { axis(it.previousPosition) })
+                        val now = spread(down.map { axis(it.position) })
+                        return if (before < minSpread || now < minSpread) 1f else now / before
+                    }
+                    val zoomX = axisZoom { it.x }
+                    val zoomY = axisZoom { it.y }
+                    if (zoomX != 1f || zoomY != 1f || panChange != Offset.Zero) {
+                        onGesture(event.calculateCentroid(useCurrent = false), panChange, zoomX, zoomY)
+                    }
+                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                }
+            }
+        } while (!canceled && event.changes.any { it.pressed })
     }
 }

@@ -100,27 +100,45 @@ fun trendOf(points: List<ChartPoint>): TrendLine? {
 }
 
 /**
- * The part of the x range a chart shows, as fractions of the whole (0..1). Full screen changes it with pinch and pan;
- * everywhere else it's the whole range.
+ * The part of a chart that's shown, as fractions of the whole (0..1): [from]..[to] of the time range, and
+ * [yFrom]..[yTo] of the value range the visible points need, from the bottom (#96). Full screen changes it with pinch
+ * and pan; everywhere else it's the whole chart.
  */
-data class ChartViewport(val from: Float = 0f, val to: Float = 1f) {
-    val isFull: Boolean get() = from <= 0f && to >= 1f
+data class ChartViewport(val from: Float = 0f, val to: Float = 1f, val yFrom: Float = 0f, val yTo: Float = 1f) {
+    val isFull: Boolean get() = from <= 0f && to >= 1f && valuesFull
+    val valuesFull: Boolean get() = yFrom <= 0f && yTo >= 1f
 
     /**
-     * Zooms by [zoom] around [centroid] and pans by [pan], both as fractions of the visible width. Dragging right (a
-     * positive [pan]) moves back in time.
+     * Zooms the time axis by [zoom] around [centroid] and pans it by [pan], both as fractions of the visible width.
+     * Dragging right (a positive [pan]) moves back in time.
      */
     fun transform(centroid: Float, pan: Float, zoom: Float): ChartViewport {
-        val span = to - from
-        val c = centroid.coerceIn(0f, 1f)
-        val newSpan = (span / zoom.coerceAtLeast(0.01f)).coerceIn(MIN_SPAN, 1f)
-        val anchor = from + c * span
-        val start = (anchor - c * newSpan - pan * newSpan).coerceIn(0f, 1f - newSpan)
-        return ChartViewport(start, start + newSpan)
+        val (start, end) = zoomRange(from, to, centroid, pan, zoom, MIN_SPAN)
+        return copy(from = start, to = end)
+    }
+
+    /**
+     * Zooms the values by [zoom] around [centroid] (a fraction of the height from the bottom) and pans them by [pan]
+     * (a fraction of the height). A positive [pan], dragging down, shows higher values (#96).
+     */
+    fun transformY(centroid: Float, pan: Float, zoom: Float): ChartViewport {
+        val (start, end) = zoomRange(yFrom, yTo, centroid, -pan, zoom, MIN_Y_SPAN)
+        return copy(yFrom = start, yTo = end)
     }
 
     private companion object {
         const val MIN_SPAN = 0.02f
+        /** Values zoom in to a twentieth of their range at most, so a line never becomes a few flat pixels. */
+        const val MIN_Y_SPAN = 0.05f
+
+        fun zoomRange(from: Float, to: Float, centroid: Float, pan: Float, zoom: Float, minSpan: Float): Pair<Float, Float> {
+            val span = to - from
+            val c = centroid.coerceIn(0f, 1f)
+            val newSpan = (span / zoom.coerceAtLeast(0.01f)).coerceIn(minSpan, 1f)
+            val anchor = from + c * span
+            val start = (anchor - c * newSpan - pan * newSpan).coerceIn(0f, 1f - newSpan)
+            return start to start + newSpan
+        }
     }
 }
 
@@ -264,9 +282,14 @@ private fun LinePlot(
     if (goal != null && goal > 0) { yMin = minOf(yMin, goal); yMax = maxOf(yMax, goal) }
     if (yFromZero) yMin = minOf(yMin, 0.0)
     if (yMax - yMin < 1e-9) { yMin -= 1; yMax += 1 }
-    val step = niceStep(yMax - yMin)
-    val lo = floor(yMin / step) * step
-    val hi = ceil(yMax / step) * step
+    val fitStep = niceStep(yMax - yMin)
+    val fitLo = floor(yMin / fitStep) * fitStep
+    val fitHi = ceil(yMax / fitStep) * fitStep
+    // Zoomed values (#96) show exactly the chosen part of the fitted range, with gridlines at its own nice steps.
+    val valuesZoomed = !viewport.valuesFull
+    val lo = if (valuesZoomed) fitLo + viewport.yFrom * (fitHi - fitLo) else fitLo
+    val hi = if (valuesZoomed) fitLo + viewport.yTo * (fitHi - fitLo) else fitHi
+    val step = if (valuesZoomed) niceStep(hi - lo) else fitStep
     val xFmt = if (xMax - xMin < 150) DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
     else DateTimeFormatter.ofPattern("MMM yy", Locale.getDefault())
 
@@ -325,10 +348,11 @@ private fun LinePlot(
         fun px(x: Long) = left + ((x - xMin) / (xMax - xMin)).toFloat() * (right - left)
         fun py(y: Double) = bottom - ((y - lo) / (hi - lo)).toFloat() * (bottom - top)
 
-        // Grid and y labels
-        var t = lo
+        // Grid and y labels. Zoomed, they start at the first whole step and stay inside the plot.
+        var t = if (valuesZoomed) ceil(lo / step - 1e-9) * step else lo
+        val gridTop = if (valuesZoomed) hi + step * 1e-6 else hi + step / 2
         var guard = 0
-        while (t <= hi + step / 2 && guard++ < 20) {
+        while (t <= gridTop && guard++ < 20) {
             val y = py(t)
             drawLine(gridColor, Offset(left, y), Offset(right, y), strokeWidth = 1f)
             val layout = measurer.measure(yFormat(t), labelStyle)
