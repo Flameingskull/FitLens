@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import androidx.compose.material3.ExperimentalMaterial3Api
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.FitTopBar
 import androidx.compose.material.icons.filled.Add
@@ -45,6 +46,7 @@ import java.time.LocalDate
  * Analysis (#90), opened from the day log's menu. FitNotes-style navigation (#79) made it its own destination
  * rather than one side of the old Training tab.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalysisScreen(snap: Snapshot, nav: Nav) {
     var tab by rememberSaveable { mutableIntStateOf(TAB_WORKOUTS) }
