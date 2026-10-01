@@ -75,7 +75,7 @@ object GoalKinds {
     }
 }
 
-/** Writes for exercise goals. Each reloads the snapshot, like every other write. */
+/** Writes for exercise goals. Each refreshes the library area of the snapshot (#60). */
 object Goals {
     suspend fun save(goal: ExerciseGoal): Unit = withContext(Dispatchers.IO) {
         val w = Store.db.writableDatabase
@@ -90,12 +90,12 @@ object Goals {
         } else {
             w.update("exercise_goal", cv, "id=?", arrayOf(goal.id.toString()))
         }
-        Store.reload()
+        Store.refresh(Area.LIBRARY)
     }
 
     suspend fun delete(id: Long): Unit = withContext(Dispatchers.IO) {
         Store.db.writableDatabase.delete("exercise_goal", "id=?", arrayOf(id.toString()))
-        Store.reload()
+        Store.refresh(Area.LIBRARY)
     }
 
     /** Stores [ordered] as the exercise's goal order, top first. */
@@ -110,6 +110,6 @@ object Goals {
         } finally {
             w.endTransaction()
         }
-        Store.reload()
+        Store.refresh(Area.LIBRARY)
     }
 }

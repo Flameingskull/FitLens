@@ -83,18 +83,56 @@ object Workouts {
         return d
     }
 
-    /** Runs [block] in one transaction, then refreshes the in-memory snapshot. */
-    private suspend fun <T> write(block: (SQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
+    /**
+     * Runs [block] in one transaction, then re-reads the [areas] of the snapshot it changed (#60). The default covers
+     * everything a workout write can touch; writes that only change the library or the notes say so.
+     */
+    private suspend fun <T> write(areas: Set<Area> = Area.WORKOUT, block: (SQLiteDatabase) -> T): T =
+        withContext(Dispatchers.IO) {
+            val w = Store.db.writableDatabase
+            w.beginTransaction()
+            val result = try {
+                block(w).also { w.setTransactionSuccessful() }
+            } finally {
+                w.endTransaction()
+            }
+            Store.refresh(*areas.toTypedArray())
+            result
+        }
+
+    /** Which sets a small set write changed: those of [exercises] and those on [dates] (#60). */
+    private class SetScope {
+        val exercises = HashSet<Long>()
+        val dates = HashSet<String>()
+
+        /** Names the exercises of the sets with these ids. Call it before a delete, while the rows still exist. */
+        fun addSets(w: SQLiteDatabase, ids: Collection<Long>) {
+            if (ids.isEmpty()) return
+            w.rawQuery("SELECT DISTINCT exercise_id FROM workout_set WHERE id IN (${ids.joinToString(",")})", null).use { c ->
+                while (c.moveToNext()) exercises += c.getLong(0)
+            }
+        }
+    }
+
+    /**
+     * Like [write], for a write that changes a few sets and never replays PRs across the history (#60): only the sets
+     * [block] names in its [SetScope] are re-read, so saving one set doesn't reload the whole database.
+     */
+    private suspend fun <T> writeSets(block: (SQLiteDatabase, SetScope) -> T): T = withContext(Dispatchers.IO) {
         val w = Store.db.writableDatabase
+        val scope = SetScope()
         w.beginTransaction()
         val result = try {
-            block(w).also { w.setTransactionSuccessful() }
+            block(w, scope).also { w.setTransactionSuccessful() }
         } finally {
             w.endTransaction()
         }
-        Store.reload()
+        Store.refreshSets(scope.exercises, scope.dates)
         result
     }
+
+    private val LIBRARY = setOf(Area.LIBRARY)
+    private val NOTES = setOf(Area.NOTES)
 
     private fun SQLiteDatabase.longOrNull(sql: String, vararg args: String): Long? =
         rawQuery(sql, args).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else null }
@@ -117,7 +155,7 @@ object Workouts {
 
     // ---------- Categories ----------
 
-    suspend fun createCategory(name: String, colour: Int = 0): Long = write { w ->
+    suspend fun createCategory(name: String, colour: Int = 0): Long = write(LIBRARY) { w ->
         val n = cleanName(name, "category")
         if (sameName(w, "category", n) != null) throw WorkoutDataException("There's already a category called $n.")
         val order = w.longOrNull("SELECT IFNULL(MAX(sort_order), 0) + 1 FROM category") ?: 1L
@@ -127,7 +165,7 @@ object Workouts {
         })
     }
 
-    suspend fun updateCategory(id: Long, name: String, colour: Int): Unit = write { w ->
+    suspend fun updateCategory(id: Long, name: String, colour: Int): Unit = write(LIBRARY) { w ->
         val n = cleanName(name, "category")
         val old = w.rawQuery("SELECT name FROM category WHERE id=?", arrayOf(id.toString())).use { c ->
             if (c.moveToFirst()) c.strOr(0) else null
@@ -222,7 +260,8 @@ object Workouts {
      * Sets or clears one set's comment (#108); null or blank removes it. Nothing else about the set changes. Like any
      * edit, an imported set becomes FitLens's own; its values are unchanged, so no skip rule is needed.
      */
-    suspend fun setComment(id: Long, comment: String?): Unit = write { w ->
+    suspend fun setComment(id: Long, comment: String?): Unit = writeSets { w, scope ->
+        scope.addSets(w, listOf(id))
         val changed = w.update("workout_set", ContentValues().apply {
             put("comment", comment?.trim()?.takeIf { it.isNotEmpty() }); put("source", Sources.FITLENS)
         }, "id=?", arrayOf(id.toString()))
@@ -230,7 +269,8 @@ object Workouts {
     }
 
     /** Ticks a set off, or clears the tick (#19). Nothing else about the set changes. */
-    suspend fun setDone(id: Long, done: Boolean): Unit = write { w ->
+    suspend fun setDone(id: Long, done: Boolean): Unit = writeSets { w, scope ->
+        scope.addSets(w, listOf(id))
         w.update("workout_set", ContentValues().apply { put("done", if (done) 1 else 0) }, "id=?", arrayOf(id.toString()))
     }
 
@@ -238,8 +278,9 @@ object Workouts {
      * Puts the exercises [exIds] into one superset on [date] (#18): a new group, or the group one of them is already
      * in. Returns the group number.
      */
-    suspend fun groupExercises(date: String, exIds: Collection<Long>): Int = write { w ->
+    suspend fun groupExercises(date: String, exIds: Collection<Long>): Int = writeSets { w, scope ->
         val d = checkDate(date)
+        scope.dates += d
         val inList = exIds.joinToString(",")
         val existing = w.longOrNull(
             "SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id IN ($inList)", d
@@ -256,12 +297,13 @@ object Workouts {
     /**
      * Takes exercise [exId] out of its superset on [date] (#18). A group left with a single exercise is dissolved.
      */
-    suspend fun ungroupExercise(date: String, exId: Long): Unit = write { w ->
+    suspend fun ungroupExercise(date: String, exId: Long): Unit = writeSets { w, scope ->
         val d = checkDate(date)
+        scope.dates += d
         val group = (w.longOrNull(
             "SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id=?", d, exId.toString()
         ) ?: 0L).toInt()
-        if (group == 0) return@write
+        if (group == 0) return@writeSets
         w.execSQL("UPDATE workout_set SET superset=0 WHERE substr(date, 1, 10)=? AND exercise_id=?", arrayOf<Any>(d, exId))
         val left = w.longOrNull(
             "SELECT COUNT(DISTINCT exercise_id) FROM workout_set WHERE substr(date, 1, 10)=? AND superset=?", d, group.toString()
@@ -273,7 +315,8 @@ object Workouts {
      * Stores the order of a day's sets (#70): [orderedIds] first to last. Exercises follow the order of their first
      * set, so moving an exercise is moving its sets as a block.
      */
-    suspend fun reorderDay(orderedIds: List<Long>): Unit = write { w ->
+    suspend fun reorderDay(orderedIds: List<Long>): Unit = writeSets { w, scope ->
+        scope.addSets(w, orderedIds)
         orderedIds.forEachIndexed { i, id ->
             w.update("workout_set", ContentValues().apply { put("position", i + 1) }, "id=?", arrayOf(id.toString()))
         }
@@ -283,14 +326,14 @@ object Workouts {
      * Saves the categories' order (#83), first to last. A FitNotes import only ever adds categories, never changes
      * one that exists, so the order chosen here is kept.
      */
-    suspend fun reorderCategories(ids: List<Long>): Unit = write { w ->
+    suspend fun reorderCategories(ids: List<Long>): Unit = write(LIBRARY) { w ->
         ids.forEachIndexed { i, id ->
             w.update("category", ContentValues().apply { put("sort_order", i + 1) }, "id=?", arrayOf(id.toString()))
         }
     }
 
     /** Deletes a category. Its exercises and their history are kept and become uncategorised. */
-    suspend fun deleteCategory(id: Long): Unit = write { w ->
+    suspend fun deleteCategory(id: Long): Unit = write(LIBRARY) { w ->
         val row = w.rawQuery("SELECT name, fitnotes_id FROM category WHERE id=?", arrayOf(id.toString())).use { c ->
             if (c.moveToFirst()) c.strOr(0) to !c.isNull(1) else null
         } ?: return@write
@@ -304,7 +347,7 @@ object Workouts {
     // ---------- Exercises ----------
 
     /** [type] is one of [ExerciseTypes]. */
-    suspend fun createExercise(name: String, categoryId: Long, type: Int = 0, notes: String? = null): Long = write { w ->
+    suspend fun createExercise(name: String, categoryId: Long, type: Int = 0, notes: String? = null): Long = write(LIBRARY) { w ->
         val n = cleanName(name, "exercise")
         if (sameName(w, "exercise", n) != null) throw WorkoutDataException("There's already an exercise called $n.")
         clearDeletedLink(w, RULE_EXERCISE, n)
@@ -314,7 +357,7 @@ object Workouts {
         })
     }
 
-    suspend fun updateExercise(id: Long, name: String, categoryId: Long, type: Int, notes: String?): Unit = write { w ->
+    suspend fun updateExercise(id: Long, name: String, categoryId: Long, type: Int, notes: String?): Unit = write(LIBRARY) { w ->
         val n = cleanName(name, "exercise")
         val old = w.rawQuery("SELECT name FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
             if (c.moveToFirst()) c.strOr(0) else null
@@ -335,7 +378,7 @@ object Workouts {
      * (-1 for the first) and its rest length in seconds (null uses the global one). Kept apart from [updateExercise]
      * so a rename never touches them.
      */
-    suspend fun setExerciseDefaults(id: Long, weightStepKg: Double?, defaultGraph: Int, restSeconds: Int?): Unit = write { w ->
+    suspend fun setExerciseDefaults(id: Long, weightStepKg: Double?, defaultGraph: Int, restSeconds: Int?): Unit = write(LIBRARY) { w ->
         w.update("exercise", ContentValues().apply {
             if (weightStepKg == null) putNull("weight_step") else put("weight_step", weightStepKg)
             put("default_graph", defaultGraph)
@@ -407,7 +450,7 @@ object Workouts {
     }
 
     /** Stars or unstars an exercise. Favourites are listed first when choosing an exercise. */
-    suspend fun setFavourite(id: Long, favourite: Boolean): Unit = write { w ->
+    suspend fun setFavourite(id: Long, favourite: Boolean): Unit = write(LIBRARY) { w ->
         w.update("exercise", ContentValues().apply { put("favourite", if (favourite) 1 else 0) }, "id=?", arrayOf(id.toString()))
     }
 
@@ -419,7 +462,7 @@ object Workouts {
      * re-filed, overwritten or deleted, so running it on a library full of imported FitNotes exercises is safe.
      * [palette] gives the colours to hand out to the categories it creates, in order.
      */
-    suspend fun seedStarterLibrary(palette: List<Int>): SeedResult = write { w ->
+    suspend fun seedStarterLibrary(palette: List<Int>): SeedResult = write(LIBRARY) { w ->
         var categoriesAdded = 0
         var exercisesAdded = 0
         var skipped = 0
@@ -469,10 +512,12 @@ object Workouts {
         isPr: Boolean? = null,
         setType: Int = SetTypes.WORKING,
         rpe: Double? = null
-    ): Long = write { w ->
+    ): Long = writeSets { w, scope ->
         val d = checkDate(date)
         w.longOrNull("SELECT id FROM exercise WHERE id=?", exerciseId.toString())
             ?: throw WorkoutDataException("That exercise no longer exists.")
+        // Its PR mark is decided here against earlier sets, so no other set changes and only this exercise is re-read.
+        scope.exercises += exerciseId
         val countWarmups = Settings.currentPortable().warmupsCount
         // A warm-up is never a record unless warm-ups count, and uncounted warm-ups never set the bar (#43).
         val pr = if (setType == SetTypes.WARMUP && !countWarmups) false else isPr ?: Records.isNewRecord(
@@ -496,14 +541,18 @@ object Workouts {
     }
 
     /** Saves changes to a set (matched by [SetRow.id]). An edited imported set becomes FitLens's own. */
-    suspend fun updateSet(set: SetRow): Unit = write { w ->
+    suspend fun updateSet(set: SetRow): Unit = writeSets { w, scope ->
         val d = checkDate(set.date)
         val old = w.rawQuery(
             "SELECT exercise_id, date, weight, reps, distance, duration, source FROM workout_set WHERE id=?",
             arrayOf(set.id.toString())
         ).use { c ->
-            if (c.moveToFirst()) (c.strOr(6) to setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5))) else null
+            if (c.moveToFirst()) {
+                scope.exercises += c.lng(0)
+                c.strOr(6) to setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5))
+            } else null
         } ?: throw WorkoutDataException("That set no longer exists.")
+        scope.exercises += set.exerciseId
         val newKey = setKey(set.exerciseId, d, set.weightKg, set.reps, set.distance, set.durationSec)
         if (old.first == Sources.FITNOTES && old.second != newKey) addSkip(w, RULE_SET, old.second)
         w.update("workout_set", ContentValues().apply {
@@ -514,7 +563,10 @@ object Workouts {
         }, "id=?", arrayOf(set.id.toString()))
     }
 
-    suspend fun deleteSet(id: Long): Unit = write { w -> deleteSetsWhere(w, "id=?", arrayOf(id.toString())) }
+    suspend fun deleteSet(id: Long): Unit = writeSets { w, scope ->
+        scope.addSets(w, listOf(id))
+        deleteSetsWhere(w, "id=?", arrayOf(id.toString()))
+    }
 
     /**
      * Rebuilds the PR mark on every weight-and-reps set, imported ones included (#23). Each exercise is replayed in
@@ -587,7 +639,8 @@ object Workouts {
      * Puts whole sets back in one transaction, used to undo a delete. They return as FitLens's own rows on the
      * date they carry; their old ids are not reused. Returns how many were added.
      */
-    suspend fun addSets(rows: List<SetRow>): Int = write { w ->
+    suspend fun addSets(rows: List<SetRow>): Int = writeSets { w, scope ->
+        scope.exercises += rows.map { it.exerciseId }
         rows.forEach { s ->
             w.insertOrThrow("workout_set", null, ContentValues().apply {
                 put("exercise_id", s.exerciseId); put("date", s.date.take(10)); put("weight", s.weightKg)
@@ -620,7 +673,7 @@ object Workouts {
     // ---------- Workouts (everything on one date) ----------
 
     /** Replaces the workout comment for [date]. A blank comment removes it. */
-    suspend fun setWorkoutComment(date: String, comment: String?): Unit = write { w ->
+    suspend fun setWorkoutComment(date: String, comment: String?): Unit = write(NOTES) { w ->
         val d = checkDate(date)
         w.rawQuery("SELECT comment FROM workout_comment WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
             while (c.moveToNext()) addSkip(w, RULE_COMMENT, commentKey(d, c.strOr(0)))
@@ -633,12 +686,12 @@ object Workouts {
     }
 
     /** Replaces the comment on exercise [exerciseId] in [date]'s workout (#107). A blank comment removes it. */
-    suspend fun setExerciseComment(date: String, exerciseId: Long, comment: String?): Unit = write { w ->
+    suspend fun setExerciseComment(date: String, exerciseId: Long, comment: String?): Unit = write(NOTES) { w ->
         writeExerciseComment(w, checkDate(date), exerciseId, comment)
     }
 
     /** Puts [date]'s exercise comments back exactly as [comments] (exercise id to text), for Undo (#107). */
-    suspend fun setExerciseComments(date: String, comments: Map<Long, String>): Unit = write { w ->
+    suspend fun setExerciseComments(date: String, comments: Map<Long, String>): Unit = write(NOTES) { w ->
         val d = checkDate(date)
         w.delete("exercise_comment", "date=?", arrayOf(d))
         comments.forEach { (ex, text) -> writeExerciseComment(w, d, ex, text) }
@@ -674,7 +727,7 @@ object Workouts {
      * Replaces the workout start and end for [date]. Times use FitNotes's format (`yyyy-MM-dd HH:mm:ss`).
      * Both null removes them.
      */
-    suspend fun setWorkoutTime(date: String, start: String?, finish: String?): Unit = write { w ->
+    suspend fun setWorkoutTime(date: String, start: String?, finish: String?): Unit = write(NOTES) { w ->
         val d = checkDate(date)
         w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
             while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(d, c.str(0), c.str(1)))
@@ -692,7 +745,7 @@ object Workouts {
      * user is editing a single start/finish, but loses rows when undoing a delete on a day that carried several
      * (an imported day can) (#69). Passing an empty list clears the day's times.
      */
-    suspend fun setWorkoutTimes(date: String, times: List<WorkoutTime>): Unit = write { w ->
+    suspend fun setWorkoutTimes(date: String, times: List<WorkoutTime>): Unit = write(NOTES) { w ->
         val d = checkDate(date)
         w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
             while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(d, c.str(0), c.str(1)))

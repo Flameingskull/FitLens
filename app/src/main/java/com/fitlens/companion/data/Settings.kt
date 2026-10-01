@@ -203,7 +203,8 @@ object Settings {
         _portable.updateAndGet(change)
         scope.launch {
             writeLock.withLock { savePortable(_portable.value) }
-            Store.reload()
+            // Preferences only change how the data is shown, so nothing is re-read (#60).
+            Store.refresh()
         }
     }
 

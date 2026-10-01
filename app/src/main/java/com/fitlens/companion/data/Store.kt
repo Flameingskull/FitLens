@@ -2,101 +2,190 @@ package com.fitlens.companion.data
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.abs
 
-/** Everything the UI needs, loaded into memory (FitNotes data sets are small). */
-class Snapshot(
+/**
+ * The areas the snapshot is built from (#60). A write re-reads only the areas it changed; every other area, with the
+ * lists and lookups built from it, is carried over to the next snapshot as it is.
+ */
+enum class Area {
+    /** Categories, exercises, goals, workouts (routines) and which workout each date came from. */
+    LIBRARY,
+    /** Every logged set. */
+    SETS,
+    /** Workout comments, workout times and exercise comments. */
+    NOTES,
+    /** Measurement definitions and body values. */
+    BODY,
+    PHOTOS;
+
+    companion object {
+        val ALL: Set<Area> = values().toSet()
+        /** What a workout write can touch, when it doesn't say more precisely. */
+        val WORKOUT: Set<Area> = setOf(LIBRARY, SETS, NOTES)
+    }
+}
+
+/** The library area: categories, exercises, goals and workouts, with their lookups. */
+class LibraryPart internal constructor(
     val categories: Map<Long, Category>,
     val exercises: Map<Long, Exercise>,
-    val sets: List<SetRow>,
-    val measurementDefs: List<MeasurementDef>,
-    val records: List<MRecord>,
-    val photos: List<Photo>,
-    val workoutComments: Map<String, List<String>>,
-    val workoutTimes: Map<String, List<WorkoutTime>>,
-    val weightUnit: String,
-    val photoDir: File,
-    /** Count warm-up sets in records and statistics (#43, a setting; off by default). */
-    val countWarmups: Boolean = false,
-    /** The first day of the week, 1 = Monday … 7 = Sunday (#7). */
-    val weekStart: Int = 1,
-    /** Exercise goals (#25), in each exercise's order. */
-    val goals: List<ExerciseGoal> = emptyList(),
-    /** The user's workouts (#106, FitNotes's routines): named days of exercises, in the user's order. */
-    val routines: List<Routine> = emptyList(),
-    /** Which workout and day each logged date was started from, by date (#21, #106). */
-    val workoutOrigins: Map<String, WorkoutOrigin> = emptyMap(),
-    /** Exercise comments (#107): date to exercise id to its comment in that day's workout. */
-    val exerciseComments: Map<String, Map<Long, String>> = emptyMap()
+    val goals: List<ExerciseGoal>,
+    val routines: List<Routine>,
+    val workoutOrigins: Map<String, WorkoutOrigin>
 ) {
     val routinesById: Map<Long, Routine> = routines.associateBy { it.id }
     val goalsByExercise: Map<Long, List<ExerciseGoal>> = goals.groupBy { it.exerciseId }
-    val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
-    val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
-
-    /**
-     * The sets that count for records, estimated maxes, graphs and analysis: every set, or every set except warm-ups
-     * unless the setting counts them (#43). Lists and history still show every set.
-     */
-    val statSets: List<SetRow> = if (countWarmups) sets else sets.filter { !it.isWarmup }
-    val statSetsByExercise: Map<Long, List<SetRow>> = statSets.groupBy { it.exerciseId }
-
-    // ---- Exercise library (#13) ----
-    /** Every category, in the order the library shows them. */
     val categoriesSorted: List<Category> = categories.values.sortedWith(compareBy({ it.sortOrder }, { it.name.lowercase() }))
-    /** Every exercise in the library, whether or not anything has been logged for it, by name. */
     val exercisesSorted: List<Exercise> = exercises.values.sortedBy { it.name.lowercase() }
     val favouriteExercises: List<Exercise> = exercisesSorted.filter { it.favourite }
-    /** Last date each exercise was logged (sets are loaded in date order). */
+}
+
+/** The sets area, in date then log order, with the lookups built from it. */
+class SetPart internal constructor(val sets: List<SetRow>, val countWarmups: Boolean) {
+    val setsByDate: Map<String, List<SetRow>> = sets.groupBy { it.date }
+    val setsByExercise: Map<Long, List<SetRow>> = sets.groupBy { it.exerciseId }
+    val statSets: List<SetRow> = if (countWarmups) sets else sets.filter { !it.isWarmup }
+    val statSetsByExercise: Map<Long, List<SetRow>> = statSets.groupBy { it.exerciseId }
     val lastUsedByExercise: Map<Long, String> = setsByExercise.mapValues { e -> e.value.last().date }
-    /** Number of separate days each exercise was logged. */
     val workoutsByExercise: Map<Long, Int> = setsByExercise.mapValues { e -> e.value.distinctBy { it.date }.size }
 
+    /** The same sets counted under another warm-up setting (#43): rebuilt from memory, never re-read. */
+    internal fun withWarmups(count: Boolean): SetPart = if (count == countWarmups) this else SetPart(sets, count)
+}
 
+/** The notes area: workout comments and times, and exercise comments. */
+class NotesPart internal constructor(
+    val workoutComments: Map<String, List<String>>,
+    val workoutTimes: Map<String, List<WorkoutTime>>,
+    val exerciseComments: Map<String, Map<Long, String>>
+)
+
+/** The body area: measurement definitions and values, with the lists the body screens use. */
+class BodyPart internal constructor(val measurementDefs: List<MeasurementDef>, val records: List<MRecord>) {
     val recordsByDate: Map<String, List<MRecord>> = records.groupBy { it.date }
-    /** Records per measurement, sorted by date then time. */
     val recordsByName: Map<String, List<MRecord>> =
         records.groupBy { it.name }.mapValues { e -> e.value.sortedWith(compareBy({ it.date }, { it.time })) }
-    val datedPhotos: List<Photo> = photos.filter { it.date != null }
-        .sortedWith(compareBy({ it.date }, { it.takenAt ?: "" }, { it.id }))
-    val photosByDate: Map<String, List<Photo>> = datedPhotos.groupBy { it.date!! }
-    val photosById: Map<Long, Photo> = photos.associateBy { it.id }
-    val undatedPhotos: List<Photo> = photos.filter { it.date == null }
-    val reviewPhotos: List<Photo> = photos.filter { DateSources.needsReview(it.dateSource) }
-
-    /** Every date that has anything on it, newest first. */
-    val allDates: List<String> =
-        (setsByDate.keys + recordsByDate.keys + photosByDate.keys + workoutComments.keys)
-            .toSortedSet().toList().reversed()
-
-    /** Every measurement: each definition and each name seen only in records, in the user's order (#88). */
     val allMeasurements: List<MeasurementDef> = run {
         val defs = measurementDefs.associateBy { it.name }
         (measurementDefs.map { it.name } + recordsByName.keys).distinct().map { name ->
             defs[name] ?: MeasurementDef(name, recordsByName[name]?.firstOrNull()?.unit ?: "", 999, 0, 0.0, true)
         }.sortedWith(compareBy({ it.sortOrder }, { it.name }))
     }
+    val usedMeasurements: List<MeasurementDef> = allMeasurements.filter { m ->
+        m.enabled && (m.custom || recordsByName.containsKey(m.name))
+    }
+    val customMetrics: List<MeasurementDef> = measurementDefs.filter { it.custom }.sortedBy { it.name.lowercase() }
+    val fitNotesMeasurementNames: List<String> = measurementDefs.filter { !it.custom }.map { it.name }.sortedBy { it.lowercase() }
+    val bodyweightName: String? = usedMeasurements.firstOrNull { it.name.equals("Bodyweight", true) || it.name.equals("Body Weight", true) }?.name
+        ?: usedMeasurements.firstOrNull()?.name
+}
 
+/** The photos area, with the dated, undated and needs-review lists. */
+class PhotoPart internal constructor(val photos: List<Photo>) {
+    val datedPhotos: List<Photo> = photos.filter { it.date != null }
+        .sortedWith(compareBy({ it.date }, { it.takenAt ?: "" }, { it.id }))
+    val photosByDate: Map<String, List<Photo>> = datedPhotos.groupBy { it.date!! }
+    val photosById: Map<Long, Photo> = photos.associateBy { it.id }
+    val undatedPhotos: List<Photo> = photos.filter { it.date == null }
+    val reviewPhotos: List<Photo> = photos.filter { DateSources.needsReview(it.dateSource) }
+}
+
+/**
+ * Everything the UI needs, held in memory. It's made of one part per [Area] (#60): a write rebuilds only the parts it
+ * changed and shares the rest with the previous snapshot, so saving a set never re-reads photos or body values.
+ */
+class Snapshot internal constructor(
+    internal val library: LibraryPart,
+    internal val setPart: SetPart,
+    internal val notes: NotesPart,
+    internal val body: BodyPart,
+    internal val photoPart: PhotoPart,
+    val weightUnit: String,
+    val photoDir: File,
+    /** The first day of the week, 1 = Monday … 7 = Sunday (#7). */
+    val weekStart: Int = 1
+) {
+    /** A snapshot with its sets replaced, for a write that changed only those. */
+    internal fun replacing(setPart: SetPart): Snapshot =
+        Snapshot(library, setPart, notes, body, photoPart, weightUnit, photoDir, weekStart)
+
+    val categories: Map<Long, Category> get() = library.categories
+    val exercises: Map<Long, Exercise> get() = library.exercises
+    /** Exercise goals (#25), in each exercise's order. */
+    val goals: List<ExerciseGoal> get() = library.goals
+    /** The user's workouts (#106, FitNotes's routines): named days of exercises, in the user's order. */
+    val routines: List<Routine> get() = library.routines
+    /** Which workout and day each logged date was started from, by date (#21, #106). */
+    val workoutOrigins: Map<String, WorkoutOrigin> get() = library.workoutOrigins
+    val routinesById: Map<Long, Routine> get() = library.routinesById
+    val goalsByExercise: Map<Long, List<ExerciseGoal>> get() = library.goalsByExercise
+
+    // ---- Exercise library (#13) ----
+    /** Every category, in the order the library shows them. */
+    val categoriesSorted: List<Category> get() = library.categoriesSorted
+    /** Every exercise in the library, whether or not anything has been logged for it, by name. */
+    val exercisesSorted: List<Exercise> get() = library.exercisesSorted
+    val favouriteExercises: List<Exercise> get() = library.favouriteExercises
+
+    val sets: List<SetRow> get() = setPart.sets
+    /** Count warm-up sets in records and statistics (#43, a setting; off by default). */
+    val countWarmups: Boolean get() = setPart.countWarmups
+    val setsByDate: Map<String, List<SetRow>> get() = setPart.setsByDate
+    val setsByExercise: Map<Long, List<SetRow>> get() = setPart.setsByExercise
+
+    /**
+     * The sets that count for records, estimated maxes, graphs and analysis: every set, or every set except warm-ups
+     * unless the setting counts them (#43). Lists and history still show every set.
+     */
+    val statSets: List<SetRow> get() = setPart.statSets
+    val statSetsByExercise: Map<Long, List<SetRow>> get() = setPart.statSetsByExercise
+    /** Last date each exercise was logged (sets are loaded in date order). */
+    val lastUsedByExercise: Map<Long, String> get() = setPart.lastUsedByExercise
+    /** Number of separate days each exercise was logged. */
+    val workoutsByExercise: Map<Long, Int> get() = setPart.workoutsByExercise
+
+    val workoutComments: Map<String, List<String>> get() = notes.workoutComments
+    val workoutTimes: Map<String, List<WorkoutTime>> get() = notes.workoutTimes
+    /** Exercise comments (#107): date to exercise id to its comment in that day's workout. */
+    val exerciseComments: Map<String, Map<Long, String>> get() = notes.exerciseComments
+
+    val measurementDefs: List<MeasurementDef> get() = body.measurementDefs
+    val records: List<MRecord> get() = body.records
+    val recordsByDate: Map<String, List<MRecord>> get() = body.recordsByDate
+    /** Records per measurement, sorted by date then time. */
+    val recordsByName: Map<String, List<MRecord>> get() = body.recordsByName
+    /** Every measurement: each definition and each name seen only in records, in the user's order (#88). */
+    val allMeasurements: List<MeasurementDef> get() = body.allMeasurements
     /**
      * Measurements that have at least one record, plus FitLens's own (custom and standard), in the user's order.
      * Those switched off on the Measurements screen are left out everywhere they'd be shown (#27).
      */
-    val usedMeasurements: List<MeasurementDef> = allMeasurements.filter { m ->
-        m.enabled && (m.custom || recordsByName.containsKey(m.name))
-    }
-
-    val customMetrics: List<MeasurementDef> = measurementDefs.filter { it.custom }.sortedBy { it.name.lowercase() }
-
+    val usedMeasurements: List<MeasurementDef> get() = body.usedMeasurements
+    val customMetrics: List<MeasurementDef> get() = body.customMetrics
     /** FitNotes measurement names a custom metric can be linked to. */
-    val fitNotesMeasurementNames: List<String> = measurementDefs.filter { !it.custom }.map { it.name }.sortedBy { it.lowercase() }
+    val fitNotesMeasurementNames: List<String> get() = body.fitNotesMeasurementNames
+    val bodyweightName: String? get() = body.bodyweightName
 
-    val bodyweightName: String? = usedMeasurements.firstOrNull { it.name.equals("Bodyweight", true) || it.name.equals("Body Weight", true) }?.name
-        ?: usedMeasurements.firstOrNull()?.name
+    val photos: List<Photo> get() = photoPart.photos
+    val datedPhotos: List<Photo> get() = photoPart.datedPhotos
+    val photosByDate: Map<String, List<Photo>> get() = photoPart.photosByDate
+    val photosById: Map<Long, Photo> get() = photoPart.photosById
+    val undatedPhotos: List<Photo> get() = photoPart.undatedPhotos
+    val reviewPhotos: List<Photo> get() = photoPart.reviewPhotos
+
+    /** Every date that has anything on it, newest first. */
+    val allDates: List<String> =
+        (setsByDate.keys + recordsByDate.keys + photosByDate.keys + workoutComments.keys)
+            .toSortedSet().toList().reversed()
 
     fun photoFile(p: Photo): File = File(photoDir, p.file)
 
@@ -135,6 +224,21 @@ class Snapshot(
     fun categoryOf(exerciseId: Long): Category? = exercises[exerciseId]?.let { categories[it.categoryId] }
 }
 
+/** The order sets are held in, the same as `ORDER BY date, position, id` (#70). */
+internal val SET_ORDER: Comparator<SetRow> = compareBy<SetRow>({ it.date }, { it.position }, { it.id })
+
+/**
+ * Replaces the sets matching [replaced] in [old] with [fresh], the same sets as just re-read from the database, and
+ * keeps every other set (#60). Pure, so it's unit tested.
+ */
+internal fun mergeSets(old: List<SetRow>, fresh: List<SetRow>, replaced: (SetRow) -> Boolean): List<SetRow> {
+    val out = ArrayList<SetRow>(old.size + fresh.size)
+    old.filterNotTo(out, replaced)
+    out.addAll(fresh)
+    out.sortWith(SET_ORDER)
+    return out
+}
+
 object Store {
     lateinit var db: Db
         private set
@@ -142,19 +246,72 @@ object Store {
         private set
     private val _snapshot = MutableStateFlow<Snapshot?>(null)
     val snapshot: StateFlow<Snapshot?> = _snapshot
+    /** One snapshot update at a time, so two writes finishing together can't drop each other's change (#60). */
+    private val lock = Mutex()
 
     fun init(context: Context) {
         db = Db(context.applicationContext)
         photoDir = File(context.filesDir, "photos").apply { mkdirs() }
     }
 
+    /** Re-reads everything, preferences included. For start-up, imports and restores. */
     suspend fun reload() = withContext(Dispatchers.IO) {
         Settings.reloadPortable()
-        _snapshot.value = load()
+        lock.withLock { _snapshot.value = build(null, Area.ALL) }
     }
 
-    private fun load(): Snapshot {
+    /**
+     * Re-reads only [areas] and keeps the rest of the snapshot (#60). With no areas it only applies the current
+     * preferences (weight unit, week start, counting warm-ups) without reading the database.
+     */
+    suspend fun refresh(vararg areas: Area) = withContext(Dispatchers.IO) {
+        lock.withLock { _snapshot.value = build(_snapshot.value, areas.toSet()) }
+    }
+
+    /**
+     * After a small set write (#60): re-reads only the sets of [exerciseIds] and the sets on [dates], and keeps every
+     * other set as it was. A set that moved to another exercise needs both exercises named.
+     */
+    suspend fun refreshSets(exerciseIds: Collection<Long> = emptyList(), dates: Collection<String> = emptyList()) =
+        withContext(Dispatchers.IO) {
+            lock.withLock<Unit> {
+                val old = _snapshot.value
+                val ex = exerciseIds.toSet()
+                val ds = dates.map { it.take(10) }.toSet()
+                val clauses = ArrayList<String>()
+                if (ex.isNotEmpty()) clauses += "exercise_id IN (${ex.joinToString(",")})"
+                if (ds.isNotEmpty()) clauses += "substr(date, 1, 10) IN (${ds.joinToString(",") { "?" }})"
+                if (old == null) {
+                    _snapshot.value = build(null, Area.ALL)
+                } else if (clauses.isNotEmpty()) {
+                    val fresh = loadSets(db.readableDatabase, clauses.joinToString(" OR "), ds.toTypedArray())
+                    val merged = mergeSets(old.sets, fresh) { it.exerciseId in ex || it.date.take(10) in ds }
+                    _snapshot.value = old.replacing(SetPart(merged, Settings.currentPortable().warmupsCount))
+                }
+            }
+        }
+
+    /** Builds a snapshot, reading [areas] and reusing every other part of [old] (reading everything when it's null). */
+    private fun build(old: Snapshot?, areas: Set<Area>): Snapshot {
         val r = db.readableDatabase
+        val prefs = Settings.currentPortable()
+        // Weekly analysis follows the week-start setting (#7).
+        Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
+        val keep = old
+        return Snapshot(
+            library = if (keep == null || Area.LIBRARY in areas) loadLibrary(r) else keep.library,
+            setPart = if (keep == null || Area.SETS in areas) SetPart(loadSets(r, null, emptyArray()), prefs.warmupsCount)
+                else keep.setPart.withWarmups(prefs.warmupsCount),
+            notes = if (keep == null || Area.NOTES in areas) loadNotes(r) else keep.notes,
+            body = if (keep == null || Area.BODY in areas) loadBody(r) else keep.body,
+            photoPart = if (keep == null || Area.PHOTOS in areas) loadPhotos(r) else keep.photoPart,
+            weightUnit = prefs.weightUnit,
+            photoDir = photoDir,
+            weekStart = prefs.weekStart
+        )
+    }
+
+    private fun loadLibrary(r: SQLiteDatabase): LibraryPart {
         val categories = HashMap<Long, Category>()
         r.rawQuery("SELECT id, name, colour, sort_order, source FROM category", null).use { c ->
             while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
@@ -168,8 +325,21 @@ object Store {
                     if (c.isNull(9)) null else c.getInt(9)
                 )
         }
+        val goals = ArrayList<ExerciseGoal>()
+        r.rawQuery("SELECT id, exercise_id, kind, target, sort_order FROM exercise_goal ORDER BY exercise_id, sort_order, id", null).use { c ->
+            while (c.moveToNext()) goals.add(ExerciseGoal(c.lng(0), c.lng(1), c.int(2), c.dbl(3), c.int(4)))
+        }
+        return LibraryPart(categories, exercises, goals, Routines.load(r), Routines.loadOrigins(r))
+    }
+
+    /** The sets matching [where] (every set when it's null), in [SET_ORDER]. */
+    private fun loadSets(r: SQLiteDatabase, where: String?, args: Array<String>): List<SetRow> {
         val sets = ArrayList<SetRow>()
-        r.rawQuery("SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done FROM workout_set ORDER BY date, position, id", null).use { c ->
+        r.rawQuery(
+            "SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done " +
+                "FROM workout_set " + (if (where != null) "WHERE $where " else "") + "ORDER BY date, position, id",
+            args
+        ).use { c ->
             while (c.moveToNext()) sets.add(
                 SetRow(
                     c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8),
@@ -177,24 +347,10 @@ object Store {
                 )
             )
         }
-        val defs = ArrayList<MeasurementDef>()
-        r.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link FROM measurement ORDER BY sort_order, name", null).use { c ->
-            while (c.moveToNext()) defs.add(
-                MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7))
-            )
-        }
-        val records = ArrayList<MRecord>()
-        r.rawQuery("SELECT id, name, unit, date, time, value, comment, source FROM mrecord ORDER BY date, time", null).use { c ->
-            while (c.moveToNext()) records.add(
-                MRecord(c.lng(0), c.strOr(1), c.strOr(2), c.strOr(3), c.strOr(4), c.dbl(5), c.str(6), c.strOr(7))
-            )
-        }
-        val photos = ArrayList<Photo>()
-        r.rawQuery("SELECT id, file, date, taken_at, date_source, pose, note, original_name FROM photo ORDER BY date, taken_at, id", null).use { c ->
-            while (c.moveToNext()) photos.add(
-                Photo(c.lng(0), c.strOr(1), c.str(2), c.str(3), c.strOr(4, DateSources.NONE), c.strOr(5), c.str(6), c.str(7))
-            )
-        }
+        return sets
+    }
+
+    private fun loadNotes(r: SQLiteDatabase): NotesPart {
         val comments = HashMap<String, MutableList<String>>()
         r.rawQuery("SELECT date, comment FROM workout_comment ORDER BY id", null).use { c ->
             while (c.moveToNext()) {
@@ -210,25 +366,37 @@ object Store {
                 times.getOrPut(d) { ArrayList() }.add(WorkoutTime(d, c.strOr(1), c.strOr(2)))
             }
         }
-        val goals = ArrayList<ExerciseGoal>()
-        r.rawQuery("SELECT id, exercise_id, kind, target, sort_order FROM exercise_goal ORDER BY exercise_id, sort_order, id", null).use { c ->
-            while (c.moveToNext()) goals.add(ExerciseGoal(c.lng(0), c.lng(1), c.int(2), c.dbl(3), c.int(4)))
+        val exerciseComments = HashMap<String, HashMap<Long, String>>()
+        r.rawQuery("SELECT date, exercise_id, comment FROM exercise_comment", null).use { c ->
+            while (c.moveToNext()) exerciseComments.getOrPut(c.strOr(0)) { HashMap() }[c.lng(1)] = c.strOr(2)
         }
-        val prefs = Settings.currentPortable()
-        // Weekly analysis follows the week-start setting (#7).
-        Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
-        return Snapshot(
-            categories, exercises, sets, defs, records, photos, comments, times, prefs.weightUnit, photoDir,
-            prefs.warmupsCount, prefs.weekStart, goals, Routines.load(r), Routines.loadOrigins(r), loadExerciseComments(r)
-        )
+        return NotesPart(comments, times, exerciseComments)
     }
 
-    private fun loadExerciseComments(r: android.database.sqlite.SQLiteDatabase): Map<String, Map<Long, String>> {
-        val out = HashMap<String, HashMap<Long, String>>()
-        r.rawQuery("SELECT date, exercise_id, comment FROM exercise_comment", null).use { c ->
-            while (c.moveToNext()) out.getOrPut(c.strOr(0)) { HashMap() }[c.lng(1)] = c.strOr(2)
+    private fun loadBody(r: SQLiteDatabase): BodyPart {
+        val defs = ArrayList<MeasurementDef>()
+        r.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link FROM measurement ORDER BY sort_order, name", null).use { c ->
+            while (c.moveToNext()) defs.add(
+                MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7))
+            )
         }
-        return out
+        val records = ArrayList<MRecord>()
+        r.rawQuery("SELECT id, name, unit, date, time, value, comment, source FROM mrecord ORDER BY date, time", null).use { c ->
+            while (c.moveToNext()) records.add(
+                MRecord(c.lng(0), c.strOr(1), c.strOr(2), c.strOr(3), c.strOr(4), c.dbl(5), c.str(6), c.strOr(7))
+            )
+        }
+        return BodyPart(defs, records)
+    }
+
+    private fun loadPhotos(r: SQLiteDatabase): PhotoPart {
+        val photos = ArrayList<Photo>()
+        r.rawQuery("SELECT id, file, date, taken_at, date_source, pose, note, original_name FROM photo ORDER BY date, taken_at, id", null).use { c ->
+            while (c.moveToNext()) photos.add(
+                Photo(c.lng(0), c.strOr(1), c.str(2), c.str(3), c.strOr(4, DateSources.NONE), c.strOr(5), c.str(6), c.str(7))
+            )
+        }
+        return PhotoPart(photos)
     }
 
     // ---------- Photo edits ----------
@@ -248,7 +416,7 @@ object Store {
         } finally {
             w.endTransaction()
         }
-        _snapshot.value = load()
+        refresh(Area.PHOTOS)
     }
 
     /** Accept the automatically detected date (removes the "needs review" flag). */
@@ -257,7 +425,7 @@ object Store {
         ids.forEach { id ->
             w.execSQL("UPDATE photo SET date_source='${DateSources.MANUAL}' WHERE id=? AND date IS NOT NULL", arrayOf<Any>(id))
         }
-        _snapshot.value = load()
+        refresh(Area.PHOTOS)
     }
 
     suspend fun setPhotoPose(ids: Collection<Long>, pose: String) = withContext(Dispatchers.IO) {
@@ -266,13 +434,13 @@ object Store {
             val cv = ContentValues().apply { put("pose", pose) }
             w.update("photo", cv, "id=?", arrayOf(id.toString()))
         }
-        _snapshot.value = load()
+        refresh(Area.PHOTOS)
     }
 
     suspend fun setPhotoNote(id: Long, note: String) = withContext(Dispatchers.IO) {
         val cv = ContentValues().apply { put("note", note) }
         db.writableDatabase.update("photo", cv, "id=?", arrayOf(id.toString()))
-        _snapshot.value = load()
+        refresh(Area.PHOTOS)
     }
 
     suspend fun deletePhotos(ids: Collection<Long>) = withContext(Dispatchers.IO) {
@@ -283,7 +451,7 @@ object Store {
             }
             w.delete("photo", "id=?", arrayOf(id.toString()))
         }
-        _snapshot.value = load()
+        refresh(Area.PHOTOS)
     }
 
     // ---------- Manual measurements ----------
@@ -298,7 +466,7 @@ object Store {
                 put("value", value); put("comment", comment); put("source", "manual")
             }
             w.insert("mrecord", null, cv)
-            _snapshot.value = load()
+            refresh(Area.BODY)
         }
 
     /** Sets a measurement's goal (#27), and marks it so a FitNotes import keeps the user's choice. */
@@ -308,7 +476,7 @@ object Store {
         w.update("measurement", ContentValues().apply {
             put("goal_type", type); put("goal_value", value); put("edited", 1)
         }, "name=?", arrayOf(name))
-        _snapshot.value = load()
+        refresh(Area.BODY)
     }
 
     /** Stores [names] as the measurement order, top first (#27), and marks each as the user's choice. */
@@ -324,7 +492,7 @@ object Store {
         } finally {
             w.endTransaction()
         }
-        _snapshot.value = load()
+        refresh(Area.BODY)
     }
 
     /** A measurement seen only in records has no definition row yet; this adds one so it can hold a goal or order. */
@@ -373,7 +541,7 @@ object Store {
         } finally {
             w.endTransaction()
         }
-        _snapshot.value = load()
+        refresh(Area.BODY)
     }
 
     /** Deletes a custom metric and the values entered by hand. Values from FitNotes go back to their own measurement. */
@@ -388,7 +556,7 @@ object Store {
         } finally {
             w.endTransaction()
         }
-        _snapshot.value = load()
+        refresh(Area.BODY)
     }
 
     /** Shows or hides a measurement (#27), and marks it so a FitNotes import keeps the choice. */
@@ -396,7 +564,7 @@ object Store {
         val w = db.writableDatabase
         ensureMeasurement(w, name, unit, 999)
         w.update("measurement", ContentValues().apply { put("enabled", if (enabled) 1 else 0); put("edited", 1) }, "name=?", arrayOf(name))
-        _snapshot.value = load()
+        refresh(Area.BODY)
     }
 
     /**
@@ -427,7 +595,7 @@ object Store {
         } finally {
             w.endTransaction()
         }
-        _snapshot.value = load()
+        refresh(Area.BODY)
         add.size
     }
 
@@ -455,11 +623,11 @@ object Store {
         db.writableDatabase.update("mrecord", ContentValues().apply {
             put("date", date); put("time", time); put("value", value); put("comment", comment)
         }, "id=? AND source='manual'", arrayOf(id.toString()))
-        _snapshot.value = load()
+        refresh(Area.BODY)
     }
 
     suspend fun deleteRecord(id: Long) = withContext(Dispatchers.IO) {
         db.writableDatabase.delete("mrecord", "id=? AND source='manual'", arrayOf(id.toString()))
-        _snapshot.value = load()
+        refresh(Area.BODY)
     }
 }

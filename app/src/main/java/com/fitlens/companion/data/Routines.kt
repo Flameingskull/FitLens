@@ -387,7 +387,8 @@ object Routines {
         } finally {
             w.endTransaction()
         }
-        Store.reload()
+        // Workouts live in the library area; logged sets aren't touched (#60).
+        Store.refresh(Area.LIBRARY)
         result
     }
 }

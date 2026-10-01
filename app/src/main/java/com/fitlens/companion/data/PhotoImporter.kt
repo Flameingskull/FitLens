@@ -162,7 +162,7 @@ object PhotoImporter {
             }
         }
         onProgress(uris.size, uris.size)
-        Store.reload()
+        Store.refresh(Area.PHOTOS)
         PhotoImportResult(added, dup, failed, bySource, newIds)
     }
 
