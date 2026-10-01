@@ -83,13 +83,15 @@ fun SetCalculatorSheet(
     targetText: String,
     stepShown: Double,
     onUse: (weightText: String, reps: Int?) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    /** The exercise it was opened from, whose own weight unit applies (#7). */
+    exerciseId: Long? = null
 ) {
-    val unit = snap.weightUnit
+    val unit = snap.weightUnitOf(exerciseId)
     var mode by remember { mutableStateOf(if (bestOneRmKg > 0) 0 else 1) }
     var base by remember(mode) {
         mutableStateOf(
-            if (mode == 0) bestOneRmKg.takeIf { it > 0 }?.let { fmtNum(roundTo(snap.weight(it), stepShown), 2) } ?: ""
+            if (mode == 0) bestOneRmKg.takeIf { it > 0 }?.let { fmtNum(roundTo(snap.weight(it, exerciseId), stepShown), 2) } ?: ""
             else targetText
         )
     }
@@ -105,11 +107,11 @@ fun SetCalculatorSheet(
         if (baseShown <= 0) {
             Text("Enter a weight to see the sets.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else if (mode == 0) {
-            val oneRmKg = snap.toKg(baseShown)
+            val oneRmKg = snap.toKg(baseShown, exerciseId)
             (100 downTo 50 step 5).forEach { pct ->
                 val w = roundTo(baseShown * pct / 100.0, stepShown)
                 // The most reps that weight should allow, by the chosen formula (#42).
-                val reps = (1..Records.MAX_REPS).lastOrNull { Records.weightFor(oneRmKg, it) >= snap.toKg(w) - 0.01 }
+                val reps = (1..Records.MAX_REPS).lastOrNull { Records.weightFor(oneRmKg, it) >= snap.toKg(w, exerciseId) - 0.01 }
                 CalcRow("$pct%", "${fmtNum(w, 2)} $unit", reps?.let { "about $it reps" }) { onUse(fmtNum(w, 2), null) }
             }
             Text(
@@ -152,11 +154,20 @@ private fun CalcRow(label: String, value: String, note: String?, onUse: () -> Un
  * backups. Use fills in the current set with the weight actually loaded.
  */
 @Composable
-fun PlateCalculatorSheet(snap: Snapshot, targetText: String, onUse: (weightText: String) -> Unit, onDismiss: () -> Unit) {
-    val unit = snap.weightUnit
+fun PlateCalculatorSheet(
+    snap: Snapshot,
+    targetText: String,
+    onUse: (weightText: String) -> Unit,
+    onDismiss: () -> Unit,
+    exerciseId: Long? = null
+) {
+    // An exercise with its own weight unit (#7) works in that unit. Your plate list is in the global unit, so such an
+    // exercise uses the standard plates for its unit and leaves your list alone; the bar is kept in kg and converts.
+    val unit = snap.weightUnitOf(exerciseId)
+    val ownPlates = unit == snap.weightUnit
     val prefs by Settings.portable.collectAsState()
-    val savedBar = prefs.barKg?.let { snap.weight(it) } ?: defaultBar(unit)
-    val savedPlates = prefs.plates?.let { parsePlates(it) }?.takeIf { it.isNotEmpty() } ?: defaultPlates(unit)
+    val savedBar = prefs.barKg?.let { snap.weight(it, exerciseId) } ?: defaultBar(unit)
+    val savedPlates = prefs.plates?.takeIf { ownPlates }?.let { parsePlates(it) }?.takeIf { it.isNotEmpty() } ?: defaultPlates(unit)
     var target by remember { mutableStateOf(targetText) }
     var barText by remember(savedBar) { mutableStateOf(fmtNum(savedBar, 2)) }
     var platesText by remember(savedPlates) { mutableStateOf(savedPlates.joinToString(", ") { fmtNum(it, 2) }) }
@@ -170,8 +181,9 @@ fun PlateCalculatorSheet(snap: Snapshot, targetText: String, onUse: (weightText:
         val list = parsePlates(platesText)
         Settings.updatePortable {
             it.copy(
-                barKg = b?.let { v -> snap.toKg(v) },
-                plates = list.takeIf { l -> l.isNotEmpty() && l != defaultPlates(unit) }?.joinToString(",") { v -> fmtNum(v, 3) }
+                barKg = b?.let { v -> snap.toKg(v, exerciseId) },
+                plates = if (!ownPlates) it.plates
+                    else list.takeIf { l -> l.isNotEmpty() && l != defaultPlates(unit) }?.joinToString(",") { v -> fmtNum(v, 3) }
             )
         }
     }

@@ -72,7 +72,7 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             }
         }
     }
-    val unit = snap.weightUnit
+    val unit = snap.weightUnitOf(exId)
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         PeriodDropdown(
             label = "Period",
@@ -121,14 +121,14 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             val bestSet = shown.maxBy { Analysis.volumeKg(it) }
             val bestDay = byDay.maxBy { e -> e.value.sumOf { Analysis.volumeKg(it) } }
             val repsDay = byDay.maxBy { e -> e.value.sumOf { it.reps } }
-            tiles += dated("Max weight", "${snap.fmtWeight(heaviest.weightKg)} $unit × ${heaviest.reps}", heaviest.date)
-            tiles += dated("Estimated 1RM", "${snap.fmtWeight(Records.oneRepMax(best1rm))} $unit", best1rm.date)
-            tiles += dated("Max reps", "${mostReps.reps} × ${snap.fmtWeight(mostReps.weightKg)} $unit", mostReps.date)
-            tiles += dated("Max volume", "${snap.fmtWeight(bestSet.weightKg)} $unit × ${bestSet.reps}", bestSet.date)
+            tiles += dated("Max weight", "${snap.fmtWeight(heaviest.weightKg, exId)} $unit × ${heaviest.reps}", heaviest.date)
+            tiles += dated("Estimated 1RM", "${snap.fmtWeight(Records.oneRepMax(best1rm), exId)} $unit", best1rm.date)
+            tiles += dated("Max reps", "${mostReps.reps} × ${snap.fmtWeight(mostReps.weightKg, exId)} $unit", mostReps.date)
+            tiles += dated("Max volume", "${snap.fmtWeight(bestSet.weightKg, exId)} $unit × ${bestSet.reps}", bestSet.date)
             tiles += dated("Workout reps", "${repsDay.value.sumOf { it.reps }}", repsDay.key)
-            tiles += dated("Workout volume", "${fmtNum(snap.weight(bestDay.value.sumOf { Analysis.volumeKg(it) }), 0)} $unit", bestDay.key)
+            tiles += dated("Workout volume", "${fmtNum(snap.weight(bestDay.value.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit", bestDay.key)
             tiles += StatItem("Total reps", "${shown.sumOf { it.reps }}")
-            tiles += StatItem("Total volume", "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }), 0)} $unit")
+            tiles += StatItem("Total volume", "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit")
         }
         tiles += StatItem("Workouts", "$sessions")
         tiles += StatItem("Sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
@@ -156,10 +156,10 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
  */
 @Composable
 fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
-    val unit = snap.weightUnit
-    var weight by remember { mutableStateOf(start?.weightKg?.takeIf { it > 0 }?.let { fmtNum(snap.weight(it), 2) } ?: "") }
+    val unit = snap.weightUnitOf(start?.exerciseId)
+    var weight by remember { mutableStateOf(start?.weightKg?.takeIf { it > 0 }?.let { fmtNum(snap.weight(it, start?.exerciseId), 2) } ?: "") }
     var reps by remember { mutableStateOf(start?.reps?.takeIf { it > 0 }?.toString() ?: "5") }
-    val kg = snap.toKg(weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0)
+    val kg = snap.toKg(weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0, start?.exerciseId)
     val r = reps.trim().toIntOrNull() ?: 0
     val oneRm = Records.oneRepMax(kg, r)
     FitSheet(title = "1RM calculator", onDismiss = onDismiss, dismissLabel = "Close") {
@@ -177,8 +177,8 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
             keyboard = KeyboardType.Number
         )
         Text(
-            if (oneRm > 0) "${snap.fmtWeight(oneRm)} $unit" else "—",
-            Modifier.semantics { contentDescription = if (oneRm > 0) "Estimated one rep max ${snap.fmtWeight(oneRm)} $unit" else "Enter a weight and 1 to 20 reps" },
+            if (oneRm > 0) "${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "—",
+            Modifier.semantics { contentDescription = if (oneRm > 0) "Estimated one rep max ${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "Enter a weight and 1 to 20 reps" },
             style = MaterialTheme.typography.displaySmall,
             color = Brand.Gold
         )
@@ -189,7 +189,7 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
             (1..12).chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     row.forEach { n ->
-                        Text("${n}RM  ${snap.fmtWeight(Records.weightFor(oneRm, n))}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Text("${n}RM  ${snap.fmtWeight(Records.weightFor(oneRm, n), start?.exerciseId)}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
@@ -198,7 +198,7 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
             (100 downTo 50 step 5).chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     row.forEach { pct ->
-                        Text("$pct%  ${snap.fmtWeight(oneRm * pct / 100.0)}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Text("$pct%  ${snap.fmtWeight(oneRm * pct / 100.0, start?.exerciseId)}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     }
                     repeat(3 - row.size) { androidx.compose.foundation.layout.Spacer(Modifier.weight(1f)) }
                 }

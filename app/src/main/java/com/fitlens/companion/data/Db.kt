@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 15
+        const val VERSION = 16
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -86,7 +86,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER)",
             "CREATE TABLE exercise(id INTEGER PRIMARY KEY, name TEXT NOT NULL, category_id INTEGER NOT NULL DEFAULT 0, type INTEGER NOT NULL DEFAULT 0, notes TEXT, " +
                 "favourite INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, " +
-                "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1, rest_seconds INTEGER, distance_unit TEXT)",
+                "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1, rest_seconds INTEGER, distance_unit TEXT, weight_unit TEXT)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
                 "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0)",
@@ -95,7 +95,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE INDEX idx_set_date ON workout_set(date)",
             "CREATE INDEX idx_set_ex ON workout_set(exercise_id)",
             "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 999, goal_type INTEGER NOT NULL DEFAULT 0, goal_value REAL NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, custom INTEGER NOT NULL DEFAULT 0, link TEXT, " +
-                "edited INTEGER NOT NULL DEFAULT 0)",
+                "edited INTEGER NOT NULL DEFAULT 0, display_unit TEXT)",
             "CREATE TABLE mrecord(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, unit TEXT NOT NULL DEFAULT '', date TEXT NOT NULL, time TEXT NOT NULL DEFAULT '', value REAL NOT NULL, comment TEXT, source TEXT NOT NULL)",
             "CREATE INDEX idx_mr_date ON mrecord(date)",
             CREATE_COMMENT,
@@ -243,7 +243,17 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // step replays safely (#77).
             addColumn(db, "exercise", "distance_unit", "TEXT")
         }
+        if (oldVersion < 16) {
+            // ---- 1.0.66: per-exercise weight unit and per-measurement units (#7) ---------------------------------
+            // NULL uses the global unit. Weights stay in kg and body values in the unit they were logged in; these
+            // only choose how they're shown. The step replays safely (#77).
+            addColumn(db, "exercise", "weight_unit", "TEXT")
+            if (hasTable(db, "measurement")) addColumn(db, "measurement", "display_unit", "TEXT")
+        }
     }
+
+    private fun hasTable(db: SQLiteDatabase, table: String): Boolean =
+        db.rawQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", arrayOf(table)).use { it.moveToFirst() }
 
     /**
      * Installing an older FitLens over a newer one used to be fatal: the default implementation throws

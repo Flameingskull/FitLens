@@ -81,7 +81,9 @@ class BodyPart internal constructor(
     val lengthUnit: String = LengthUnits.CM
 ) {
     val measurementDefs: List<MeasurementDef> = rawDefs.map { MeasureUnits.shown(it, weightUnit, lengthUnit) }
-    val records: List<MRecord> = rawRecords.map { MeasureUnits.shown(it, weightUnit, lengthUnit) }
+    // A measurement's own display unit (#7) applies to its values too.
+    private val overrides: Map<String, String> = rawDefs.mapNotNull { d -> d.displayUnit?.let { d.name to it } }.toMap()
+    val records: List<MRecord> = rawRecords.map { MeasureUnits.shown(it, weightUnit, lengthUnit, overrides[it.name]) }
 
     /** The same values shown in other units: converted from memory, never re-read. */
     internal fun withUnits(weight: String, length: String): BodyPart =
@@ -141,6 +143,19 @@ class Snapshot internal constructor(
 
     /** The unit [exerciseId]'s distances are logged and shown in: its own, or the global one (#7). */
     fun distanceUnit(exerciseId: Long): String = exercises[exerciseId]?.distanceUnit ?: globalDistanceUnit
+
+    /**
+     * The unit [exerciseId]'s weights are shown and typed in: its own, or the global one (#7). Screens about one
+     * exercise use this and the `weight` / `toKg` / `fmtWeight` overloads that take its id; totals across exercises
+     * use the global [weightUnit].
+     */
+    fun weightUnitOf(exerciseId: Long?): String = exerciseId?.let { exercises[it]?.weightUnit } ?: weightUnit
+
+    fun weight(kg: Double, exerciseId: Long?): Double = WeightUnits.convert(kg, "kg", weightUnitOf(exerciseId))
+
+    fun toKg(shown: Double, exerciseId: Long?): Double = WeightUnits.convert(shown, weightUnitOf(exerciseId), "kg")
+
+    fun fmtWeight(kg: Double, exerciseId: Long?): String = fmtNum(weight(kg, exerciseId), 2)
 
     val categories: Map<Long, Category> get() = library.categories
     val exercises: Map<Long, Exercise> get() = library.exercises
@@ -342,12 +357,12 @@ object Store {
             while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
         }
         val exercises = HashMap<Long, Exercise>()
-        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph, rest_seconds, distance_unit FROM exercise", null).use { c ->
+        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph, rest_seconds, distance_unit, weight_unit FROM exercise", null).use { c ->
             while (c.moveToNext()) exercises[c.lng(0)] =
                 Exercise(
                     c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0,
                     if (c.isNull(7)) null else c.getDouble(7), if (c.isNull(8)) -1 else c.getInt(8),
-                    if (c.isNull(9)) null else c.getInt(9), DistanceUnits.of(c.str(10))
+                    if (c.isNull(9)) null else c.getInt(9), DistanceUnits.of(c.str(10)), WeightUnits.of(c.str(11))
                 )
         }
         val goals = ArrayList<ExerciseGoal>()
@@ -400,9 +415,9 @@ object Store {
 
     private fun loadBody(r: SQLiteDatabase, weightUnit: String): BodyPart {
         val defs = ArrayList<MeasurementDef>()
-        r.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link FROM measurement ORDER BY sort_order, name", null).use { c ->
+        r.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link, display_unit FROM measurement ORDER BY sort_order, name", null).use { c ->
             while (c.moveToNext()) defs.add(
-                MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7))
+                MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7), c.str(8))
             )
         }
         val records = ArrayList<MRecord>()
@@ -562,6 +577,8 @@ object Store {
                 put("name", name); put("unit", keptUnit); put("sort_order", existing?.sortOrder ?: old?.sortOrder ?: 900)
                 put("goal_type", existing?.goalType ?: 0); put("goal_value", existing?.goalValue ?: 0.0)
                 put("enabled", 1); put("custom", 1); put("link", link?.takeIf { it.isNotBlank() })
+                // Keeps the metric's own display unit (#7) while it's still the same kind of unit.
+                put("display_unit", (existing ?: old)?.displayUnit?.takeIf { MeasureUnits.sameKind(it, keptUnit) })
             }, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
             val key = (link?.takeIf { it.isNotBlank() } ?: name).trim().lowercase()
             w.execSQL(
@@ -594,6 +611,24 @@ object Store {
         } finally {
             w.endTransaction()
         }
+        refresh(Area.BODY)
+    }
+
+    /**
+     * Shows [name] in its own unit (#7), or in the global weight or length unit when [unit] is null. Only a unit of the
+     * same kind as the stored one is kept; the stored values never change.
+     */
+    suspend fun setMeasurementDisplayUnit(name: String, unit: String?) = withContext(Dispatchers.IO) {
+        val w = db.writableDatabase
+        // A measurement known only from its values gets its row first, in the unit those values use.
+        val stored = loadDef(w, name)?.unit
+            ?: w.rawQuery("SELECT unit FROM mrecord WHERE name=? AND unit<>'' LIMIT 1", arrayOf(name)).use { c ->
+                if (c.moveToFirst()) c.getString(0) else null
+            }?.also { ensureMeasurement(w, name, it, 999) }
+        val keep = unit?.takeIf { MeasureUnits.sameKind(it, stored) }
+        w.update("measurement", ContentValues().apply {
+            if (keep == null) putNull("display_unit") else put("display_unit", keep)
+        }, "name=?", arrayOf(name))
         refresh(Area.BODY)
     }
 
@@ -641,8 +676,8 @@ object Store {
     fun manualCount(snap: Snapshot, name: String): Int = snap.recordsByName[name]?.count { it.source == "manual" } ?: 0
 
     private fun loadDef(w: android.database.sqlite.SQLiteDatabase, name: String): MeasurementDef? =
-        w.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link FROM measurement WHERE name=?", arrayOf(name)).use { c ->
-            if (c.moveToFirst()) MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7)) else null
+        w.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link, display_unit FROM measurement WHERE name=?", arrayOf(name)).use { c ->
+            if (c.moveToFirst()) MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7), c.str(8)) else null
         }
 
     /** Moves imported values held by a custom metric back under the FitNotes measurement they came from. */
@@ -664,7 +699,10 @@ object Store {
             if (c.moveToFirst()) c.getString(0) else null
         }
         val prefs = Settings.currentPortable()
-        val stores = MeasureUnits.convert(value, MeasureUnits.display(stored, prefs.weightUnit, prefs.lengthUnit), stored)
+        val override = w.rawQuery(
+            "SELECT m.display_unit FROM measurement m JOIN mrecord r ON r.name = m.name WHERE r.id=?", arrayOf(id.toString())
+        ).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        val stores = MeasureUnits.convert(value, MeasureUnits.display(stored, prefs.weightUnit, prefs.lengthUnit, override), stored)
         w.update("mrecord", ContentValues().apply {
             put("date", date); put("time", time); put("value", stores); put("comment", comment)
         }, "id=? AND source='manual'", arrayOf(id.toString()))

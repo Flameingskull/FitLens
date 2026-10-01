@@ -28,7 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import com.fitlens.companion.data.MeasureUnits
 import com.fitlens.companion.data.MeasurementDef
+import com.fitlens.companion.data.WeightUnits
+import com.fitlens.companion.ui.design.DropdownPill
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.StandardMeasurements
 import com.fitlens.companion.data.Store
@@ -58,7 +61,7 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
                 Column(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
                     Text(
                         "Switch a measurement off to hide it from the body tracker and the day log. Its values are kept, " +
-                            "and FitNotes imports keep your choice.",
+                            "and FitNotes imports keep your choice. A weight or length can have its own unit.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -88,6 +91,20 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
                     Column(Modifier.weight(1f).padding(vertical = Spacing.sm)) {
                         Text(m.name + if (m.unit.isNotBlank()) " (${m.unit})" else "", style = MaterialTheme.typography.bodyLarge)
                         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        // Its own unit (#7): a weight in kg or lbs, a length in cm or in, whatever Settings says for the
+                        // rest. Values are stored as logged and converted for display.
+                        val choices = MeasureUnits.choices(m.unit)
+                        if (choices.isNotEmpty()) {
+                            val global = if (WeightUnits.of(m.unit) != null) snap.weightUnit else snap.lengthUnit
+                            DropdownPill(
+                                "Unit for ${m.name}",
+                                listOf("Unit as in Settings ($global)") + choices.map { "Always in $it" },
+                                m.displayUnit?.let { u -> choices.indexOf(u) + 1 } ?: 0
+                            ) { i ->
+                                val unit = if (i == 0) null else choices[i - 1]
+                                AppScope.scope.launch { Store.setMeasurementDisplayUnit(m.name, unit) }
+                            }
+                        }
                     }
                     Switch(
                         checked = m.enabled,

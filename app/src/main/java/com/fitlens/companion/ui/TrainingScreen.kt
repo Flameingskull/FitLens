@@ -215,7 +215,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     // A goal for this graph can be drawn as a line (#25), in the graph's own unit.
     var showGoal by rememberSaveable { mutableStateOf(true) }
     val goalTarget = goalKindForGraph(g.label)?.let { k ->
-        snap.goalsByExercise[exId]?.firstOrNull { it.kind == k }?.let { goalShown(snap, k, it.target) }
+        snap.goalsByExercise[exId]?.firstOrNull { it.kind == k }?.let { goalShown(snap, k, it.target, exId) }
     }
     val goalLine = if (showGoal) goalTarget else null
     // Graphs leave out warm-ups unless Settings counts them (#43); History shows every set.
@@ -258,16 +258,16 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
         }
         item {
             // Worked out off the main thread, once per snapshot and graph type (#50).
-            val daily = rememberChartData(statByDate, g, snap.weightUnit) {
+            val daily = rememberChartData(statByDate, g, snap.weightUnitOf(exId)) {
                 val raw = g.series?.invoke(statByDate) ?: statByDate.entries.map { (d, l) -> d to g.fn(l) }
                 raw.map { (d, v) ->
-                    ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(v) else if (g.isTime) v / 60.0 else v, d)
+                    ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(v, exId) else if (g.isTime) v / 60.0 else v, d)
                 }.filter { it.y > 0 }
             } ?: emptyList()
             val shown = inRange(daily, RANGES[rangeIdx].second) { it.date }
             val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
             val unit = when {
-                g.isWeight -> snap.weightUnit
+                g.isWeight -> snap.weightUnitOf(exId)
                 g.label == GRAPH_MAX_PACE -> if (distUnit == DistanceUnits.M) "/100 m" else "/$distUnit"
                 g.isTime -> "min"
                 g.label == GRAPH_DISTANCE || g.label == GRAPH_MAX_DISTANCE -> distUnit
@@ -445,7 +445,7 @@ private fun dayTotals(snap: Snapshot, exId: Long, sets: List<SetRow>): String {
     val distance = sets.sumOf { it.distance }
     val time = sets.sumOf { it.durationSec }
     if (reps > 0) parts += "$reps reps"
-    if (volume > 0) parts += "${fmtNum(snap.weight(volume), 0)} ${snap.weightUnit} volume"
+    if (volume > 0) parts += "${fmtNum(snap.weight(volume, exId), 0)} ${snap.weightUnitOf(exId)} volume"
     if (distance > 0) parts += "${fmtNum(distance)} ${snap.distanceUnit(exId)}"
     if (time > 0) parts += fmtDuration(time)
     return parts.joinToString("  ·  ")
@@ -467,6 +467,8 @@ private fun copyToToday(date: String, ids: List<Long>) {
 
 @Composable
 internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean) {
+    // Weights in the exercise's own unit (#7); the sets are all one exercise's.
+    val exId = allSets.firstOrNull()?.exerciseId
     // -1 means the Custom range in customFrom..customTo.
     var periodIdx by rememberSaveable { mutableIntStateOf(Records.Period.ALL.ordinal) }
     var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
@@ -512,7 +514,7 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
                     LabelValue("First", days.firstOrNull()?.let { Dates.medium(it) } ?: "—", Modifier.weight(1f))
                     LabelValue("Last", days.lastOrNull()?.let { Dates.medium(it) } ?: "—", Modifier.weight(1f))
                     if (timeBased) LabelValue("Longest", fmtDuration(sets.maxOfOrNull { it.durationSec } ?: 0), Modifier.weight(1f))
-                    else LabelValue("Volume", "${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0)} ${snap.weightUnit}", Modifier.weight(1f))
+                    else LabelValue("Volume", "${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }, exId), 0)} ${snap.weightUnitOf(exId)}", Modifier.weight(1f))
                 }
             }
             HorizontalDivider()
@@ -535,11 +537,11 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
                         actual?.let {
                             // A record set by a higher-rep set shows its reps, e.g. "100 kg × 5".
                             val reps = if (it.reps > r) " × ${it.reps}" else ""
-                            "${snap.fmtWeight(it.weightKg)} ${snap.weightUnit}$reps · ${Dates.short(it.date)}"
+                            "${snap.fmtWeight(it.weightKg, exId)} ${snap.weightUnitOf(exId)}$reps · ${Dates.short(it.date)}"
                         } ?: "—",
                         Modifier.weight(1.4f)
                     )
-                    Text(if (est > 0) "${fmtNum(snap.weight(est), 1)} ${snap.weightUnit}" else "—", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if (est > 0) "${fmtNum(snap.weight(est, exId), 1)} ${snap.weightUnitOf(exId)}" else "—", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

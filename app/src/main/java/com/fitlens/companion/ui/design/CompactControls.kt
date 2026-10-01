@@ -72,12 +72,9 @@ fun DropdownPill(
 /** One on/off option in an [OptionsMenu]. */
 data class ToggleOption(val label: String, val on: Boolean, val onToggle: () -> Unit)
 
-/** A one-off command in an [OptionsMenu], such as "Share graph" (#22). It closes the menu. */
-data class MenuAction(val label: String, val onClick: () -> Unit)
-
 /**
  * A ⋮ button with on/off options (a tick shows which are on). Stays open so several can be changed at once; any
- * [actions] follow the options and close the menu.
+ * [actions] (one-off commands such as "Share graph as image", #22) follow the options and close the menu.
  */
 @Composable
 fun OptionsMenu(options: List<ToggleOption>, description: String = "Graph options", actions: List<MenuAction> = emptyList()) {
@@ -101,6 +98,7 @@ fun OptionsMenu(options: List<ToggleOption>, description: String = "Graph option
             actions.forEach { a ->
                 DropdownMenuItem(
                     text = { Text(a.label) },
+                    enabled = a.enabled,
                     onClick = { open = false; a.onClick() },
                     leadingIcon = { Box(Modifier.size(24.dp)) }
                 )

@@ -287,7 +287,7 @@ object Routines {
         if (sets.isEmpty()) return "No sets"
         val first = sets.first()
         val parts = ArrayList<String>()
-        if (first.weightKg != 0.0) parts.add("${snap.fmtWeight(first.weightKg)} ${snap.weightUnit}")
+        if (first.weightKg != 0.0) parts.add("${snap.fmtWeight(first.weightKg, exerciseId)} ${snap.weightUnitOf(exerciseId)}")
         if (first.reps > 0) parts.add("${first.reps} reps")
         if (first.distance > 0) parts.add("${fmtNum(first.distance)} ${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit}")
         if (first.durationSec > 0) parts.add(fmtDuration(first.durationSec))

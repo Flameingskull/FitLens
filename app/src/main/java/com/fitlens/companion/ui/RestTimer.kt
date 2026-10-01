@@ -436,7 +436,7 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
         // through a 1 s rest on the way.
         RestTimer.setLength(secs)
         if (own != null && exercise != null) {
-            AppScope.scope.launch { Workouts.setExerciseDefaults(exercise.id, exercise.weightStepKg, exercise.defaultGraph, secs, exercise.distanceUnit) }
+            AppScope.scope.launch { Workouts.setExerciseDefaults(exercise.id, exercise.weightStepKg, exercise.defaultGraph, secs, exercise.distanceUnit, exercise.weightUnit) }
         } else {
             Settings.updatePortable { it.copy(restSeconds = secs) }
         }
@@ -494,7 +494,7 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
             TextButton(
                 onClick = {
                     AppScope.scope.launch {
-                        Workouts.setExerciseDefaults(exercise.id, exercise.weightStepKg, exercise.defaultGraph, null, exercise.distanceUnit)
+                        Workouts.setExerciseDefaults(exercise.id, exercise.weightStepKg, exercise.defaultGraph, null, exercise.distanceUnit, exercise.weightUnit)
                     }
                 },
                 modifier = Modifier.heightIn(min = Spacing.touch)

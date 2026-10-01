@@ -65,6 +65,31 @@ class WeightUnitsTest {
     }
 
     @Test
+    fun aMeasurementsOwnUnitWinsOverTheGlobalOne() {
+        // Waist in inches while other lengths follow the global centimetres (#7); a unit of the wrong kind is ignored.
+        val defs = listOf(
+            MeasurementDef("Waist", "cm", 0, MeasurementGoals.TARGET, 80.0, true, displayUnit = "in"),
+            MeasurementDef("Chest", "cm", 1, 0, 0.0, true),
+            MeasurementDef("Bodyweight", "kg", 2, 0, 0.0, true, displayUnit = "in")
+        )
+        val records = listOf(
+            rec(90.0, "cm").copy(name = "Waist"), rec(100.0, "cm").copy(id = 2, name = "Chest"),
+            rec(80.0, "kg").copy(id = 3)
+        )
+        val body = BodyPart(defs, records, "kg", "cm")
+        assertEquals("in", body.records[0].unit)
+        assertEquals(35.43, body.records[0].value, 0.01)
+        assertEquals(31.50, body.measurementDefs[0].goalValue, 0.01)
+        assertEquals("cm", body.records[1].unit)
+        assertEquals("kg", body.records[2].unit)
+        assertEquals(80.0, body.records[2].value, 0.0)
+        // The override still applies after the global units change.
+        assertEquals("in", body.withUnits("lbs", "cm").records[0].unit)
+        assertEquals(listOf("kg", "lbs"), MeasureUnits.choices("kgs"))
+        assertEquals(emptyList<String>(), MeasureUnits.choices("%"))
+    }
+
+    @Test
     fun distanceUnitsAreLabelsOnly() {
         assertEquals("mi", DistanceUnits.of(" MI "))
         assertNull(DistanceUnits.of("furlong"))

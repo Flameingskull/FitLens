@@ -617,7 +617,7 @@ fun defOrder(snap: Snapshot, name: String): Int =
 fun describeSet(snap: Snapshot, weightKg: Double, reps: Int, distance: Double, duration: Int, exerciseId: Long? = null): String {
     val parts = ArrayList<String>()
     // A bodyweight set has no weight to show; "0 kg x 10 reps" read as though the weight had been lost (#74).
-    if (weightKg != 0.0) parts.add("${snap.fmtWeight(weightKg)} ${snap.weightUnit}")
+    if (weightKg != 0.0) parts.add("${snap.fmtWeight(weightKg, exerciseId)} ${snap.weightUnitOf(exerciseId)}")
     if (reps > 0) parts.add("$reps reps")
     // Distances carry their exercise's unit, or the global one when the exercise isn't known (#7).
     if (distance > 0) parts.add("${fmtNum(distance)} ${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit}")

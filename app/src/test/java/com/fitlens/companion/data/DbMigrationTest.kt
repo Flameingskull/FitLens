@@ -232,4 +232,26 @@ class DbMigrationTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=7"))
         }
     }
+
+    @Test
+    fun v15GainsWeightAndMeasurementUnitsAndKeepsRows() {
+        oldDatabase(
+            15,
+            v12Schema + listOf(
+                Routines.CREATE_EXERCISE, Routines.CREATE_SET, Db.CREATE_EXERCISE_COMMENT,
+                "ALTER TABLE exercise ADD COLUMN distance_unit TEXT",
+                "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '')"
+            )
+        ) { db ->
+            db.row("exercise", "id" to 3L, "name" to "Bench Press", "distance_unit" to "km")
+            db.row("workout_set", "exercise_id" to 3L, "date" to "2026-10-01", "weight" to 100.0, "reps" to 5)
+            db.row("measurement", "name" to "Waist", "unit" to "cm")
+        }
+        Db(app).writableDatabase.use { db ->
+            assertEquals(Db.VERSION, db.version)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE id=3 AND distance_unit='km' AND weight_unit IS NULL"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=3 AND weight=100.0"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Waist' AND unit='cm' AND display_unit IS NULL"))
+        }
+    }
 }

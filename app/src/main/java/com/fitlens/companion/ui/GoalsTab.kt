@@ -43,14 +43,14 @@ import com.fitlens.companion.ui.design.MenuAction
 import kotlinx.coroutines.launch
 
 /** A goal's value in the display unit: weights in kg or lbs, times in minutes, counts as they are. */
-internal fun goalShown(snap: Snapshot, kind: Int, v: Double): Double = when {
-    GoalKinds.isWeight(kind) -> snap.weight(v)
+internal fun goalShown(snap: Snapshot, kind: Int, v: Double, exerciseId: Long? = null): Double = when {
+    GoalKinds.isWeight(kind) -> snap.weight(v, exerciseId)
     GoalKinds.isTime(kind) -> v / 60.0
     else -> v
 }
 
-internal fun goalUnit(snap: Snapshot, kind: Int): String = when {
-    GoalKinds.isWeight(kind) -> snap.weightUnit
+internal fun goalUnit(snap: Snapshot, kind: Int, exerciseId: Long? = null): String = when {
+    GoalKinds.isWeight(kind) -> snap.weightUnitOf(exerciseId)
     GoalKinds.isTime(kind) -> "min"
     kind == GoalKinds.MAX_REPS -> "reps"
     else -> ""
@@ -142,9 +142,9 @@ fun GoalsTab(snap: Snapshot, exId: Long, timeBased: Boolean) {
 
 /** A goal's title ("Max weight: 120 kg") and where it stands, for the goal lists (#25, #90). */
 internal fun goalText(snap: Snapshot, g: ExerciseGoal, p: GoalProgress): Pair<String, String> {
-    val unit = goalUnit(snap, g.kind)
-    val target = "${fmtNum(goalShown(snap, g.kind, g.target), 1)} $unit".trim()
-    val best = "${fmtNum(goalShown(snap, g.kind, p.best), 1)} $unit".trim()
+    val unit = goalUnit(snap, g.kind, g.exerciseId)
+    val target = "${fmtNum(goalShown(snap, g.kind, g.target, g.exerciseId), 1)} $unit".trim()
+    val best = "${fmtNum(goalShown(snap, g.kind, p.best, g.exerciseId), 1)} $unit".trim()
     val status = when {
         p.achievedDate != null -> "Reached on ${Dates.medium(p.achievedDate)}"
         p.bestDate != null -> "Best so far $best on ${Dates.medium(p.bestDate)}"
@@ -160,14 +160,14 @@ internal fun GoalEditor(snap: Snapshot, goal: ExerciseGoal, timeBased: Boolean, 
     val kinds = if (timeBased) GoalKinds.timed else GoalKinds.strength
     var kind by remember { mutableIntStateOf(goal.kind) }
     var text by remember {
-        mutableStateOf(if (goal.target > 0) fmtNum(goalShown(snap, goal.kind, goal.target), 2) else "")
+        mutableStateOf(if (goal.target > 0) fmtNum(goalShown(snap, goal.kind, goal.target, goal.exerciseId), 2) else "")
     }
     val value = text.trim().replace(',', '.').toDoubleOrNull()
 
     fun save() {
         val v = value ?: return
         val target = when {
-            GoalKinds.isWeight(kind) -> snap.toKg(v)
+            GoalKinds.isWeight(kind) -> snap.toKg(v, goal.exerciseId)
             GoalKinds.isTime(kind) -> v * 60.0
             else -> v
         }
@@ -187,7 +187,7 @@ internal fun GoalEditor(snap: Snapshot, goal: ExerciseGoal, timeBased: Boolean, 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             kinds.forEach { k -> FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(GoalKinds.label(k)) }) }
         }
-        val unit = goalUnit(snap, kind)
+        val unit = goalUnit(snap, kind, goal.exerciseId)
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },

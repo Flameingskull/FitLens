@@ -95,6 +95,7 @@ import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.ConfirmSheet
 import com.fitlens.companion.ui.design.DropdownPill
+import com.fitlens.companion.data.WeightUnits
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.ListRowWithMenu
@@ -646,7 +647,7 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
             ExerciseNotes(notes)
         }
         GoldHairline()
-        if (ExerciseTypes.usesWeight(ex.type)) InfoRow("Weight increment", "${fmtNum(weightStepShown, 2)} ${snap.weightUnit}")
+        if (ExerciseTypes.usesWeight(ex.type)) InfoRow("Weight increment", "${fmtNum(weightStepShown, 2)} ${snap.weightUnitOf(ex.id)}")
         InfoRow("Rest time", ex.restSeconds?.let { fmtDuration(it) } ?: "Default (${fmtDuration(prefs.restSeconds)})")
         InfoRow("Default graph", graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0) ?: "None")
         InfoRow("Type", ExerciseTypes.label(ex.type))
@@ -680,6 +681,8 @@ fun ExerciseEditorSheet(
     var restSec by remember { mutableStateOf(existing?.restSeconds) }
     // Its own distance unit (#7), or null for the global one.
     var distUnit by remember { mutableStateOf(existing?.distanceUnit) }
+    // Its own weight unit (#7), or null for the global one.
+    var weightUnit by remember { mutableStateOf(existing?.weightUnit) }
 
     fun save(keepOpen: Boolean) {
         val n = name.trim()
@@ -694,6 +697,7 @@ fun ExerciseEditorSheet(
         val graph = defaultGraph
         val rest = restSec
         val dUnit = distUnit
+        val wUnit = weightUnit
         if (!keepOpen) onDismiss()
         AppScope.scope.launch {
             try {
@@ -704,9 +708,9 @@ fun ExerciseEditorSheet(
                     existing.id
                 }
                 if (step != existing?.weightStepKg || graph != (existing?.defaultGraph ?: -1) || rest != existing?.restSeconds ||
-                    dUnit != existing?.distanceUnit
+                    dUnit != existing?.distanceUnit || wUnit != existing?.weightUnit
                 ) {
-                    Workouts.setExerciseDefaults(id, step, graph, rest, dUnit)
+                    Workouts.setExerciseDefaults(id, step, graph, rest, dUnit, wUnit)
                 }
                 if (keepOpen) {
                     // Ready for the next one in the same category (#83). onSaved isn't fired: it would open the
@@ -780,17 +784,25 @@ fun ExerciseEditorSheet(
             )
         }
         if (ExerciseTypes.usesWeight(type)) {
-            val lbs = snap.weightUnit == "lbs"
+            // Its own weight unit (#7): weights are stored in kg, so a change only converts how they're shown.
+            FieldLabel("Weight unit")
+            DropdownPill(
+                "Weight unit",
+                listOf("As in Settings (${snap.weightUnit})", "Kilograms (kg)", "Pounds (lbs)"),
+                when (weightUnit) { "kg" -> 1; "lbs" -> 2; else -> 0 }
+            ) { i -> weightUnit = when (i) { 1 -> "kg"; 2 -> "lbs"; else -> null } }
+            val shownUnit = weightUnit ?: snap.weightUnit
+            val lbs = shownUnit == "lbs"
             val steps = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
             FieldLabel("Weight step")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = stepKg == null, onClick = { stepKg = null }, label = { Text("As in Settings") })
                 steps.forEach { v ->
-                    val kg = snap.toKg(v)
+                    val kg = WeightUnits.convert(v, shownUnit, "kg")
                     FilterChip(
                         selected = stepKg?.let { kotlin.math.abs(it - kg) < 0.001 } == true,
                         onClick = { stepKg = kg },
-                        label = { Text("${fmtNum(v, 2)} ${snap.weightUnit}") }
+                        label = { Text("${fmtNum(v, 2)} $shownUnit") }
                     )
                 }
             }

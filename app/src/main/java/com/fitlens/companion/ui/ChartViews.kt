@@ -417,7 +417,7 @@ fun GraphOptionChips(
                 onFromZero?.let { ToggleOption("Start from zero", fromZero, it) }
             ) + extra,
             // Share the graph as a branded image (#22).
-            actions = listOfNotNull(onShare?.let { MenuAction("Share graph as image", it) })
+            actions = listOfNotNull(onShare?.let { MenuAction("Share graph as image", onClick = it) })
         )
         trailing()
     }

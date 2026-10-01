@@ -61,9 +61,9 @@ fun setCells(snap: Snapshot, fields: List<SetField>, s: SetRow): List<SetCell> =
             if (s.weightKg == 0.0) {
                 SetCell("BW", spoken = "bodyweight")
             } else {
-                val unitName = if (snap.weightUnit == "kg") "kilograms" else "pounds"
-                val w = snap.fmtWeight(s.weightKg)
-                SetCell(w, snap.weightUnit, "$w $unitName")
+                val unitName = if (snap.weightUnitOf(s.exerciseId) == "kg") "kilograms" else "pounds"
+                val w = snap.fmtWeight(s.weightKg, s.exerciseId)
+                SetCell(w, snap.weightUnitOf(s.exerciseId), "$w $unitName")
             }
         }
         SetField.REPS ->

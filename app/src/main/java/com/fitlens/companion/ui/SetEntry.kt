@@ -179,7 +179,10 @@ fun SetEntryScreen(
 
     // The global step from Settings → Units & display (#7) is stored in kg; the field works in the display unit.
     // This exercise's own step comes first (#15), then the global one.
-    val weightStep = (ex?.weightStepKg ?: prefs.weightIncrementKg)?.let { snap.weight(it) } ?: DEFAULT_WEIGHT_STEP
+    // An exercise in its own weight unit (#7) skips the global step, which is sized for the global unit (2.5 kg would
+    // step 5.51 lbs), and uses 2.5 in its unit unless it has its own step.
+    val globalStepKg = prefs.weightIncrementKg?.takeIf { snap.weightUnitOf(exerciseId) == snap.weightUnit }
+    val weightStep = (ex?.weightStepKg ?: globalStepKg)?.let { snap.weight(it, exerciseId) } ?: DEFAULT_WEIGHT_STEP
 
     // "Keep screen on" while logging, switched in Settings → Workout & logging (#97).
     val view = LocalView.current
@@ -195,7 +198,7 @@ fun SetEntryScreen(
             selected = null
         } else {
             val source = chosen ?: template
-            weight = source?.weightKg?.takeIf { it != 0.0 }?.let { fmtNum(snap.weight(it), 2) } ?: ""
+            weight = source?.weightKg?.takeIf { it != 0.0 }?.let { fmtNum(snap.weight(it, exerciseId), 2) } ?: ""
             loadedWeightText = weight
             loadedWeightKg = source?.weightKg
             reps = source?.reps?.takeIf { it > 0 }?.toString() ?: ""
@@ -213,7 +216,7 @@ fun SetEntryScreen(
     fun save() {
         // Untouched field: keep the stored kilograms exactly as they were, rather than round-tripping the
         // two-decimal display value back through the unit conversion (#75).
-        val kg = if (weight == loadedWeightText) loadedWeightKg ?: 0.0 else snap.toKg(num(weight))
+        val kg = if (weight == loadedWeightText) loadedWeightKg ?: 0.0 else snap.toKg(num(weight), exerciseId)
         val r = reps.trim().toIntOrNull() ?: 0
         val dist = num(distance)
         val dur = parseDuration(duration)
@@ -250,7 +253,7 @@ fun SetEntryScreen(
                     val isPr = Store.snapshot.value?.setsByExercise?.get(exerciseId)?.any { it.id == id && it.isPr } == true
                     if (isPr && Settings.currentPortable().celebratePrs) {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        UiEvents.show("New personal record: ${snap.fmtWeight(kg)} ${snap.weightUnit} × $r")
+                        UiEvents.show("New personal record: ${snap.fmtWeight(kg, exerciseId)} ${snap.weightUnitOf(exerciseId)} × $r")
                     }
                 } else {
                     Workouts.updateSet(
@@ -365,7 +368,7 @@ fun SetEntryScreen(
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (showWeight) {
                         StepperField(
-                            label = "Weight (${snap.weightUnit})",
+                            label = "Weight (${snap.weightUnitOf(exerciseId)})",
                             value = weight,
                             onValue = { weight = it },
                             onStep = { dir -> weight = fmtNum(max(0.0, num(weight) + dir * weightStep), 2) }
@@ -563,7 +566,7 @@ fun SetEntryScreen(
                     val volume = sets.sumOf { it.weightKg * it.reps }
                     Text(
                         "${sets.size} set${if (sets.size == 1) "" else "s"}" +
-                            if (volume > 0) " · volume ${fmtNum(snap.weight(volume), 0)} ${snap.weightUnit}" else "",
+                            if (volume > 0) " · volume ${fmtNum(snap.weight(volume, exerciseId), 0)} ${snap.weightUnitOf(exerciseId)}" else "",
                         Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -632,9 +635,10 @@ fun SetEntryScreen(
             targetText = weight,
             stepShown = weightStep,
             onUse = { w, r -> weight = w; if (r != null) reps = r.toString() },
-            onDismiss = { calculator = null }
+            onDismiss = { calculator = null },
+            exerciseId = exerciseId
         )
-        "plate" -> PlateCalculatorSheet(snap, weight, onUse = { w -> weight = w }, onDismiss = { calculator = null })
+        "plate" -> PlateCalculatorSheet(snap, weight, onUse = { w -> weight = w }, onDismiss = { calculator = null }, exerciseId = exerciseId)
     }
     if (showInfo && ex != null) {
         ExerciseInfoSheet(snap, ex, weightStep, onEdit = { editExercise = true }, onDismiss = { showInfo = false })

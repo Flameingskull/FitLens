@@ -454,7 +454,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
             start.forEach { s ->
                 add(
                     SetDraft(
-                        weight = s.weightKg.takeIf { it != 0.0 }?.let { fmtNum(snap.weight(it), 2) } ?: "",
+                        weight = s.weightKg.takeIf { it != 0.0 }?.let { fmtNum(snap.weight(it, planned.exerciseId), 2) } ?: "",
                         reps = s.reps.takeIf { it > 0 }?.toString() ?: "",
                         distance = s.distance.takeIf { it > 0 }?.let { fmtNum(it, 2) } ?: "",
                         time = s.durationSec.takeIf { it > 0 }?.let { fmtDuration(it) } ?: "",
@@ -473,7 +473,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
         onConfirm = {
             // Set type rides along with each row; a row counts when it has any value.
             val sets = rows.map {
-                PlannedSet(snap.toKg(num(it.weight)), it.reps.trim().toIntOrNull() ?: 0, num(it.distance), seconds(it.time), it.type)
+                PlannedSet(snap.toKg(num(it.weight), planned.exerciseId), it.reps.trim().toIntOrNull() ?: 0, num(it.distance), seconds(it.time), it.type)
             }.filter { !it.isEmpty }
             onDone(planned.copy(fill = fill, sets = if (fill == Routines.FILL_PLANNED) sets else planned.sets))
         }
@@ -505,7 +505,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Text("${i + 1}", Modifier.width(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (ExerciseTypes.usesWeight(type)) {
-                            SmallField(r.weight, snap.weightUnit, KeyboardType.Decimal, Modifier.weight(1f)) { rows[i] = r.copy(weight = it) }
+                            SmallField(r.weight, snap.weightUnitOf(planned.exerciseId), KeyboardType.Decimal, Modifier.weight(1f)) { rows[i] = r.copy(weight = it) }
                         }
                         if (ExerciseTypes.usesReps(type)) {
                             SmallField(r.reps, "reps", KeyboardType.Number, Modifier.weight(1f)) { rows[i] = r.copy(reps = it) }

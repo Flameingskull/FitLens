@@ -106,7 +106,9 @@ data class Exercise(
     /** This exercise's rest length in seconds, or null for the global rest timer length (#15, #20). */
     val restSeconds: Int? = null,
     /** The unit this exercise's distances are logged in ([DistanceUnits]), or null for the global one (#7). */
-    val distanceUnit: String? = null
+    val distanceUnit: String? = null,
+    /** The unit this exercise's weights are shown and typed in ("kg" or "lbs"), or null for the global one (#7). */
+    val weightUnit: String? = null
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
 }
@@ -211,7 +213,12 @@ data class MeasurementDef(
     /** Created in FitLens rather than imported from FitNotes. */
     val custom: Boolean = false,
     /** For custom metrics: the FitNotes measurement whose values fill it in (null = match by name). */
-    val link: String? = null
+    val link: String? = null,
+    /**
+     * The unit this measurement is shown in when it differs from the global weight or length unit (#7), or null.
+     * Only a unit of the same kind applies; values stay stored in [unit].
+     */
+    val displayUnit: String? = null
 ) {
     /** Lower-case FitNotes name this custom metric takes its values from. */
     val matchKey: String get() = (link?.takeIf { it.isNotBlank() } ?: name).trim().lowercase()
@@ -452,11 +459,22 @@ object LengthUnits {
  * unit (%, bpm, a custom one) is left alone. Values are stored in the unit they were logged in.
  */
 object MeasureUnits {
-    /** The unit [unit] is shown in, given the user's weight and length units. */
-    fun display(unit: String?, weightUnit: String, lengthUnit: String): String? = when {
+    /**
+     * The unit [unit] is shown in, given the user's weight and length units, or the measurement's own [override] when
+     * it's the same kind (#7).
+     */
+    fun display(unit: String?, weightUnit: String, lengthUnit: String, override: String? = null): String? = when {
+        override != null && sameKind(unit, override) -> WeightUnits.of(override) ?: LengthUnits.of(override)
         WeightUnits.of(unit) != null -> weightUnit
         LengthUnits.of(unit) != null -> lengthUnit
         else -> unit
+    }
+
+    /** The units a measurement stored in [unit] can be shown in: kg and lbs, cm and in, or none for other units. */
+    fun choices(unit: String?): List<String> = when {
+        WeightUnits.of(unit) != null -> listOf("kg", "lbs")
+        LengthUnits.of(unit) != null -> listOf(LengthUnits.CM, LengthUnits.IN)
+        else -> emptyList()
     }
 
     /** Both are weights, or both are lengths, so one converts to the other. */
@@ -468,12 +486,12 @@ object MeasureUnits {
         if (WeightUnits.of(from) != null) WeightUnits.convert(value, from, to) else LengthUnits.convert(value, from, to)
 
     fun shown(d: MeasurementDef, weightUnit: String, lengthUnit: String): MeasurementDef {
-        val to = display(d.unit, weightUnit, lengthUnit) ?: return d
+        val to = display(d.unit, weightUnit, lengthUnit, d.displayUnit) ?: return d
         return if (to == d.unit) d else d.copy(unit = to, goalValue = convert(d.goalValue, d.unit, to))
     }
 
-    fun shown(r: MRecord, weightUnit: String, lengthUnit: String): MRecord {
-        val to = display(r.unit, weightUnit, lengthUnit) ?: return r
+    fun shown(r: MRecord, weightUnit: String, lengthUnit: String, override: String? = null): MRecord {
+        val to = display(r.unit, weightUnit, lengthUnit, override) ?: return r
         return if (to == r.unit) r else r.copy(unit = to, value = convert(r.value, r.unit, to))
     }
 }
