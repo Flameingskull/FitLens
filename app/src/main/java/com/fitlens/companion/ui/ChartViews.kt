@@ -403,6 +403,9 @@ fun GraphOptionChips(
     onFromZero: (() -> Unit)? = null,
     extra: List<ToggleOption> = emptyList(),
     onShare: (() -> Unit)? = null,
+    /** The chart kind (#137): Line, Bar, Area or Step, as a dropdown after the range. Null hides it. */
+    kind: ChartKind? = null,
+    onKind: ((ChartKind) -> Unit)? = null,
     leading: @Composable RowScope.() -> Unit = {},
     trailing: @Composable RowScope.() -> Unit = {}
 ) {
@@ -410,9 +413,14 @@ fun GraphOptionChips(
         Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        leading()
-        DropdownPill("Range", RANGES.map { rangeName(it.first) }, rangeIdx, onSelect = onRange)
-        Spacer(Modifier.weight(1f))
+        // The dropdowns scroll sideways on a narrow phone, so the ⋮ and full-screen buttons always stay in view.
+        Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+            leading()
+            DropdownPill("Range", RANGES.map { rangeName(it.first) }, rangeIdx, onSelect = onRange)
+            if (kind != null && onKind != null) {
+                DropdownPill("Chart type", ChartKind.entries.map { it.label }, kind.ordinal) { i -> onKind(ChartKind.entries[i]) }
+            }
+        }
         OptionsMenu(
             listOfNotNull(
                 ToggleOption("Trend line", showTrend, onTrend),

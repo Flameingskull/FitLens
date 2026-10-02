@@ -77,7 +77,9 @@ object ShareImages {
         val format: (Double) -> String,
         val summary: String,
         val trend: TrendLine? = null,
-        val goal: Double? = null
+        val goal: Double? = null,
+        /** Drawn as the graph is on screen: line, bar, area or step (#137). */
+        val kind: ChartKind = ChartKind.LINE
     )
 
     fun renderGraph(g: GraphImage): Bitmap {
@@ -110,7 +112,9 @@ object ShareImages {
         if (y1 - y0 < 1e-6) { y0 -= 1; y1 += 1 }
         val pad = (y1 - y0) * 0.1
         y0 -= pad; y1 += pad
-        fun px(x: Long) = r.left + (x - x0).toFloat() / (x1 - x0).toFloat() * r.width()
+        // Bars (#137) sit inside the frame by half a column.
+        val barW = if (g.kind == ChartKind.BAR) (r.width() / pts.size * 0.7f).coerceIn(4f, 48f) else 0f
+        fun px(x: Long) = r.left + barW / 2f + (x - x0).toFloat() / (x1 - x0).toFloat() * (r.width() - barW)
         fun py(v: Double) = r.bottom - ((v - y0) / (y1 - y0)).toFloat() * r.height()
 
         val grid = fill(hairline)
@@ -133,8 +137,26 @@ object ShareImages {
         g.trend?.let { t ->
             c.drawLine(px(x0), py(t.at(x0)), px(x1), py(t.at(x1)), stroke(goldLight, 4f, dashed = true))
         }
+        if (g.kind == ChartKind.BAR) {
+            // Gold columns with a red top, as on screen (#137).
+            val body = fill(gold and 0x00FFFFFF or 0x99000000.toInt())
+            pts.forEach { p ->
+                val cx = px(p.x)
+                val top = py(p.y).coerceIn(r.top, r.bottom)
+                c.drawRect(cx - barW / 2f, top, cx + barW / 2f, r.bottom, body)
+                c.drawRect(cx - barW / 2f, top, cx + barW / 2f, top + 6f, fill(red))
+            }
+            return
+        }
         val path = Path()
-        pts.forEachIndexed { i, p -> if (i == 0) path.moveTo(px(p.x), py(p.y)) else path.lineTo(px(p.x), py(p.y)) }
+        pts.forEachIndexed { i, p ->
+            if (i == 0) path.moveTo(px(p.x), py(p.y))
+            else {
+                // A step line stays level until the next point (#137).
+                if (g.kind == ChartKind.STEP) path.lineTo(px(p.x), py(pts[i - 1].y))
+                path.lineTo(px(p.x), py(p.y))
+            }
+        }
         // The app's graph style (1.0.71): a red line over translucent gold fading to the baseline.
         val area = Path(path).apply {
             lineTo(px(pts.last().x), r.bottom)
@@ -142,10 +164,10 @@ object ShareImages {
             close()
         }
         c.drawPath(area, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(0f, r.top, 0f, r.bottom, gold and 0x00FFFFFF or 0x55000000, gold and 0x00FFFFFF or 0x08000000, Shader.TileMode.CLAMP)
+            shader = LinearGradient(0f, r.top, 0f, r.bottom, gold and 0x00FFFFFF or 0x55000000, gold and 0x00FFFFFF or 0x14000000, Shader.TileMode.CLAMP)
         })
-        c.drawPath(path, stroke(red, 7f))
-        if (pts.size <= 80) pts.forEach { p -> c.drawCircle(px(p.x), py(p.y), 9f, fill(red)) }
+        c.drawPath(path, stroke(red, if (g.kind == ChartKind.AREA) 4f else 7f))
+        if (g.kind != ChartKind.AREA && pts.size <= 80) pts.forEach { p -> c.drawCircle(px(p.x), py(p.y), 9f, fill(red)) }
     }
 
     // ---------- Workout card (#11) ----------

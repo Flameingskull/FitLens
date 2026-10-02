@@ -146,6 +146,8 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
     var fullScreen by rememberSaveable { mutableStateOf(false) }
     val all = remember(snap, selectedName) { snap.dailySeries(selectedName) }
     val shown = remember(all, rangeIdx) { inRange(all, RANGES[rangeIdx].second) { it.date } }
+    // Line, bar, area or step, remembered for each measurement (#137).
+    val (kind, setKind) = rememberChartKind("body:$selectedName")
     if (all.isEmpty()) {
         EmptyState("Nothing to graph yet", "Log $selectedName on the Track tab and it is graphed here.")
         return
@@ -157,6 +159,7 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
                 rangeIdx, { rangeIdx = it },
                 showTrend, { showTrend = !showTrend },
                 fromZero, { fromZero = !fromZero },
+                kind = kind, onKind = setKind,
                 trailing = { ExpandGraphButton { fullScreen = true } }
             )
         }
@@ -166,9 +169,10 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
             } ?: emptyList()
             val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
             val unit = def?.unit ?: shown.lastOrNull()?.unit ?: ""
-            LineChart(
+            FitChart(
                 listOf(LineSeries(selectedName, points)),
                 Modifier.padding(horizontal = 8.dp),
+                kind = kind,
                 photoDays = photoDays,
                 goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
                 selected = selectedPoint?.let { ChartSelection(0, it) },
@@ -187,9 +191,11 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
                         GraphOptionChips(
                             rangeIdx, { rangeIdx = it },
                             showTrend, { showTrend = !showTrend },
-                            fromZero, { fromZero = !fromZero }
+                            fromZero, { fromZero = !fromZero },
+                            kind = kind, onKind = setKind
                         )
                     },
+                    valueZoom = kind != ChartKind.BAR,
                     footer = {
                         selectedPoint?.let { points.getOrNull(it) }?.let { p ->
                             Text(
@@ -200,8 +206,9 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
                         }
                     }
                 ) { vp, h, resetZoom ->
-                    LineChart(
+                    FitChart(
                         listOf(LineSeries(selectedName, points)),
+                        kind = kind,
                         height = h,
                         photoDays = photoDays,
                         goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,

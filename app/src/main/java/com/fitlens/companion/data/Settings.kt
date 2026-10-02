@@ -118,7 +118,9 @@ data class PortableSettings(
     /** The rest-over sound's volume, 10 to 100 percent of the notification volume (#20). */
     val restVolume: Int = 80,
     /** "Mark sets complete" mode (#19): tick boxes on sets and progress per exercise and workout. */
-    val markComplete: Boolean = false
+    val markComplete: Boolean = false,
+    /** The chart kind chosen per graph (#137), "graph=kind;…" (`ChartKind.encode`), or null when none was chosen. */
+    val graphKinds: String? = null
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -272,6 +274,7 @@ object Settings {
         db.setMeta(P_REST_SOUND, if (s.restSound) null else "0")
         db.setMeta(P_REST_VOLUME, s.restVolume.takeIf { it != 80 }?.toString())
         db.setMeta(P_MARK_COMPLETE, if (s.markComplete) "1" else null)
+        db.setMeta(P_GRAPH_KINDS, s.graphKinds?.takeIf { it.isNotBlank() })
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -332,6 +335,7 @@ object Settings {
     private const val P_REST_SOUND = "rest_sound"
     private const val P_REST_VOLUME = "rest_volume"
     private const val P_MARK_COMPLETE = "mark_complete"
+    private const val P_GRAPH_KINDS = "graph_kinds"
 
     private fun bool(v: String?) = v == "1"
 
@@ -413,7 +417,8 @@ object Settings {
         restVibrate = get(P_REST_VIBRATE) != "0",
         restSound = get(P_REST_SOUND) != "0",
         restVolume = get(P_REST_VOLUME)?.toIntOrNull()?.coerceIn(10, 100) ?: 80,
-        markComplete = bool(get(P_MARK_COMPLETE))
+        markComplete = bool(get(P_MARK_COMPLETE)),
+        graphKinds = get(P_GRAPH_KINDS)?.takeIf { it.isNotBlank() }
     )
 }
 

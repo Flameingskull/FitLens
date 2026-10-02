@@ -212,6 +212,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
     var shareRequested by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
     val g = graphTypes[gIdx.coerceIn(0, graphTypes.lastIndex)]
+    // Line, bar, area or step, remembered for each graph (#137).
+    val (kind, setKind) = rememberChartKind("exercise:${g.label}")
     // A goal for this graph can be drawn as a line (#25), in the graph's own unit.
     var showGoal by rememberSaveable { mutableStateOf(true) }
     val goalTarget = goalKindForGraph(g.label)?.let { k ->
@@ -235,6 +237,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
                 fromZero, { fromZero = !fromZero },
                 extra = if (goalTarget != null) listOf(ToggleOption("Goal line", showGoal) { showGoal = !showGoal }) else emptyList(),
                 onShare = { shareRequested = true },
+                kind = kind, onKind = setKind,
                 leading = {
                     DropdownPill("Graph", graphTypes.map { it.label }, gIdx.coerceIn(0, graphTypes.lastIndex)) { gIdx = it }
                     // "Max weight for reps" (#22): which rep count, 1 to 15, kept for this exercise while the app is open.
@@ -294,13 +297,15 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
                     format = { v -> show(v) },
                     summary = summary,
                     trend = if (showTrend) trendOf(shown) else null,
-                    goal = goalLine
+                    goal = goalLine,
+                    kind = kind
                 )
                 ShareImages.share(ctx, "Creating graph image…", ShareImages.fileName(name, g.label)) { ShareImages.renderGraph(image) }
             }
-            LineChart(
+            FitChart(
                 listOf(LineSeries(g.label, shown)),
                 Modifier.padding(horizontal = 8.dp),
+                kind = kind,
                 photoDays = photoDays,
                 selected = sel?.let { ChartSelection(0, it) },
                 onSelect = { sel = it.index; ChartHints.tapped() },
@@ -319,9 +324,11 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
                         GraphOptionChips(
                             rangeIdx, { rangeIdx = it },
                             showTrend, { showTrend = !showTrend },
-                            fromZero, { fromZero = !fromZero }
+                            fromZero, { fromZero = !fromZero },
+                            kind = kind, onKind = setKind
                         )
                     },
+                    valueZoom = kind != ChartKind.BAR,
                     footer = {
                         sel?.let { shown.getOrNull(it) }?.let { p ->
                             Text(
@@ -332,8 +339,9 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
                         }
                     }
                 ) { vp, h, resetZoom ->
-                    LineChart(
+                    FitChart(
                         listOf(LineSeries(g.label, shown)),
+                        kind = kind,
                         height = h,
                         photoDays = photoDays,
                         selected = sel?.let { ChartSelection(0, it) },

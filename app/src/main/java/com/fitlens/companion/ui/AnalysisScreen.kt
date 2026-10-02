@@ -229,6 +229,8 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     }
     val series = remember(points, metric) { listOf(LineSeries(metric.label, points)) }
     val partial = totals?.lastOrNull()?.current == true
+    // Line, bar, area or step, remembered for each measure (#137).
+    val (kind, setKind) = rememberChartKind("analysis:${metric.name}")
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         // Everything that shapes the graph in two compact rows (#115): what, per what, for which training; then the
@@ -241,6 +243,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
         GraphOptionChips(
             rangeIdx, { rangeIdx = it },
             showTrend, { showTrend = !showTrend },
+            kind = kind, onKind = setKind,
             extra = if (metric == Analysis.Metric.Duration) {
                 listOf(ToggleOption("Average per workout", durationAvg) { durationAvg = !durationAvg })
             } else emptyList(),
@@ -255,9 +258,10 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                     "Try a longer range or another filter."
             )
             else -> {
-                LineChart(
+                FitChart(
                     series,
                     Modifier.padding(horizontal = 8.dp),
+                    kind = kind,
                     selected = sel?.let { ChartSelection(0, it) },
                     onSelect = { sel = it.index; showDays = false; ChartHints.tapped() },
                     yFormat = fmt,
@@ -338,7 +342,8 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
         FullScreenChart(
             "${metric.label} · ${filterLabel(snap, filter)}",
             onDismiss = { fullScreen = false },
-            controls = { GraphOptionChips(rangeIdx, { rangeIdx = it }, showTrend, { showTrend = !showTrend }) },
+            controls = { GraphOptionChips(rangeIdx, { rangeIdx = it }, showTrend, { showTrend = !showTrend }, kind = kind, onKind = setKind) },
+            valueZoom = kind != ChartKind.BAR,
             footer = {
                 sel?.let { totals.getOrNull(it) }?.let { t ->
                     Text(
@@ -349,8 +354,9 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 }
             }
         ) { vp, h, resetZoom ->
-            LineChart(
+            FitChart(
                 series,
+                kind = kind,
                 height = h,
                 selected = sel?.let { ChartSelection(0, it) },
                 onSelect = { sel = it.index },
@@ -385,8 +391,11 @@ private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: St
             .sortedBy { it.x }
     } ?: emptyList()
     val series = listOf(LineSeries("Workout length", points))
+    val (kind, setKind) = rememberChartKind("analysis:workout-length")
     SectionTitle("Each workout")
     Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Line, bar, area or step (#137).
+        DropdownPill("Chart type", ChartKind.entries.map { it.label }, kind.ordinal) { i -> setKind(ChartKind.entries[i]) }
         Spacer(Modifier.weight(1f))
         OptionsMenu(
             listOf(
@@ -396,9 +405,10 @@ private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: St
         )
         ExpandGraphButton { fullScreen = true }
     }
-    LineChart(
+    FitChart(
         series,
         Modifier.padding(horizontal = 8.dp),
+        kind = kind,
         selected = sel?.let { ChartSelection(0, it) },
         onSelect = { sel = it.index; ChartHints.tapped() },
         yFormat = { fmtNum(it, 0) },
@@ -414,6 +424,7 @@ private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: St
         FullScreenChart(
             "Workout length · ${filterLabel(snap, filter)}",
             onDismiss = { fullScreen = false },
+            valueZoom = kind != ChartKind.BAR,
             footer = {
                 sel?.let { points.getOrNull(it) }?.let { p ->
                     Text(
@@ -424,8 +435,9 @@ private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: St
                 }
             }
         ) { vp, h, resetZoom ->
-            LineChart(
+            FitChart(
                 series,
+                kind = kind,
                 height = h,
                 selected = sel?.let { ChartSelection(0, it) },
                 onSelect = { sel = it.index },

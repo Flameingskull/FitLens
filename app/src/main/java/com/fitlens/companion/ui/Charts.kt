@@ -20,6 +20,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.fmtNum
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -73,7 +75,47 @@ import kotlin.math.pow
 
 data class ChartPoint(val x: Long, val y: Double, val date: String)
 
-/** One line on a [LineChart]. Series 2 onwards get their own colour and marker shape, so colour is never the only cue. */
+/**
+ * How a graph is drawn (owner, 2026-10-02, #137; bar charts are allowed again, reversing #116). Every kind shares the
+ * grid, baseline and colours: [LINE] is a red line over the gold fill, [AREA] the fill with a thin red edge and no
+ * markers, [BAR] gold columns with red tops, [STEP] a red step line over the fill. The user picks one per graph and
+ * it's remembered ([rememberChartKind]).
+ */
+enum class ChartKind(val key: String, val label: String) {
+    LINE("line", "Line"),
+    BAR("bar", "Bar"),
+    AREA("area", "Area"),
+    STEP("step", "Step");
+
+    companion object {
+        fun of(key: String?): ChartKind? = entries.firstOrNull { it.key == key }
+
+        /** The remembered choices, "graph=kind;graph=kind" in `PortableSettings.graphKinds`; unknown kinds are skipped. */
+        fun decode(s: String?): Map<String, ChartKind> =
+            s.orEmpty().split(';').mapNotNull { part ->
+                val at = part.lastIndexOf('=')
+                if (at <= 0) null else of(part.substring(at + 1))?.let { part.substring(0, at) to it }
+            }.toMap()
+
+        fun encode(m: Map<String, ChartKind>): String? =
+            m.entries.filter { it.key.isNotBlank() }.joinToString(";") { "${it.key.replace(";", ",")}=${it.value.key}" }.ifEmpty { null }
+    }
+}
+
+/**
+ * The chart kind chosen for the graph [graphId] (#137), and a function that remembers a new choice. Choices travel in
+ * `.fitlens` backups with the other preferences. A graph never chosen is drawn as [default].
+ */
+@Composable
+fun rememberChartKind(graphId: String, default: ChartKind = ChartKind.LINE): Pair<ChartKind, (ChartKind) -> Unit> {
+    val prefs by Settings.portable.collectAsState()
+    val kind = ChartKind.decode(prefs.graphKinds)[graphId] ?: default
+    return kind to { k ->
+        Settings.updatePortable { p -> p.copy(graphKinds = ChartKind.encode(ChartKind.decode(p.graphKinds) + (graphId to k))) }
+    }
+}
+
+/** One series on a [FitChart]. Series 2 onwards get their own colour and marker shape, so colour is never the only cue. */
 data class LineSeries(val label: String, val points: List<ChartPoint>)
 
 /** The selected point: which series, and the point's index within it. */
@@ -210,7 +252,7 @@ internal fun ChartEmpty(modifier: Modifier, height: Dp) {
 fun graphHeight(): Dp = (LocalConfiguration.current.screenHeightDp * 0.45f).dp.coerceIn(260.dp, 480.dp)
 
 /**
- * Line chart over time, with one or more [series].
+ * The chart over time (#50, #137), with one or more [series], drawn as [kind]: line, bar, area or step.
  *
  * - Tap to select the nearest point; double tap calls [onExpand] (full screen) when it's given.
  * - A legend appears for more than one series or when [showTrend] is on. Tapping a series in it hides or shows it.
@@ -221,9 +263,10 @@ fun graphHeight(): Dp = (LocalConfiguration.current.screenHeightDp * 0.45f).dp.c
  * - [viewport] shows part of the time range (full screen zoom).
  */
 @Composable
-fun LineChart(
+fun FitChart(
     series: List<LineSeries>,
     modifier: Modifier = Modifier,
+    kind: ChartKind = ChartKind.LINE,
     /** Unspecified sizes the graph from the screen ([graphHeight]). */
     height: Dp = Dp.Unspecified,
     photoDays: Set<Long> = emptySet(),
@@ -245,7 +288,7 @@ fun LineChart(
         if (all.isEmpty()) {
             ChartEmpty(Modifier, plotHeight)
         } else {
-            LinePlot(series, visible, plotHeight, photoDays, goal, selected, onSelect, yFormat, unit, showTrend, yFromZero, viewport, onExpand)
+            LinePlot(series, visible, kind, plotHeight, photoDays, goal, selected, onSelect, yFormat, unit, showTrend, yFromZero, viewport, onExpand)
         }
         if (series.size > 1 || showTrend) {
             ChartLegend(series.map { it.label }, hidden, showTrend) { i ->
@@ -259,6 +302,7 @@ fun LineChart(
 private fun LinePlot(
     series: List<LineSeries>,
     visible: List<Int>,
+    kind: ChartKind,
     height: Dp,
     photoDays: Set<Long>,
     goal: Double?,
@@ -292,7 +336,8 @@ private fun LinePlot(
     var yMin = inView.minOf { it.y }
     var yMax = inView.maxOf { it.y }
     if (goal != null && goal > 0) { yMin = minOf(yMin, goal); yMax = maxOf(yMax, goal) }
-    if (yFromZero) yMin = minOf(yMin, 0.0)
+    // Bars always stand on zero, so their heights compare truly (#137).
+    if (yFromZero || kind == ChartKind.BAR) yMin = minOf(yMin, 0.0)
     if (yMax - yMin < 1e-9) { yMin -= 1; yMax += 1 }
     val fitStep = niceStep(yMax - yMin)
     val fitLo = floor(yMin / fitStep) * fitStep
@@ -304,6 +349,12 @@ private fun LinePlot(
     val step = if (valuesZoomed) niceStep(hi - lo) else fitStep
     val xFmt = if (xMax - xMin < 150) DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
     else DateTimeFormatter.ofPattern("MMM yy", Locale.getDefault())
+
+    // Bars (#137) need room at each end for half a column, and a width that leaves gaps between them.
+    val barSlots = if (kind != ChartKind.BAR) 0 else
+        visible.maxOfOrNull { si -> series[si].points.count { it.x >= xMin && it.x <= xMax } }?.coerceAtLeast(1) ?: 1
+    fun barWidth(plotWidth: Float, maxPx: Float): Float =
+        if (kind != ChartKind.BAR) 0f else (plotWidth / barSlots * 0.7f).coerceIn(2f, maxPx)
 
     val trends = remember(series, visible, showTrend) {
         if (!showTrend) emptyMap() else visible.mapNotNull { i -> trendOf(series[i].points)?.let { i to it } }.toMap()
@@ -328,12 +379,13 @@ private fun LinePlot(
                 if (selectedText != null) stateDescription = selectedText
                 liveRegion = LiveRegionMode.Polite
             }
-            .pointerInput(series, visible, viewport, lo, hi) {
+            .pointerInput(series, visible, viewport, lo, hi, kind) {
                 detectTapGestures(
                     onDoubleTap = if (onExpand != null) { _ -> onExpand() } else null,
                     onTap = { off ->
-                        val left = 44.dp.toPx()
-                        val right = size.width - 12.dp.toPx()
+                        val inset = barWidth(size.width - 56.dp.toPx(), 28.dp.toPx()) / 2f
+                        val left = 44.dp.toPx() + inset
+                        val right = size.width - 12.dp.toPx() - inset
                         val top = 8.dp.toPx()
                         val bottom = size.height - 22.dp.toPx()
                         var best: ChartSelection? = null
@@ -357,8 +409,23 @@ private fun LinePlot(
         val right = size.width - 12.dp.toPx()
         val top = 8.dp.toPx()
         val bottom = size.height - 22.dp.toPx()
-        fun px(x: Long) = left + ((x - xMin) / (xMax - xMin)).toFloat() * (right - left)
+        val barW = barWidth(right - left, 28.dp.toPx())
+        // Points sit inside the plot by half a bar, so the first and last columns aren't cut off (#137).
+        val inset = barW / 2f
+        fun px(x: Long) = left + inset + ((x - xMin) / (xMax - xMin)).toFloat() * (right - left - 2 * inset)
         fun py(y: Double) = bottom - ((y - lo) / (hi - lo)).toFloat() * (bottom - top)
+        /** The series' outline: straight segments, or for [ChartKind.STEP] level until the next point, then up or down. */
+        fun outline(pts: List<ChartPoint>): Path = Path().apply {
+            pts.forEachIndexed { i, p ->
+                val x = px(p.x)
+                val y = py(p.y)
+                if (i == 0) moveTo(x, y)
+                else {
+                    if (kind == ChartKind.STEP) lineTo(x, py(pts[i - 1].y))
+                    lineTo(x, y)
+                }
+            }
+        }
 
         // Grid and y labels. Zoomed, they start at the first whole step and stay inside the plot.
         var t = if (valuesZoomed) ceil(lo / step - 1e-9) * step else lo
@@ -404,26 +471,34 @@ private fun LinePlot(
                     drawLine(colors.accent, Offset(x, bottom - 7.dp.toPx()), Offset(x, bottom), strokeWidth = 2.dp.toPx())
                 }
             }
-            // A soft gold fill under the first visible series only, so several lines never muddy each other.
-            visible.firstOrNull()?.let { si ->
+            // A soft gold fill under the first visible series only, so several lines never muddy each other. Bars carry
+            // their own fill.
+            if (kind != ChartKind.BAR) visible.firstOrNull()?.let { si ->
                 val pts = series[si].points
-                val area = Path()
-                pts.forEachIndexed { i, p -> if (i == 0) area.moveTo(px(p.x), py(p.y)) else area.lineTo(px(p.x), py(p.y)) }
+                val area = outline(pts)
                 area.lineTo(px(pts.last().x), bottom)
                 area.lineTo(px(pts.first().x), bottom)
                 area.close()
                 drawPath(area, Brush.verticalGradient(listOf(colors.fill, colors.fill.copy(alpha = 0.08f)), startY = top, endY = bottom))
             }
-            visible.forEach { si ->
+            visible.forEachIndexed { k, si ->
                 val pts = series[si].points
                 val color = colors.seriesColor(si)
-                val path = Path()
-                pts.forEachIndexed { i, p ->
-                    val x = px(p.x)
-                    val y = py(p.y)
-                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                if (kind == ChartKind.BAR) {
+                    // Gold columns with a red top (#137); several series stand side by side within each slot.
+                    val sub = barW / visible.size
+                    val body = if (k == 0) colors.fill.copy(alpha = 0.6f) else color.copy(alpha = 0.35f)
+                    pts.forEach { p ->
+                        if (p.x < xMin || p.x > xMax) return@forEach
+                        val cx = px(p.x) + (k - (visible.size - 1) / 2f) * sub
+                        val yTop = py(p.y).coerceIn(top, bottom)
+                        drawRect(body, topLeft = Offset(cx - sub / 2f, yTop), size = Size(sub * 0.92f, bottom - yTop))
+                        drawLine(color, Offset(cx - sub / 2f, yTop), Offset(cx - sub / 2f + sub * 0.92f, yTop), strokeWidth = 2.5.dp.toPx())
+                    }
+                } else {
+                    val width = if (kind == ChartKind.AREA) 1.5.dp.toPx() else 2.5.dp.toPx()
+                    drawPath(outline(pts), color, style = Stroke(width = width, cap = StrokeCap.Round, join = StrokeJoin.Round))
                 }
-                drawPath(path, color, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                 trends[si]?.let { tr ->
                     val a = pts.first().x
                     val b = pts.last().x
@@ -433,7 +508,8 @@ private fun LinePlot(
                     )
                 }
                 val shownCount = pts.count { it.x >= xMin && it.x <= xMax }
-                val showMarkers = shownCount <= 60 || si > 0
+                // Markers belong to the line and step kinds; area and bar show only photo days (#137).
+                val showMarkers = (kind == ChartKind.LINE || kind == ChartKind.STEP) && (shownCount <= 60 || si > 0)
                 pts.forEach { p ->
                     if (p.x < xMin || p.x > xMax) return@forEach
                     val c = Offset(px(p.x), py(p.y))
