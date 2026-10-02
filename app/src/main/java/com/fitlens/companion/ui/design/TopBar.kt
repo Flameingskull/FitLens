@@ -72,6 +72,8 @@ fun FitTopBar(
     /** What TalkBack reads for the back arrow, e.g. "Close full screen" where Back would mislead (#96). */
     backLabel: String = "Back",
     titleMenu: List<MenuAction> = emptyList(),
+    /** An icon in the navigation slot instead of a back arrow, such as the exercise screen's workout drawer (#129). */
+    navigation: TopBarAction? = null,
     trailing: @Composable RowScope.() -> Unit = {}
 ) {
     var titleOpen by remember { mutableStateOf(false) }
@@ -90,7 +92,7 @@ fun FitTopBar(
                     title,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = if (onBack != null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall
+                    style = if (onBack != null || navigation != null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall
                 )
             } else {
                 Box {
@@ -132,7 +134,11 @@ fun FitTopBar(
         }
     }
     val navigationContent: @Composable () -> Unit = {
-        if (onBack != null) {
+        if (navigation != null) {
+            IconButton(onClick = navigation.onClick, enabled = navigation.enabled) {
+                Icon(navigation.icon, contentDescription = navigation.description)
+            }
+        } else if (onBack != null) {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = backLabel)
             }

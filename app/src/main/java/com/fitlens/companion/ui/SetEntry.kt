@@ -13,6 +13,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -72,6 +74,7 @@ import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.DropdownPill
 import com.fitlens.companion.ui.design.FitIcons
 import com.fitlens.companion.ui.design.FitTabRow
 import com.fitlens.companion.ui.design.FitTopBar
@@ -118,6 +121,24 @@ private fun parseDuration(s: String): Int {
     } catch (e: NumberFormatException) {
         0
     }
+}
+
+/**
+ * Starts the rest timer after a set, when Settings → Rest timer starts it automatically (#20, #129): on saving a set,
+ * and on ticking one off as done. In a superset only the round's last exercise starts it (#18). A tick straight after
+ * saving the same set doesn't restart a rest that began moments ago. The exercise's own rest length comes first (#15).
+ */
+internal fun startRestAfterSet(context: android.content.Context, snap: Snapshot, date: String, exerciseId: Long, fromSave: Boolean = false) {
+    val p = Settings.currentPortable()
+    if (!p.restAutoStart) return
+    if (!fromSave) {
+        val members = supersetMembers(snap, date, supersetOf(snap, date, exerciseId))
+        if (members.size > 1 && members.indexOf(exerciseId) != members.lastIndex) return
+        val st = RestTimer.state.value
+        val startedAt = st.endAt - st.total * 1000L
+        if (st.active && !st.paused && System.currentTimeMillis() - startedAt < 20_000L) return
+    }
+    RestTimer.start(context, snap.exercises[exerciseId]?.restSeconds ?: p.restSeconds)
 }
 
 @Composable
@@ -239,10 +260,7 @@ fun SetEntryScreen(
                     val members = supersetMembers(snap, date, supersetOf(snap, date, exerciseId))
                     val at = members.indexOf(exerciseId)
                     val endOfRound = members.size < 2 || at == members.lastIndex
-                    Settings.currentPortable().let { p ->
-                        // The exercise's own rest length when it has one (#15).
-                        if (p.restAutoStart && endOfRound) RestTimer.start(appContext, snap.exercises[exerciseId]?.restSeconds ?: p.restSeconds)
-                    }
+                    if (endOfRound) startRestAfterSet(appContext, snap, date, exerciseId, fromSave = true)
                     if (members.size > 1 && at >= 0) {
                         val next = members[(at + 1) % members.size]
                         if (nav.top is Screen.SetEntry) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
@@ -320,11 +338,10 @@ fun SetEntryScreen(
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
             title = ex?.name ?: "Exercise",
-            subtitle = relativeDayLabel(date),
-            onBack = { nav.pop() },
-            actions = listOf(
-                TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } }
-            ),
+            centered = false,
+            // FitNotes's bar (#129): the workout drawer's ≡ where the back arrow was, so the exercise's name has room
+            // beside the rest timer, records and info. Back is the phone's back.
+            navigation = TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } },
             // FitNotes's order (#122): the rest timer's alarm clock (the time left while a rest runs, #109), the
             // records trophy, then the exercise's info with Edit (#110).
             trailing = {
@@ -365,12 +382,14 @@ fun SetEntryScreen(
         else ->
         LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
             item {
-                Text(
-                    Dates.long(date).uppercase(),
-                    Modifier.padding(start = 16.dp, top = 12.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (date != Dates.today()) {
+                    Text(
+                        Dates.long(date).uppercase(),
+                        Modifier.padding(start = 16.dp, top = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Brand.Gold
+                    )
+                }
                 if (!ex?.notes.isNullOrBlank()) {
                     ExerciseNotes(ex!!.notes!!, Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
                 }
@@ -378,7 +397,7 @@ fun SetEntryScreen(
 
             // ---------- Entry ----------
             item {
-                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (showWeight) {
                         StepperField(
                             label = "Weight (${snap.weightUnitOf(exerciseId)})",
@@ -416,65 +435,42 @@ fun SetEntryScreen(
                             keyboard = KeyboardType.Text
                         )
                     }
-                    // Working, warm-up, drop or failure (#43). Warm-ups stay out of records unless Settings counts them.
-                    Row(
-                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        SetTypes.all.forEach { t ->
-                            FilterChip(
-                                selected = setType == t,
-                                onClick = { setType = t },
-                                label = { Text(SetTypes.label(t)) },
-                                leadingIcon = if (SetTypes.badge(t) != null) {
-                                    { SetTypeBadge(SetTypes.badge(t) ?: "") }
-                                } else null
-                            )
-                        }
-                    }
-                    // Optional effort (#44): large chips, tap the chosen one again to clear it.
-                    if (prefs.effortMode != Effort.OFF) {
-                        val rir = prefs.effortMode == Effort.RIR
-                        Text(
-                            if (rir) "REPS IN RESERVE (OPTIONAL)" else "EFFORT, RPE (OPTIONAL)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            val choices: List<Pair<String, Double>> = if (rir) {
-                                Effort.rirSteps.map { r -> (if (r >= 5) "5+" else "$r") to Effort.rpeFromRir(r) }
-                            } else {
-                                Effort.rpeSteps.map { v -> fmtNum(v, 1) to v }
-                            }
-                            choices.forEach { (label, value) ->
-                                FilterChip(
-                                    selected = rpe == value,
-                                    onClick = { rpe = if (rpe == value) null else value },
-                                    label = { Text(label, style = MaterialTheme.typography.titleMedium) },
-                                    modifier = Modifier
-                                        .height(44.dp)
-                                        .semantics { contentDescription = Effort.spoken(value, prefs.effortMode) }
-                                )
-                            }
+                    // Set type (#43) and optional effort (#44) as two dropdowns on one row (#129), so the sets below
+                    // get the screen. Warm-ups stay out of records unless Settings counts them.
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        val types = SetTypes.all
+                        DropdownPill(
+                            "Set type",
+                            types.map { t -> SetTypes.badge(t)?.let { "$it · ${SetTypes.label(t)}" } ?: SetTypes.label(t) },
+                            types.indexOf(setType).coerceAtLeast(0)
+                        ) { i -> setType = types[i] }
+                        Spacer(Modifier.weight(1f))
+                        if (prefs.effortMode != Effort.OFF) {
+                            val rir = prefs.effortMode == Effort.RIR
+                            val choices: List<Pair<String, Double?>> = listOf((if (rir) "RIR: none" else "RPE: none") to null) +
+                                if (rir) Effort.rirSteps.map { r -> "RIR ${if (r >= 5) "5+" else "$r"}" to Effort.rpeFromRir(r) }
+                                else Effort.rpeSteps.map { v -> "RPE ${fmtNum(v, 1)}" to v }
+                            DropdownPill(
+                                if (rir) "Reps in reserve" else "Effort",
+                                choices.map { it.first },
+                                choices.indexOfFirst { it.second == rpe }.coerceAtLeast(0)
+                            ) { i -> rpe = choices[i].second }
                         }
                     }
                     // As in FitNotes: Save and Clear for a new set, Update and Delete for the selected one.
                     if (selected == null) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) {
+                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(48.dp)) {
                                 Text("Save", style = MaterialTheme.typography.labelLarge)
                             }
-                            GlassOutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Clear") }
+                            GlassOutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Clear") }
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Update") }
+                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Update") }
                             GlassOutlinedButton(
                                 onClick = { deleting = sets.firstOrNull { it.id == selected } },
-                                modifier = Modifier.weight(1f).height(52.dp)
+                                modifier = Modifier.weight(1f).height(48.dp)
                             ) { Text("Delete") }
                         }
                         // Move the selected set within this exercise (#70).
@@ -511,7 +507,7 @@ fun SetEntryScreen(
                 }
             }
 
-            item { HorizontalDivider(Modifier.padding(top = 14.dp)); SectionTitle("Today’s sets") }
+            item { HorizontalDivider(Modifier.padding(top = 10.dp), color = Brand.Gold) }
 
             if (sets.isEmpty()) {
                 item {
@@ -550,8 +546,11 @@ fun SetEntryScreen(
                         // frame already marks the selected set (#108, #112).
                         // "Mark sets complete" (#19). Ticking the last set offers the next exercise, respecting
                         // supersets and the workout's order.
-                        done = if (prefs.markComplete) s.done else null,
-                        onDoneChange = if (prefs.markComplete) ({ on ->
+                        // Every set has its done tick (#129). Ticking one off starts the rest timer when Settings
+                        // starts it automatically, unless saving that set has only just started it.
+                        done = s.done,
+                        onDoneChange = { on ->
+                            if (on) startRestAfterSet(appContext, snap, date, exerciseId)
                             AppScope.scope.launch {
                                 Workouts.setDone(s.id, on)
                                 if (on && sets.all { it.id == s.id || it.done }) {
@@ -566,7 +565,7 @@ fun SetEntryScreen(
                                     }
                                 }
                             }
-                        }) else null
+                        }
                     )
                 }
             }

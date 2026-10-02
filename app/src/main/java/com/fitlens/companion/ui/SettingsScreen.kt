@@ -94,7 +94,7 @@ private val CATALOGUE = listOf(
     SettingEntry("Effort per set", SettingsSection.Logging, "rpe rir reps in reserve"),
     SettingEntry("Show set type on each set", SettingsSection.Logging, "warm-up drop failure badge"),
     SettingEntry("Count warm-up sets in records and stats", SettingsSection.Logging, "warmup"),
-    SettingEntry("Tick sets off as you do them", SettingsSection.Logging, "mark complete done checkbox"),
+    SettingEntry("Show sets done", SettingsSection.Logging, "mark complete done checkbox tick progress"),
     SettingEntry("Start the workout timer with the first set", SettingsSection.Logging, "duration clock"),
     SettingEntry("Rest length", SettingsSection.Rest, "seconds break between sets"),
     SettingEntry("Start the rest timer after saving a set", SettingsSection.Rest, "auto start"),
@@ -336,8 +336,8 @@ private fun LoggingPage() {
     }
     SettingsGroup("Mark sets complete")
     SettingsSwitchRow(
-        "Tick sets off as you do them", prefs.markComplete,
-        summary = "Adds a tick box to every set, with progress for each exercise and the workout."
+        "Show sets done", prefs.markComplete,
+        summary = "Every set on the exercise screen has a tick box. This also shows how many are done for each exercise and the workout."
     ) { on -> Settings.updatePortable { it.copy(markComplete = on) } }
     SettingsGroup("Workout timer")
     SettingsSwitchRow(

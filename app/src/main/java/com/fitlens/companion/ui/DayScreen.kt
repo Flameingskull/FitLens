@@ -570,7 +570,7 @@ private fun ExerciseOnDay(
         // The exercise's comment in this workout sits under its sets (#107).
         comment = exerciseComment,
         // FitNotes ticks the exercise once all its sets are done ("Mark sets complete", #19).
-        done = markComplete && exSets.all { it.done },
+        done = exSets.isNotEmpty() && exSets.all { it.done },
         menu = listOf(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
             MenuAction(if (exerciseComment.isNullOrBlank()) "Add exercise comment" else "Edit exercise comment") { commenting = true },

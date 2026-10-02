@@ -102,7 +102,7 @@ fun StepperField(
                 value = value,
                 onValueChange = onValue,
                 singleLine = true,
-                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center),
+                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center, lineHeight = 22.sp),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboard),
                 modifier = Modifier.weight(1f)
             )
@@ -111,7 +111,7 @@ fun StepperField(
     }
 }
 
-/** A round 56dp stepper button: steps on release, repeats while held, ticks on every step. */
+/** A round 48dp stepper button: steps on release, repeats while held, ticks on every step. */
 @Composable
 private fun StepButton(symbol: String, description: String, onStep: () -> Unit) {
     val haptic = LocalHapticFeedback.current
@@ -120,7 +120,7 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
     var pressed by remember { mutableStateOf(false) }
     Box(
         Modifier
-            .size(Spacing.stepper)
+            .size(Spacing.touch)
             .clip(CircleShape)
             .background(if (pressed) Brand.ImperialPurple.copy(alpha = 0.45f) else Color.Transparent)
             .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
@@ -156,7 +156,7 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(symbol, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        Text(symbol, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
     }
 }
 
