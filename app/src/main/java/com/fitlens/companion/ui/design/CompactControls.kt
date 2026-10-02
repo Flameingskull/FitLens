@@ -69,6 +69,22 @@ fun DropdownPill(
     }
 }
 
+/**
+ * A pill that looks like [DropdownPill] but opens a picker (a searchable sheet) through [onClick], for choices too long
+ * for a menu, such as an exercise (#125: every graph screen uses the compact dropdowns, never chips).
+ */
+@Composable
+fun PickerPill(label: String, current: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(start = Spacing.sm, end = Spacing.xs),
+        modifier = modifier.heightIn(min = Spacing.touch).semantics { contentDescription = "$label: $current. Change" }
+    ) {
+        Text(current, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+    }
+}
+
 /** One on/off option in an [OptionsMenu]. */
 data class ToggleOption(val label: String, val on: Boolean, val onToggle: () -> Unit)
 

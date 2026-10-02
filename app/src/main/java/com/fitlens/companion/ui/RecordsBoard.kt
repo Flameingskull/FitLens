@@ -255,7 +255,7 @@ private fun GridRow(
                 Modifier
                     .width(CELL_W)
                     .height(CELL_H)
-                    .then(if (isSel) Modifier.background(Brand.ImperialPurple) else Modifier)
+                    .then(if (isSel) Modifier.background(Brand.GoldDusk) else Modifier)
                     .clickable(enabled = cell != null) { onSelect(c.exercise.id to r) }
                     .semantics { contentDescription = description },
                 contentAlignment = Alignment.Center

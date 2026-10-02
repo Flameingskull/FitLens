@@ -71,7 +71,7 @@ import java.util.Locale
 
 /**
  * The calendar (#87, #9), laid out after FitNotes: a month grid (swipe or arrows for other months) with category dots,
- * a gold ring for today and the selected day filled imperial purple, the month's workout count, and the selected
+ * a gold ring for today and the selected day filled gold dusk, the month's workout count, and the selected
  * day's workout below with Open day. Tapping the selected day again opens it too. The list view is All days.
  * The filter (#9) dims every day without a matching set and counts the matches.
  */
@@ -217,7 +217,7 @@ private fun FilterBar(snap: Snapshot, filter: CalendarFilter, month: YearMonth, 
     Row(
         Modifier
             .fillMaxWidth()
-            .background(Brand.PurpleDeep)
+            .background(Brand.Graphite)
             .clickable(onClickLabel = "Change the filter", onClick = onEdit)
             .padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.xs, bottom = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
@@ -279,7 +279,7 @@ private fun DayCell(
             .clip(shape)
             .background(
                 when {
-                    isSelected -> Brand.ImperialPurple
+                    isSelected -> Brand.GoldDusk
                     sets != null -> Brand.SurfaceHigh
                     else -> Brand.Surface
                 }

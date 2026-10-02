@@ -215,7 +215,7 @@ fun WorkoutDrawer(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = Spacing.row)
-                        .background(if (isCurrent) Brand.ImperialPurple.copy(alpha = 0.45f) else Brand.Onyx)
+                        .background(if (isCurrent) Brand.Gold.copy(alpha = 0.16f) else Brand.Onyx)
                         .clickable(onClickLabel = "Open $name") { onOpen(exId) }
                         .semantics(mergeDescendants = true) {
                             contentDescription = "$name, $count set${if (count == 1) "" else "s"}" + if (isCurrent) ", current" else ""

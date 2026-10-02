@@ -49,11 +49,11 @@ object FrameRenderer {
 
     const val MAX_OVERLAYS = 5
 
-    // Luxury palette: gold on black, imperial purple accents
-    private const val GOLD = 0xFFD4AF37.toInt()
-    private const val GOLD_SOFT = 0x99D4AF37.toInt()
-    private const val PURPLE = 0xFF9B5FD0.toInt()
-    private const val MUTED = 0xFFCFC6D6.toInt()
+    // The app's palette (1.0.71): vibrant gold on black, red graph lines over translucent gold
+    private const val GOLD = 0xFFF2BE22.toInt()
+    private const val GOLD_SOFT = 0x99F2BE22.toInt()
+    private const val RED = 0xFFE5484D.toInt()
+    private const val MUTED = 0xFFCFC9BE.toInt()
     private const val IVORY = 0xFFF7F3EA.toInt()
 
     fun buildSlides(snap: Snapshot, photos: List<Photo>, opts: SlideOptions): List<Slide> {
@@ -124,7 +124,7 @@ object FrameRenderer {
 
     private fun hairline(c: Canvas, x0: Float, x1: Float, y: Float, u: Float) {
         c.drawRect(x0, y, x1, y + max(1f, 1.5f * u), Paint().apply {
-            shader = LinearGradient(x0, 0f, x1, 0f, intArrayOf(0x00D4AF37, GOLD, 0x00D4AF37), null, Shader.TileMode.CLAMP)
+            shader = LinearGradient(x0, 0f, x1, 0f, intArrayOf(0x00F2BE22, GOLD, 0x00F2BE22), null, Shader.TileMode.CLAMP)
         })
     }
 
@@ -149,7 +149,7 @@ object FrameRenderer {
         // Top gradient: title, date, day counter, pose
         val topH = 210 * u
         c.drawRect(0f, 0f, w, topH, Paint().apply {
-            shader = LinearGradient(0f, 0f, 0f, topH, 0xE0050308.toInt(), 0x00050308, Shader.TileMode.CLAMP)
+            shader = LinearGradient(0f, 0f, 0f, topH, 0xE0050505.toInt(), 0x00050505, Shader.TileMode.CLAMP)
         })
         val poseText = if (opts.showPose && slide.photo.pose.isNotBlank()) slide.photo.pose.uppercase() else null
         val poseP = paint(GOLD, 22 * u, bold = true, tracking = 0.2f)
@@ -190,7 +190,7 @@ object FrameRenderer {
         val k = u * min(1f, h * 0.6f / (naturalU * u))
         val top = h - naturalU * k
         c.drawRect(0f, top - 90 * u, w, h, Paint().apply {
-            shader = LinearGradient(0f, top - 90 * u, 0f, top + 30 * k, 0x00050308, 0xE6050308.toInt(), Shader.TileMode.CLAMP)
+            shader = LinearGradient(0f, top - 90 * u, 0f, top + 30 * k, 0x00050505, 0xE6050505.toInt(), Shader.TileMode.CLAMP)
         })
         hairline(c, 32 * u, w - 32 * u, top + 8 * k, k)
         val gap = 28 * u
@@ -262,10 +262,10 @@ object FrameRenderer {
         if (doneStarted) {
             val area = Path(done).apply { lineTo(doneLastX, r.bottom); lineTo(doneFirstX, r.bottom); close() }
             c.drawPath(area, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = LinearGradient(0f, r.top, 0f, r.bottom, 0x55D4AF37, 0x00D4AF37, Shader.TileMode.CLAMP)
+                shader = LinearGradient(0f, r.top, 0f, r.bottom, 0x55F2BE22, 0x08F2BE22, Shader.TileMode.CLAMP)
             })
             c.drawPath(done, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE; strokeWidth = 4 * u; color = GOLD
+                style = Paint.Style.STROKE; strokeWidth = 4 * u; color = RED
                 strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
             })
         }
@@ -283,7 +283,7 @@ object FrameRenderer {
         }
         c.drawCircle(px(cx), py(cy), 10 * u, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = GOLD_SOFT })
         c.drawCircle(px(cx), py(cy), 7 * u, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = GOLD })
-        c.drawCircle(px(cx), py(cy), 4 * u, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = PURPLE })
+        c.drawCircle(px(cx), py(cy), 4 * u, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = RED })
     }
 
     /** Side-by-side before/after image with dates and measurement changes. */
@@ -298,7 +298,7 @@ object FrameRenderer {
         val h = headerH + photoH + 40 + rows.size * rowH + 90
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
-        c.drawColor(0xFF050308.toInt())
+        c.drawColor(0xFF050505.toInt())
         val half = w / 2f
         val dp = paint(GOLD, 44f, bold = true, serif = true)
         c.drawText(Dates.medium(dateA), 32f, 72f, dp)

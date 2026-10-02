@@ -41,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -218,11 +219,11 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
                 Text(
                     "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
                     Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = deltaColour(tr.perMonth, MaterialTheme.colorScheme.onSurfaceVariant)
                 )
             }
             Text(
-                "Tap the graph to see that day. Purple ticks and rings mark days with photos.",
+                "Tap the graph to see that day. Gold ticks and rings mark days with photos.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -272,7 +273,7 @@ private fun StatsBlock(list: List<MRecord>, unit: String) {
         Row(Modifier.fillMaxWidth()) {
             LabelValue("Start · ${Dates.short(first.date)}", "${fmtNum(first.value)} $unit", Modifier.weight(1f))
             LabelValue("Latest · ${Dates.short(last.date)}", "${fmtNum(last.value)} $unit", Modifier.weight(1f))
-            LabelValue("Change", "${fmtSigned(last.value - first.value)} $unit", Modifier.weight(1f))
+            LabelValue("Change", "${fmtSigned(last.value - first.value)} $unit", Modifier.weight(1f), deltaColour(last.value - first.value, Color.Unspecified))
         }
         Row(Modifier.fillMaxWidth()) {
             LabelValue("Lowest · ${Dates.short(min.date)}", "${fmtNum(min.value)} $unit", Modifier.weight(1f))
@@ -282,7 +283,7 @@ private fun StatsBlock(list: List<MRecord>, unit: String) {
         val days = Dates.epochDay(last.date) - Dates.epochDay(first.date)
         if (days >= 14) {
             val perWeek = (last.value - first.value) / days * 7
-            Text("Average ${fmtSigned(perWeek, 2)} $unit per week over ${days} days", style = MaterialTheme.typography.bodyMedium)
+            Text("Average ${fmtSigned(perWeek, 2)} $unit per week over ${days} days", style = MaterialTheme.typography.bodyMedium, color = deltaColour(perWeek, Color.Unspecified))
         }
     }
 }

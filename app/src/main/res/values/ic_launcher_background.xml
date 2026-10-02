@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The icon artwork's own background colour, so the layer behind it matches seamlessly. -->
-    <color name="ic_launcher_background">#180424</color>
+    <color name="ic_launcher_background">#0C0C0C</color>
 </resources>

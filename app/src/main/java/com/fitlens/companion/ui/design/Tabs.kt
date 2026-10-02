@@ -135,7 +135,7 @@ fun SegmentedSwitch(options: List<String>, selected: Int, onSelect: (Int) -> Uni
                 onClick = { onSelect(i) },
                 shape = SegmentedButtonDefaults.itemShape(index = i, count = options.size),
                 colors = SegmentedButtonDefaults.colors(
-                    activeContainerColor = Brand.PurpleDeep,
+                    activeContainerColor = Brand.GoldDusk,
                     activeContentColor = Brand.GoldLight,
                     activeBorderColor = Brand.Gold,
                     inactiveContainerColor = Brand.Black,

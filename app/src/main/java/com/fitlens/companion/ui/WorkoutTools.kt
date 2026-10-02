@@ -192,8 +192,8 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
 }
 
 /**
- * Shares the workout on [date] through Android's share sheet (#11, #84), as plain text or as a branded image (black,
- * purple and gold, drawn by [ShareImages]). A checklist of exercises and their sets, all ticked, picks what's shared;
+ * Shares the workout on [date] through Android's share sheet (#11, #84), as plain text or as a branded image (black
+ * and gold, drawn by [ShareImages]). A checklist of exercises and their sets, all ticked, picks what's shared;
  * options cover the date, duration, comment and PR marks. The image includes one of the day's progress photos only
  * when it's chosen. Body values are never included.
  */

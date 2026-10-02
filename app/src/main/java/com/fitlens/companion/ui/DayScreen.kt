@@ -571,6 +571,9 @@ private fun ExerciseOnDay(
         comment = exerciseComment,
         // FitNotes ticks the exercise once all its sets are done ("Mark sets complete", #19).
         done = exSets.isNotEmpty() && exSets.all { it.done },
+        // With "Mark sets complete" on, an unfinished exercise shows how many of its sets are done ("2/4").
+        setsDone = exSets.count { it.done },
+        setsTotal = if (markComplete) exSets.size else null,
         menu = listOf(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
             MenuAction(if (exerciseComment.isNullOrBlank()) "Add exercise comment" else "Edit exercise comment") { commenting = true },

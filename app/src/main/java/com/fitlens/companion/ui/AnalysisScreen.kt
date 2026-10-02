@@ -175,12 +175,12 @@ internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilt
 }
 
 @Composable
-internal fun AnalysisNote(text: String) {
+internal fun AnalysisNote(text: String, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     Text(
         text,
         Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = color
     )
 }
 
@@ -285,7 +285,8 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         " · ${fmtSigned(shown(valueOf(t)) - shown(valueOf(it)), if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0)}" +
                             "$unitWord vs the ${period.name.lowercase()} before (${withUnit(shown(valueOf(it)))})"
                     } ?: ""
-                    AnalysisNote(withUnit(shown(valueOf(t))) + change)
+                    val delta = prev?.let { shown(valueOf(t)) - shown(valueOf(it)) } ?: 0.0
+                    AnalysisNote(withUnit(shown(valueOf(t))) + change, deltaColour(delta, MaterialTheme.colorScheme.onSurfaceVariant))
                     if (t.days.isNotEmpty()) {
                         TextButton(onClick = { showDays = !showDays }, modifier = Modifier.padding(horizontal = 4.dp)) {
                             Text(if (showDays) "Hide workouts" else "Open ${t.days.size} ${if (t.days.size == 1) "workout" else "workouts"}")
@@ -312,7 +313,10 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         ". Best: ${Analysis.longLabel(best, period)}, ${withUnit(shown(valueOf(best)))}."
                 )
                 if (showTrend) trendOf(points.mapIndexed { i, p -> ChartPoint(i.toLong(), p.y, p.date) })?.let { tr ->
-                    AnalysisNote("Trend: ${fmtSigned(tr.slope, 1)} ${if (unit.isEmpty()) metric.label.lowercase() else unit} per ${period.name.lowercase()}.")
+                    AnalysisNote(
+                        "Trend: ${fmtSigned(tr.slope, 1)} ${if (unit.isEmpty()) metric.label.lowercase() else unit} per ${period.name.lowercase()}.",
+                        deltaColour(tr.slope, MaterialTheme.colorScheme.onSurfaceVariant)
+                    )
                 }
                 when (metric) {
                     Analysis.Metric.Volume, Analysis.Metric.Reps ->

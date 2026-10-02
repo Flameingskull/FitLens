@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Branded images for the share sheet: a graph (#22) and a workout card (#11). Both are drawn on an Android [Canvas] in
- * the FitLens look (black, imperial purple and gold, serif headings, letter-spaced labels, gold hairlines), so they
+ * the FitLens look (black and gold, serif headings, letter-spaced labels, gold hairlines), so they
  * don't depend on what is on screen. Colours come from [Brand].
  */
 object ShareImages {
@@ -28,8 +28,8 @@ object ShareImages {
     private const val PAD = 72f
 
     private val black get() = Brand.Black.toArgb()
-    private val purple get() = Brand.PurpleDeep.toArgb()
-    private val purpleLight get() = Brand.PurpleLight.toArgb()
+    private val graphite get() = Brand.Graphite.toArgb()
+    private val red get() = Brand.Fall.toArgb()
     private val gold get() = Brand.Gold.toArgb()
     private val goldLight get() = Brand.GoldLight.toArgb()
     private val ivory get() = Brand.Ivory.toArgb()
@@ -132,12 +132,21 @@ object ShareImages {
             c.drawText("Goal", r.right - label.measureText("Goal"), py(goal) - 14f, text(ivory, 28f))
         }
         g.trend?.let { t ->
-            c.drawLine(px(x0), py(t.at(x0)), px(x1), py(t.at(x1)), stroke(purpleLight, 4f, dashed = true))
+            c.drawLine(px(x0), py(t.at(x0)), px(x1), py(t.at(x1)), stroke(goldLight, 4f, dashed = true))
         }
         val path = Path()
         pts.forEachIndexed { i, p -> if (i == 0) path.moveTo(px(p.x), py(p.y)) else path.lineTo(px(p.x), py(p.y)) }
-        c.drawPath(path, stroke(gold, 7f))
-        if (pts.size <= 80) pts.forEach { p -> c.drawCircle(px(p.x), py(p.y), 9f, fill(goldLight)) }
+        // The app's graph style (1.0.71): a red line over translucent gold fading to the baseline.
+        val area = Path(path).apply {
+            lineTo(px(pts.last().x), r.bottom)
+            lineTo(px(pts.first().x), r.bottom)
+            close()
+        }
+        c.drawPath(area, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, r.top, 0f, r.bottom, gold and 0x00FFFFFF or 0x55000000, gold and 0x00FFFFFF or 0x08000000, Shader.TileMode.CLAMP)
+        })
+        c.drawPath(path, stroke(red, 7f))
+        if (pts.size <= 80) pts.forEach { p -> c.drawCircle(px(p.x), py(p.y), 9f, fill(red)) }
     }
 
     // ---------- Workout card (#11) ----------
@@ -210,11 +219,11 @@ object ShareImages {
 
     // ---------- Shared pieces ----------
 
-    /** Black with a purple glow at the top, as the app's screens. */
+    /** Black with a graphite glow at the top, as the app's screens. */
     private fun background(c: Canvas, h: Int) {
         c.drawColor(black)
         c.drawRect(0f, 0f, W.toFloat(), h * 0.45f, Paint().apply {
-            shader = LinearGradient(0f, 0f, 0f, h * 0.45f, purple, black, Shader.TileMode.CLAMP)
+            shader = LinearGradient(0f, 0f, 0f, h * 0.45f, graphite, black, Shader.TileMode.CLAMP)
         })
     }
 

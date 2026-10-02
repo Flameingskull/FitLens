@@ -122,7 +122,7 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
         Modifier
             .size(Spacing.touch)
             .clip(CircleShape)
-            .background(if (pressed) Brand.ImperialPurple.copy(alpha = 0.45f) else Color.Transparent)
+            .background(if (pressed) Brand.Gold.copy(alpha = 0.16f) else Color.Transparent)
             .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
             .semantics {
                 role = Role.Button
@@ -224,7 +224,7 @@ private fun SetCellText(cell: SetCell, modifier: Modifier = Modifier) {
  *   the set-type badge then sits beside the PR marker.
  * - [onComment] (#108) adds a speech-bubble button at the row's start, gold and filled when the set has a comment,
  *   outlined when it hasn't. It opens the set's Comment box without selecting the row.
- * - [framed] draws the set as its own recessed glass well (#102), picked out in imperial purple with a gold outline
+ * - [framed] draws the set as its own recessed glass well (#102), picked out in a gold wash with a gold outline
  *   when [selected]; unframed, it is a compact line for use inside an [ExerciseCard] or another clickable container.
  * - TalkBack reads the row as one sentence, for example "Set 2, 85 kilograms, 6 reps, personal record". The comment
  *   button is a separate stop.
@@ -269,7 +269,7 @@ fun SetRow(
         !framed -> Modifier.fillMaxWidth()
         selected -> Modifier
             .fillMaxWidth()
-            .background(Brand.ImperialPurple.copy(alpha = 0.35f), shape)
+            .background(Brand.Gold.copy(alpha = 0.12f), shape)
             .border(1.dp, Brand.Gold, shape)
             .clip(shape)
         else -> Modifier.fillMaxWidth().recessedGlass(shape)
@@ -474,7 +474,8 @@ fun SetCommentSheet(describe: String, initial: String?, onSave: (String?) -> Uni
 
 /**
  * One exercise on the day log, laid out as FitNotes's (owner, 2026-10-02): a raised card with the exercise's name and,
- * when every set is [done], a gold tick, over a solid rule in [categoryColor]; then its [sets] (usually unframed
+ * when every set is [done], a gold tick, over a solid rule in [categoryColor]. Otherwise, when [setsTotal] is given
+ * (sets are being marked complete), "2/4" in gold shows how many of its sets are done so far; then its [sets] (usually unframed
  * [SetRow]s, values in right-aligned columns) and an optional [comment]. Tapping the card calls [onClick];
  * long-pressing it opens [menu], as FitNotes does.
  */
@@ -488,6 +489,8 @@ fun ExerciseCard(
     comment: String? = null,
     hasPr: Boolean = false,
     done: Boolean = false,
+    setsDone: Int = 0,
+    setsTotal: Int? = null,
     menu: List<MenuAction> = emptyList(),
     sets: @Composable ColumnScope.() -> Unit
 ) {
@@ -524,6 +527,15 @@ fun ExerciseCard(
             }
             if (done) {
                 Icon(Icons.Filled.CheckCircle, contentDescription = "Every set done", tint = Brand.Gold, modifier = Modifier.size(28.dp))
+            } else if (setsTotal != null && setsTotal > 0) {
+                Text(
+                    "$setsDone/$setsTotal",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Brand.Gold,
+                    modifier = Modifier
+                        .padding(start = Spacing.xs)
+                        .semantics { contentDescription = "$setsDone of $setsTotal sets done" }
+                )
             }
             Box {
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {

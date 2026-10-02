@@ -31,16 +31,17 @@ import com.fitlens.companion.ui.design.ListRowWithMenu
 import kotlinx.coroutines.launch
 
 /**
- * The colour of a change between two values of a measurement with a goal (#27): gold when it moved the way the goal
- * wants, purple when it moved away, and plain otherwise. The signed number next to it still carries the meaning.
+ * The colour of a change between two values of a measurement with a goal (#27): green when it moved the way the goal
+ * wants and red when it moved away (1.0.71). Without a goal it is green for a rise and red for a fall, plain when
+ * unchanged. The signed number next to it still carries the meaning.
  */
 @Composable
 fun changeColour(def: MeasurementDef?, from: Double, to: Double): Color {
     val good = def?.let { MeasurementGoals.isImprovement(it.goalType, it.goalValue, from, to) }
     return when (good) {
-        true -> Brand.Gold
-        false -> Brand.PurpleLight
-        null -> MaterialTheme.colorScheme.onSurface
+        true -> Brand.Rise
+        false -> Brand.Fall
+        null -> deltaColour(to - from, MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -102,7 +103,7 @@ fun MeasurementGoalSheet(def: MeasurementDef, onDismiss: () -> Unit) {
             )
         }
         Text(
-            "Changes in the history are gold when they move towards the goal and purple when they move away. " +
+            "Changes in the history are green when they move towards the goal and red when they move away. " +
                 "A goal set here isn't replaced by a later FitNotes import.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant

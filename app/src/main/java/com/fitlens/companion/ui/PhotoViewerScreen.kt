@@ -205,7 +205,7 @@ fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
                             Text(row.label, Modifier.weight(1.3f))
                             Text(row.left, Modifier.weight(1f))
                             Text(row.right, Modifier.weight(1f))
-                            Text(row.change, Modifier.weight(0.9f), color = MaterialTheme.colorScheme.primary)
+                            Text(row.change, Modifier.weight(0.9f), color = deltaColour(row.delta, MaterialTheme.colorScheme.primary))
                         }
                     }
                     Text(
@@ -228,7 +228,7 @@ fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
     }
 }
 
-data class CompareRow(val label: String, val left: String, val right: String, val change: String)
+data class CompareRow(val label: String, val left: String, val right: String, val change: String, val delta: Double = 0.0)
 
 fun compareRows(snap: Snapshot, da: String, db: String): List<CompareRow> =
     snap.usedMeasurements.mapNotNull { m ->
@@ -239,7 +239,8 @@ fun compareRows(snap: Snapshot, da: String, db: String): List<CompareRow> =
         val r = hb?.let { (if (it.second) "" else "≈") + fmtNum(it.first.value) } ?: "—"
         val ch = if (ha != null && hb != null) fmtSigned(hb.first.value - ha.first.value) else ""
         val unit = (hb ?: ha)?.first?.unit ?: ""
-        CompareRow("${m.name}${if (unit.isNotBlank()) " ($unit)" else ""}", l, r, ch)
+        val delta = if (ha != null && hb != null) hb.first.value - ha.first.value else 0.0
+        CompareRow("${m.name}${if (unit.isNotBlank()) " ($unit)" else ""}", l, r, ch, delta)
     }
 
 @Composable

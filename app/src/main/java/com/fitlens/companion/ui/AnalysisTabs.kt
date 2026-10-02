@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +27,7 @@ import com.fitlens.companion.data.ExerciseGoal
 import com.fitlens.companion.data.GoalKinds
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.ui.design.ListRowWithMenu
+import com.fitlens.companion.ui.design.PickerPill
 import com.fitlens.companion.ui.design.SearchablePicker
 
 /** The exercise Analysis → Exercises showed last, kept between visits while the app is open (#90). */
@@ -46,11 +46,7 @@ fun AnalysisExercisesTab(snap: Snapshot, nav: Nav) {
     val chosen = exId?.takeIf { snap.exercises.containsKey(it) && snap.setsByExercise[it].orEmpty().isNotEmpty() }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-            FilterChip(
-                selected = chosen != null,
-                onClick = { picking = true },
-                label = { Text(chosen?.let { snap.exercises[it]?.name } ?: "Choose an exercise…") }
-            )
+            PickerPill("Exercise", chosen?.let { snap.exercises[it]?.name } ?: "Choose an exercise…") { picking = true }
         }
         if (chosen == null) {
             EmptyState(

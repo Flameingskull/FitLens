@@ -22,46 +22,60 @@ import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** Brand palette: black, imperial purple and gold. */
+/** Brand palette (1.0.71): black and vibrant gold, with red and green kept for rises, falls and graph lines. */
 object Brand {
-    val Black = Color(0xFF050308)
-    val Onyx = Color(0xFF0E0A12)
-    val Surface = Color(0xFF151019)
-    val SurfaceHigh = Color(0xFF1E1724)
-    val SurfaceHighest = Color(0xFF281F30)
-    val ImperialPurple = Color(0xFF4B1E6E)
-    val PurpleDeep = Color(0xFF2E1245)
-    val PurpleLight = Color(0xFFB48BDB)
-    val Gold = Color(0xFFD4AF37)
-    val GoldLight = Color(0xFFF1D98A)
-    val GoldDeep = Color(0xFF8C6D1F)
+    val Black = Color(0xFF050505)
+    val Onyx = Color(0xFF0D0D0D)
+    val Surface = Color(0xFF141414)
+    val SurfaceHigh = Color(0xFF1C1C1C)
+    val SurfaceHighest = Color(0xFF262626)
+    /** Polished black for the primary button and the top bar: a step lighter than the page. */
+    val Graphite = Color(0xFF1A1A1A)
+    /** Chosen items (selected day, active row, segmented choice): a deep gold-brown that carries gold text. */
+    val GoldDusk = Color(0xFF3A2E0A)
+    val Gold = Color(0xFFF2BE22)
+    val GoldLight = Color(0xFFFFDB6E)
+    val GoldDeep = Color(0xFF9A7608)
     val Ivory = Color(0xFFF7F3EA)
-    val Muted = Color(0xFFBDB3C6)
+    val Muted = Color(0xFFBDB6A8)
     /** Decorative rules and chart grids only: too quiet to carry meaning on its own. */
-    val Hairline = Color(0xFF3A2F44)
+    val Hairline = Color(0xFF38342B)
     /**
      * Borders that define a control (switches, outlined fields and buttons, chips, checkboxes).
-     * A dusk-purple grey kept in the brand's cool family, at 4.22:1 on [Black] and 3.25:1 on [SurfaceHighest],
-     * so every outlined control clears the 3:1 minimum for user-interface components.
+     * A warm grey kept in the gold family, about 4.3:1 on [Black] and 3.3:1 on [SurfaceHighest], so every outlined
+     * control clears the 3:1 minimum for user-interface components.
      */
-    val Outline = Color(0xFF7A6C86)
-    /** Destructive buttons (#104): a deep wine that carries gold text, where the light error pink would need black. */
-    val Wine = Color(0xFF4A1426)
+    val Outline = Color(0xFF7D7462)
+    /** Destructive buttons (#104): a deep oxblood that carries gold text, where the light error red would need black. */
+    val Wine = Color(0xFF4A1416)
+    /** A value that went up, and progress towards a goal. */
+    val Rise = Color(0xFF4CC38A)
+    /** A value that went down, progress away from a goal, and the line of every graph. */
+    val Fall = Color(0xFFE5484D)
 }
 
-/** Chart colours: gold series, purple photo markers, ivory goal line. */
+/** The colour of a change: green for a rise, red for a fall, plain for no change. */
+fun deltaColour(delta: Double, plain: Color = Brand.Muted): Color = when {
+    delta > 0 -> Brand.Rise
+    delta < 0 -> Brand.Fall
+    else -> plain
+}
+
 /**
- * Chart colours (#50). [palette] is the series order: gold first, then imperial purple light, ivory and gold light.
- * Charts with more series reuse it lighter (see `seriesColor` in Charts.kt) and tell series apart by marker shape too.
+ * Chart colours (#50, 1.0.71): [series] is the line, red, over a translucent gold [fill]; [accent] marks photo days
+ * and [goal] is the goal line. [palette] is the series order for charts with several lines: red first, then gold,
+ * ivory and gold light. Charts with more series reuse it lighter (see `seriesColor` in Charts.kt) and tell series
+ * apart by marker shape too.
  */
 data class ChartColors(
     val series: Color,
     val accent: Color,
     val goal: Color,
-    val palette: List<Color> = listOf(Brand.Gold, Brand.PurpleLight, Brand.Ivory, Brand.GoldLight)
+    val palette: List<Color> = listOf(Brand.Fall, Brand.Gold, Brand.Ivory, Brand.GoldLight),
+    val fill: Color = Brand.Gold.copy(alpha = 0.18f)
 )
 
-val LocalChartColors = staticCompositionLocalOf { ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory) }
+val LocalChartColors = staticCompositionLocalOf { ChartColors(Brand.Fall, Brand.Gold, Brand.Ivory) }
 
 /**
  * No text is ever black (#104): every filled control carries gold text on a dark fill. [onPrimary] stays black only
@@ -71,11 +85,11 @@ val LocalChartColors = staticCompositionLocalOf { ChartColors(Brand.Gold, Brand.
 private val Scheme = darkColorScheme(
     primary = Brand.Gold,
     onPrimary = Brand.Black,
-    primaryContainer = Brand.PurpleDeep,
+    primaryContainer = Brand.GoldDusk,
     onPrimaryContainer = Brand.GoldLight,
-    secondary = Brand.PurpleLight,
+    secondary = Brand.GoldLight,
     onSecondary = Brand.Black,
-    secondaryContainer = Brand.ImperialPurple,
+    secondaryContainer = Brand.GoldDusk,
     onSecondaryContainer = Brand.GoldLight,
     tertiary = Brand.GoldLight,
     onTertiary = Brand.Black,
@@ -98,31 +112,31 @@ private val Scheme = darkColorScheme(
     inverseOnSurface = Brand.GoldLight,
     inversePrimary = Brand.Gold,
     outline = Brand.Outline,
-    outlineVariant = Color(0xFF2A2231),
-    error = Color(0xFFE8798A),
+    outlineVariant = Color(0xFF2A2720),
+    error = Color(0xFFFF7A7E),
     onError = Brand.Black,
     errorContainer = Brand.Wine,
     onErrorContainer = Brand.GoldLight,
     scrim = Color.Black
 )
 
-/** Date pickers: the chosen day and year in gold on imperial purple, never black on gold (#104). */
+/** Date pickers: the chosen day and year in gold on gold dusk, never black on gold (#104). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun fitDatePickerColors(): DatePickerColors = DatePickerDefaults.colors(
-    selectedDayContainerColor = Brand.ImperialPurple,
+    selectedDayContainerColor = Brand.GoldDusk,
     selectedDayContentColor = Brand.GoldLight,
-    selectedYearContainerColor = Brand.ImperialPurple,
+    selectedYearContainerColor = Brand.GoldDusk,
     selectedYearContentColor = Brand.GoldLight,
     todayContentColor = Brand.Gold,
     todayDateBorderColor = Brand.Gold
 )
 
-/** Time pickers: the dial's chosen number in gold on imperial purple (#104). */
+/** Time pickers: the dial's chosen number in gold on gold dusk (#104). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun fitTimePickerColors(): TimePickerColors = TimePickerDefaults.colors(
-    selectorColor = Brand.ImperialPurple,
+    selectorColor = Brand.GoldDusk,
     clockDialSelectedContentColor = Brand.GoldLight
 )
 
@@ -202,7 +216,7 @@ object Motion {
 val CategoryFallbackColour: Color get() = Brand.Outline
 
 /**
- * FitLens always uses its black, imperial purple and gold theme, whatever the system setting.
+ * FitLens always uses its black and gold theme, whatever the system setting.
  *
  * Every background is dark, so text is never black. Compose's own default content colour is black, and it is what
  * any text without a colour falls back to wherever its container isn't one of the theme's colours: the transparent
@@ -214,7 +228,7 @@ fun FitLensTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = Scheme, typography = LuxuryType, shapes = LuxuryShapes) {
         CompositionLocalProvider(
             LocalContentColor provides Brand.Ivory,
-            LocalChartColors provides ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory)
+            LocalChartColors provides ChartColors(Brand.Fall, Brand.Gold, Brand.Ivory)
         ) {
             content()
         }

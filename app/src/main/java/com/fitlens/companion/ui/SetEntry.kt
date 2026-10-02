@@ -542,7 +542,7 @@ fun SetEntryScreen(
                         onClick = { selected = if (selected == s.id) null else s.id },
                         // Each set's own comment, one tap away mid-workout (#108).
                         onComment = { commenting = s },
-                        // No "Edit" hint: the comment button needs the room at 320dp, and the purple, gold-edged
+                        // No "Edit" hint: the comment button needs the room at 320dp, and the gold-washed, gold-edged
                         // frame already marks the selected set (#108, #112).
                         // "Mark sets complete" (#19). Ticking the last set offers the next exercise, respecting
                         // supersets and the workout's order.

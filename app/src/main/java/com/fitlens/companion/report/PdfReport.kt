@@ -42,18 +42,20 @@ data class ReportOptions(
 
 private class Palette(
     val bg: Int, val card: Int, val text: Int, val muted: Int,
-    val gold: Int, val purple: Int, val hairline: Int, val grid: Int
+    val gold: Int, val accent: Int, val line: Int, val fill: Int, val hairline: Int, val grid: Int
 )
 
 private val DARK = Palette(
-    bg = 0xFF050308.toInt(), card = 0xFF151019.toInt(), text = 0xFFF7F3EA.toInt(), muted = 0xFFBDB3C6.toInt(),
-    gold = 0xFFD4AF37.toInt(), purple = 0xFFB48BDB.toInt(), hairline = 0xFF3A2F44.toInt(), grid = 0x33FFFFFF
+    bg = 0xFF050505.toInt(), card = 0xFF141414.toInt(), text = 0xFFF7F3EA.toInt(), muted = 0xFFBDB6A8.toInt(),
+    gold = 0xFFF2BE22.toInt(), accent = 0xFFFFDB6E.toInt(), line = 0xFFE5484D.toInt(), fill = 0x33F2BE22,
+    hairline = 0xFF38342B.toInt(), grid = 0x33FFFFFF
 )
 
-// Deeper gold and purple on white keep text readable when printed.
+// Deeper gold and red on white keep text readable when printed.
 private val LIGHT = Palette(
-    bg = 0xFFFFFFFF.toInt(), card = 0xFFF6F2FA.toInt(), text = 0xFF1A1320.toInt(), muted = 0xFF5E5566.toInt(),
-    gold = 0xFF9C7A1E.toInt(), purple = 0xFF4B1E6E.toInt(), hairline = 0xFFD8CFE0.toInt(), grid = 0x22000000
+    bg = 0xFFFFFFFF.toInt(), card = 0xFFF8F6F0.toInt(), text = 0xFF1A1A1A.toInt(), muted = 0xFF5E5A52.toInt(),
+    gold = 0xFF8A6A00.toInt(), accent = 0xFF3A3A3A.toInt(), line = 0xFFC62828.toInt(), fill = 0x2EC9A227,
+    hairline = 0xFFDDD8CC.toInt(), grid = 0x22000000
 )
 
 private const val PW = 595 // A4 in points
@@ -320,15 +322,21 @@ object PdfReport {
             val gy = r.top + r.height() * i / 3f
             c.drawRect(r.left, gy, r.right, gy + 0.4f, grid)
         }
-        val ticks = fill(p.purple)
+        val ticks = fill(p.accent)
         photoDays.filter { it in x0..x1 }.forEach { d -> c.drawRect(px(d) - 0.5f, r.bottom - 5f, px(d) + 0.5f, r.bottom, ticks) }
         val path = Path()
         pts.forEachIndexed { i, (x, y) -> if (i == 0) path.moveTo(px(x), py(y)) else path.lineTo(px(x), py(y)) }
+        val area = Path(path).apply {
+            lineTo(px(pts.last().first), r.bottom)
+            lineTo(px(pts.first().first), r.bottom)
+            close()
+        }
+        c.drawPath(area, fill(p.fill))
         c.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; strokeWidth = 1.6f; color = p.gold
+            style = Paint.Style.STROKE; strokeWidth = 1.6f; color = p.line
             strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
         })
-        if (pts.size <= 60) pts.forEach { (x, y) -> c.drawCircle(px(x), py(y), 1.6f, fill(p.gold)) }
+        if (pts.size <= 60) pts.forEach { (x, y) -> c.drawCircle(px(x), py(y), 1.6f, fill(p.line)) }
         val lp = paint(p.muted, 6.5f)
         w.rightText(fmtNum(y1 - pad), lp, r.left - 3f, r.top + 6f)
         w.rightText(fmtNum(y0 + pad), lp, r.left - 3f, r.bottom)

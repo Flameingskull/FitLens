@@ -263,7 +263,7 @@ private fun BarEnd(side: List<Double>) {
                     .width(30.dp)
                     .height((40 + 80 * (p / heaviest)).dp)
                     // Dark plates with gold rims and gold figures, never black text (#104).
-                    .background(if (i % 2 == 0) Brand.ImperialPurple else Brand.PurpleDeep, FitShapes.row)
+                    .background(if (i % 2 == 0) Brand.GoldDusk else Brand.Graphite, FitShapes.row)
                     .border(1.dp, if (i % 2 == 0) Brand.Gold else Brand.GoldDeep, FitShapes.row),
                 contentAlignment = Alignment.Center
             ) {

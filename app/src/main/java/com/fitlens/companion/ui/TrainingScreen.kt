@@ -351,7 +351,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long) {
                 Text(
                     "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} ${if (g.lowerIsBetter) "min $unit" else unit} per month",
                     Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = deltaColour(tr.perMonth, MaterialTheme.colorScheme.onSurfaceVariant)
                 )
             }
             val p = sel?.let { shown.getOrNull(it) }

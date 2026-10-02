@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,11 +63,19 @@ fun StatTile(
         if (!delta.isNullOrBlank()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when (trend) {
-                    Trend.Up -> Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Up", tint = Brand.Gold, modifier = Modifier.size(18.dp))
-                    Trend.Down -> Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Down", tint = Brand.PurpleLight, modifier = Modifier.size(18.dp))
+                    Trend.Up -> Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Up", tint = Brand.Rise, modifier = Modifier.size(18.dp))
+                    Trend.Down -> Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Down", tint = Brand.Fall, modifier = Modifier.size(18.dp))
                     else -> {}
                 }
-                Text(delta, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    delta,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when (trend) {
+                        Trend.Up -> Brand.Rise
+                        Trend.Down -> Brand.Fall
+                        else -> LocalContentColor.current
+                    }
+                )
             }
         }
         if (!dateLine.isNullOrBlank()) {

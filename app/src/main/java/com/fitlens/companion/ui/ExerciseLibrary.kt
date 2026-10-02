@@ -117,21 +117,29 @@ import kotlinx.coroutines.launch
 /** Category colours offered to the user, taken from the brand palette in [Brand]. */
 val CategoryPalette: List<Color> = listOf(
     Brand.Gold,
-    Brand.PurpleLight,
+    Brand.Fall,
     Brand.GoldLight,
-    Brand.ImperialPurple,
+    Brand.Rise,
     Brand.GoldDeep,
-    Brand.PurpleDeep,
+    Brand.Outline,
     Brand.Ivory,
     Brand.Muted
 )
+
+/**
+ * The palette before 1.0.71 (black, imperial purple and gold), in the same order. Categories store the colour itself,
+ * so one picked from the old palette is shown as the colour now in its place: no purple, and no database change.
+ */
+private val LegacyPalette: Map<Int, Color> = listOf(
+    0xFFD4AF37, 0xFFB48BDB, 0xFFF1D98A, 0xFF4B1E6E, 0xFF8C6D1F, 0xFF2E1245, 0xFFF7F3EA, 0xFFBDB3C6
+).map { it.toInt() }.zip(CategoryPalette).toMap()
 
 private val CategoryPaletteArgb: List<Int> = CategoryPalette.map { it.toArgb() }
 
 /** A category's dot colour, falling back to the theme outline when it has none (0). */
 @Composable
 fun categoryColour(colour: Int): Color =
-    if (colour == 0) MaterialTheme.colorScheme.outline else Color(colour)
+    if (colour == 0) MaterialTheme.colorScheme.outline else LegacyPalette[colour] ?: Color(colour)
 
 /** The "Favourites" pseudo-category in the category list. Real category ids are positive; uncategorised is 0. */
 private const val FAVOURITES = -1L
@@ -437,7 +445,7 @@ private fun CategoryRow(name: String, colour: Color, count: Int, selected: Boole
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
-            .background(if (selected) Brand.ImperialPurple.copy(alpha = 0.35f) else Color.Transparent)
+            .background(if (selected) Brand.Gold.copy(alpha = 0.12f) else Color.Transparent)
             .clickable(onClickLabel = "Show $name exercises", onClick = onClick)
             .semantics(mergeDescendants = true) {
                 contentDescription = "$name, ${countOf(count, "exercise")}"
@@ -536,7 +544,7 @@ private fun ExerciseRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
-            .background(if (order != null) Brand.ImperialPurple.copy(alpha = 0.35f) else Color.Transparent)
+            .background(if (order != null) Brand.Gold.copy(alpha = 0.12f) else Color.Transparent)
             .combinedClickable(
                 onClickLabel = if (choosing) "Choose or unchoose" else "Log ${ex.name}",
                 onLongClickLabel = "Choose several exercises",

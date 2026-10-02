@@ -30,9 +30,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
@@ -213,6 +216,7 @@ fun graphHeight(): Dp = (LocalConfiguration.current.screenHeightDp * 0.45f).dp.c
  * - [showTrend] adds a dashed least-squares trend per series. [yFromZero] starts the y axis at zero.
  * - The line joins every point, however far apart, so it's never broken (owner, #116).
  * - Days with progress photos get a tick on the time axis and a ring on their point.
+ * - Style (1.0.71): value and time grid lines behind a red line, with a translucent gold fill under the first series.
  * - [viewport] shows part of the time range (full screen zoom).
  */
 @Composable
@@ -268,8 +272,9 @@ private fun LinePlot(
 ) {
     val colors = LocalChartColors.current
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
-    // The grid is decoration behind the series, so it stays on the quiet hairline.
-    val gridColor = Brand.Hairline.copy(alpha = 0.35f)
+    // The grid sits behind the series: visible enough to read values against, quiet enough not to compete.
+    val gridColor = Brand.Ivory.copy(alpha = 0.10f)
+    val axisColor = Brand.Gold.copy(alpha = 0.45f)
     val surface = MaterialTheme.colorScheme.background
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(fontSize = 11.sp, color = textColor)
@@ -360,11 +365,17 @@ private fun LinePlot(
         var guard = 0
         while (t <= gridTop && guard++ < 20) {
             val y = py(t)
-            drawLine(gridColor, Offset(left, y), Offset(right, y), strokeWidth = 1f)
+            drawLine(gridColor, Offset(left, y), Offset(right, y), strokeWidth = 1.dp.toPx())
             val layout = measurer.measure(yFormat(t), labelStyle)
             drawText(layout, topLeft = Offset(left - layout.size.width - 6.dp.toPx(), y - layout.size.height / 2f))
             t += step
         }
+        // Time grid: four even columns, and a fine gold baseline along the time axis.
+        for (k in 1..3) {
+            val x = left + (right - left) * k / 4f
+            drawLine(gridColor, Offset(x, top), Offset(x, bottom), strokeWidth = 1.dp.toPx())
+        }
+        drawLine(axisColor, Offset(left, bottom), Offset(right, bottom), strokeWidth = 1.dp.toPx())
         // x labels: first and last, plus the middle when it fits without touching them.
         val first = measurer.measure(LocalDate.ofEpochDay(xMin.toLong()).format(xFmt), labelStyle)
         val last = measurer.measure(LocalDate.ofEpochDay(xMax.toLong()).format(xFmt), labelStyle)
@@ -392,6 +403,16 @@ private fun LinePlot(
                     drawLine(colors.accent, Offset(x, bottom - 7.dp.toPx()), Offset(x, bottom), strokeWidth = 2.dp.toPx())
                 }
             }
+            // A soft gold fill under the first visible series only, so several lines never muddy each other.
+            visible.firstOrNull()?.let { si ->
+                val pts = series[si].points
+                val area = Path()
+                pts.forEachIndexed { i, p -> if (i == 0) area.moveTo(px(p.x), py(p.y)) else area.lineTo(px(p.x), py(p.y)) }
+                area.lineTo(px(pts.last().x), bottom)
+                area.lineTo(px(pts.first().x), bottom)
+                area.close()
+                drawPath(area, Brush.verticalGradient(listOf(colors.fill, colors.fill.copy(alpha = 0.02f)), startY = top, endY = bottom))
+            }
             visible.forEach { si ->
                 val pts = series[si].points
                 val color = colors.seriesColor(si)
@@ -401,7 +422,7 @@ private fun LinePlot(
                     val y = py(p.y)
                     if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 }
-                drawPath(path, color, style = Stroke(width = 2.dp.toPx()))
+                drawPath(path, color, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                 trends[si]?.let { tr ->
                     val a = pts.first().x
                     val b = pts.last().x

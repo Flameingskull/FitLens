@@ -27,7 +27,7 @@ import kotlin.math.max
  * FitLens's glass depth (#102): surfaces lit like tinted glass in the brand colours instead of flat blocks. It is
  * drawn with gradients, rims and shadows only (no backdrop blur), so it looks the same on every supported phone.
  *
- * - [ambientBackdrop]: soft purple and gold glows on black behind every screen, for the glass to catch.
+ * - [ambientBackdrop]: soft graphite and gold glows on black behind every screen, for the glass to catch.
  * - [raisedGlass]: cards, tiles and bars that sit above the page.
  * - [recessedGlass]: set rows and wells pressed into a card.
  * - [GoldButton] and [GlassOutlinedButton]: the primary and secondary buttons.
@@ -35,22 +35,26 @@ import kotlin.math.max
  * Brushes are built once here, not on every frame.
  */
 object Glass {
+    /** Smoked glass: a faint warm-white lift at the top settling into the black page. */
     val raisedFill = Brush.verticalGradient(
-        0f to Brand.PurpleLight.copy(alpha = 0.22f),
-        0.4f to Brand.ImperialPurple.copy(alpha = 0.20f),
+        0f to Brand.Ivory.copy(alpha = 0.075f),
+        0.4f to Brand.Ivory.copy(alpha = 0.035f),
         1f to Brand.Surface.copy(alpha = 0.60f)
     )
-    /** A bright gold top edge fading into a faint purple rim down the sides. */
+    /**
+     * A fine gold hairline, brightest along the top edge where the light catches it and fading down the sides, so
+     * edges are drawn by light rather than by a heavy outline.
+     */
     val rim = Brush.verticalGradient(
-        0f to Brand.GoldLight.copy(alpha = 0.55f),
-        0.35f to Brand.PurpleLight.copy(alpha = 0.26f),
-        1f to Brand.PurpleLight.copy(alpha = 0.16f)
+        0f to Brand.Gold.copy(alpha = 0.50f),
+        0.35f to Brand.Gold.copy(alpha = 0.18f),
+        1f to Brand.Gold.copy(alpha = 0.10f)
     )
-    val sheen = Brand.Ivory.copy(alpha = 0.22f)
-    val recessedFill = Brand.Black.copy(alpha = 0.35f)
-    val recessedShade = Brush.verticalGradient(listOf(Brand.Black.copy(alpha = 0.45f), Brand.Black.copy(alpha = 0f)))
-    val recessedRim = Brand.PurpleLight.copy(alpha = 0.10f)
-    val recessedLip = Brand.Ivory.copy(alpha = 0.08f)
+    val sheen = Brand.Ivory.copy(alpha = 0.16f)
+    val recessedFill = Brand.Black.copy(alpha = 0.40f)
+    val recessedShade = Brush.verticalGradient(listOf(Brand.Black.copy(alpha = 0.50f), Brand.Black.copy(alpha = 0f)))
+    val recessedRim = Brand.Gold.copy(alpha = 0.08f)
+    val recessedLip = Brand.Ivory.copy(alpha = 0.06f)
     /** Polished gold: light at the top, deep at the bottom. */
     val gold = Brush.verticalGradient(
         0f to Brand.GoldLight,
@@ -58,14 +62,15 @@ object Glass {
         1f to Brand.GoldDeep
     )
     val goldHighlight = Brand.Ivory.copy(alpha = 0.55f)
-    /** The primary button's fill (#104): imperial purple, deepening towards the bottom, under gold text. */
-    val royal = Brush.verticalGradient(0f to Brand.ImperialPurple, 1f to Brand.PurpleDeep)
+    /** The primary button's fill (#104): polished black, a little lighter at the top, under gold text. */
+    val royal = Brush.verticalGradient(0f to Brand.Graphite, 1f to Brand.Black)
     /** The primary button's polished gold rim: light at the top, deep at the bottom. */
-    val royalRim = Brush.verticalGradient(0f to Brand.GoldLight, 1f to Brand.GoldDeep)
-    val purple = Brush.verticalGradient(listOf(Brand.PurpleLight.copy(alpha = 0.20f), Brand.ImperialPurple.copy(alpha = 0.18f)))
-    val purpleRim = Brand.Gold.copy(alpha = 0.45f)
-    /** The top bar: deep purple fading to the page. */
-    val bar = Brush.verticalGradient(listOf(Brand.PurpleDeep.copy(alpha = 0.55f), Brand.Black.copy(alpha = 0.25f)))
+    val royalRim = Brush.verticalGradient(0f to Brand.GoldLight, 0.5f to Brand.Gold, 1f to Brand.GoldDeep)
+    /** The secondary button's clear smoked glass. */
+    val clear = Brush.verticalGradient(listOf(Brand.Ivory.copy(alpha = 0.06f), Brand.Ivory.copy(alpha = 0.02f)))
+    val clearRim = Brand.Gold.copy(alpha = 0.45f)
+    /** The top bar: graphite fading to the page. */
+    val bar = Brush.verticalGradient(listOf(Brand.Graphite.copy(alpha = 0.70f), Brand.Black.copy(alpha = 0.25f)))
     val barRule = Brand.Gold.copy(alpha = 0.35f)
 }
 
@@ -78,7 +83,7 @@ private fun Modifier.topSheen(color: Color, inset: Dp): Modifier = drawWithConte
 }
 
 /**
- * A raised glass panel (#102): a purple-tinted translucent fill, lighter at the top, a gold top rim, an inner sheen
+ * A raised glass panel (#102): a smoked translucent fill, lighter at the top, a fine gold rim, an inner sheen
  * and a soft shadow underneath. [inset] keeps the sheen inside the shape's rounded corners.
  */
 fun Modifier.raisedGlass(shape: Shape, elevation: Dp = 6.dp, inset: Dp = 12.dp): Modifier = this
@@ -100,18 +105,18 @@ fun Modifier.recessedGlass(shape: Shape): Modifier = this
     }
     .border(1.dp, Glass.recessedRim, shape)
 
-/** The page behind everything (#102): black, with imperial purple glows top-left and right and a faint gold glow low down. */
+/** The page behind everything (#102): black, with soft graphite glows top-left and right and a faint gold glow low down. */
 fun Modifier.ambientBackdrop(): Modifier = drawWithCache {
     val w = size.width
     val h = size.height
     val big = max(w, h)
     val topLeft = Brush.radialGradient(
-        listOf(Brand.ImperialPurple.copy(alpha = 0.55f), Brand.ImperialPurple.copy(alpha = 0f)),
+        listOf(Brand.Graphite.copy(alpha = 0.9f), Brand.Graphite.copy(alpha = 0f)),
         center = Offset(0f, 0f),
         radius = big * 0.6f
     )
     val right = Brush.radialGradient(
-        listOf(Brand.PurpleDeep.copy(alpha = 0.6f), Brand.PurpleDeep.copy(alpha = 0f)),
+        listOf(Brand.Gold.copy(alpha = 0.05f), Brand.Gold.copy(alpha = 0f)),
         center = Offset(w, h * 0.65f),
         radius = big * 0.45f
     )
@@ -129,7 +134,7 @@ fun Modifier.ambientBackdrop(): Modifier = drawWithCache {
 }
 
 /**
- * The primary button (#102, #104): imperial purple glass with a polished gold rim, gold text, a glossy top edge and a
+ * The primary button (#102, #104): polished black glass with a gold rim, gold text, a glossy top edge and a
  * soft gold glow. Gold text on a dark fill, as the owner asked: no button text is ever black.
  */
 @Composable
@@ -162,7 +167,7 @@ fun GoldButton(
     )
 }
 
-/** A secondary button in clear purple glass with a gold rim (#102). */
+/** A secondary button in clear smoked glass with a fine gold rim (#102). */
 @Composable
 fun GlassOutlinedButton(
     onClick: () -> Unit,
@@ -174,10 +179,10 @@ fun GlassOutlinedButton(
     val shape = ButtonDefaults.outlinedShape
     OutlinedButton(
         onClick = onClick,
-        modifier = if (enabled) modifier.clip(shape).background(Glass.purple).topSheen(Glass.sheen, 16.dp) else modifier,
+        modifier = if (enabled) modifier.clip(shape).background(Glass.clear).topSheen(Glass.sheen, 16.dp) else modifier,
         enabled = enabled,
         shape = shape,
-        border = BorderStroke(1.dp, if (enabled) Glass.purpleRim else Brand.Outline.copy(alpha = 0.38f)),
+        border = BorderStroke(1.dp, if (enabled) Glass.clearRim else Brand.Outline.copy(alpha = 0.38f)),
         contentPadding = contentPadding,
         content = content
     )

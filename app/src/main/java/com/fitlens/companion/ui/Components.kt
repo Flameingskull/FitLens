@@ -248,10 +248,10 @@ fun ErrorState(title: String, body: String, actionLabel: String? = null, onActio
 }
 
 @Composable
-fun LabelValue(label: String, value: String, modifier: Modifier = Modifier) {
+fun LabelValue(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = Color.Unspecified) {
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.titleMedium)
+        Text(value, style = MaterialTheme.typography.titleMedium, color = valueColor)
     }
 }
 
