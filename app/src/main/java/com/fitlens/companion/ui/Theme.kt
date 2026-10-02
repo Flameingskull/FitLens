@@ -1,5 +1,9 @@
 package com.fitlens.companion.ui
 
+import android.content.Context
+import android.graphics.Typeface
+import androidx.core.content.res.ResourcesCompat
+import com.fitlens.companion.R
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DatePickerColors
 import androidx.compose.material3.DatePickerDefaults
@@ -16,6 +20,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineBreak
@@ -72,7 +77,7 @@ data class ChartColors(
     val accent: Color,
     val goal: Color,
     val palette: List<Color> = listOf(Brand.Fall, Brand.Gold, Brand.Ivory, Brand.GoldLight),
-    val fill: Color = Brand.Gold.copy(alpha = 0.18f)
+    val fill: Color = Brand.Gold.copy(alpha = 0.32f)
 )
 
 val LocalChartColors = staticCompositionLocalOf { ChartColors(Brand.Fall, Brand.Gold, Brand.Ivory) }
@@ -140,27 +145,63 @@ fun fitTimePickerColors(): TimePickerColors = TimePickerDefaults.colors(
     clockDialSelectedContentColor = Brand.GoldLight
 )
 
-private val Serif = FontFamily.Serif
-private val Sans = FontFamily.SansSerif
+/**
+ * Manrope (owner decision, 2026-10-02, #135), bundled under the SIL Open Font License (`res/raw/manrope_ofl.txt`).
+ * One family for everything: headings are no longer serif. Weights are static instances of the variable font.
+ */
+val Manrope = FontFamily(
+    Font(R.font.manrope_regular, FontWeight.Normal),
+    Font(R.font.manrope_medium, FontWeight.Medium),
+    Font(R.font.manrope_semibold, FontWeight.SemiBold),
+    Font(R.font.manrope_bold, FontWeight.Bold)
+)
 
+/**
+ * Manrope for the screens drawn on an Android `Canvas` (share images, the PDF report, video frames), so they match
+ * the app (#135). [init] runs from `App`; before it (or in JVM tests) the system sans-serif stands in.
+ */
+object BrandFonts {
+    @Volatile private var regular: Typeface? = null
+    @Volatile private var bold: Typeface? = null
+
+    fun init(context: Context) {
+        regular = runCatching { ResourcesCompat.getFont(context, R.font.manrope_regular) }.getOrNull()
+        bold = runCatching { ResourcesCompat.getFont(context, R.font.manrope_bold) }.getOrNull()
+    }
+
+    fun typeface(bold: Boolean = false, italic: Boolean = false): Typeface {
+        val base = (if (bold) this.bold else regular) ?: Typeface.SANS_SERIF
+        // Manrope has no italic: Android slants it, and only fakes bold when the bold file is missing.
+        val style = when {
+            italic && bold && this.bold == null -> Typeface.BOLD_ITALIC
+            italic -> Typeface.ITALIC
+            bold && this.bold == null -> Typeface.BOLD
+            else -> Typeface.NORMAL
+        }
+        return if (style == Typeface.NORMAL) base else Typeface.create(base, style)
+    }
+}
+
+// One calm scale in Manrope (#135): display 40/34/28, headline 24/22/20, title 20/16/14, body 16/14/12, labels
+// 14/12/11. Letter-spacing only on the small uppercase labels (`titleSmall`, `labelSmall`), so text is never squeezed.
 // Every style wraps between words with balanced lines (#128): headings as headings, running text as paragraphs, and
 // no hyphenation, so a word is never split across lines.
 private val LuxuryType = Typography(
-    displayLarge = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 54.sp, lineHeight = 60.sp, lineBreak = LineBreak.Heading),
-    displayMedium = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 42.sp, lineHeight = 50.sp, lineBreak = LineBreak.Heading),
-    displaySmall = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 34.sp, lineHeight = 42.sp, lineBreak = LineBreak.Heading),
-    headlineLarge = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 30.sp, lineHeight = 38.sp, lineBreak = LineBreak.Heading),
-    headlineMedium = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 26.sp, lineHeight = 34.sp, lineBreak = LineBreak.Heading),
-    headlineSmall = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Normal, fontSize = 22.sp, lineHeight = 30.sp, lineBreak = LineBreak.Heading),
-    titleLarge = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Medium, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.3.sp, lineBreak = LineBreak.Heading),
-    titleMedium = TextStyle(fontFamily = Serif, fontWeight = FontWeight.Medium, fontSize = 17.sp, lineHeight = 24.sp, letterSpacing = 0.2.sp, lineBreak = LineBreak.Heading),
-    titleSmall = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 18.sp, letterSpacing = 1.6.sp, lineBreak = LineBreak.Heading),
-    bodyLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.2.sp, lineBreak = LineBreak.Paragraph),
-    bodyMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.2.sp, lineBreak = LineBreak.Paragraph),
-    bodySmall = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 17.sp, letterSpacing = 0.3.sp, lineBreak = LineBreak.Paragraph),
-    labelLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.8.sp, lineBreak = LineBreak.Paragraph),
-    labelMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.8.sp, lineBreak = LineBreak.Paragraph),
-    labelSmall = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 1.0.sp, lineBreak = LineBreak.Paragraph)
+    displayLarge = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 40.sp, lineHeight = 48.sp, lineBreak = LineBreak.Heading),
+    displayMedium = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, lineHeight = 42.sp, lineBreak = LineBreak.Heading),
+    displaySmall = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 36.sp, lineBreak = LineBreak.Heading),
+    headlineLarge = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 32.sp, lineBreak = LineBreak.Heading),
+    headlineMedium = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, lineBreak = LineBreak.Heading),
+    headlineSmall = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp, lineBreak = LineBreak.Heading),
+    titleLarge = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp, lineBreak = LineBreak.Heading),
+    titleMedium = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp, lineBreak = LineBreak.Heading),
+    titleSmall = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.6.sp, lineBreak = LineBreak.Heading),
+    bodyLarge = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, lineBreak = LineBreak.Paragraph),
+    bodyMedium = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp, lineBreak = LineBreak.Paragraph),
+    bodySmall = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 17.sp, lineBreak = LineBreak.Paragraph),
+    labelLarge = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 20.sp, lineBreak = LineBreak.Paragraph),
+    labelMedium = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, lineBreak = LineBreak.Paragraph),
+    labelSmall = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 0.6.sp, lineBreak = LineBreak.Paragraph)
 )
 
 private val LuxuryShapes = Shapes(

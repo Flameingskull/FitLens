@@ -4,11 +4,13 @@ import android.app.Application
 import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Store
+import com.fitlens.companion.ui.BrandFonts
 import com.fitlens.companion.ui.TimerService
 
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        BrandFonts.init(this)
         Store.init(this)
         Settings.init(this)
         AutoBackup.start(this)

@@ -228,10 +228,10 @@ class Snapshot internal constructor(
 
     fun photoFile(p: Photo): File = File(photoDir, p.file)
 
-    fun weight(kg: Double): Double = if (weightUnit == "lbs") kg * 2.2046226 else kg
+    fun weight(kg: Double): Double = if (weightUnit == "lbs") kg / WeightUnits.KG_PER_LB else kg
 
     /** The inverse of [weight]: turns a number the user typed in their unit back into the kilograms we store. */
-    fun toKg(shown: Double): Double = if (weightUnit == "lbs") shown / 2.2046226 else shown
+    fun toKg(shown: Double): Double = if (weightUnit == "lbs") shown * WeightUnits.KG_PER_LB else shown
 
     fun fmtWeight(kg: Double): String = fmtNum(weight(kg), 2)
 

@@ -3,6 +3,7 @@ package com.fitlens.companion.ui.design
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -45,6 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -54,6 +59,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -74,7 +80,27 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * A labelled numeric field with large − and + buttons either side (#80).
+ * A FitNotes section label (owner, 2026-10-02): the [text] in uppercase over a fine gold rule, as FitNotes heads its
+ * Track fields ("WEIGHT (kgs)") and its History days. Used by [StepperField] and anywhere a list needs a heading.
+ */
+@Composable
+fun SectionLabel(text: String, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) { heading() }) {
+        Text(
+            text.uppercase(),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(bottom = Spacing.xxs)
+        )
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
+    }
+}
+
+/**
+ * A labelled numeric field laid out as FitNotes's Track tab (#80, #136): a [SectionLabel], then the value centred
+ * between square − and + boxes.
  *
  * [onStep] receives −1 or +1; the caller applies its own increment (the exercise's weight step, one rep, and so on)
  * and clamping. A tap steps once; pressing and holding repeats after a short delay. Each step gives a light haptic
@@ -90,28 +116,44 @@ fun StepperField(
     keyboard: KeyboardType = KeyboardType.Decimal
 ) {
     Column(modifier) {
-        Text(
-            label.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = Spacing.xxs)
-        )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        SectionLabel(label)
+        Row(
+            Modifier.fillMaxWidth().padding(top = Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally)
+        ) {
             StepButton(symbol = "−", description = "Decrease $label") { onStep(-1) }
-            OutlinedTextField(
+            val outline = MaterialTheme.colorScheme.outline
+            BasicTextField(
                 value = value,
                 onValueChange = onValue,
                 singleLine = true,
-                textStyle = MaterialTheme.typography.titleLarge.copy(textAlign = TextAlign.Center, lineHeight = 22.sp),
+                textStyle = MaterialTheme.typography.headlineMedium.copy(
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = "tnum",
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                cursorBrush = SolidColor(Brand.Gold),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboard),
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .widthIn(min = 96.dp, max = 180.dp)
+                    .height(Spacing.touch)
+                    .semantics { contentDescription = label }
+                    .drawBehind {
+                        // FitNotes's underline under the value, as a fine rule.
+                        val y = size.height - 1.dp.toPx()
+                        drawLine(outline, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                    },
+                decorationBox = { inner -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { inner() } }
             )
             StepButton(symbol = "+", description = "Increase $label") { onStep(1) }
         }
     }
 }
 
-/** A round 48dp stepper button: steps on release, repeats while held, ticks on every step. */
+/** A square 48dp stepper box, as FitNotes's: steps on release, repeats while held, ticks on every step. */
 @Composable
 private fun StepButton(symbol: String, description: String, onStep: () -> Unit) {
     val haptic = LocalHapticFeedback.current
@@ -121,9 +163,8 @@ private fun StepButton(symbol: String, description: String, onStep: () -> Unit) 
     Box(
         Modifier
             .size(Spacing.touch)
-            .clip(CircleShape)
-            .background(if (pressed) Brand.Gold.copy(alpha = 0.16f) else Color.Transparent)
-            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+            .raisedGlass(FitShapes.row, elevation = 2.dp, inset = 6.dp)
+            .background(if (pressed) Brand.Gold.copy(alpha = 0.16f) else Color.Transparent, FitShapes.row)
             .semantics {
                 role = Role.Button
                 contentDescription = description
@@ -196,7 +237,7 @@ private fun SetCellText(cell: SetCell, modifier: Modifier = Modifier) {
         Text(
             cell.value,
             Modifier.alignByBaseline(),
-            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum", fontSize = 19.sp),
+            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
             fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false

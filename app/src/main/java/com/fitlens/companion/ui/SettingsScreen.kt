@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.DistanceUnits
+import com.fitlens.companion.data.WeightUnits
 import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.LengthUnits
@@ -236,7 +237,7 @@ private fun UnitsPage() {
 private fun WeightStepRow(unit: String, currentKg: Double?) {
     val lbs = unit == "lbs"
     val choices = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
-    fun toKg(v: Double) = if (lbs) v / 2.2046226 else v
+    fun toKg(v: Double) = if (lbs) v * WeightUnits.KG_PER_LB else v
     val selected = if (currentKg == null) 0 else
         choices.indexOfFirst { kotlin.math.abs(toKg(it) - currentKg) < 0.001 }.let { if (it < 0) 0 else it + 1 }
     SettingsChoiceRow(

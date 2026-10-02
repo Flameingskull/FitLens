@@ -15,6 +15,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import com.fitlens.companion.ui.design.UndoSnackbarHost
 import com.fitlens.companion.ui.design.CharacterBackdrop
 import com.fitlens.companion.ui.design.ambientBackdrop
 import androidx.compose.foundation.clickable
@@ -276,7 +277,7 @@ fun AppRoot(nav: Nav) {
         // A transparent container has no matching content colour, so text would fall back to black: ivory instead.
         contentColor = Brand.Ivory,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbar) }
+        snackbarHost = { UndoSnackbarHost(snackbar) }
     ) { inner ->
         // With no bottom bar any more, the content keeps itself clear of the navigation bar (edge-to-edge, #81).
         Box(Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).navigationBarsPadding()) {

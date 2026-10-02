@@ -122,7 +122,9 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             val bestDay = byDay.maxBy { e -> e.value.sumOf { Analysis.volumeKg(it) } }
             val repsDay = byDay.maxBy { e -> e.value.sumOf { it.reps } }
             tiles += dated("Max weight", "${snap.fmtWeight(heaviest.weightKg, exId)} $unit × ${heaviest.reps}", heaviest.date)
-            tiles += dated("Estimated 1RM", "${snap.fmtWeight(Records.oneRepMax(best1rm), exId)} $unit", best1rm.date)
+            // An estimate from more than 10 reps is marked approximate (#139).
+            val approx = if (Records.approximate(best1rm.reps)) "≈ " else ""
+            tiles += dated("Estimated 1RM", "$approx${snap.fmtWeight(Records.oneRepMax(best1rm), exId)} $unit", best1rm.date)
             tiles += dated("Max reps", "${mostReps.reps} × ${snap.fmtWeight(mostReps.weightKg, exId)} $unit", mostReps.date)
             tiles += dated("Max volume", "${snap.fmtWeight(bestSet.weightKg, exId)} $unit × ${bestSet.reps}", bestSet.date)
             tiles += dated("Workout reps", "${repsDay.value.sumOf { it.reps }}", repsDay.key)
@@ -177,8 +179,11 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
             keyboard = KeyboardType.Number
         )
         Text(
-            if (oneRm > 0) "${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "—",
-            Modifier.semantics { contentDescription = if (oneRm > 0) "Estimated one rep max ${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "Enter a weight and 1 to 20 reps" },
+            if (oneRm > 0) (if (Records.approximate(r)) "≈ " else "") + "${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "—",
+            Modifier.semantics {
+                contentDescription = if (oneRm > 0) (if (Records.approximate(r)) "About " else "Estimated one rep max ") +
+                    "${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "Enter a weight and 1 to ${Records.MAX_ESTIMATE_REPS} reps"
+            },
             style = MaterialTheme.typography.displaySmall,
             color = Brand.Gold
         )

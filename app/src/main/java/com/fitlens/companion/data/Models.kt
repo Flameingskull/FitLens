@@ -375,7 +375,10 @@ fun fmtDuration(sec: Int): String {
  * switching between kg and lbs never changes or rounds what's stored.
  */
 object WeightUnits {
-    const val LB_PER_KG = 2.2046226
+    /** The international avoirdupois pound, exactly 0.45359237 kg by definition (1959), #139. */
+    const val KG_PER_LB = 0.45359237
+    /** Pounds per kilogram, from the exact definition rather than a rounded literal (#139). */
+    const val LB_PER_KG = 1.0 / KG_PER_LB
 
     /** "kg" or "lbs" for a unit that's a weight (any common spelling), otherwise null. */
     fun of(unit: String?): String? = when (unit?.trim()?.lowercase()) {

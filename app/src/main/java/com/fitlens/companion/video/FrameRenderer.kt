@@ -1,5 +1,6 @@
 package com.fitlens.companion.video
 
+import com.fitlens.companion.ui.BrandFonts
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -9,7 +10,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
-import android.graphics.Typeface
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Photo
 import com.fitlens.companion.data.Snapshot
@@ -111,7 +111,8 @@ object FrameRenderer {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
             textSize = sizePx
-            typeface = Typeface.create(if (serif) Typeface.SERIF else Typeface.DEFAULT, if (bold) Typeface.BOLD else Typeface.NORMAL)
+            // Manrope, as in the app (#135); the old serif headings are its bold.
+            typeface = BrandFonts.typeface(bold = bold || serif)
             letterSpacing = tracking
         }
 

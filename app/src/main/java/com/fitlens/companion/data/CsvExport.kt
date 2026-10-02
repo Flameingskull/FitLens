@@ -103,5 +103,5 @@ object CsvExport {
         sb.append("\r\n")
     }
 
-    private const val KG_TO_LB = 2.2046226
+    private const val KG_TO_LB = WeightUnits.LB_PER_KG
 }

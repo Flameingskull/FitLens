@@ -12,18 +12,24 @@ object Records {
     /** The Records tab lists rep maxes from 1RM to this. */
     const val MAX_REPS = 15
 
-    /** Sets above this many reps are too far from a single to estimate from, whatever the formula. */
-    const val MAX_ESTIMATE_REPS = 20
+    /** Sets above this many reps are too far from a single to estimate from, whatever the formula (#139). */
+    const val MAX_ESTIMATE_REPS = 15
+
+    /** Automatic's most reliable range: up to this many reps it blends Mayhew and Wathan (#139). */
+    const val AUTO_BLEND_REPS = 10
 
     /**
      * The estimated-1RM formulas the user can choose from (#42), each with the most reps it's valid for: sets above
      * that aren't estimated. [key] is what's stored in `meta` (`PortableSettings.e1rmFormula`).
-     * - Automatic: FitLens's blend by rep range, see [factor].
+     * - Automatic: FitLens's choice by rep range, following the validation studies, see [factor].
      * - Epley (1985): 1 + r/30. Widely used; a little high at low reps.
      * - Brzycki (1993): 36 / (37 − r). Accurate to about 10 reps, then climbs steeply.
      * - Lombardi (1989): r^0.10. A flat curve, conservative at higher reps.
      * - O'Conner et al. (1989): 1 + 0.025 r. The most conservative of the linear formulas.
+     * - Mayhew et al. (1992): 100 / (52.2 + 41.9 e^(−0.055 r)). Among the most accurate up to 10 reps (#139).
      * - Wathan (1994): 100 / (48.8 + 53.8 e^(−0.075 r)). Fits well up to about 15 reps.
+     * New entries go at the end of the list shown in Settings only by [key]; the stored value is the key, never the
+     * position, so adding Mayhew changes nothing anyone has chosen.
      */
     enum class Formula(val key: String, val label: String, val maxReps: Int) {
         AUTO("auto", "Automatic (recommended)", MAX_ESTIMATE_REPS),
@@ -31,6 +37,7 @@ object Records {
         BRZYCKI("brzycki", "Brzycki", 10),
         LOMBARDI("lombardi", "Lombardi", 12),
         OCONNER("oconner", "O'Conner", 12),
+        MAYHEW("mayhew", "Mayhew", 12),
         WATHAN("wathan", "Wathan", 15);
 
         companion object {
@@ -41,32 +48,38 @@ object Records {
     /** The formula chosen in Settings → Personal records (#42). */
     fun chosen(): Formula = Formula.of(Settings.currentPortable().e1rmFormula)
 
+    private fun mayhew(reps: Int): Double = 100.0 / (52.2 + 41.9 * exp(-0.055 * reps))
+    private fun wathan(reps: Int): Double = 100.0 / (48.8 + 53.8 * exp(-0.075 * reps))
+
     /**
      * How many times heavier a one-rep max is than [reps] reps at a given weight, or 0 when it can't be estimated,
-     * using [formula] (the user's choice by default, #42). Automatic works like this:
+     * using [formula] (the user's choice by default, #42). Automatic follows the validation literature (#139):
+     * LeSuer et al. (1997) and later reviews found Mayhew and Wathan the most accurate from 2 to 10 reps, and every
+     * formula close at 5 reps or fewer.
      * - 1 rep: the weight itself.
-     * - 2 to 10 reps: the mean of Epley (1 + r/30) and Brzycki (36 / (37 - r)). The two agree closely here, and the
-     *   mean evens out Epley's slight overestimate at low reps.
-     * - 11 to 20 reps: the 10-rep factor grown with Lombardi's curve, (r/10)^0.1. Epley keeps climbing in a straight
-     *   line and Brzycki runs away near 37 reps, and both overestimate from high-rep sets. Lombardi's flatter curve
-     *   doesn't, and starting from the 10-rep value keeps the estimate continuous and rising with reps.
-     * - More than 20 reps: not estimated.
+     * - 2 to 10 reps: the mean of Mayhew and Wathan.
+     * - 11 to 15 reps: Wathan alone, the one formula fitted that far out; shown as approximate ([approximate]).
+     * - More than 15 reps: not estimated.
      */
     fun factor(reps: Int, formula: Formula = chosen()): Double = when {
         reps <= 0 || reps > formula.maxReps -> 0.0
         reps == 1 -> 1.0
         else -> when (formula) {
-            Formula.AUTO -> {
-                if (reps <= 10) (1 + reps / 30.0 + 36.0 / (37 - reps)) / 2
-                else factor(10, Formula.AUTO) * (reps / 10.0).pow(0.1)
-            }
+            Formula.AUTO -> if (reps <= AUTO_BLEND_REPS) (mayhew(reps) + wathan(reps)) / 2 else wathan(reps)
             Formula.EPLEY -> 1 + reps / 30.0
             Formula.BRZYCKI -> 36.0 / (37 - reps)
             Formula.LOMBARDI -> reps.toDouble().pow(0.1)
             Formula.OCONNER -> 1 + 0.025 * reps
-            Formula.WATHAN -> 100.0 / (48.8 + 53.8 * exp(-0.075 * reps))
+            Formula.MAYHEW -> mayhew(reps)
+            Formula.WATHAN -> wathan(reps)
         }
     }
+
+    /**
+     * Whether an estimate from [reps] reps is outside the formula's most reliable range, so screens can mark it as
+     * approximate (#139): more than 10 reps, where Automatic uses Wathan alone and every formula drifts apart.
+     */
+    fun approximate(reps: Int): Boolean = reps > AUTO_BLEND_REPS
 
     /** Estimated one-rep max in kg for [weightKg] × [reps], or 0 when it can't be estimated. */
     fun oneRepMax(weightKg: Double, reps: Int, formula: Formula = chosen()): Double =

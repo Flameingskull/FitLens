@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui.design
 
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -24,10 +25,14 @@ suspend fun SnackbarHostState.showUndo(message: String, onUndo: () -> Unit, undo
     if (result == SnackbarResult.ActionPerformed) onUndo()
 }
 
-/** A snackbar host styled for FitLens: raised surface, ivory text, gold action (#80). */
+/**
+ * A snackbar host styled for FitLens: raised surface, ivory text, gold action (#80). It keeps clear of the navigation
+ * bar itself (#140): the app draws edge to edge, so without this a message and its action sat under the system's
+ * Back / Home buttons.
+ */
 @Composable
 fun UndoSnackbarHost(state: SnackbarHostState, modifier: Modifier = Modifier) {
-    SnackbarHost(state, modifier) { data ->
+    SnackbarHost(state, modifier.navigationBarsPadding()) { data ->
         Snackbar(
             snackbarData = data,
             shape = FitShapes.row,

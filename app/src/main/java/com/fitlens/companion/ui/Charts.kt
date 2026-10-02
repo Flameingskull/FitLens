@@ -52,6 +52,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fitlens.companion.data.Dates
@@ -277,7 +278,7 @@ private fun LinePlot(
     val axisColor = Brand.Gold.copy(alpha = 0.45f)
     val surface = MaterialTheme.colorScheme.background
     val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(fontSize = 11.sp, color = textColor)
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = textColor, letterSpacing = TextUnit.Unspecified)
 
     val all = visible.flatMap { series[it].points }
     val dataMin = all.minOf { it.x }
@@ -411,7 +412,7 @@ private fun LinePlot(
                 area.lineTo(px(pts.last().x), bottom)
                 area.lineTo(px(pts.first().x), bottom)
                 area.close()
-                drawPath(area, Brush.verticalGradient(listOf(colors.fill, colors.fill.copy(alpha = 0.02f)), startY = top, endY = bottom))
+                drawPath(area, Brush.verticalGradient(listOf(colors.fill, colors.fill.copy(alpha = 0.08f)), startY = top, endY = bottom))
             }
             visible.forEach { si ->
                 val pts = series[si].points

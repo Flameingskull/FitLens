@@ -88,6 +88,7 @@ import com.fitlens.companion.ui.design.ExerciseCommentRow
 import com.fitlens.companion.ui.design.SetCommentSheet
 import com.fitlens.companion.ui.design.SetRow as SetRowView
 import kotlin.math.max
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -139,6 +140,57 @@ internal fun startRestAfterSet(context: android.content.Context, snap: Snapshot,
         if (st.active && !st.paused && System.currentTimeMillis() - startedAt < 20_000L) return
     }
     RestTimer.start(context, snap.exercises[exerciseId]?.restSeconds ?: p.restSeconds)
+}
+
+/** How long the screen waits after an exercise's last set is ticked before moving on (#136, owner: about 1.5 s). */
+private const val ADVANCE_DELAY_MS = 1_500L
+
+/**
+ * Moves on once [exerciseId]'s last set ([setId]) is ticked (#136, owner decision 2026-10-02). A short message with
+ * Undo shows at once; about 1.5 s later the next exercise of the day opens in place, in the workout's order with
+ * supersets kept together ([displayOrder]). Undo unticks the set and cancels the switch, or comes back if it already
+ * happened. After the last exercise the day log opens with "Workout complete", offering to stop a running workout
+ * timer.
+ */
+private fun autoAdvance(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, setId: Long, queue: List<Long>) {
+    val name = snap.exercises[exerciseId]?.name ?: "Exercise"
+    val order = displayOrder(snap, date)
+    val next = order.getOrNull(order.indexOf(exerciseId) + 1)
+    // Only move while this exercise is still on top: the user may have gone elsewhere in the meantime.
+    fun stillHere() = (nav.top as? Screen.SetEntry)?.let { it.date == date && it.exerciseId == exerciseId } == true
+    if (next != null) {
+        var switched = false
+        val pending = AppScope.scope.launch {
+            delay(ADVANCE_DELAY_MS)
+            if (stillHere()) {
+                nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
+                switched = true
+            }
+        }
+        UiEvents.show("$name done. Next: ${snap.exercises[next]?.name ?: "exercise"}", "Undo") {
+            pending.cancel()
+            AppScope.scope.launch { Workouts.setDone(setId, false) }
+            val top = nav.top
+            if (switched && top is Screen.SetEntry && top.date == date && top.exerciseId == next) {
+                nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, exerciseId, queue)
+            }
+        }
+    } else {
+        AppScope.scope.launch {
+            delay(ADVANCE_DELAY_MS)
+            if (!stillHere()) return@launch
+            nav.home(date)
+            val running = Store.snapshot.value?.let { WorkoutClock.running(it, date) }
+            if (running != null) {
+                UiEvents.show("Workout complete", "Stop workout timer") { WorkoutClock.stop(date, running) }
+            } else {
+                UiEvents.show("Workout complete", "Undo") {
+                    AppScope.scope.launch { Workouts.setDone(setId, false) }
+                    nav.push(Screen.SetEntry(date, exerciseId, queue))
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -380,24 +432,29 @@ fun SetEntryScreen(
         1 -> ExerciseHistoryPane(snap, nav, exerciseId)
         2 -> ExerciseGraphPane(snap, nav, exerciseId)
         else ->
-        LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
-            item {
-                if (date != Dates.today()) {
-                    Text(
-                        Dates.long(date).uppercase(),
-                        Modifier.padding(start = 16.dp, top = 8.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Brand.Gold
-                    )
-                }
-                if (!ex?.notes.isNullOrBlank()) {
-                    ExerciseNotes(ex!!.notes!!, Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+        // The inputs sit straight under the tabs, as in FitNotes (#136): no top padding, and the date and notes row
+        // only when it has something to show.
+        LazyColumn(contentPadding = PaddingValues(top = 0.dp, bottom = 32.dp)) {
+            val notes = ex?.notes?.takeIf { it.isNotBlank() }
+            if (date != Dates.today() || notes != null) {
+                item {
+                    if (date != Dates.today()) {
+                        Text(
+                            Dates.long(date).uppercase(),
+                            Modifier.padding(start = 16.dp, top = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Brand.Gold
+                        )
+                    }
+                    if (notes != null) {
+                        ExerciseNotes(notes, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                    }
                 }
             }
 
             // ---------- Entry ----------
             item {
-                Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (showWeight) {
                         StepperField(
                             label = "Weight (${snap.weightUnitOf(exerciseId)})",
@@ -491,8 +548,9 @@ fun SetEntryScreen(
                             Text("New set instead")
                         }
                     }
-                    if (next != null) {
-                        // The next of the exercises chosen together in the library (#83).
+                    // The next of the exercises chosen together in the library (#83). Exercises already in the day's
+                    // logged workout are reached by auto-advance instead (#136), so the button is only for the rest.
+                    if (next != null && next.id !in displayOrder(snap, date)) {
                         GlassOutlinedButton(
                             onClick = { nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next.id, queue.drop(1)) },
                             modifier = Modifier.fillMaxWidth().height(52.dp)
@@ -544,25 +602,16 @@ fun SetEntryScreen(
                         onComment = { commenting = s },
                         // No "Edit" hint: the comment button needs the room at 320dp, and the gold-washed, gold-edged
                         // frame already marks the selected set (#108, #112).
-                        // "Mark sets complete" (#19). Ticking the last set offers the next exercise, respecting
-                        // supersets and the workout's order.
-                        // Every set has its done tick (#129). Ticking one off starts the rest timer when Settings
-                        // starts it automatically, unless saving that set has only just started it.
+                        // "Mark sets complete" (#19). Every set has its done tick (#129). Ticking one off starts the
+                        // rest timer when Settings starts it automatically, unless saving that set has only just
+                        // started it. Ticking the last set moves on by itself (#136).
                         done = s.done,
                         onDoneChange = { on ->
                             if (on) startRestAfterSet(appContext, snap, date, exerciseId)
                             AppScope.scope.launch {
                                 Workouts.setDone(s.id, on)
                                 if (on && sets.all { it.id == s.id || it.done }) {
-                                    val order = displayOrder(snap, date)
-                                    val next = order.getOrNull(order.indexOf(exerciseId) + 1)
-                                    if (next != null) {
-                                        UiEvents.show("${ex?.name ?: "Exercise"} done", "Next: ${snap.exercises[next]?.name ?: "exercise"}") {
-                                            if (nav.top is Screen.SetEntry) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
-                                        }
-                                    } else {
-                                        UiEvents.show("Every exercise in this workout is done")
-                                    }
+                                    autoAdvance(snap, nav, date, exerciseId, s.id, queue)
                                 }
                             }
                         }

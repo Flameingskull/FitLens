@@ -9,7 +9,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
-import android.graphics.Typeface
 import androidx.compose.ui.graphics.toArgb
 import com.fitlens.companion.data.Dates
 import java.io.File
@@ -261,13 +260,8 @@ object ShareImages {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             this.color = color
             textSize = size
-            val style = when {
-                bold && italic -> Typeface.BOLD_ITALIC
-                bold -> Typeface.BOLD
-                italic -> Typeface.ITALIC
-                else -> Typeface.NORMAL
-            }
-            typeface = Typeface.create(if (serif) Typeface.SERIF else Typeface.SANS_SERIF, style)
+            // Manrope, as in the app (#135); the old serif headings are its bold.
+            typeface = BrandFonts.typeface(bold = bold || serif, italic = italic)
             letterSpacing = tracking
         }
 
