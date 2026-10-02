@@ -1,38 +1,32 @@
 ## Overview
 
-Workouts can now plan your rest, not just your sets. Give each set its own rest, one rest for every set of an
-exercise, and a longer break before the next exercise. When you log the workout, the rest timer follows the plan,
-and together with 1.0.72's automatic move to the next exercise, the next exercise opens with its break already
-counting down.
+Every graph in FitLens can now be drawn the way you read it best: as a line, bars, an area or steps. Your choice is
+remembered for each graph. This release also refreshes the project's README to match the app as it is today.
 
-This update upgrades the database to add the new rest fields. Everything you've logged and every workout you've
-built is kept as it was; nothing has a rest set until you add one.
+There are no database changes. Everything you've logged is kept as it was.
 
 ## What's new
 
-- **Rest in the workout editor.** Open an exercise's sets in a workout (**Edit workout → tap an exercise**). Under
-  **Rest**, choose:
-  - **Between sets:** one rest for every set, or turn off **Same rest for every set** to give each predefined set
-    its own rest in a new rest column;
-  - **Before the next exercise:** the break after the exercise's last set.
-  **Default** leaves either one unset, so the exercise's own rest, and then your usual rest, apply as before.
-- **Set rest for every exercise.** A day's ⋮ menu has **Set rest for every exercise**, to give a whole day the same
-  rest between sets and before each next exercise in one step.
-- **See the plan at a glance.** Each exercise in the editor, and on the library's workout day cards, shows its rest,
-  for example **Rest 90 s · then 2 min**.
+- **Chart types.** Each graph's controls have a new **chart type** dropdown, next to the range:
+  - **Line:** the familiar red line over a gold fill, with a marker on each day;
+  - **Bar:** a gold column for each day with a red top, always standing on zero so heights compare truly;
+  - **Area:** the gold fill with a fine red edge and no markers, for a calm view of long histories;
+  - **Step:** a red line that holds each value until the next one, which suits records and body weight.
+  It's on the exercise screen's Graph tab, the body tracker's graphs, Analysis → Workouts (and the length of each
+  workout) and Analysis → Exercises, and in every full-screen graph.
+- **Remembered per graph.** Each graph keeps its own chart type: for example, bars for workout volume and a step line
+  for estimated 1RM. Your choices travel with your `.fitlens` backups along with your other preferences.
+- **Shared images match.** Sharing a graph as an image draws it in the chart type you're viewing.
 
 ## Improved
 
-- **The rest timer follows your workout.** After a set, the timer uses, in order: that set's planned rest, the
-  exercise's planned rest in the workout you logged, the exercise's own rest, then your usual rest. After an
-  exercise's last set it uses the planned rest before the next exercise.
-- **Plans stay with the day you logged.** The rest is copied onto the day when you log a workout, so editing the
-  workout later doesn't change a day already logged. Copying or moving a day, swapping or merging exercises, and
-  saving a logged day as a workout all keep its rests.
+- **Graph controls on small phones.** The graph, range and chart type dropdowns now scroll sideways when they don't
+  fit, so the options menu and the full-screen button always stay in view.
+- **Full-screen bars.** In full screen, bar charts zoom across time; their value scale stays fixed at zero.
 
 ## Known limitations
 
-- Rests apply to workouts logged from a workout day from this version on. Days logged before this update use the
-  exercise's own rest or your usual rest, as before.
-- Choosing a chart type (line, bar, area or step) for each graph comes in the next update (#137), followed by the
-  screen-by-screen FitNotes comparison (#134).
+- The Breakdown tab's donut chart is unchanged.
+- The PDF report keeps its line graphs.
+- The screen-by-screen comparison with FitNotes starts in the next update, with the day log and workout drawer
+  (#141).

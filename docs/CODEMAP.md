@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.73.
+Last updated: 1.0.74.
 
 ## How data flows
 
@@ -14,7 +14,7 @@ Last updated: 1.0.73.
   backups go through the same upgrade.
 - **Settings** (#38) go through `data/Settings.kt` only. Phone-only settings (`DeviceSettings`: folders, schedules,
   last import, safety copy, last result) live in DataStore and never travel in backups. The user's preferences
-  (`PortableSettings`: units, logging (keep screen on, `autofillSource`, `autoSelectNext`), PR celebrations) live in
+  (`PortableSettings`: units, logging (keep screen on, `autofillSource`, `autoSelectNext`), PR celebrations, `graphKinds` for chart types, #137) live in
   `meta`, so they restore from backups (day log: `homeShowCategories`, `homeSetsShown`, #8). The old phone-only `meta` rows are deleted once DataStore has loaded, and
   again after a restore (`Settings.dropLegacyDeviceRows`, #98). Both are
   loaded once at start-up and held in memory: read `Settings.current()` / `currentPortable()`, observe
@@ -99,8 +99,8 @@ Last updated: 1.0.73.
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
 | `BodyScreen.kt` | Body tracker (#88), as in FitNotes: `BodyScreen` lists every enabled measurement with its latest value; a tap opens `Screen.BodyMeasurement`. Also the shared `BodyGraphPane` (range, trend, goal line, photo days, stats), `BodyHistoryPane` (days newest first, change since the value before), `valueCells`, `RANGES` and `inRange` for charts |
 | `BodyMeasurementScreen.kt` | One measurement, laid out like the exercise screen: Track (`DayNavigator`, a value `StepperField`, time, comment, Save / Clear or Update / Delete, the day's values as `SetRow`s), History and Graph in a `HorizontalPager`; ⋮ Goal |
-| `Charts.kt` | Shared charts (#50): `LineChart` (several `LineSeries`, legend, trend, from zero, markers; value and time grid lines, a gold baseline, red lines and a translucent gold fill under the first series, #131; the line is never broken, #116; `height` defaults to `graphHeight()`, about 45% of the screen, #115), `ChartSelection`, `ChartViewport` (time `from`/`to` and values `yFrom`/`yTo`, #96), `trendOf`, `rememberChartData` (off-main-thread data) |
-| `ChartViews.kt` | `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch split by direction: across zooms time, up and down zooms values unless `valueZoom = false` for bar charts, #96; pan, reset, TalkBack actions, a `controls` slot; `detectAxisTransformGestures`), `GraphOptionChips` (one compact row, #115: `leading` dropdowns, the range as a `DropdownPill`, Trend, From zero and `extra` in an `OptionsMenu`, `onShare` as a one-off `MenuAction` in it, #22, `trailing`), `rangeName`, `ExpandGraphButton`, `ChartHint` |
+| `Charts.kt` | Shared charts (#50): `FitChart` (was `LineChart`; `kind: ChartKind` LINE, BAR, AREA or STEP, #137: area has no markers, bars stand on zero with gold bodies and red tops, step stays level to the next point), `ChartKind` (`decode`/`encode` of `PortableSettings.graphKinds`), `rememberChartKind(graphId)` (the remembered kind and its setter; ids `exercise:<graph>`, `body:<measurement>`, `analysis:<metric>`), several `LineSeries`, legend, trend, from zero, markers; value and time grid lines, a gold baseline, red lines and a translucent gold fill under the first series, #131; the line is never broken, #116; `height` defaults to `graphHeight()`, about 45% of the screen, #115), `ChartSelection`, `ChartViewport` (time `from`/`to` and values `yFrom`/`yTo`, #96), `trendOf`, `rememberChartData` (off-main-thread data) |
+| `ChartViews.kt` | `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch split by direction: across zooms time, up and down zooms values unless `valueZoom = false` for bar charts, #96; pan, reset, TalkBack actions, a `controls` slot; `detectAxisTransformGestures`), `GraphOptionChips` (one compact row, #115: `leading` dropdowns, the range and the chart type (`kind`/`onKind`, #137) as `DropdownPill`s in a sideways-scrolling group so ⋮ and expand stay in view, Trend, From zero and `extra` in an `OptionsMenu`, `onShare` as a one-off `MenuAction` in it, #22, `trailing`), `rangeName`, `ExpandGraphButton`, `ChartHint` |
 | `CalendarScreen.kt` | FitNotes-style calendar (#87): month grid with swipe, category dots, selected day below (beside it on `WidthBucket.Expanded`, #87) with Open day (`nav.home(date)`), the filter bar and dimmed non-matching days (#9) |
 | `CalendarFilter.kt` | The calendar filter (#9): `CalendarFilter` (conditions one set must meet, `days`, `describe`, `encode`/`decode` into `DeviceSettings.calendarFilter`) and `CalendarFilterSheet` |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
@@ -108,7 +108,7 @@ Last updated: 1.0.73.
 | `FitNotesImportPage.kt` | `FitNotesImportPage`: FitNotes backup import and the backup-folder sync, shown in Settings → FitNotes import (the Sync tab was removed in 1.0.23, #35). Photo import lives on the Photos screen and the day log |
 | `BackupUi.kt` | `BackupsPage`, shown in Settings → Backups, with Save, Share and Restore and the file-name timestamp toggle |
 | `FitNotesImportUi.kt`, `ImportActions.kt` | Import hosts and flows, `runBusy`, `AppScope` |
-| `ShareImages.kt` | Branded share images drawn on an Android `Canvas` (#22, #11): `renderGraph` (`GraphImage`), `renderWorkout` (`WorkoutCard`, `CardExercise`), and `share` (renders off the main thread into `cacheDir/exports`, then `shareFile`). Colours from `Brand` via `toArgb()` |
+| `ShareImages.kt` | Branded share images drawn on an Android `Canvas` (#22, #11): `renderGraph` (`GraphImage`, drawn in its `kind`, #137), `renderWorkout` (`WorkoutCard`, `CardExercise`), and `share` (renders off the main thread into `cacheDir/exports`, then `shareFile`). Colours from `Brand` via `toArgb()` |
 | `CustomMetrics.kt` | `CustomMetricEditor` (create or edit a custom measurement) |
 | `MeasurementsScreen.kt` | `Screen.Measurements` (#88): every measurement with on/off, custom ones, the standard set |
 | `MeasurementSheets.kt` | `MeasurementEntrySheet` (#27, #88): log a value, or edit/delete one logged by hand; `AddMeasurementDialog` in `DayScreen.kt` delegates to it |
@@ -175,7 +175,7 @@ Last updated: 1.0.73.
 | New workout data field | `Db.kt` (VERSION and `onUpgrade`), `Models.kt`, `Store.load`, `Workouts.kt`, and `Backups.kt` if it's a new table |
 | New setting | A field in `DeviceSettings` (phone-only) or `PortableSettings` (travels in backups) in `data/Settings.kt`, with its key and default, then a row in the matching `SettingsSection` page |
 | Records or 1RM logic | `data/Records.kt` only. Screens and the PDF call it |
-| New graph | Build its points in `rememberChartData(keys) { … }`, draw with `LineChart` (no bar charts, #116) or `DonutChart`, add an `ExpandGraphButton` and a `FullScreenChart` (#96) with `GraphOptionChips` as its `controls`, and a `ChartHint` under it |
+| New graph | Build its points in `rememberChartData(keys) { … }`, get `val (kind, setKind) = rememberChartKind("<area>:<graph>")`, draw with `FitChart(kind = kind)` (line, bar, area or step, #137) or `DonutChart`, pass `kind`/`onKind` to `GraphOptionChips`, add an `ExpandGraphButton` and a `FullScreenChart` (#96, `valueZoom = kind != ChartKind.BAR`) with `GraphOptionChips` as its `controls`, and a `ChartHint` under it; share images take the `kind` too |
 | New screen | `Screen` and `AppRoot` in `MainActivity.kt`, and a new `ui/XScreen.kt` built from `ui/design/` |
 - 1.0.66 (#22, #7, #11 closed): branded share images live in `ui/ShareImages.kt` (Canvas, `Brand` colours via
   `toArgb()`); reuse it rather than drawing another. `MenuAction` already exists in `ui/design/TopBar.kt` (label,
