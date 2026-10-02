@@ -6,6 +6,7 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.SectionLabel
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.text.style.TextAlign
 import com.fitlens.companion.ui.design.SearchFieldIcon
@@ -363,24 +364,25 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
         routine.days.forEach { d ->
             item(key = d.id) {
                 val isNext = d.id == next?.id
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Spacing.md, vertical = Spacing.sm)
-                        .raisedGlass(FitShapes.card)
-                ) {
+                // FitNotes lists a routine's days as sections (#143): the day's name in capitals over a rule, with Log
+                // all beside it, then its exercises on the glass.
+                Column(Modifier.fillMaxWidth().padding(top = Spacing.md)) {
                     Row(Modifier.fillMaxWidth().padding(start = Spacing.lg, end = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f).padding(vertical = Spacing.sm)) {
-                            Text(d.name, style = MaterialTheme.typography.titleMedium, color = if (isNext) Brand.Gold else MaterialTheme.colorScheme.onSurface)
-                            if (isNext) Text("NEXT", style = MaterialTheme.typography.labelSmall, color = Brand.Gold)
-                        }
+                        Text(
+                            d.name.uppercase() + if (isNext) "  ·  NEXT" else "",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (isNext) Brand.Gold else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
                         TextButton(
                             onClick = { onLogAll(d) },
                             enabled = d.exercises.isNotEmpty(),
                             modifier = Modifier.heightIn(min = Spacing.touch)
                         ) { Text("Log all") }
                     }
-                    GoldHairline()
+                    Box(Modifier.padding(horizontal = Spacing.lg).fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
                     if (d.exercises.isEmpty()) {
                         Text("No exercises yet", Modifier.padding(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -498,10 +500,11 @@ private fun ExerciseList(
             if (catId != null) {
                 item(key = "h$catId") {
                     val cat = snap.categories[catId]
-                    Row(Modifier.padding(start = Spacing.lg, top = Spacing.md, bottom = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                    // A FitNotes heading per category (#143), with its colour beside the name.
+                    Row(Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.md, bottom = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                         Dot(categoryColour(cat?.colour ?: 0), 10.dp)
                         Spacer(Modifier.width(Spacing.sm))
-                        Text((cat?.name ?: "Uncategorised").uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                        SectionLabel(cat?.name ?: "Uncategorised", Modifier.weight(1f))
                     }
                 }
             }

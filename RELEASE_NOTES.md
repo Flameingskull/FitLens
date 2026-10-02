@@ -1,26 +1,21 @@
 ## Overview
 
-The second step of the screen-by-screen FitNotes comparison covers the rest of the exercise screen: History, Records,
-Stats, Goals and the exercise's info now read as they do in FitNotes.
+The third step of the screen-by-screen FitNotes comparison covers the exercise library and the workout editor. A
+workout's days now read as FitNotes's sections instead of boxed cards.
 
 There are no database changes. Everything you've logged is kept as it was.
 
 ## Improved
 
-- **History** heads each day as FitNotes does, for example **MONDAY, SEPTEMBER 28** over a fine rule, with the sets
-  under it. The day's totals and **Copy to today** now sit on one line after the sets.
-- **Records** has FitNotes's **Type** choice, **Actual personal records** or **Estimated personal records**, next to
-  the period. Each rep count is listed with its weight, unit and date, as in FitNotes. A record held by a heavier or
-  equal set of more reps is greyed, since that set is the one to beat, and estimates past 10 reps are marked ≈.
-- **The Records bar** has a calculator button for the 1RM calculator, and **Goals** has **+** in the bar, as in
-  FitNotes. With no goals yet, Goals reads "You haven't created any training goals yet".
-- **Stats** shows FitNotes's tiles in FitNotes's order: Total workouts, Total sets, Total reps and Total volume, then
-  Max weight, Estimated 1RM, Max reps, Workout reps, Max volume and Workout volume, each with its date. Tiles centre
-  their figures in gold, here and on Analysis → Breakdown.
-- **Exercise info** reads as FitNotes's: "You haven't saved any notes for this exercise" when there are none, then
-  Weight Increment, Rest Time ("Not set" when it uses your usual rest) and Default Graph, each name over its value.
+- **A workout's days in the library** are listed as FitNotes lists a routine's days: each day's name in capitals over
+  a fine gold rule, with **Log all** beside it, and its exercises underneath. The next day to train is marked
+  **NEXT** in gold.
+- **The workout editor** lays out each day the same way, with **+** and the day's menu beside its name.
+- **Search results in the library** are grouped under a heading for each category, with the category's colour.
 
 ## Known limitations
 
-- The Records tab no longer repeats the workout, set and rep totals; they're on the Stats tab.
-- Next in the comparison: the library and workout editor (#143), then the calendar and body tracker (#144).
+- This comparison was made against FitNotes's behaviour and its look elsewhere, as the reference screenshots don't
+  include these screens. Anything still different can be reported on #143.
+- The full-screen exercise editor (#126) is still a sheet.
+- Next in the comparison: the calendar and body tracker (#144).

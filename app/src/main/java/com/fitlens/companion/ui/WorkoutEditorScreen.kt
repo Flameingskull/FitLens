@@ -2,6 +2,9 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -354,14 +357,17 @@ private fun DayCard(
 ) {
     var menu by remember { mutableStateOf(false) }
     val slots = day.slots
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
-            .raisedGlass(FitShapes.card)
-    ) {
+    // FitNotes edits a routine's days as sections (#143): the day's name in capitals over a gold rule, its + and menu
+    // beside it, then its exercises on the glass.
+    Column(Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
         Row(Modifier.fillMaxWidth().padding(start = Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, style = MaterialTheme.typography.titleMedium, color = Brand.Gold, modifier = Modifier.weight(1f))
+            Text(
+                label.uppercase(),
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
             IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, contentDescription = "Add exercise to $label") }
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for $label") }
@@ -380,7 +386,7 @@ private fun DayCard(
                 }
             }
         }
-        GoldHairline()
+        Box(Modifier.padding(horizontal = Spacing.lg).fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
         if (slots.isEmpty()) {
             Text(
                 "No exercises yet. Tap + to add one.",
