@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import androidx.compose.runtime.LaunchedEffect
 import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -74,11 +75,28 @@ internal fun goalKindForGraph(graphLabel: String): Int? = when (graphLabel) {
  * follow the setting (#43).
  */
 @Composable
-fun GoalsTab(snap: Snapshot, exId: Long, timeBased: Boolean) {
+fun GoalsTab(
+    snap: Snapshot,
+    exId: Long,
+    timeBased: Boolean,
+    /** Set by the screen's + (#142): opens a new goal, then [onAddHandled] clears it. */
+    addRequested: Boolean = false,
+    onAddHandled: () -> Unit = {},
+    /** The "Add a goal" button, for places without a + in their top bar (the overview sheet). */
+    showAddButton: Boolean = true
+) {
     val goals = snap.goalsByExercise[exId].orEmpty()
     val sets = snap.statSetsByExercise[exId].orEmpty()
     var editing by remember { mutableStateOf<ExerciseGoal?>(null) }
     var deleting by remember { mutableStateOf<ExerciseGoal?>(null) }
+
+    fun newGoal() = ExerciseGoal(0, exId, if (timeBased) GoalKinds.LONGEST_SET else GoalKinds.MAX_WEIGHT, 0.0, 0)
+    LaunchedEffect(addRequested) {
+        if (addRequested) {
+            editing = newGoal()
+            onAddHandled()
+        }
+    }
 
     fun move(i: Int, by: Int) {
         val list = goals.toMutableList()
@@ -90,9 +108,11 @@ fun GoalsTab(snap: Snapshot, exId: Long, timeBased: Boolean) {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
         if (goals.isEmpty()) {
+            // FitNotes's words (#142).
             EmptyState(
-                "No goals yet",
-                "Set a target, such as a heavier max or a bigger workout, and follow your progress towards it."
+                "You haven't created any training goals yet",
+                if (showAddButton) "Set a target, such as a heavier max or a bigger workout, and follow your progress towards it."
+                else "Tap + to set a target, such as a heavier max or a bigger workout, and follow your progress towards it."
             )
         }
         goals.forEachIndexed { i, g ->
@@ -121,10 +141,9 @@ fun GoalsTab(snap: Snapshot, exId: Long, timeBased: Boolean) {
                 trackColor = Brand.Hairline
             )
         }
-        GoldButton(
-            onClick = { editing = ExerciseGoal(0, exId, if (timeBased) GoalKinds.LONGEST_SET else GoalKinds.MAX_WEIGHT, 0.0, 0) },
-            modifier = Modifier.padding(16.dp)
-        ) { Text("Add a goal") }
+        if (showAddButton) {
+            GoldButton(onClick = { editing = newGoal() }, modifier = Modifier.padding(16.dp)) { Text("Add a goal") }
+        }
         if (goals.isNotEmpty()) AnalysisNote("Turn on Goal under a matching graph to see the target as a line.")
     }
 

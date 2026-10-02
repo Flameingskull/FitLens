@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui.design
 
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -52,14 +53,30 @@ fun StatTile(
     dateLine: String? = null
 ) {
     val shape = FitShapes.card
+    // FitNotes's stat tile (#142): the label in capitals, the figure large in the accent colour, its date under it,
+    // all centred.
     Column(
         modifier
             .raisedGlass(shape, elevation = 4.dp)
             .semantics(mergeDescendants = true) {}
-            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
+            .padding(horizontal = Spacing.md, vertical = Spacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            label.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 2
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.headlineMedium,
+            color = Brand.Gold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(vertical = Spacing.xs)
+        )
         if (!delta.isNullOrBlank()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when (trend) {
@@ -79,7 +96,7 @@ fun StatTile(
             }
         }
         if (!dateLine.isNullOrBlank()) {
-            Text(dateLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(dateLine, style = MaterialTheme.typography.bodyMedium, color = Brand.GoldLight, textAlign = TextAlign.Center)
         }
     }
 }

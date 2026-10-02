@@ -6,6 +6,8 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.text.style.TextAlign
 import com.fitlens.companion.ui.design.SearchFieldIcon
 
 import com.fitlens.companion.ui.design.WidthBucket
@@ -636,11 +638,15 @@ fun ExerciseNotes(notes: String, modifier: Modifier = Modifier) {
 fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onEdit: () -> Unit, onDismiss: () -> Unit) {
     val prefs by Settings.portable.collectAsState()
     val graphs = graphLabels(ex.type, timeBased = ExerciseTypes.timeBased(ex.type, anyWeightOrReps = false))
+    // FitNotes's rows (#142): the setting's name in bold, its value under it, a rule between.
     @Composable
     fun InfoRow(label: String, value: String) {
-        Row(Modifier.fillMaxWidth().heightIn(min = Spacing.touch), verticalAlignment = Alignment.CenterVertically) {
-            Text(label.uppercase(), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.bodyLarge)
+        Column(
+            Modifier.fillMaxWidth().heightIn(min = Spacing.row).semantics(mergeDescendants = true) {}.padding(vertical = Spacing.sm),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(label, style = MaterialTheme.typography.titleSmall.copy(letterSpacing = TextUnit.Unspecified))
+            Text(value, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         GoldHairline()
     }
@@ -651,17 +657,21 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
         confirmLabel = "Edit",
         onConfirm = { onDismiss(); onEdit() }
     ) {
-        Text("NOTES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         val notes = ex.notes
         if (notes.isNullOrBlank()) {
-            Text("No notes saved for this exercise.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "You haven't saved any notes for this exercise",
+                Modifier.fillMaxWidth().padding(vertical = Spacing.md),
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center
+            )
         } else {
             ExerciseNotes(notes)
         }
         GoldHairline()
-        if (ExerciseTypes.usesWeight(ex.type)) InfoRow("Weight increment", "${fmtNum(weightStepShown, 2)} ${snap.weightUnitOf(ex.id)}")
-        InfoRow("Rest time", ex.restSeconds?.let { fmtDuration(it) } ?: "Default (${fmtDuration(prefs.restSeconds)})")
-        InfoRow("Default graph", graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0) ?: "None")
+        if (ExerciseTypes.usesWeight(ex.type)) InfoRow("Weight Increment", "${fmtNum(weightStepShown, 2)} ${snap.weightUnitOf(ex.id)}")
+        InfoRow("Rest Time", ex.restSeconds?.let { fmtDuration(it) } ?: "Not set (uses ${fmtDuration(prefs.restSeconds)})")
+        InfoRow("Default Graph", graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0) ?: "None")
         InfoRow("Type", ExerciseTypes.label(ex.type))
     }
 }

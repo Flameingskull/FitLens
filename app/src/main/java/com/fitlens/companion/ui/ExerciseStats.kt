@@ -121,19 +121,24 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             val bestSet = shown.maxBy { Analysis.volumeKg(it) }
             val bestDay = byDay.maxBy { e -> e.value.sumOf { Analysis.volumeKg(it) } }
             val repsDay = byDay.maxBy { e -> e.value.sumOf { it.reps } }
-            tiles += dated("Max weight", "${snap.fmtWeight(heaviest.weightKg, exId)} $unit × ${heaviest.reps}", heaviest.date)
+            // FitNotes's tiles in FitNotes's order (#142): the totals, then each best with its date.
+            tiles += StatItem("Total workouts", "$sessions")
+            tiles += StatItem("Total sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
+            tiles += StatItem("Total reps", "${shown.sumOf { it.reps }}")
+            tiles += StatItem("Total volume", "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit")
+            tiles += dated("Max weight", "${snap.fmtWeight(heaviest.weightKg, exId)} $unit", heaviest.date)
             // An estimate from more than 10 reps is marked approximate (#139).
             val approx = if (Records.approximate(best1rm.reps)) "≈ " else ""
             tiles += dated("Estimated 1RM", "$approx${snap.fmtWeight(Records.oneRepMax(best1rm), exId)} $unit", best1rm.date)
-            tiles += dated("Max reps", "${mostReps.reps} × ${snap.fmtWeight(mostReps.weightKg, exId)} $unit", mostReps.date)
-            tiles += dated("Max volume", "${snap.fmtWeight(bestSet.weightKg, exId)} $unit × ${bestSet.reps}", bestSet.date)
+            tiles += dated("Max reps", "${mostReps.reps}", mostReps.date)
             tiles += dated("Workout reps", "${repsDay.value.sumOf { it.reps }}", repsDay.key)
+            tiles += dated("Max volume", "${fmtNum(snap.weight(Analysis.volumeKg(bestSet), exId), 0)} $unit", bestSet.date)
             tiles += dated("Workout volume", "${fmtNum(snap.weight(bestDay.value.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit", bestDay.key)
-            tiles += StatItem("Total reps", "${shown.sumOf { it.reps }}")
-            tiles += StatItem("Total volume", "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit")
         }
-        tiles += StatItem("Workouts", "$sessions")
-        tiles += StatItem("Sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
+        if (timeBased) {
+            tiles += StatItem("Workouts", "$sessions")
+            tiles += StatItem("Sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
+        }
         val first = shown.minOf { it.date }
         val last = shown.maxOf { it.date }
         tiles += StatItem("First logged", Dates.medium(first), date = first)

@@ -1,5 +1,12 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.SectionLabel
+import com.fitlens.companion.ui.design.FitIcons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.semantics.semantics
 import com.fitlens.companion.ui.design.ToggleOption
 import com.fitlens.companion.ui.design.DropdownPill
 import androidx.compose.foundation.clickable
@@ -152,16 +159,20 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long, initialTab: Int =
     val statSets = snap.statSetsByExercise[exId] ?: emptyList()
     var tab by rememberSaveable { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
     var calculator by remember { mutableStateOf(false) }
+    var addGoal by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
+        // FitNotes's bar follows the tab (#142): the calculator on Records, + on Goals.
         BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() }) {
-            // The 1RM calculator (#28), starting from the exercise's best estimated set.
-            if (!timeBased) TextButton(onClick = { calculator = true }) { Text("1RM") }
+            if (tab == 0 && !timeBased) {
+                IconButton(onClick = { calculator = true }) { Icon(FitIcons.Calculate, contentDescription = "1RM calculator") }
+            }
+            if (tab == 2) IconButton(onClick = { addGoal = true }) { Icon(Icons.Filled.Add, contentDescription = "Add a goal") }
         }
         FitTabRow(titles = listOf("Records", "Stats", "Goals"), selected = tab, onSelect = { tab = it })
         when (tab) {
             0 -> RecordsTab(snap, statSets, timeBased)
             1 -> ExerciseStatsTab(snap, nav, exId, statSets, timeBased)
-            else -> GoalsTab(snap, exId, timeBased)
+            else -> GoalsTab(snap, exId, timeBased, addRequested = addGoal, onAddHandled = { addGoal = false }, showAddButton = false)
         }
     }
     if (calculator) OneRepMaxSheet(snap, statSets.maxByOrNull { Records.oneRepMax(it) }) { calculator = false }
@@ -394,18 +405,11 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
         byDate.entries.reversed().forEach { (d, l) ->
             item(key = d) {
                 Column(Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(d)) }.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    // FitNotes's day header (#122): the date in capitals over a rule.
+                    // FitNotes's day heading (#122, #142): "MONDAY, SEPTEMBER 28" over a rule, then the sets.
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Dates.long(d).uppercase(), style = MaterialTheme.typography.titleSmall, color = Brand.Gold, modifier = Modifier.weight(1f))
+                        SectionLabel(historyDay(d), Modifier.weight(1f))
                         if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
                     }
-                    HorizontalDivider(Modifier.padding(top = 2.dp, bottom = 4.dp), color = Brand.Gold)
-                    // The day's totals (#22): volume and reps for strength, distance and time for cardio.
-                    Text(
-                        dayTotals(snap, exId, l).uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                     l.forEachIndexed { i, s ->
                         val marks = setMarks(s)
                         SetRowView(
@@ -433,18 +437,31 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
-                    // Repeat this day's sets today (#22), with Undo.
-                    val today = Dates.today()
-                    if (d.take(10) != today) {
-                        TextButton(onClick = { copyToToday(d, l.map { it.id }) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                            Text("Copy to today")
+                    // FitLens's extras under the sets: the day's totals (#22) and Copy to today, with Undo.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            dayTotals(snap, exId, l),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (d.take(10) != Dates.today()) {
+                            TextButton(onClick = { copyToToday(d, l.map { it.id }) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text("Copy to today")
+                            }
                         }
                     }
                 }
-                HorizontalDivider()
             }
         }
     }
+}
+
+/** A History heading as FitNotes writes it (#142): "MONDAY, SEPTEMBER 28", with the year when it isn't this one. */
+private fun historyDay(date: String): String {
+    val d = Dates.parse(date) ?: return date
+    val pattern = if (d.year == java.time.LocalDate.now().year) "EEEE, MMMM d" else "EEEE, MMMM d, yyyy"
+    return d.format(java.time.format.DateTimeFormatter.ofPattern(pattern, java.util.Locale.getDefault())).uppercase()
 }
 
 /** One day's totals for an exercise's history: sets, then reps and volume, or distance and time (#22). */
@@ -479,6 +496,8 @@ private fun copyToToday(date: String, ids: List<Long>) {
 internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean) {
     // Weights in the exercise's own unit (#7); the sets are all one exercise's.
     val exId = allSets.firstOrNull()?.exerciseId
+    // FitNotes's TYPE (#142): actual records, or estimated ones from the best estimated 1RM.
+    var estimated by rememberSaveable { mutableStateOf(false) }
     // -1 means the Custom range in customFrom..customTo.
     var periodIdx by rememberSaveable { mutableIntStateOf(Records.Period.ALL.ordinal) }
     var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
@@ -493,15 +512,23 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
-            PeriodDropdown(
-                label = "Period",
-                options = Records.Period.entries.map { it.label },
-                selected = period?.ordinal ?: -1,
-                custom = if (from != null && to != null) from to to else null,
-                onSelect = { periodIdx = it },
-                onCustom = { f, t -> customFrom = f; customTo = t; periodIdx = -1 },
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
+            // FitNotes's TYPE and PERIOD rows (#142), as compact dropdowns.
+            Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (!timeBased) {
+                    DropdownPill("Type", listOf("Actual personal records", "Estimated personal records"), if (estimated) 1 else 0) {
+                        estimated = it == 1
+                    }
+                }
+                PeriodDropdown(
+                    label = "Period",
+                    options = Records.Period.entries.map { it.label },
+                    selected = period?.ordinal ?: -1,
+                    custom = if (from != null && to != null) from to to else null,
+                    onSelect = { periodIdx = it },
+                    onCustom = { f, t -> customFrom = f; customTo = t; periodIdx = -1 }
+                )
+            }
+            GoldHairline()
         }
         if (sets.isEmpty()) {
             item {
@@ -512,48 +539,65 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
             }
             return@LazyColumn
         }
-        item {
-            val days = sets.map { it.date }.distinct().sorted()
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth()) {
-                    LabelValue("Workouts", "${days.size}", Modifier.weight(1f))
-                    LabelValue("Sets", "${sets.size}", Modifier.weight(1f))
-                    LabelValue("Reps", "${sets.sumOf { it.reps }}", Modifier.weight(1f))
+        if (timeBased) {
+            // Timed exercises have no rep maxes: the longest set is their record.
+            sets.maxByOrNull { it.durationSec }?.takeIf { it.durationSec > 0 }?.let { longest ->
+                item { RecordRow("Longest", fmtDuration(longest.durationSec), "", Dates.medium(longest.date), superseded = false) }
+            }
+        } else {
+            val unit = snap.weightUnitOf(exId)
+            if (estimated) {
+                // Every rep count from the best estimated 1RM, dated by the set it came from; past 10 reps it's
+                // approximate (#139).
+                val bestSet = sets.maxByOrNull { Records.oneRepMax(it) }
+                val best = bestSet?.let { Records.oneRepMax(it) } ?: 0.0
+                items((1..Records.MAX_REPS).toList()) { r ->
+                    val est = Records.weightFor(best, r)
+                    if (est > 0 && bestSet != null) {
+                        RecordRow("${r}RM", (if (Records.approximate(r)) "≈ " else "") + fmtNum(snap.weight(est, exId), 1), unit, Dates.medium(bestSet.date), superseded = false)
+                    }
                 }
-                Row(Modifier.fillMaxWidth()) {
-                    LabelValue("First", days.firstOrNull()?.let { Dates.medium(it) } ?: "—", Modifier.weight(1f))
-                    LabelValue("Last", days.lastOrNull()?.let { Dates.medium(it) } ?: "—", Modifier.weight(1f))
-                    if (timeBased) LabelValue("Longest", fmtDuration(sets.maxOfOrNull { it.durationSec } ?: 0), Modifier.weight(1f))
-                    else LabelValue("Volume", "${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }, exId), 0)} ${snap.weightUnitOf(exId)}", Modifier.weight(1f))
+            } else {
+                // As FitNotes lists them: each rep count with its record and date. A record held by a heavier or equal
+                // set of more reps is greyed, since that set is the one to beat.
+                items((1..Records.MAX_REPS).toList()) { r ->
+                    Records.repMax(sets, r)?.let { actual ->
+                        RecordRow(
+                            "${r}RM",
+                            snap.fmtWeight(actual.weightKg, exId) + if (actual.reps > r) " × ${actual.reps}" else "",
+                            unit,
+                            Dates.medium(actual.date),
+                            superseded = actual.reps > r
+                        )
+                    }
                 }
             }
-            HorizontalDivider()
         }
-        if (!timeBased) {
-            val best = sets.maxOfOrNull { Records.oneRepMax(it) } ?: 0.0
-            item {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text("Reps", Modifier.weight(0.6f), style = MaterialTheme.typography.labelLarge)
-                    Text("Actual best", Modifier.weight(1.4f), style = MaterialTheme.typography.labelLarge)
-                    Text("Estimated", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                }
+    }
+}
+
+/**
+ * One record as FitNotes lists it (#142): the rep count on the left, then the value with its unit and the date under
+ * it. A [superseded] record (held by a set of more reps) is greyed.
+ */
+@Composable
+private fun RecordRow(label: String, value: String, unit: String, date: String, superseded: Boolean) {
+    val tint = if (superseded) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .semantics(mergeDescendants = true) {}
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+        Column(Modifier.weight(1.2f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(value, style = MaterialTheme.typography.headlineSmall, color = tint, maxLines = 1)
+                if (unit.isNotEmpty()) Text(" $unit", style = MaterialTheme.typography.bodyMedium, color = tint)
             }
-            items((1..Records.MAX_REPS).toList()) { r ->
-                val actual = Records.repMax(sets, r)
-                val est = Records.weightFor(best, r)
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    Text("${r}RM", Modifier.weight(0.6f))
-                    Text(
-                        actual?.let {
-                            // A record set by a higher-rep set shows its reps, e.g. "100 kg × 5".
-                            val reps = if (it.reps > r) " × ${it.reps}" else ""
-                            "${snap.fmtWeight(it.weightKg, exId)} ${snap.weightUnitOf(exId)}$reps · ${Dates.short(it.date)}"
-                        } ?: "—",
-                        Modifier.weight(1.4f)
-                    )
-                    Text(if (est > 0) "${fmtNum(snap.weight(est, exId), 1)} ${snap.weightUnitOf(exId)}" else "—", Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            Text(date, style = MaterialTheme.typography.bodyMedium, color = tint)
         }
     }
 }
