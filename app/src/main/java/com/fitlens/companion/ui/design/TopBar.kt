@@ -2,6 +2,14 @@
 
 package com.fitlens.companion.ui.design
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.fitlens.companion.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -49,14 +57,16 @@ data class TopBarAction(
 data class MenuAction(val label: String, val enabled: Boolean = true, val onClick: () -> Unit)
 
 /**
- * The FitLens top bar (#80): serif title, optional letter-spaced subtitle, up to three [actions], an optional
- * Settings gear and an overflow menu, over a gold hairline.
+ * The FitLens top bar (#80): title, optional letter-spaced subtitle, up to three [actions], an optional Settings gear
+ * and an overflow menu, over a gold hairline.
  *
  * - Pushed screens pass [onBack] and get a back arrow; tab screens leave it null and are centre-aligned.
  * - To collapse on scroll, pass a [scrollBehavior] and add `Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)`
  *   to the scrolling content.
  * - [trailing] is a slot for anything the lists can't express, such as an existing dropdown; it sits after [actions].
  * - [titleMenu] turns the title into a dropdown (with a ▾), as the library's routine switcher does in FitNotes (#21).
+ * - [brandMark] puts the FitLens character before the title, where FitNotes shows its app icon (#141). It's the torso
+ *   art, as every small icon is (`CLAUDE.md` rule 4), placed unedited. Only for a screen with no back arrow.
  */
 @Composable
 fun FitTopBar(
@@ -74,6 +84,7 @@ fun FitTopBar(
     titleMenu: List<MenuAction> = emptyList(),
     /** An icon in the navigation slot instead of a back arrow, such as the exercise screen's workout drawer (#129). */
     navigation: TopBarAction? = null,
+    brandMark: Boolean = false,
     trailing: @Composable RowScope.() -> Unit = {}
 ) {
     var titleOpen by remember { mutableStateOf(false) }
@@ -142,6 +153,13 @@ fun FitTopBar(
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = backLabel)
             }
+        } else if (brandMark) {
+            Image(
+                painterResource(R.drawable.search_character),
+                contentDescription = null,
+                // The torso art is wider than tall (665 × 414), so the mark keeps that shape.
+                modifier = Modifier.padding(start = Spacing.md).size(width = 45.dp, height = 28.dp).clip(RoundedCornerShape(4.dp))
+            )
         }
     }
     val actionContent: @Composable RowScope.() -> Unit = {

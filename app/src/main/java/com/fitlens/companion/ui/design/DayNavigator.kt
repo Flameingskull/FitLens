@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -123,7 +124,7 @@ fun DayNavigator(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { onPrevious?.invoke() }, enabled = onPrevious != null) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = previousDescription, tint = Brand.Gold)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = previousDescription, tint = Brand.Gold, modifier = Modifier.size(36.dp))
             }
             Box(
                 Modifier
@@ -141,14 +142,14 @@ fun DayNavigator(
             ) {
                 Text(
                     label.uppercase(),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
             IconButton(onClick = { onNext?.invoke() }, enabled = onNext != null) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = nextDescription, tint = Brand.Gold)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = nextDescription, tint = Brand.Gold, modifier = Modifier.size(36.dp))
             }
         }
         Box(Modifier.fillMaxWidth().height(2.dp).background(Brand.Gold))

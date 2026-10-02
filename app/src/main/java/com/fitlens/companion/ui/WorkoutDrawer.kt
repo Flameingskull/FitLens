@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import com.fitlens.companion.ui.design.FitIcons
 import androidx.compose.material3.MaterialTheme
@@ -183,8 +184,8 @@ fun WorkoutDrawer(
         // FitNotes's header (#124): how many exercises, and how to reorder them.
         Text(
             "${order.size} EXERCISE${if (order.size == 1) "" else "S"}",
-            style = MaterialTheme.typography.titleSmall,
-            color = Brand.Gold,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = Spacing.lg)
         )
         Text(
@@ -201,6 +202,7 @@ fun WorkoutDrawer(
         GoldHairline(Modifier.padding(vertical = Spacing.sm))
         LazyColumn(Modifier.weight(1f)) {
             itemsIndexed(order, key = { _, id -> id }) { i, exId ->
+                if (i > 0) HorizontalDivider(color = Brand.Hairline)
                 val name = snap.exercises[exId]?.name ?: "Exercise"
                 val count = sets.count { it.exerciseId == exId }
                 val isCurrent = exId == current
@@ -225,7 +227,8 @@ fun WorkoutDrawer(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val group = supersetOf(snap, date, exId)
-                    Box(Modifier.width(4.dp).heightIn(min = Spacing.row).background(if (group > 0) Brand.Gold else categoryColour(snap.categoryOf(exId)?.colour ?: 0)))
+                    // As in FitNotes, rows carry no colour bar; a superset keeps a gold one so its group reads (#18, #141).
+                    Box(Modifier.width(4.dp).heightIn(min = Spacing.row).background(if (group > 0) Brand.Gold else Brand.Onyx))
                     Column(Modifier.weight(1f).padding(horizontal = Spacing.md, vertical = Spacing.sm)) {
                         Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             color = if (isCurrent) Brand.GoldLight else MaterialTheme.colorScheme.onSurface)
@@ -235,7 +238,7 @@ fun WorkoutDrawer(
                                 "${sets.count { it.exerciseId == exId && it.done }}/$count sets done"
                             else "$count set${if (count == 1) "" else "s"}") +
                                 (letters[group]?.let { "  ·  Superset $it" } ?: ""),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -258,22 +261,31 @@ fun WorkoutDrawer(
                 }
             }
         }
+        // FitNotes's footer (#124, #141): three uppercase rows with an icon each, a rule between them.
         GoldHairline()
-        TextButton(onClick = onAddExercise, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(horizontal = Spacing.sm)) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Spacer(Modifier.width(Spacing.sm))
-            Text("Add exercise", modifier = Modifier.weight(1f))
-        }
-        TextButton(onClick = onAddToSuperset, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(horizontal = Spacing.sm)) {
-            Icon(FitIcons.Link, contentDescription = null)
-            Spacer(Modifier.width(Spacing.sm))
-            Text("Add to superset", modifier = Modifier.weight(1f))
-        }
-        TextButton(onClick = onDayLog, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(horizontal = Spacing.sm)) {
-            Icon(Icons.Filled.Home, contentDescription = null)
-            Spacer(Modifier.width(Spacing.sm))
-            Text("Home", modifier = Modifier.weight(1f))
-        }
+        DrawerAction(Icons.Filled.Add, "Add exercise", onAddExercise)
+        HorizontalDivider(color = Brand.Hairline)
+        DrawerAction(FitIcons.Link, "Add to superset", onAddToSuperset)
+        HorizontalDivider(color = Brand.Hairline)
+        DrawerAction(Icons.Filled.Home, "Home", onDayLog)
+    }
+}
+
+/** One of the workout drawer's footer rows (#141): a gold icon and an uppercase label, the whole row tappable. */
+@Composable
+private fun DrawerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.row)
+            .clickable(onClickLabel = label, onClick = onClick)
+            .semantics(mergeDescendants = true) {}
+            .padding(horizontal = Spacing.lg),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = Brand.Gold)
+        Spacer(Modifier.width(Spacing.lg))
+        Text(label.uppercase(), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 

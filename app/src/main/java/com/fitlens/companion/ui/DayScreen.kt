@@ -144,6 +144,8 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             title = if (nav.atHome) "FitLens" else "Training log",
             onBack = if (nav.atHome) null else ({ nav.pop() }),
             centered = false,
+            // FitNotes's app icon before its title (#141).
+            brandMark = nav.atHome,
             actions = listOf(
                 TopBarAction(Icons.Filled.DateRange, "Calendar") { nav.push(Screen.Calendar) },
                 TopBarAction(Icons.Filled.Add, "Add exercise") { nav.push(Screen.Library(date)) }

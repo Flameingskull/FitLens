@@ -1,32 +1,25 @@
 ## Overview
 
-Every graph in FitLens can now be drawn the way you read it best: as a line, bars, an area or steps. Your choice is
-remembered for each graph. This release also refreshes the project's README to match the app as it is today.
+The first step of the screen-by-screen FitNotes comparison: the day log, the exercise screen's set list and the
+workout drawer were laid beside FitNotes and brought into line, so moving between the two apps feels the same.
 
 There are no database changes. Everything you've logged is kept as it was.
 
-## What's new
-
-- **Chart types.** Each graph's controls have a new **chart type** dropdown, next to the range:
-  - **Line:** the familiar red line over a gold fill, with a marker on each day;
-  - **Bar:** a gold column for each day with a red top, always standing on zero so heights compare truly;
-  - **Area:** the gold fill with a fine red edge and no markers, for a calm view of long histories;
-  - **Step:** a red line that holds each value until the next one, which suits records and body weight.
-  It's on the exercise screen's Graph tab, the body tracker's graphs, Analysis → Workouts (and the length of each
-  workout) and Analysis → Exercises, and in every full-screen graph.
-- **Remembered per graph.** Each graph keeps its own chart type: for example, bars for workout volume and a step line
-  for estimated 1RM. Your choices travel with your `.fitlens` backups along with your other preferences.
-- **Shared images match.** Sharing a graph as an image draws it in the chart type you're viewing.
-
 ## Improved
 
-- **Graph controls on small phones.** The graph, range and chart type dropdowns now scroll sideways when they don't
-  fit, so the options menu and the full-screen button always stay in view.
-- **Full-screen bars.** In full screen, bar charts zoom across time; their value scale stays fixed at zero.
+- **The day log's top bar** shows the FitLens character before the title, where FitNotes shows its app icon.
+- **The day bar** has larger ‹ › arrows and a bolder day name, as in FitNotes.
+- **Exercise cards** sit 16 dp from the screen's edges, as FitNotes's do, with the exercise's name large but not bold.
+- **Tabs** (Track, History, Graph and every other tab row) read as FitNotes's: bold capitals, ivory until chosen and
+  gold when chosen.
+- **The set list on the Track tab** is a plain list with a fine rule under each set, as in FitNotes, instead of a box
+  around every set; the selected set is washed in gold. It also starts straight under the Save and Clear buttons.
+- **The workout drawer** has FitNotes's layout: the exercise count as its heading, a fine rule between exercises, no
+  category colour bar (a superset keeps its gold bar), and **ADD EXERCISE**, **ADD TO SUPERSET** and **HOME** as full
+  rows at the bottom.
 
 ## Known limitations
 
-- The Breakdown tab's donut chart is unchanged.
-- The PDF report keeps its line graphs.
-- The screen-by-screen comparison with FitNotes starts in the next update, with the day log and workout drawer
-  (#141).
+- The next comparisons cover the exercise screen's History, Graph, records, stats and info (#142), then the library
+  and workout editor (#143), the calendar and body tracker (#144), Analysis and Settings (#145), and the photo screens
+  (#146).

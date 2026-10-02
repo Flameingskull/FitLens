@@ -50,7 +50,8 @@ import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 
 /**
- * Letter-spaced uppercase tabs with a gold indicator, over a gold hairline (#80).
+ * FitNotes's tabs (#80, #141): bold uppercase labels, ivory until chosen and gold when chosen, a gold indicator under
+ * the chosen one, over a gold hairline.
  * Five or more tabs scroll horizontally by default ([scrollable]).
  */
 @Composable
@@ -67,10 +68,10 @@ fun FitTabRow(
                 selected = i == selected,
                 onClick = { onSelect(i) },
                 text = {
-                    Text(t.uppercase(), style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(t.uppercase(), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 },
                 selectedContentColor = Brand.Gold,
-                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                unselectedContentColor = MaterialTheme.colorScheme.onSurface
             )
         }
     }

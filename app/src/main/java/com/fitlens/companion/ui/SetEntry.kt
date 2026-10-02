@@ -586,7 +586,8 @@ fun SetEntryScreen(
                 }
             }
 
-            item { HorizontalDivider(Modifier.padding(top = 10.dp), color = Brand.Gold) }
+            // As in FitNotes, the sets follow the buttons with no rule between (#141).
+            item { Spacer(Modifier.height(Spacing.sm)) }
 
             if (sets.isEmpty()) {
                 item {

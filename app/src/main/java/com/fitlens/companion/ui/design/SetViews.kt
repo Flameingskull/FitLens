@@ -219,7 +219,7 @@ private val SetHintWidth = 64.dp
 private val SetUnitWidth = 28.dp
 
 private fun setOuterPadding(framed: Boolean) =
-    if (framed) PaddingValues(horizontal = Spacing.md, vertical = 3.dp) else PaddingValues(0.dp)
+    if (framed) PaddingValues(horizontal = Spacing.lg) else PaddingValues(0.dp)
 private fun setInnerPadding(framed: Boolean, hasCommentButton: Boolean) = when {
     // The 48dp comment button supplies the row's height and its start padding.
     framed && hasCommentButton -> PaddingValues(end = Spacing.md, top = 2.dp, bottom = 2.dp)
@@ -265,8 +265,9 @@ private fun SetCellText(cell: SetCell, modifier: Modifier = Modifier) {
  *   the set-type badge then sits beside the PR marker.
  * - [onComment] (#108) adds a speech-bubble button at the row's start, gold and filled when the set has a comment,
  *   outlined when it hasn't. It opens the set's Comment box without selecting the row.
- * - [framed] draws the set as its own recessed glass well (#102), picked out in a gold wash with a gold outline
- *   when [selected]; unframed, it is a compact line for use inside an [ExerciseCard] or another clickable container.
+ * - [framed] draws the set as a full row over a fine rule, as FitNotes lists them on its Track tab (#141), picked
+ *   out in a gold wash when [selected]; unframed, it is a compact line for use inside an [ExerciseCard] or another
+ *   clickable container.
  * - TalkBack reads the row as one sentence, for example "Set 2, 85 kilograms, 6 reps, personal record". The comment
  *   button is a separate stop.
  * - [done] is null when the screen has no done state; otherwise a checkbox is shown and [onDoneChange] is called.
@@ -306,14 +307,18 @@ fun SetRow(
         if (!comment.isNullOrBlank()) append(", comment: ").append(comment)
         if (done == true) append(", done")
     }
+    // FitNotes's Track rows (#141): values on the glass with a rule under each, no box; the selected set is washed in
+    // gold, as FitNotes washes it in blue.
+    val rule = Brand.Hairline
     val frame = when {
         !framed -> Modifier.fillMaxWidth()
-        selected -> Modifier
+        else -> Modifier
             .fillMaxWidth()
-            .background(Brand.Gold.copy(alpha = 0.12f), shape)
-            .border(1.dp, Brand.Gold, shape)
-            .clip(shape)
-        else -> Modifier.fillMaxWidth().recessedGlass(shape)
+            .background(if (selected) Brand.Gold.copy(alpha = 0.16f) else Color.Transparent)
+            .drawBehind {
+                val y = size.height - 1.dp.toPx() / 2
+                drawLine(rule, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+            }
     }
     val tap = onClick
     val isDone = done
@@ -539,7 +544,8 @@ fun ExerciseCard(
     Column(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
+            // FitNotes's margins (#141): 16dp either side, 16dp between cards.
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
             .raisedGlass(FitShapes.card)
             .combinedClickable(
                 onClick = onClick,
@@ -553,7 +559,8 @@ fun ExerciseCard(
         ) {
             Text(
                 name,
-                style = MaterialTheme.typography.titleLarge,
+                // FitNotes sets the exercise's name large but not bold (#141).
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
