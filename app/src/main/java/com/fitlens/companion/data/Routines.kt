@@ -20,7 +20,9 @@ data class PlannedSet(
     val reps: Int = 0,
     val distance: Double = 0.0,
     val durationSec: Int = 0,
-    val setType: Int = SetTypes.WORKING
+    val setType: Int = SetTypes.WORKING,
+    /** The rest after this set (#138); null uses the exercise's prescribed rest, then its own, then the global one. */
+    val restSeconds: Int? = null
 ) {
     val isEmpty: Boolean get() = weightKg == 0.0 && reps == 0 && distance == 0.0 && durationSec == 0
 }
@@ -34,8 +36,15 @@ data class PlannedExercise(
     val fill: Int = Routines.FILL_LAST,
     val sets: List<PlannedSet> = emptyList(),
     /** The superset (#18) it belongs to within the day; 0 when none. */
-    val superset: Int = 0
-)
+    val superset: Int = 0,
+    /** The rest between its sets when a set has none of its own (#138); null for none prescribed. */
+    val restSeconds: Int? = null,
+    /** The rest after its last set, before the next exercise (#138); null for none prescribed. */
+    val restAfterSeconds: Int? = null
+) {
+    /** The rest prescribed for this exercise on the day it's logged (#138). */
+    val rest: WorkoutRest get() = WorkoutRest(restSeconds, restAfterSeconds)
+}
 
 /** One day of a workout, named by the user. An [id] of 0 is one not saved yet. */
 data class RoutineDay(val id: Long, val name: String, val exercises: List<PlannedExercise> = emptyList())
@@ -70,30 +79,34 @@ object Routines {
     const val CREATE_EXERCISE =
         "CREATE TABLE routine_day_exercise(id INTEGER PRIMARY KEY AUTOINCREMENT, day_id INTEGER NOT NULL, " +
             "exercise_id INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, fill INTEGER NOT NULL DEFAULT 0, " +
-            "superset INTEGER NOT NULL DEFAULT 0)"
+            "superset INTEGER NOT NULL DEFAULT 0, rest_seconds INTEGER, rest_after_seconds INTEGER)"
     const val CREATE_SET =
         "CREATE TABLE routine_day_set(id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, " +
             "sort_order INTEGER NOT NULL DEFAULT 0, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, " +
-            "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0)"
+            "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0, " +
+            "rest_seconds INTEGER)"
+
+    private fun android.database.Cursor.intOrNull(i: Int): Int? = if (isNull(i)) null else getInt(i)
 
     fun load(r: SQLiteDatabase): List<Routine> {
         val sets = HashMap<Long, MutableList<PlannedSet>>()
         r.rawQuery(
-            "SELECT item_id, weight, reps, distance, duration, set_type FROM routine_day_set ORDER BY item_id, sort_order, id",
+            "SELECT item_id, weight, reps, distance, duration, set_type, rest_seconds FROM routine_day_set ORDER BY item_id, sort_order, id",
             null
         ).use { c ->
             while (c.moveToNext()) {
-                sets.getOrPut(c.lng(0)) { ArrayList() }.add(PlannedSet(c.dbl(1), c.int(2), c.dbl(3), c.int(4), c.int(5)))
+                sets.getOrPut(c.lng(0)) { ArrayList() }.add(PlannedSet(c.dbl(1), c.int(2), c.dbl(3), c.int(4), c.int(5), c.intOrNull(6)))
             }
         }
         val items = HashMap<Long, MutableList<PlannedExercise>>()
         r.rawQuery(
-            "SELECT id, day_id, exercise_id, fill, superset FROM routine_day_exercise ORDER BY day_id, sort_order, id",
+            "SELECT id, day_id, exercise_id, fill, superset, rest_seconds, rest_after_seconds FROM routine_day_exercise " +
+                "ORDER BY day_id, sort_order, id",
             null
         ).use { c ->
             while (c.moveToNext()) {
                 items.getOrPut(c.lng(1)) { ArrayList() }
-                    .add(PlannedExercise(c.lng(2), c.int(3), sets[c.lng(0)].orEmpty(), c.int(4)))
+                    .add(PlannedExercise(c.lng(2), c.int(3), sets[c.lng(0)].orEmpty(), c.int(4), c.intOrNull(5), c.intOrNull(6)))
             }
         }
         val days = HashMap<Long, MutableList<RoutineDay>>()
@@ -214,11 +227,14 @@ object Routines {
             val itemId = w.insertOrThrow("routine_day_exercise", null, ContentValues().apply {
                 put("day_id", dayId); put("exercise_id", p.exerciseId); put("sort_order", i); put("fill", p.fill)
                 put("superset", p.superset)
+                if (p.restSeconds == null) putNull("rest_seconds") else put("rest_seconds", p.restSeconds)
+                if (p.restAfterSeconds == null) putNull("rest_after_seconds") else put("rest_after_seconds", p.restAfterSeconds)
             })
             p.sets.forEachIndexed { j, s ->
                 w.insertOrThrow("routine_day_set", null, ContentValues().apply {
                     put("item_id", itemId); put("sort_order", j); put("weight", s.weightKg); put("reps", s.reps)
                     put("distance", s.distance); put("duration", s.durationSec); put("set_type", s.setType)
+                    if (s.restSeconds == null) putNull("rest_seconds") else put("rest_seconds", s.restSeconds)
                 })
             }
         }
@@ -264,7 +280,8 @@ object Routines {
         val history = snap.setsByExercise[p.exerciseId].orEmpty()
         val lastDay = history.filter { it.date < date }.maxOfOrNull { it.date }
         val previous = if (lastDay == null) emptyList() else history.filter { it.date == lastDay }.map { it.toPlanned() }
-        if (p.fill == FILL_LAST) return previous
+        // Copied sets take the day's prescribed rest, not the rest they were logged with (#138).
+        if (p.fill == FILL_LAST) return previous.map { it.copy(restSeconds = null) }
         return p.sets.mapIndexed { i, s ->
             val before = previous.getOrNull(i) ?: previous.lastOrNull()
             if (before == null) s else s.copy(
@@ -278,9 +295,13 @@ object Routines {
     fun fromDate(snap: Snapshot, date: String, fill: Int): List<PlannedExercise> =
         snap.setsByDate[date].orEmpty()
             .groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }
-            .map { (exId, sets) -> PlannedExercise(exId, fill, sets.map { it.toPlanned() }, sets.maxOf { it.superset }) }
+            .map { (exId, sets) ->
+                // The logged workout's prescribed rest (#138) comes along when a date is saved as a workout day.
+                val rest = snap.workoutRests[date]?.get(exId)
+                PlannedExercise(exId, fill, sets.map { it.toPlanned() }, sets.maxOf { it.superset }, rest?.restSeconds, rest?.restAfterSeconds)
+            }
 
-    private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType)
+    private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType, restSeconds)
 
     /** How the sets read in lists, for example "3 sets · 100 kg · 5 reps". */
     fun describe(snap: Snapshot, sets: List<PlannedSet>, exerciseId: Long? = null): String {

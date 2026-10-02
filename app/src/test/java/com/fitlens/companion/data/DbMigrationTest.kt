@@ -126,7 +126,7 @@ class DbMigrationTest {
             assertEquals(Db.VERSION, db.version)
             listOf(
                 "workout_set", "exercise", "routine", "routine_day", "routine_day_exercise", "routine_day_set",
-                "workout_origin", "exercise_comment", "saved_workout"
+                "workout_origin", "exercise_comment", "saved_workout", "workout_rest"
             ).forEach { assertTrue("missing table $it", db.hasTable(it)) }
         }
     }
@@ -252,6 +252,41 @@ class DbMigrationTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE id=3 AND distance_unit='km' AND weight_unit IS NULL"))
             assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=3 AND weight=100.0"))
             assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Waist' AND unit='cm' AND display_unit IS NULL"))
+        }
+    }
+
+    @Test
+    fun v16GainsPrescribedRestAndKeepsWorkouts() {
+        // The workout-day tables exactly as v13 to v16 created them, before the rest columns (#138).
+        oldDatabase(
+            16,
+            v12Schema + listOf(
+                "CREATE TABLE routine_day_exercise(id INTEGER PRIMARY KEY AUTOINCREMENT, day_id INTEGER NOT NULL, " +
+                    "exercise_id INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, fill INTEGER NOT NULL DEFAULT 0, " +
+                    "superset INTEGER NOT NULL DEFAULT 0)",
+                "CREATE TABLE routine_day_set(id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, " +
+                    "sort_order INTEGER NOT NULL DEFAULT 0, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, " +
+                    "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0)",
+                Db.CREATE_EXERCISE_COMMENT,
+                "ALTER TABLE exercise ADD COLUMN distance_unit TEXT",
+                "ALTER TABLE exercise ADD COLUMN weight_unit TEXT"
+            )
+        ) { db ->
+            db.row("exercise", "id" to 1L, "name" to "Bench Press")
+            val r = db.row("routine", "name" to "Upper", "sort_order" to 0)
+            val d = db.row("routine_day", "routine_id" to r, "name" to "Push Day", "sort_order" to 0)
+            val item = db.row("routine_day_exercise", "day_id" to d, "exercise_id" to 1L, "sort_order" to 0, "fill" to 1)
+            db.row("routine_day_set", "item_id" to item, "sort_order" to 0, "weight" to 80.0, "reps" to 8)
+            db.row("workout_set", "exercise_id" to 1L, "date" to "2026-10-02", "weight" to 80.0, "reps" to 8)
+        }
+        Db(app).writableDatabase.use { db ->
+            assertEquals(Db.VERSION, db.version)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM routine_day_exercise WHERE rest_seconds IS NULL AND rest_after_seconds IS NULL"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM routine_day_set WHERE weight=80.0 AND rest_seconds IS NULL"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE weight=80.0 AND rest_seconds IS NULL"))
+            assertTrue(db.hasTable("workout_rest"))
+            db.row("workout_rest", "date" to "2026-10-02", "exercise_id" to 1L, "rest_seconds" to 90, "rest_after_seconds" to 120)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM workout_rest WHERE rest_after_seconds=120"))
         }
     }
 }

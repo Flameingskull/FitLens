@@ -133,7 +133,9 @@ data class SetRow(
     /** The superset (#18) its exercise belongs to on that day; 0 when it isn't in one. */
     val superset: Int = 0,
     /** Ticked off in "mark sets complete" mode (#19). */
-    val done: Boolean = false
+    val done: Boolean = false,
+    /** The rest prescribed after this set by the workout it was logged from (#138), or null for none. */
+    val restSeconds: Int? = null
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
     val isWarmup: Boolean get() = setType == SetTypes.WARMUP
@@ -497,4 +499,13 @@ object MeasureUnits {
         val to = display(r.unit, weightUnit, lengthUnit, override) ?: return r
         return if (to == r.unit) r else r.copy(unit = to, value = convert(r.value, r.unit, to))
     }
+}
+
+/**
+ * The rest a logged workout prescribes for one exercise on one date (#138), copied from the workout day when it was
+ * logged, so it still applies after the workout is edited: [restSeconds] between its sets (when a set has none of its
+ * own) and [restAfterSeconds] after its last set, before the next exercise. Null means not prescribed.
+ */
+data class WorkoutRest(val restSeconds: Int? = null, val restAfterSeconds: Int? = null) {
+    val isEmpty: Boolean get() = restSeconds == null && restAfterSeconds == null
 }

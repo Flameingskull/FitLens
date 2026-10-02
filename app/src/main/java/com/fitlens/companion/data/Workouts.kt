@@ -192,7 +192,9 @@ object Workouts {
         workoutId: Long = 0L,
         routineDayId: Long? = null,
         /** The workout's supersets (#18): exercise id to its group within the workout. */
-        groups: Map<Long, Int> = emptyMap()
+        groups: Map<Long, Int> = emptyMap(),
+        /** The rest the workout day prescribes per exercise (#138), kept on the date so later edits don't change it. */
+        rests: Map<Long, WorkoutRest> = emptyMap()
     ): List<Long> = write { w ->
         val d = checkDate(date)
         // The workout's groups become new groups on the day, after any the day already has.
@@ -210,8 +212,10 @@ object Workouts {
                 put("source", Sources.FITLENS); put("set_type", s.setType); putNull("rpe")
                 val g = groups[exId] ?: 0
                 if (g > 0) put("superset", g + offset)
+                if (s.restSeconds != null) put("rest_seconds", s.restSeconds)
             })
         }
+        rests.filterValues { !it.isEmpty }.forEach { (exId, r) -> putRest(w, d, exId, r) }
         replayPrs(w)
         ids
     }
@@ -223,6 +227,8 @@ object Workouts {
      */
     suspend fun swapExercise(date: String, from: Long, to: Long): List<Long> = write { w ->
         val d = checkDate(date)
+        // The prescribed rest (#138) belongs to the exercise's place in the workout, so it follows the swap.
+        w.execSQL("UPDATE OR REPLACE workout_rest SET exercise_id=? WHERE date=? AND exercise_id=?", arrayOf<Any>(to, d, from))
         if (from == to) return@write emptyList()
         w.longOrNull("SELECT id FROM exercise WHERE id=?", to.toString())
             ?: throw WorkoutDataException("That exercise no longer exists.")
@@ -404,6 +410,7 @@ object Workouts {
         w.delete("exercise_goal", "exercise_id=?", arrayOf(id.toString()))
         Routines.forgetExercise(w, id)
         w.delete("exercise_comment", "exercise_id=?", arrayOf(id.toString()))
+        w.delete("workout_rest", "exercise_id=?", arrayOf(id.toString()))
         w.delete("exercise", "id=?", arrayOf(id.toString()))
         w.execSQL("UPDATE import_rule SET target_id=NULL WHERE kind=? AND target_id=?", arrayOf<Any>(RULE_EXERCISE, id))
         if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)
@@ -434,6 +441,9 @@ object Workouts {
         w.update("exercise_goal", target, "exercise_id=?", fromArg)
         w.update("routine_day_exercise", target, "exercise_id=?", fromArg)
         mergeExerciseComments(w, fromId, intoId)
+        // Prescribed rests (#138) move too; on a date where both had one, the kept exercise's stays.
+        w.execSQL("UPDATE OR IGNORE workout_rest SET exercise_id=? WHERE exercise_id=?", arrayOf<Any>(intoId, fromId))
+        w.delete("workout_rest", "exercise_id=?", fromArg)
         w.update("exercise", ContentValues().apply {
             if (into.notes.isNullOrBlank() && !from.notes.isNullOrBlank()) put("notes", from.notes)
             if (from.favourite) put("favourite", 1)
@@ -605,6 +615,7 @@ object Workouts {
         }
         // Exercise comments belong to the exercise in that day's workout, so they go with its sets (#107).
         w.delete("exercise_comment", where.replace("substr(date, 1, 10)", "date"), args.toTypedArray())
+        w.delete("workout_rest", where.replace("substr(date, 1, 10)", "date"), args.toTypedArray())
         count
     }
 
@@ -655,6 +666,7 @@ object Workouts {
                 put("source", Sources.FITLENS); put("set_type", s.setType); putRpe(s.rpe)
                 // Back in its old place (#70), group (#18) and tick (#19); 0 lets the triggers decide.
                 put("position", s.position); put("superset", s.superset); put("done", if (s.done) 1 else 0)
+                if (s.restSeconds != null) put("rest_seconds", s.restSeconds)
             })
             // Deleting an imported set left one skip rule; the set is back, so drop one matching rule too (#76).
             if (s.imported) {
@@ -721,6 +733,17 @@ object Workouts {
         moving.forEach { (d, text) -> joinExerciseComment(w, d, intoId, text) }
     }
 
+    /** Stores the rest [r] prescribed for [exerciseId] on [d] (#138), or removes it when [r] is empty. */
+    private fun putRest(w: SQLiteDatabase, d: String, exerciseId: Long, r: WorkoutRest) {
+        w.delete("workout_rest", "date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
+        if (r.isEmpty) return
+        w.insertOrThrow("workout_rest", null, ContentValues().apply {
+            put("date", d); put("exercise_id", exerciseId)
+            if (r.restSeconds == null) putNull("rest_seconds") else put("rest_seconds", r.restSeconds)
+            if (r.restAfterSeconds == null) putNull("rest_after_seconds") else put("rest_after_seconds", r.restAfterSeconds)
+        })
+    }
+
     /** Adds [text] to exercise [exerciseId]'s comment on [d], after any comment already there. */
     private fun joinExerciseComment(w: SQLiteDatabase, d: String, exerciseId: Long, text: String) {
         val existing = w.rawQuery("SELECT comment FROM exercise_comment WHERE date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
@@ -777,6 +800,7 @@ object Workouts {
         }
         w.delete("workout_comment", "date=?", arrayOf(d))
         w.delete("exercise_comment", "date=?", arrayOf(d))
+        w.delete("workout_rest", "date=?", arrayOf(d))
         w.delete("workout_time", "date=?", arrayOf(d))
         w.delete("workout_origin", "date=?", arrayOf(d))
     }
@@ -798,7 +822,7 @@ object Workouts {
         // Supersets come across as new groups on the target day, after any it already has (#18).
         val offset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", t) ?: 0L).toInt()
         w.rawQuery(
-            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe, superset FROM workout_set WHERE $where ORDER BY position, id",
+            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe, superset, rest_seconds FROM workout_set WHERE $where ORDER BY position, id",
             arrayOf(f)
         ).use { c ->
             while (c.moveToNext()) {
@@ -808,6 +832,7 @@ object Workouts {
                     put("comment", c.str(5)); put("source", Sources.FITLENS)
                     put("set_type", c.int(6)); if (c.isNull(7)) putNull("rpe") else put("rpe", c.getDouble(7))
                     if (c.int(8) > 0) put("superset", c.int(8) + offset)
+                    if (!c.isNull(9)) put("rest_seconds", c.getInt(9))
                 })
             }
         }
@@ -819,6 +844,12 @@ object Workouts {
                 "INSERT OR IGNORE INTO exercise_comment(date, exercise_id, comment, source) " +
                     "SELECT ?, exercise_id, comment, ? FROM exercise_comment WHERE date=? AND exercise_id IN (${copied.joinToString(",")})",
                 arrayOf<Any>(t, Sources.FITLENS, f)
+            )
+            // So does their prescribed rest (#138), unless the target day already has its own.
+            w.execSQL(
+                "INSERT OR IGNORE INTO workout_rest(date, exercise_id, rest_seconds, rest_after_seconds) " +
+                    "SELECT ?, exercise_id, rest_seconds, rest_after_seconds FROM workout_rest WHERE date=? AND exercise_id IN (${copied.joinToString(",")})",
+                arrayOf<Any>(t, f)
             )
         }
         ids
@@ -882,6 +913,9 @@ object Workouts {
         w.execSQL("UPDATE OR REPLACE workout_origin SET date=? WHERE date=?", arrayOf<Any>(t, f))
         val values = ContentValues().apply { put("date", t); put("source", Sources.FITLENS) }
         w.update("workout_set", values, "date=?", arrayOf(f))
+        // Prescribed rests (#138) move with their sets; the target day's own win where both have one.
+        w.execSQL("UPDATE OR IGNORE workout_rest SET date=? WHERE date=?", arrayOf<Any>(t, f))
+        w.delete("workout_rest", "date=?", arrayOf(f))
         // Exercise comments move too; one landing on an exercise that already has a comment there is joined (#107).
         val movingComments = w.rawQuery("SELECT exercise_id, comment FROM exercise_comment WHERE date=?", arrayOf(f))
             .use { c -> ArrayList<Pair<Long, String>>().apply { while (c.moveToNext()) add(c.lng(0) to c.strOr(1)) } }

@@ -398,6 +398,10 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                            // Its prescribed rest (#138), "Rest 90 s · then 2 min".
+                            restSummary(p)?.let { rest ->
+                                Text(rest, style = MaterialTheme.typography.bodySmall, color = Brand.Gold, maxLines = 1)
+                            }
                         }
                     }
                 }

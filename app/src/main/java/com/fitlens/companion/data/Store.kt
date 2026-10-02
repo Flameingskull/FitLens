@@ -66,7 +66,9 @@ class SetPart internal constructor(val sets: List<SetRow>, val countWarmups: Boo
 class NotesPart internal constructor(
     val workoutComments: Map<String, List<String>>,
     val workoutTimes: Map<String, List<WorkoutTime>>,
-    val exerciseComments: Map<String, Map<Long, String>>
+    val exerciseComments: Map<String, Map<Long, String>>,
+    /** Prescribed rest (#138): date to exercise id to the rest its workout day prescribed. */
+    val workoutRests: Map<String, Map<Long, WorkoutRest>> = emptyMap()
 )
 
 /**
@@ -196,6 +198,8 @@ class Snapshot internal constructor(
     val workoutTimes: Map<String, List<WorkoutTime>> get() = notes.workoutTimes
     /** Exercise comments (#107): date to exercise id to its comment in that day's workout. */
     val exerciseComments: Map<String, Map<Long, String>> get() = notes.exerciseComments
+    /** Prescribed rest on logged dates (#138): date to exercise id to its [WorkoutRest]. */
+    val workoutRests: Map<String, Map<Long, WorkoutRest>> get() = notes.workoutRests
 
     val measurementDefs: List<MeasurementDef> get() = body.measurementDefs
     val records: List<MRecord> get() = body.records
@@ -376,14 +380,15 @@ object Store {
     private fun loadSets(r: SQLiteDatabase, where: String?, args: Array<String>): List<SetRow> {
         val sets = ArrayList<SetRow>()
         r.rawQuery(
-            "SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done " +
+            "SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done, rest_seconds " +
                 "FROM workout_set " + (if (where != null) "WHERE $where " else "") + "ORDER BY date, position, id",
             args
         ).use { c ->
             while (c.moveToNext()) sets.add(
                 SetRow(
                     c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8),
-                    c.strOr(9, Sources.FITLENS), c.int(10), if (c.isNull(11)) null else c.getDouble(11), c.lng(12), c.int(13), c.int(14) != 0
+                    c.strOr(9, Sources.FITLENS), c.int(10), if (c.isNull(11)) null else c.getDouble(11), c.lng(12), c.int(13), c.int(14) != 0,
+                    if (c.isNull(15)) null else c.getInt(15)
                 )
             )
         }
@@ -410,7 +415,14 @@ object Store {
         r.rawQuery("SELECT date, exercise_id, comment FROM exercise_comment", null).use { c ->
             while (c.moveToNext()) exerciseComments.getOrPut(c.strOr(0)) { HashMap() }[c.lng(1)] = c.strOr(2)
         }
-        return NotesPart(comments, times, exerciseComments)
+        val rests = HashMap<String, HashMap<Long, WorkoutRest>>()
+        r.rawQuery("SELECT date, exercise_id, rest_seconds, rest_after_seconds FROM workout_rest", null).use { c ->
+            while (c.moveToNext()) {
+                val rest = WorkoutRest(if (c.isNull(2)) null else c.getInt(2), if (c.isNull(3)) null else c.getInt(3))
+                if (!rest.isEmpty) rests.getOrPut(c.strOr(0)) { HashMap() }[c.lng(1)] = rest
+            }
+        }
+        return NotesPart(comments, times, exerciseComments, rests)
     }
 
     private fun loadBody(r: SQLiteDatabase, weightUnit: String): BodyPart {

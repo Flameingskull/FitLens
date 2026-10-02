@@ -125,11 +125,32 @@ private fun parseDuration(s: String): Int {
 }
 
 /**
+ * The rest after a set (#138), first match wins: the set's own prescribed rest, the rest its logged workout prescribes
+ * for the exercise, the exercise's own rest (#15), then the global one. After the exercise's [last] set, the workout's
+ * rest before the next exercise comes first, when it has one.
+ */
+internal fun restFor(snap: Snapshot, date: String, exerciseId: Long, setId: Long? = null, last: Boolean = false): Int {
+    val planned = snap.workoutRests[date.take(10)]?.get(exerciseId)
+    if (last) planned?.restAfterSeconds?.let { return it }
+    val own = setId?.let { id -> snap.setsByExercise[exerciseId]?.firstOrNull { it.id == id }?.restSeconds }
+    return own ?: planned?.restSeconds ?: snap.exercises[exerciseId]?.restSeconds ?: Settings.currentPortable().restSeconds
+}
+
+/**
  * Starts the rest timer after a set, when Settings → Rest timer starts it automatically (#20, #129): on saving a set,
  * and on ticking one off as done. In a superset only the round's last exercise starts it (#18). A tick straight after
- * saving the same set doesn't restart a rest that began moments ago. The exercise's own rest length comes first (#15).
+ * saving the same set doesn't restart a rest that began moments ago. The length comes from [restFor] (#138): ticking
+ * the exercise's [last] set uses the workout's rest before the next exercise, which keeps counting as it opens.
  */
-internal fun startRestAfterSet(context: android.content.Context, snap: Snapshot, date: String, exerciseId: Long, fromSave: Boolean = false) {
+internal fun startRestAfterSet(
+    context: android.content.Context,
+    snap: Snapshot,
+    date: String,
+    exerciseId: Long,
+    fromSave: Boolean = false,
+    setId: Long? = null,
+    last: Boolean = false
+) {
     val p = Settings.currentPortable()
     if (!p.restAutoStart) return
     if (!fromSave) {
@@ -139,7 +160,7 @@ internal fun startRestAfterSet(context: android.content.Context, snap: Snapshot,
         val startedAt = st.endAt - st.total * 1000L
         if (st.active && !st.paused && System.currentTimeMillis() - startedAt < 20_000L) return
     }
-    RestTimer.start(context, snap.exercises[exerciseId]?.restSeconds ?: p.restSeconds)
+    RestTimer.start(context, restFor(snap, date, exerciseId, setId, last))
 }
 
 /** How long the screen waits after an exercise's last set is ticked before moving on (#136, owner: about 1.5 s). */
@@ -607,7 +628,10 @@ fun SetEntryScreen(
                         // started it. Ticking the last set moves on by itself (#136).
                         done = s.done,
                         onDoneChange = { on ->
-                            if (on) startRestAfterSet(appContext, snap, date, exerciseId)
+                            if (on) startRestAfterSet(
+                                appContext, snap, date, exerciseId,
+                                setId = s.id, last = sets.all { it.id == s.id || it.done }
+                            )
                             AppScope.scope.launch {
                                 Workouts.setDone(s.id, on)
                                 if (on && sets.all { it.id == s.id || it.done }) {

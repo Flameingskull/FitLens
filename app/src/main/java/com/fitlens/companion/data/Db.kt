@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 16
+        const val VERSION = 17
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -36,6 +36,14 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
         const val CREATE_EXERCISE_COMMENT =
             "CREATE TABLE exercise_comment(id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, exercise_id INTEGER NOT NULL, " +
                 "comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens', UNIQUE(date, exercise_id))"
+
+        /**
+         * Prescribed rest on a logged date (#138): one row per exercise, copied from the workout day it was logged
+         * from. FitLens's own; FitNotes imports never write it.
+         */
+        const val CREATE_WORKOUT_REST =
+            "CREATE TABLE workout_rest(date TEXT NOT NULL, exercise_id INTEGER NOT NULL, rest_seconds INTEGER, " +
+                "rest_after_seconds INTEGER, PRIMARY KEY(date, exercise_id))"
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -89,7 +97,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1, rest_seconds INTEGER, distance_unit TEXT, weight_unit TEXT)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
-                "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0)",
+                "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, rest_seconds INTEGER)",
             CREATE_POSITION_TRIGGER,
             CREATE_SUPERSET_TRIGGER,
             "CREATE INDEX idx_set_date ON workout_set(date)",
@@ -100,6 +108,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE INDEX idx_mr_date ON mrecord(date)",
             CREATE_COMMENT,
             CREATE_EXERCISE_COMMENT,
+            CREATE_WORKOUT_REST,
             CREATE_TIME,
             CREATE_IMPORT_RULE,
             CREATE_GOAL,
@@ -249,6 +258,20 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // only choose how they're shown. The step replays safely (#77).
             addColumn(db, "exercise", "weight_unit", "TEXT")
             if (hasTable(db, "measurement")) addColumn(db, "measurement", "display_unit", "TEXT")
+        }
+        if (oldVersion < 17) {
+            // ---- 1.0.73: prescribed rest (#138) --------------------------------------------------------------------
+            // A rest per planned set, per planned exercise and after it, the rest copied onto logged sets, and one
+            // table for a logged date's exercise rests. All NULL means none, so every workout and set keeps today's
+            // behaviour. The workout-day tables exist from v13 on (Routines.migrateSavedWorkouts); the step replays
+            // safely (#77).
+            addColumn(db, "workout_set", "rest_seconds", "INTEGER")
+            if (hasTable(db, "routine_day_exercise")) {
+                addColumn(db, "routine_day_exercise", "rest_seconds", "INTEGER")
+                addColumn(db, "routine_day_exercise", "rest_after_seconds", "INTEGER")
+            }
+            if (hasTable(db, "routine_day_set")) addColumn(db, "routine_day_set", "rest_seconds", "INTEGER")
+            db.execSQL(CREATE_WORKOUT_REST.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
         }
     }
 

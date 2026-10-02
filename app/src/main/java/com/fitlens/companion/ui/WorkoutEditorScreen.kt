@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +60,7 @@ import com.fitlens.companion.ui.design.GoldButton
 import com.fitlens.companion.ui.design.ListRowWithMenu
 import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.SearchablePicker
+import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.SegmentedSwitch
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.raisedGlass
@@ -95,6 +97,8 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
     var swapping by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     var renaming by remember { mutableStateOf<Long?>(null) }
     var copying by remember { mutableStateOf<Long?>(null) }
+    // The day whose "Set rest for every exercise" sheet is open (#138).
+    var restingDay by remember { mutableStateOf<Long?>(null) }
     var confirmLeave by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -175,6 +179,7 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                         onMoveUp = if (di > 0) ({ days.add(di - 1, days.removeAt(di)) }) else null,
                         onMoveDown = if (di < days.lastIndex) ({ days.add(di + 1, days.removeAt(di)) }) else null,
                         onCopy = { copying = day.key },
+                        onRest = { restingDay = day.key },
                         onDelete = { days.removeAt(di) },
                         onSets = { editingSets = day.key to it },
                         onSwap = { swapping = day.key to it },
@@ -262,6 +267,19 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             )
         }
     }
+    val restDay = restingDay?.let { dayKey -> days.firstOrNull { it.key == dayKey } }
+    if (restDay != null) {
+        val day: DayDraft = restDay
+        DayRestSheet(day.name.ifBlank { "this day" }, onDismiss = { restingDay = null }) { rest, after ->
+            // One rest for every exercise of the day (#138): it replaces each exercise's and each set's own.
+            updateDay(day.key) { d ->
+                d.copy(slots = d.slots.map { s ->
+                    s.copy(planned = s.planned.copy(restSeconds = rest, restAfterSeconds = after, sets = s.planned.sets.map { it.copy(restSeconds = null) }))
+                })
+            }
+            restingDay = null
+        }
+    }
     val copyDay = copying?.let { dayKey -> days.firstOrNull { it.key == dayKey } }
     if (copyDay != null) {
         val day: DayDraft = copyDay
@@ -328,6 +346,7 @@ private fun DayCard(
     onMoveUp: (() -> Unit)?,
     onMoveDown: (() -> Unit)?,
     onCopy: () -> Unit,
+    onRest: () -> Unit,
     onDelete: () -> Unit,
     onSets: (Long) -> Unit,
     onSwap: (Long) -> Unit,
@@ -353,6 +372,7 @@ private fun DayCard(
                         onMoveUp?.let { MenuAction("Move up", onClick = it) },
                         onMoveDown?.let { MenuAction("Move down", onClick = it) },
                         if (canCopy && slots.isNotEmpty()) MenuAction("Copy to another workout", onClick = onCopy) else null,
+                        if (slots.isNotEmpty()) MenuAction("Set rest for every exercise", onClick = onRest) else null,
                         MenuAction("Delete day", onClick = onDelete)
                     ).forEach { a ->
                         DropdownMenuItem(text = { Text(a.label) }, onClick = { menu = false; a.onClick() })
@@ -374,7 +394,9 @@ private fun DayCard(
             ListRowWithMenu(
                 title = snap.exercises[slot.planned.exerciseId]?.name ?: "Exercise",
                 subtitle = planSummary(snap, slot.planned) +
-                    if (slot.planned.superset > 0) "  ·  Superset ${'A' + groups.indexOf(slot.planned.superset)}" else "",
+                    (if (slot.planned.superset > 0) "  ·  Superset ${'A' + groups.indexOf(slot.planned.superset)}" else "") +
+                    // Its prescribed rest on a line of its own, "Rest 90 s · then 2 min" (#138).
+                    (restSummary(slot.planned)?.let { "\n$it" } ?: ""),
                 leading = { Dot(categoryColour(snap.categoryOf(slot.planned.exerciseId)?.colour ?: 0), Spacing.md) },
                 onClick = { onSets(slot.key) },
                 menu = listOf(
@@ -405,14 +427,39 @@ private fun DayCard(
     }
 }
 
-/** How an exercise's sets read in the editor and on the library's day cards. */
-fun planSummary(snap: Snapshot, p: PlannedExercise): String = when (p.fill) {
-    Routines.FILL_NONE -> "No sets: log them as you go"
-    Routines.FILL_PLANNED -> Routines.describe(snap, p.sets.filter { !it.isEmpty }, p.exerciseId)
-    else -> {
-        val last = Routines.resolve(snap, p, "9999-12-31")
-        if (last.isEmpty()) "Copy previous sets · not logged yet" else "Copy previous sets · ${Routines.describe(snap, last, p.exerciseId)}"
+/** How an exercise's sets read in the editor and on the library's day cards. Its rest is [restSummary] (#138). */
+fun planSummary(snap: Snapshot, p: PlannedExercise): String {
+    return when (p.fill) {
+        Routines.FILL_NONE -> "No sets: log them as you go"
+        Routines.FILL_PLANNED -> Routines.describe(snap, p.sets.filter { !it.isEmpty }, p.exerciseId)
+        else -> {
+            val last = Routines.resolve(snap, p, "9999-12-31")
+            if (last.isEmpty()) "Copy previous sets · not logged yet" else "Copy previous sets · ${Routines.describe(snap, last, p.exerciseId)}"
+        }
     }
+}
+
+/** A rest length as the editor shows it: "90 s", "2 min", "2 min 30 s" (#138). */
+fun restLabel(seconds: Int): String = when {
+    seconds < 60 -> "$seconds s"
+    seconds % 60 == 0 -> "${seconds / 60} min"
+    else -> "${seconds / 60} min ${seconds % 60} s"
+}
+
+/**
+ * An exercise's prescribed rest in one line (#138), "Rest 90 s · then 2 min": the rest between its sets (one length,
+ * or "varies" when its sets each have their own), then the rest before the next exercise. Null when none is set.
+ */
+fun restSummary(p: PlannedExercise): String? {
+    val setRests = if (p.fill == Routines.FILL_PLANNED) p.sets.mapNotNull { it.restSeconds }.distinct() else emptyList()
+    val between = when {
+        setRests.size > 1 -> "Rest varies"
+        setRests.size == 1 -> "Rest ${restLabel(setRests[0])}"
+        p.restSeconds != null -> "Rest ${restLabel(p.restSeconds)}"
+        else -> null
+    }
+    val after = p.restAfterSeconds?.let { "then ${restLabel(it)}" }
+    return listOfNotNull(between, after).joinToString(" · ").ifEmpty { null }
 }
 
 // ---------------------------------------------------------------------------------------------------------
@@ -420,7 +467,15 @@ fun planSummary(snap: Snapshot, p: PlannedExercise): String = when (p.fill) {
 // ---------------------------------------------------------------------------------------------------------
 
 /** A prescribed set as the user types it, in their own units. */
-private data class SetDraft(val weight: String = "", val reps: String = "", val distance: String = "", val time: String = "", val type: Int = SetTypes.WORKING)
+private data class SetDraft(
+    val weight: String = "",
+    val reps: String = "",
+    val distance: String = "",
+    val time: String = "",
+    val type: Int = SetTypes.WORKING,
+    /** The rest after this set in seconds, or m:ss; blank for none of its own (#138). */
+    val rest: String = ""
+)
 
 private fun num(s: String): Double = s.trim().replace(',', '.').toDoubleOrNull() ?: 0.0
 
@@ -439,6 +494,10 @@ private fun seconds(s: String): Int {
  * Chooses how an exercise's sets are filled when its day is logged, as FitNotes asks (#106): **Copy previous sets**,
  * **Use predefined sets** (a list of sets; a blank weight or reps copies it from last time), or **Don't populate any
  * sets**. The fields follow the exercise's type, as on the Track tab.
+ *
+ * Below them, its prescribed rest (#138): one rest for every set ("Same rest for every set", the only choice unless
+ * its sets are predefined) or a rest per set, and the rest before the next exercise. "Default" leaves either one
+ * unset, so the exercise's own rest and then the global one apply.
  */
 @Composable
 private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss: () -> Unit, onDone: (PlannedExercise) -> Unit) {
@@ -458,13 +517,20 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                         reps = s.reps.takeIf { it > 0 }?.toString() ?: "",
                         distance = s.distance.takeIf { it > 0 }?.let { fmtNum(it, 2) } ?: "",
                         time = s.durationSec.takeIf { it > 0 }?.let { fmtDuration(it) } ?: "",
-                        type = s.setType
+                        type = s.setType,
+                        rest = s.restSeconds?.toString() ?: ""
                     )
                 )
             }
         }
     }
     val modes = listOf(Routines.FILL_LAST, Routines.FILL_PLANNED, Routines.FILL_NONE)
+    // Prescribed rest (#138). Per-set rests only exist for predefined sets.
+    var sameRest by remember { mutableStateOf(planned.sets.none { it.restSeconds != null }) }
+    var rest by remember { mutableStateOf(planned.restSeconds) }
+    var restAfter by remember { mutableStateOf(planned.restAfterSeconds) }
+    val fallbackRest = ex?.restSeconds ?: Settings.currentPortable().restSeconds
+    val perSet = fill == Routines.FILL_PLANNED && !sameRest
 
     FitSheet(
         title = ex?.name ?: "Sets",
@@ -473,9 +539,19 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
         onConfirm = {
             // Set type rides along with each row; a row counts when it has any value.
             val sets = rows.map {
-                PlannedSet(snap.toKg(num(it.weight), planned.exerciseId), it.reps.trim().toIntOrNull() ?: 0, num(it.distance), seconds(it.time), it.type)
+                PlannedSet(
+                    snap.toKg(num(it.weight), planned.exerciseId), it.reps.trim().toIntOrNull() ?: 0, num(it.distance), seconds(it.time), it.type,
+                    restSeconds = if (perSet) seconds(it.rest).takeIf { r -> r in REST_MIN..REST_MAX } else null
+                )
             }.filter { !it.isEmpty }
-            onDone(planned.copy(fill = fill, sets = if (fill == Routines.FILL_PLANNED) sets else planned.sets))
+            onDone(
+                planned.copy(
+                    fill = fill,
+                    sets = if (fill == Routines.FILL_PLANNED) sets else planned.sets.map { it.copy(restSeconds = null) },
+                    restSeconds = if (perSet) null else rest,
+                    restAfterSeconds = restAfter
+                )
+            )
         }
     ) {
         SegmentedSwitch(
@@ -516,6 +592,9 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                         if (ExerciseTypes.usesDuration(type)) {
                             SmallField(r.time, "m:ss", KeyboardType.Text, Modifier.weight(1f)) { rows[i] = r.copy(time = it) }
                         }
+                        if (perSet) {
+                            SmallField(r.rest, "rest s", KeyboardType.Number, Modifier.weight(1f)) { rows[i] = r.copy(rest = it.filter { c -> c.isDigit() || c == ':' }) }
+                        }
                         IconButton(onClick = { rows.removeAt(i) }, enabled = rows.size > 1) {
                             Icon(Icons.Filled.Close, contentDescription = "Remove set ${i + 1}")
                         }
@@ -527,6 +606,72 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                 ) { Text("Add set") }
             }
         }
+        SectionLabel("Rest", Modifier.padding(top = Spacing.md))
+        if (fill == Routines.FILL_PLANNED) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Same rest for every set", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = sameRest, onCheckedChange = { sameRest = it })
+            }
+        }
+        if (perSet) {
+            Text(
+                "Each set's rest is in the rest column above. A blank one uses ${restLabel(fallbackRest)}, this exercise's usual rest.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            RestLengthStepper(
+                seconds = rest ?: fallbackRest,
+                onChange = { rest = it },
+                label = "Between sets (seconds)",
+                isDefault = rest == null,
+                onDefault = { rest = null }
+            )
+        }
+        RestLengthStepper(
+            seconds = restAfter ?: rest ?: fallbackRest,
+            onChange = { restAfter = it },
+            label = "Before the next exercise (seconds)",
+            isDefault = restAfter == null,
+            onDefault = { restAfter = null }
+        )
+    }
+}
+
+/**
+ * "Set rest for every exercise" on a day's menu (#138): one rest between sets and one before the next exercise, for
+ * every exercise of the day. "Default" leaves either unset.
+ */
+@Composable
+private fun DayRestSheet(dayName: String, onDismiss: () -> Unit, onDone: (Int?, Int?) -> Unit) {
+    val fallback = Settings.currentPortable().restSeconds
+    var rest by remember { mutableStateOf<Int?>(null) }
+    var after by remember { mutableStateOf<Int?>(null) }
+    FitSheet(
+        title = "Rest for $dayName",
+        onDismiss = onDismiss,
+        confirmLabel = "Set for every exercise",
+        onConfirm = { onDone(rest, after) }
+    ) {
+        Text(
+            "Replaces the rest set on each exercise and set of this day. Default uses each exercise's usual rest.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        RestLengthStepper(
+            seconds = rest ?: fallback,
+            onChange = { rest = it },
+            label = "Between sets (seconds)",
+            isDefault = rest == null,
+            onDefault = { rest = null }
+        )
+        RestLengthStepper(
+            seconds = after ?: rest ?: fallback,
+            onChange = { after = it },
+            label = "Before the next exercise (seconds)",
+            isDefault = after == null,
+            onDefault = { after = null }
+        )
     }
 }
 
