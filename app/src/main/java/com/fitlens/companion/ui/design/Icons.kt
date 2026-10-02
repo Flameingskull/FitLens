@@ -30,6 +30,13 @@ object FitIcons {
         "M20,2H4c-1.1,0 -2,0.9 -2,2v18l4,-4h14c1.1,0 2,-0.9 2,-2V4c0,-1.1 -0.9,-2 -2,-2zM20,16H6l-2,2V4h16v12z"
     )
 
+    /** Copy previous workout, as FitNotes draws it on an empty day. */
+    val Copy: ImageVector = icon(
+        "FitLens.Copy",
+        "M16,1H4C2.9,1 2,1.9 2,3v14h2V3h12V1z" +
+            "M19,5H8C6.9,5 6,5.9 6,7v14c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7C21,5.9 20.1,5 19,5zM19,21H8V7h11V21z"
+    )
+
     /** The rest timer (#109): an alarm clock, where the bell read as notifications. */
     val Alarm: ImageVector = icon(
         "FitLens.Alarm",

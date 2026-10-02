@@ -11,7 +11,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -35,10 +38,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +60,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -76,6 +82,7 @@ import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
 import com.fitlens.companion.ui.design.DayNavigator
 import com.fitlens.companion.ui.design.ExerciseCard
+import com.fitlens.companion.ui.design.FitIcons
 import com.fitlens.companion.ui.design.SetCommentSheet
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.MenuAction
@@ -142,7 +149,8 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             ),
             // A running rest stays in view after going back to the day (#109).
             trailing = { RestTimerButton(onOpen = { restSheet = true }, onlyWhileRunning = true) },
-            overflow = listOf(
+            overflow = listOfNotNull(
+                if (date != Dates.today()) MenuAction("Go to today") { go(Dates.today()) } else null,
                 MenuAction("Add workout") { addWorkout = true },
                 MenuAction("Replace this workout", enabled = sets.isNotEmpty()) { replaceWorkout = true },
                 MenuAction("Save as a workout day", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
@@ -169,12 +177,6 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
             onPickDate = { d -> go(d) },
             onToday = { go(Dates.today()) }
         )
-        if (date != Dates.today()) {
-            TextButton(
-                onClick = { go(Dates.today()) },
-                modifier = Modifier.align(Alignment.CenterHorizontally).heightIn(min = Spacing.touch)
-            ) { Text("BACK TO TODAY", style = MaterialTheme.typography.labelMedium) }
-        }
         // A horizontal swipe anywhere on the page steps a day (#8). Vertical scrolling and the photo strip's own
         // horizontal scroll consume their drags first, so they are never mistaken for a swipe.
         Box(
@@ -260,20 +262,49 @@ private fun DayContent(
     }
     val letters = remember(sets) { supersetLetters(snap, date) }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = Spacing.xl)) {
-        if (photos.isNotEmpty()) {
-            item(key = "photos") { PhotoStrip(snap, nav, photos, onAddPhoto) }
-        }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = Spacing.sm, bottom = Spacing.xl)) {
+        // As in FitNotes: the day's body values in one card at the top.
         if (records.isNotEmpty()) {
             item(key = "body") {
                 BodyValuesCard(
                     snap = snap,
                     records = records.sortedWith(compareBy({ defOrder(snap, it.name) }, { it.time })),
-                    onOpen = { nav.push(Screen.Body) },
+                    onOpen = { r -> nav.push(Screen.BodyMeasurement(r.name)) },
                     onDelete = { deleteRecord = it }
                 )
             }
         }
+        // The day's progress photos (a FitLens extra).
+        if (photos.isNotEmpty()) {
+            item(key = "photos") { PhotoStrip(snap, nav, photos, onAddPhoto) }
+        }
+        if (sets.isEmpty()) {
+            item(key = "empty") {
+                EmptyDay(
+                    showEmptyText = records.isEmpty() && photos.isEmpty(),
+                    modifier = Modifier.fillParentMaxHeight(if (records.isEmpty() && photos.isEmpty()) 0.9f else 0.6f),
+                    onAddWorkout = onAddWorkout,
+                    onAddExercise = onAddExercise,
+                    onCopyPrevious = onCopyPrevious
+                )
+            }
+        }
+        byExercise.forEach { (exId, exSets) ->
+            item(key = "e$exId") {
+                val group = exSets.maxOf { it.superset }
+                val firstOfGroup = group > 0 && byExercise.firstOrNull { (_, s) -> s.maxOf { it.superset } == group }?.first == exId
+                if (firstOfGroup) {
+                    Text(
+                        "SUPERSET ${letters[group] ?: ""}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Brand.Gold,
+                        modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm)
+                    )
+                }
+                ExerciseOnDay(snap, nav, date, exId, exSets, showCategories, setsShown)
+            }
+        }
+        // The workout's time, totals and comment, under the exercises so the day reads as FitNotes's does.
         if (sets.isNotEmpty() || comments.isNotEmpty() || WorkoutClock.running(snap, date) != null) {
             item(key = "summary") {
                 val times = snap.workoutTimes[date]
@@ -311,24 +342,6 @@ private fun DayContent(
                         }
                     }
                 }
-            }
-        }
-        if (sets.isEmpty()) {
-            item(key = "empty") { EmptyDay(onAddWorkout, onAddExercise, onCopyPrevious) }
-        }
-        byExercise.forEach { (exId, exSets) ->
-            item(key = "e$exId") {
-                val group = exSets.maxOf { it.superset }
-                val firstOfGroup = group > 0 && byExercise.firstOrNull { (_, s) -> s.maxOf { it.superset } == group }?.first == exId
-                if (firstOfGroup) {
-                    Text(
-                        "SUPERSET ${letters[group] ?: ""}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Brand.Gold,
-                        modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm)
-                    )
-                }
-                ExerciseOnDay(snap, nav, date, exId, exSets, showCategories, setsShown)
             }
         }
     }
@@ -374,45 +387,56 @@ private fun PhotoStrip(snap: Snapshot, nav: Nav, photos: List<Photo>, onAddPhoto
     }
 }
 
-/** The body values logged on the day, one row per measurement with its value on the right (#81). */
+/**
+ * The body values logged on the day, as FitNotes shows them (owner, 2026-10-02): one card, a row per measurement with
+ * its name on the left and its value and unit on the right, hairlines between. The change since the value before sits
+ * small under the value (#120). Tapping a row opens that measurement; a value added in FitLens can be deleted with a
+ * long press.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: () -> Unit, onDelete: (MRecord) -> Unit) {
+private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRecord) -> Unit, onDelete: (MRecord) -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.md, vertical = Spacing.xs)
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
             .background(Brand.Surface, FitShapes.card)
             .border(1.dp, Brand.Hairline, FitShapes.card)
-            .clickable(onClickLabel = "Open the body tracker", onClick = onOpen)
-            .padding(vertical = Spacing.xs)
     ) {
-        Text(
-            "BODY",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = Spacing.md, top = Spacing.xs)
-        )
-        records.forEach { r ->
+        records.forEachIndexed { i, r ->
             val prev = remember(snap, r.id) { snap.recordsByName[r.name]?.lastOrNull { it.date < r.date } }
-            val change = prev?.let { changeText(it, r) }
             val def = snap.allMeasurements.firstOrNull { it.name == r.name }
+            val change = prev?.let { changeText(it, r) }
+            if (i > 0) HorizontalDivider(color = Brand.Hairline)
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .heightIn(min = Spacing.touch)
-                    .padding(start = Spacing.md, end = if (r.source == "manual") 0.dp else Spacing.md),
+                    .heightIn(min = Spacing.row)
+                    .combinedClickable(
+                        onClickLabel = "Open ${r.name}",
+                        onClick = { onOpen(r) },
+                        onLongClickLabel = if (r.source == "manual") "Delete this value" else null,
+                        onLongClick = if (r.source == "manual") ({ onDelete(r) }) else null
+                    )
+                    .semantics(mergeDescendants = true) {}
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f).semantics(mergeDescendants = true) {}) {
-                    Text(r.name, style = MaterialTheme.typography.bodyLarge)
-                    Text("${fmtNum(r.value)} ${r.unit}", style = MaterialTheme.typography.titleMedium)
-                    if (change != null) {
-                        Text(change, style = MaterialTheme.typography.bodySmall, color = changeColour(def, prev!!.value, r.value))
+                Text(r.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(fmtNum(r.value), style = MaterialTheme.typography.titleMedium)
+                        if (r.unit.isNotBlank()) {
+                            Text(
+                                " ${r.unit}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
                     }
-                }
-                if (r.source == "manual") {
-                    IconButton(onClick = { onDelete(r) }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Delete ${r.name} measurement")
+                    if (change != null && prev != null) {
+                        Text(change, style = MaterialTheme.typography.labelSmall, color = changeColour(def, prev.value, r.value))
                     }
                 }
             }
@@ -421,35 +445,49 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: () ->
 }
 
 /**
- * The empty day (#81): a quiet message and the ways to start. Adding one exercise is never labelled as starting a
- * workout: a workout is a group of exercises (owner decision on #79), so "Add workout" adds a saved one (#100).
+ * The empty day, laid out as FitNotes's (owner, 2026-10-02): "Workout log empty" when the day has nothing at all, and
+ * the ways to start as gold icons over their labels, towards the bottom of the screen. Adding one exercise is never
+ * labelled as starting a workout: a workout is a group of exercises (owner decision on #79), so "Add workout" adds a
+ * saved one (#100).
  */
 @Composable
-private fun EmptyDay(onAddWorkout: () -> Unit, onAddExercise: () -> Unit, onCopyPrevious: () -> Unit) {
+private fun EmptyDay(
+    showEmptyText: Boolean,
+    modifier: Modifier = Modifier,
+    onAddWorkout: () -> Unit,
+    onAddExercise: () -> Unit,
+    onCopyPrevious: () -> Unit
+) {
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = Spacing.xl, vertical = Spacing.xxl),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.md)
+        modifier.fillMaxWidth().padding(horizontal = Spacing.xl),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("No workout logged", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
-        Text(
-            "Add a saved workout, add exercises one at a time, or copy a workout you've logged before.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(Spacing.sm))
-        GoldButton(onClick = onAddWorkout, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Spacer(Modifier.width(Spacing.sm))
-            Text("Add workout")
+        Spacer(Modifier.weight(1f))
+        if (showEmptyText) {
+            Text("Workout log empty", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         }
-        GlassOutlinedButton(onClick = onAddExercise, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
-            Text("Add exercise")
-        }
-        GlassOutlinedButton(onClick = onCopyPrevious, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)) {
-            Text("Copy previous workout")
-        }
+        Spacer(Modifier.weight(1f))
+        EmptyDayAction(Icons.Filled.Add, "Add exercise", onAddExercise)
+        EmptyDayAction(Icons.Filled.List, "Add workout", onAddWorkout)
+        EmptyDayAction(FitIcons.Copy, "Copy previous workout", onCopyPrevious)
+        Spacer(Modifier.height(Spacing.lg))
+    }
+}
+
+/** One of the empty day's actions: a gold icon over its label, as FitNotes draws them. */
+@Composable
+private fun EmptyDayAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(FitShapes.row)
+            .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {}
+            .padding(vertical = Spacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(icon, contentDescription = null, tint = Brand.Gold, modifier = Modifier.size(36.dp))
+        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = Spacing.xs))
     }
 }
 
@@ -478,13 +516,15 @@ private fun ExerciseOnDay(
     // Each value in its own labelled column (#101), chosen by the exercise type.
     val fields = setFields(snap, exId, exSets)
     // A superset's exercises share a gold bar, as FitNotes colours its groups (#18).
-    val colour = if (group > 0) Brand.Gold else if (showCategories) categoryColour(snap.categoryOf(exId)?.colour ?: 0) else Brand.Hairline
+    val colour = if (group > 0) Brand.Gold else if (showCategories) categoryColour(snap.categoryOf(exId)?.colour ?: 0) else Brand.Gold
     ExerciseCard(
         name = name,
         categoryColor = colour,
         onClick = { nav.push(Screen.SetEntry(date, exId)) },
         // The exercise's comment in this workout sits under its sets (#107).
         comment = exerciseComment,
+        // FitNotes ticks the exercise once all its sets are done ("Mark sets complete", #19).
+        done = markComplete && exSets.all { it.done },
         menu = listOf(
             MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
             MenuAction(if (exerciseComment.isNullOrBlank()) "Add exercise comment" else "Edit exercise comment") { commenting = true },
@@ -517,18 +557,7 @@ private fun ExerciseOnDay(
                 badge = marks.badge,
                 badgeSpoken = marks.badgeSpoken,
                 effort = marks.effort,
-                effortSpoken = marks.effortSpoken,
-                // "Mark sets complete" (#19): a tick box on each set.
-                done = if (markComplete) s.done else null,
-                onDoneChange = if (markComplete) ({ on -> AppScope.scope.launch { Workouts.setDone(s.id, on) } }) else null
-            )
-        }
-        if (markComplete) {
-            Text(
-                "${exSets.count { it.done }}/${exSets.size} DONE",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (exSets.all { it.done }) Brand.Gold else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 18.dp, top = Spacing.xs)
+                effortSpoken = marks.effortSpoken
             )
         }
         val hidden = exSets.size - limit

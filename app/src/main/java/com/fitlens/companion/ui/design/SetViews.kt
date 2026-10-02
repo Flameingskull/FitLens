@@ -1,8 +1,10 @@
 package com.fitlens.companion.ui.design
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +25,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +64,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.FitShapes
 import com.fitlens.companion.ui.LocalChartColors
@@ -176,7 +183,7 @@ private fun setInnerPadding(framed: Boolean, hasCommentButton: Boolean) = when {
     // The 48dp comment button supplies the row's height and its start padding.
     framed && hasCommentButton -> PaddingValues(end = Spacing.md, top = 2.dp, bottom = 2.dp)
     framed -> PaddingValues(horizontal = Spacing.md, vertical = 10.dp)
-    else -> PaddingValues(start = 18.dp, top = Spacing.xxs, end = Spacing.md)
+    else -> PaddingValues(start = 18.dp, top = 6.dp, bottom = 6.dp, end = Spacing.md)
 }
 
 /**
@@ -189,8 +196,8 @@ private fun SetCellText(cell: SetCell, modifier: Modifier = Modifier) {
         Text(
             cell.value,
             Modifier.alignByBaseline(),
-            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
-            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum", fontSize = 19.sp),
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             softWrap = false
         )
@@ -466,10 +473,12 @@ fun SetCommentSheet(describe: String, initial: String?, onSave: (String?) -> Uni
 }
 
 /**
- * An exercise in a day's workout (#80), in raised glass (#102): a category colour bar on the left, the exercise name in serif, the set rows
- * in [sets] (usually unframed [SetRow]s), an optional comment line and a PR marker. Tapping the card calls [onClick];
- * [menu] adds an overflow button.
+ * One exercise on the day log, laid out as FitNotes's (owner, 2026-10-02): a raised card with the exercise's name and,
+ * when every set is [done], a gold tick, over a solid rule in [categoryColor]; then its [sets] (usually unframed
+ * [SetRow]s, values in right-aligned columns) and an optional [comment]. Tapping the card calls [onClick];
+ * long-pressing it opens [menu], as FitNotes does.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ExerciseCard(
     name: String,
@@ -478,45 +487,65 @@ fun ExerciseCard(
     modifier: Modifier = Modifier,
     comment: String? = null,
     hasPr: Boolean = false,
+    done: Boolean = false,
     menu: List<MenuAction> = emptyList(),
     sets: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = FitShapes.card
-    Row(
+    var menuOpen by remember { mutableStateOf(false) }
+    Column(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.md, vertical = Spacing.xs)
-            .height(IntrinsicSize.Min)
-            .raisedGlass(shape)
-            .clickable(onClick = onClick)
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
+            .raisedGlass(FitShapes.card)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = if (menu.isNotEmpty()) "Options for $name" else null,
+                onLongClick = if (menu.isNotEmpty()) ({ menuOpen = true }) else null
+            )
     ) {
-        Box(Modifier.width(4.dp).fillMaxHeight().background(categoryColor))
-        Column(Modifier.weight(1f).padding(start = Spacing.md, top = Spacing.sm, bottom = Spacing.sm)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(start = Spacing.lg, end = Spacing.md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                name,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            if (hasPr) {
                 Text(
-                    name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    "PR",
+                    color = LocalChartColors.current.accent,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = Spacing.sm)
                 )
-                if (hasPr) {
-                    Text(
-                        "PR",
-                        color = LocalChartColors.current.accent,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = Spacing.sm)
-                    )
-                }
-                if (menu.isNotEmpty()) OverflowMenu(menu, description = "Options for $name")
             }
+            if (done) {
+                Icon(Icons.Filled.CheckCircle, contentDescription = "Every set done", tint = Brand.Gold, modifier = Modifier.size(28.dp))
+            }
+            Box {
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    menu.forEach { item ->
+                        DropdownMenuItem(
+                            text = { Text(item.label) },
+                            enabled = item.enabled,
+                            onClick = { menuOpen = false; item.onClick() }
+                        )
+                    }
+                }
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(2.dp).background(categoryColor))
+        Column(Modifier.fillMaxWidth().padding(top = Spacing.xs, bottom = Spacing.md, end = Spacing.sm)) {
             sets()
             if (!comment.isNullOrBlank()) {
                 Text(
                     "“$comment”",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = Spacing.xs, end = Spacing.md)
+                    modifier = Modifier.padding(start = Spacing.lg, top = Spacing.xs, end = Spacing.md)
                 )
             }
         }

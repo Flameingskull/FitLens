@@ -5,7 +5,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -26,12 +29,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.FitShapes
 import com.fitlens.companion.ui.GoldHairline
 import com.fitlens.companion.ui.PickDateDialog
@@ -90,13 +97,12 @@ fun DayNavigator(
         }
     }
 
+    // FitNotes's day bar (owner, 2026-10-02): flat and full width, gold arrows either side of the day in capitals,
+    // over a solid gold rule.
     Column(modifier.fillMaxWidth()) {
         Row(
             Modifier
                 .fillMaxWidth()
-                // A raised glass pill (#102).
-                .padding(horizontal = Spacing.md, vertical = Spacing.xs)
-                .raisedGlass(RoundedCornerShape(percent = 50), elevation = 4.dp, inset = 24.dp)
                 .heightIn(min = Spacing.row)
                 .pointerInput(Unit) {
                     var total = 0f
@@ -117,9 +123,9 @@ fun DayNavigator(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { onPrevious?.invoke() }, enabled = onPrevious != null) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = previousDescription)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = previousDescription, tint = Brand.Gold)
             }
-            Column(
+            Box(
                 Modifier
                     .weight(1f)
                     .heightIn(min = Spacing.touch)
@@ -130,31 +136,22 @@ fun DayNavigator(
                         onLongClick = longClick,
                         onClick = { picking = true }
                     )
-                    .padding(vertical = Spacing.xs),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .semantics { contentDescription = full },
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    label,
-                    style = MaterialTheme.typography.titleMedium,
+                    label.uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (label != full) {
-                    Text(
-                        full.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
             IconButton(onClick = { onNext?.invoke() }, enabled = onNext != null) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = nextDescription)
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = nextDescription, tint = Brand.Gold)
             }
         }
-        GoldHairline()
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Brand.Gold))
     }
 
     if (picking) PickDateDialog(date, onDismiss = { picking = false }) { onPickDate(it) }
