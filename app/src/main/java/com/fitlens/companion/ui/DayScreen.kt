@@ -67,6 +67,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.MRecord
@@ -280,9 +281,11 @@ private fun DayContent(
         }
         if (sets.isEmpty()) {
             item(key = "empty") {
+                val nothing = records.isEmpty() && photos.isEmpty()
                 EmptyDay(
-                    showEmptyText = records.isEmpty() && photos.isEmpty(),
-                    modifier = Modifier.fillParentMaxHeight(if (records.isEmpty() && photos.isEmpty()) 0.9f else 0.6f),
+                    showEmptyText = nothing,
+                    compact = !nothing,
+                    modifier = if (nothing) Modifier.fillParentMaxHeight(0.9f) else Modifier,
                     onAddWorkout = onAddWorkout,
                     onAddExercise = onAddExercise,
                     onCopyPrevious = onCopyPrevious
@@ -408,7 +411,9 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRec
             val def = snap.allMeasurements.firstOrNull { it.name == r.name }
             val change = prev?.let { changeText(it, r) }
             if (i > 0) HorizontalDivider(color = Brand.Hairline)
-            Row(
+            // Name and value share one line, and the change gets a line of its own under them, so nothing is squeezed
+            // into breaking mid-word (#128).
+            Column(
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = Spacing.row)
@@ -419,25 +424,43 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRec
                         onLongClick = if (r.source == "manual") ({ onDelete(r) }) else null
                     )
                     .semantics(mergeDescendants = true) {}
-                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(r.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(fmtNum(r.value), style = MaterialTheme.typography.titleMedium)
-                        if (r.unit.isNotBlank()) {
-                            Text(
-                                " ${r.unit}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(bottom = 2.dp)
-                            )
-                        }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        r.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f).padding(end = Spacing.md)
+                    )
+                    Text(
+                        fmtNum(r.value),
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                    if (r.unit.isNotBlank()) {
+                        Text(
+                            " ${r.unit}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
-                    if (change != null && prev != null) {
-                        Text(change, style = MaterialTheme.typography.labelSmall, color = changeColour(def, prev.value, r.value))
-                    }
+                }
+                if (change != null && prev != null) {
+                    Text(
+                        change,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = changeColour(def, prev.value, r.value),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth().padding(top = Spacing.xxs)
+                    )
                 }
             }
         }
@@ -453,11 +476,24 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRec
 @Composable
 private fun EmptyDay(
     showEmptyText: Boolean,
+    compact: Boolean,
     modifier: Modifier = Modifier,
     onAddWorkout: () -> Unit,
     onAddExercise: () -> Unit,
     onCopyPrevious: () -> Unit
 ) {
+    if (compact) {
+        // Under the day's body values or photos (#128): the three actions in one row, in view without scrolling.
+        Row(
+            modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.lg),
+            verticalAlignment = Alignment.Top
+        ) {
+            EmptyDayAction(Icons.Filled.Add, "Add exercise", onAddExercise, Modifier.weight(1f))
+            EmptyDayAction(Icons.Filled.List, "Add workout", onAddWorkout, Modifier.weight(1f))
+            EmptyDayAction(FitIcons.Copy, "Copy previous workout", onCopyPrevious, Modifier.weight(1f))
+        }
+        return
+    }
     Column(
         modifier.fillMaxWidth().padding(horizontal = Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -476,10 +512,14 @@ private fun EmptyDay(
 
 /** One of the empty day's actions: a gold icon over its label, as FitNotes draws them. */
 @Composable
-private fun EmptyDayAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun EmptyDayAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth()
+) {
     Column(
-        Modifier
-            .fillMaxWidth()
+        modifier
             .clip(FitShapes.row)
             .clickable(onClick = onClick)
             .semantics(mergeDescendants = true) {}
@@ -487,7 +527,13 @@ private fun EmptyDayAction(icon: androidx.compose.ui.graphics.vector.ImageVector
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, contentDescription = null, tint = Brand.Gold, modifier = Modifier.size(36.dp))
-        Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = Spacing.xs))
+        // Whole words only: a narrow column wraps between words, centred, never inside one (#128).
+        Text(
+            label,
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = Spacing.xs, start = Spacing.xs, end = Spacing.xs)
+        )
     }
 }
 

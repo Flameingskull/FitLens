@@ -124,7 +124,13 @@ private fun MeasurementListRow(snap: Snapshot, m: MeasurementDef, onOpen: () -> 
                 Text(change, style = MaterialTheme.typography.bodySmall, color = changeColour(m, prev.value, last.value))
             }
         }
-        Text(last?.let { "${fmtNum(it.value)} $unit".trim() } ?: "—", style = MaterialTheme.typography.titleMedium)
+        Text(
+            last?.let { "${fmtNum(it.value)} $unit".trim() } ?: "—",
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(start = Spacing.md)
+        )
     }
 }
 

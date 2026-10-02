@@ -45,14 +45,17 @@ fun changeColour(def: MeasurementDef?, from: Double, to: Double): Color {
 }
 
 /**
- * A change between two values of a measurement, in full figures: the arrow, the signed amount in its unit and the
- * value it started from, "▲ +0.4 kg from 82 kg on 1 Oct". Never a bare number or a percentage.
+ * A change between two values of a measurement, in full figures (#120) and short enough to sit on one line (#128):
+ * the direction, the amount in its unit, since when, and the value it moved from, "▼ 0.7 kg since 21 Aug · was
+ * 113.25 kg". An unchanged value reads "No change since 18 Sept". Never a bare number or a percentage.
  */
 fun changeText(prev: MRecord, now: MRecord): String {
     val d = now.value - prev.value
-    val arrow = if (d > 0) "▲ " else if (d < 0) "▼ " else ""
     val unit = now.unit.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
-    return "$arrow${fmtSigned(d)}$unit from ${fmtNum(prev.value)}$unit on ${Dates.short(prev.date)}"
+    val since = Dates.short(prev.date)
+    if (d == 0.0) return "No change since $since"
+    val arrow = if (d > 0) "▲" else "▼"
+    return "$arrow ${fmtNum(kotlin.math.abs(d))}$unit since $since · was ${fmtNum(prev.value)}$unit"
 }
 
 /** A short description of a measurement's goal, for the Body tab. */
