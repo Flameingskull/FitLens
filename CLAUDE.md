@@ -20,7 +20,11 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    in `.claude/agents/` (details below).
 4. **Brand look:** luxury black and vibrant gold (owner, 2026-10-02, 1.0.71: no purple). Red and green only for
    rises, falls and graph lines (a red line over a translucent gold fill). Use the `Brand` colours and the theme in
-   `ui/Theme.kt`. Don't hard-code other colours. Serif headings, letter-spaced labels, fine gold hairlines on glass.
+   `ui/Theme.kt`. Don't hard-code other colours. **Type (owner, 2026-10-02, #135):** Manrope throughout, bundled in
+   `res/font/` (headings are no longer serif), from the `MaterialTheme.typography` roles only (no stray `.sp`);
+   FitNotes-style uppercase section labels over a fine gold rule (`SectionLabel`); fine gold hairlines on glass.
+   **Charts (owner, 2026-10-02, #137):** Line, Bar, Area and Step are all allowed, chosen per graph (bar charts are
+   allowed again, reversing #116).
    **Branding art (owner, 2026-10-01, updated to be clearer at small sizes):** the full-body character,
    `branding/full-body-icon-source.jpg` (as PNG: `branding/fitlens-icon-source.png`), and the torso,
    `branding/torso/torso-icon-source.jpg`, recoloured to black and the app's gold in 1.0.71 at the owner's request

@@ -1,38 +1,46 @@
 ## Overview
 
-FitLens has a new look: black and vibrant gold, with clearer graphs and changes shown at a glance in green and red.
-The Today page also shows how far through each exercise you are.
+This update starts a pass to bring FitLens back in line with FitNotes, beginning with the screen you use most in the
+gym. The exercise screen is more compact and moves on by itself when an exercise is finished, the whole app uses a
+new typeface, graphs are easier to read, and 1RM estimates follow the research more closely.
 
 There are no database changes. Everything you've logged is kept as it was.
 
 ## What's new
 
-- **Black and vibrant gold.** The imperial purple is gone. Screens, cards, buttons, sheets, the calendar, date and
-  time pickers, shared images, the PDF report and the progress video now use black and one bright gold throughout.
-- **The same character in the new colours.** The app icon, store icon, the figure behind every screen, the
-  notification picture and the search badge keep their exact drawing. Only the purple is now black and the gold
-  matches the app's gold.
-- **Sets done on the Today page.** With **Settings → Workout & logging → Show sets done** on, an exercise you haven't
-  finished shows how many of its sets are done, for example **2/4**, next to its name. Once every set is done, it
-  shows the gold tick, as in FitNotes.
+- **Moves on by itself.** Tick the last set of an exercise and FitLens shows "Done. Next: …" with **Undo**, then
+  opens the next exercise of the day about a second and a half later, in your workout's order with supersets kept
+  together. Undo unticks the set and stays, or comes back if the next exercise had already opened.
+- **Workout complete.** After the last exercise of the day, FitLens returns to the day log. If the workout timer is
+  running, the message offers **Stop workout timer**.
+- **A new typeface.** Manrope, a clean and highly legible typeface, is used everywhere: screens, shared images, the
+  PDF report and the progress video. Headings are no longer serif, and text sizes follow one calmer scale, so titles
+  are no longer squeezed on smaller phones.
 
 ## Improved
 
-- **Easier-to-read graphs.** Every line graph has grid lines across its values and its time span and a fine gold
-  baseline. The line itself is red, over a soft, translucent gold fill. Shared graph images, the PDF report and the
-  progress video use the same style.
-- **Rises in green, falls in red.** Changes are coloured wherever they're shown: body values on the Today page, the
-  body tracker's history and summary, trends on exercise and body graphs, Analysis period changes, and photo
-  comparisons. For a measurement with a goal, green means it moved towards the goal and red means it moved away.
-- **Finer edges.** The glass effect stays, with thin gold hairlines that catch the light along the top edge
-  instead of heavier outlines.
-- **One style of graph control.** Analysis → Exercises now chooses its exercise from a dropdown-style control, the
-  same as every other graph screen (#125). FitLens keeps its compact dropdowns rather than FitNotes's rows of range
-  buttons.
+- **A more compact exercise screen.** The weight and reps sit straight under the Track, History and Graph tabs.
+  Each field has a FitNotes-style heading ("WEIGHT (KG)") over a fine gold rule, with the value centred between
+  square − and + buttons, leaving more room for your sets.
+- **Richer graph fill.** The gold fill under every graph line is deeper, so the shape of your progress reads at a
+  glance.
+- **More accurate 1RM estimates.** The Automatic formula now follows the validation studies: from 2 to 10 reps it
+  uses the mean of the Mayhew and Wathan formulas, the two found most accurate in that range; from 11 to 15 reps it
+  uses Wathan and marks the estimate as approximate (≈); above 15 reps it doesn't estimate. Mayhew is also available
+  as a formula of its own under **Settings → Personal records**. If you chose a formula yourself, it's kept.
+- **Exact pound conversion.** Every kg/lb conversion now uses the exact definition of the pound (0.45359237 kg)
+  instead of a rounded figure.
+- The exercise screen's **Next exercise** button now appears only for exercises picked together in the library that
+  aren't in the day's workout yet. Exercises already in the workout are reached by moving on automatically.
+
+## Fixed
+
+- Messages such as "Set deleted · Undo" no longer appear behind Android's navigation buttons (#140).
 
 ## Known limitations
 
-- Categories that used one of the old purple colours are shown in the colour that replaced it in the palette. Pick a
-  new colour for a category under its edit options if you'd like a different one.
-- Without a goal, a change is green when the value went up and red when it went down, even where lower is better
-  (body weight while cutting, for example). Set a goal on the measurement to colour changes by progress instead.
+- Estimated 1RMs from sets of 16 to 20 reps are no longer shown with the Automatic formula, which may remove a few
+  points from an "Estimated 1RM" graph. Personal record marks are unaffected: they're based on the weight lifted for
+  each rep count, not on an estimate.
+- Choosing a chart type (line, bar, area or step) for each graph comes in a later update (#137), as do prescribed
+  rest times in workouts (#138) and the screen-by-screen FitNotes comparison (#134).
