@@ -72,6 +72,7 @@ import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.ui.design.FitIcons
 import com.fitlens.companion.ui.design.FitTabRow
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.MenuAction
@@ -79,6 +80,7 @@ import com.fitlens.companion.ui.design.SetTypeBadge
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.relativeDayLabel
 import com.fitlens.companion.ui.design.StepperField
+import com.fitlens.companion.ui.design.SearchablePicker
 import com.fitlens.companion.ui.design.ExerciseCommentRow
 import com.fitlens.companion.ui.design.SetCommentSheet
 import com.fitlens.companion.ui.design.SetRow as SetRowView
@@ -176,6 +178,8 @@ fun SetEntryScreen(
     // The set whose Comment box is open (#108).
     var commenting by remember { mutableStateOf<SetRow?>(null) }
     var editingExerciseComment by remember { mutableStateOf(false) }
+    // Add to superset from the workout drawer (#124).
+    var grouping by remember { mutableStateOf(false) }
 
     // The global step from Settings → Units & display (#7) is stored in kg; the field works in the display unit.
     // This exercise's own step comes first (#15), then the global one.
@@ -303,6 +307,11 @@ fun SetEntryScreen(
                     onDayLog = {
                         scope.launch { drawer.close() }
                         while (nav.stack.size > 1 && nav.top !is Screen.Day) nav.pop()
+                    },
+                    onAddToSuperset = {
+                        scope.launch { drawer.close() }
+                        if (dayExercises(snap, date).any { it != exerciseId }) grouping = true
+                        else UiEvents.show("Log another exercise today first, then add it to a superset with this one.")
                     }
                 )
             }
@@ -314,15 +323,19 @@ fun SetEntryScreen(
             subtitle = relativeDayLabel(date),
             onBack = { nav.pop() },
             actions = listOf(
-                TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } },
-                // The exercise's settings at a glance, with Edit (#110).
-                TopBarAction(Icons.Filled.Info, "Exercise info", enabled = ex != null) { showInfo = true },
-                TopBarAction(Icons.Filled.List, "Records and goals", enabled = allSets.isNotEmpty()) {
-                    nav.push(Screen.ExerciseDetail(exerciseId))
-                }
+                TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } }
             ),
-            // The rest timer's alarm clock, which shows the time left in its place while a rest runs (#109).
-            trailing = { RestTimerButton(onOpen = { restSheet = true }) },
+            // FitNotes's order (#122): the rest timer's alarm clock (the time left while a rest runs, #109), the
+            // records trophy, then the exercise's info with Edit (#110).
+            trailing = {
+                RestTimerButton(onOpen = { restSheet = true })
+                IconButton(onClick = { nav.push(Screen.ExerciseDetail(exerciseId)) }, enabled = allSets.isNotEmpty()) {
+                    Icon(FitIcons.Trophy, contentDescription = "Records and goals")
+                }
+                IconButton(onClick = { showInfo = true }, enabled = ex != null) {
+                    Icon(Icons.Filled.Info, contentDescription = "Exercise info")
+                }
+            },
             overflow = listOfNotNull(
                 // The calculators (#28) fill in this set's weight.
                 if (showWeight) MenuAction("Set calculator") { calculator = "set" } else null,
@@ -603,6 +616,18 @@ fun SetEntryScreen(
         }
     }
     if (restSheet) RestTimerSheet(ex) { restSheet = false }
+    if (grouping) {
+        SearchablePicker(
+            title = "Superset ${ex?.name ?: "this exercise"} with",
+            items = exercisePickerItems(snap).filter { it.id != exerciseId && it.id in dayExercises(snap, date) },
+            multiSelect = true,
+            onDismiss = { grouping = false },
+            onPick = { ids ->
+                grouping = false
+                if (ids.isNotEmpty()) AppScope.scope.launch { Workouts.groupExercises(date, ids + exerciseId) }
+            }
+        )
+    }
     if (editingExerciseComment) {
         SetCommentSheet(
             describe = "${ex?.name ?: "Exercise"} · ${relativeDayLabel(date)}",

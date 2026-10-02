@@ -386,10 +386,12 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
         byDate.entries.reversed().forEach { (d, l) ->
             item(key = d) {
                 Column(Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(d)) }.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    // FitNotes's day header (#122): the date in capitals over a rule.
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Dates.long(d), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        Text(Dates.long(d).uppercase(), style = MaterialTheme.typography.titleSmall, color = Brand.Gold, modifier = Modifier.weight(1f))
                         if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
                     }
+                    HorizontalDivider(Modifier.padding(top = 2.dp, bottom = 4.dp), color = Brand.Gold)
                     // The day's totals (#22): volume and reps for strength, distance and time for cardio.
                     Text(
                         dayTotals(snap, exId, l).uppercase(),

@@ -299,9 +299,10 @@ internal fun BodyHistoryPane(snap: Snapshot, name: String, onOpen: (MRecord) -> 
             item(key = d) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Dates.long(d), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        Text(Dates.long(d).uppercase(), style = MaterialTheme.typography.titleSmall, color = Brand.Gold, modifier = Modifier.weight(1f))
                         if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
                     }
+                    HorizontalDivider(Modifier.padding(top = 2.dp, bottom = 4.dp), color = Brand.Gold)
                     l.forEachIndexed { i, r ->
                         val prev = records.getOrNull(records.indexOf(r) - 1)
                         SetRowView(

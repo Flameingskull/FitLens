@@ -17,8 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Icon
+import com.fitlens.companion.ui.design.FitIcons
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -152,7 +154,9 @@ fun WorkoutDrawer(
     current: Long,
     onOpen: (Long) -> Unit,
     onAddExercise: () -> Unit,
-    onDayLog: () -> Unit
+    onDayLog: () -> Unit,
+    /** Add to superset (#124): group exercises of the day with the current one. */
+    onAddToSuperset: () -> Unit = {}
 ) {
     val sets = snap.setsByDate[date].orEmpty()
     val shown = displayOrder(snap, date)
@@ -176,14 +180,21 @@ fun WorkoutDrawer(
     val order = if (current in logged) logged else logged + current
     val secs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
     Column(Modifier.fillMaxHeight().padding(vertical = Spacing.md)) {
-        Text(relativeLabel(date), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = Spacing.lg))
+        // FitNotes's header (#124): how many exercises, and how to reorder them.
+        Text(
+            "${order.size} EXERCISE${if (order.size == 1) "" else "S"}",
+            style = MaterialTheme.typography.titleSmall,
+            color = Brand.Gold,
+            modifier = Modifier.padding(horizontal = Spacing.lg)
+        )
         Text(
             listOfNotNull(
-                "${order.size} exercise${if (order.size == 1) "" else "s"}",
+                "Drag a handle to reorder",
+                relativeLabel(date),
                 "${sets.size} set${if (sets.size == 1) "" else "s"}",
                 if (secs > 0) fmtDuration(secs.toInt()) else null
-            ).joinToString("  ·  ").uppercase(),
-            style = MaterialTheme.typography.labelSmall,
+            ).joinToString("  ·  "),
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs)
         )
@@ -253,8 +264,15 @@ fun WorkoutDrawer(
             Spacer(Modifier.width(Spacing.sm))
             Text("Add exercise", modifier = Modifier.weight(1f))
         }
+        TextButton(onClick = onAddToSuperset, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(horizontal = Spacing.sm)) {
+            Icon(FitIcons.Link, contentDescription = null)
+            Spacer(Modifier.width(Spacing.sm))
+            Text("Add to superset", modifier = Modifier.weight(1f))
+        }
         TextButton(onClick = onDayLog, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(horizontal = Spacing.sm)) {
-            Text("Back to the day log", modifier = Modifier.weight(1f))
+            Icon(Icons.Filled.Home, contentDescription = null)
+            Spacer(Modifier.width(Spacing.sm))
+            Text("Home", modifier = Modifier.weight(1f))
         }
     }
 }

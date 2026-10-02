@@ -201,7 +201,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
         picked.isNotEmpty() -> "${picked.size} selected"
         category == FAVOURITES -> "Favourites"
         category == Workouts.UNCATEGORISED -> "Uncategorised"
-        else -> category?.let { snap.categories[it]?.name } ?: "Exercises"
+        else -> category?.let { snap.categories[it]?.name } ?: "All exercises"
     }
 
     // On wide screens (unfolded, landscape, tablets) the categories and their exercises sit side by side (#83).
@@ -236,7 +236,6 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
             actions = if (routineMode && routine != null) listOf(
                 TopBarAction(Icons.Filled.Edit, "Edit workout") { nav.push(Screen.WorkoutEditor(routine.id)) }
             ) else if (picked.isNotEmpty()) emptyList() else listOf(
-                TopBarAction(Icons.Filled.Search, "Search exercises") { searching = !searching; if (!searching) query = "" },
                 TopBarAction(Icons.Filled.Add, "New exercise") { creating = true }
             ),
             overflow = if (picked.isNotEmpty() || routineMode) emptyList() else listOf(
@@ -244,10 +243,11 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                 MenuAction("Add starter library") { seeding = true }
             )
         )
-        if (searching && picked.isEmpty()) {
+        // As in FitNotes (#123): the search field is always there above the list; typing searches every exercise.
+        if (picked.isEmpty() && !routineMode && category == null) {
             OutlinedTextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = { query = it; searching = it.isNotBlank() },
                 singleLine = true,
                 label = { Text("Search every exercise") },
                 leadingIcon = { SearchFieldIcon() },
