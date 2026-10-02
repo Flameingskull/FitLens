@@ -1,43 +1,39 @@
 ## Overview
 
-This update rebuilds the body tracker to work exactly as it does in FitNotes. The body tracker now opens on a list of
-your measurements. Each measurement has its own Track, History and Graph tabs, laid out like the exercise screen, so
-logging your bodyweight or waist works the way you log a set.
+This update brings the Today page into line with FitNotes. It now looks and works almost exactly like FitNotes's
+day log, so moving across feels familiar from the first screen. It also aligns the exercise screen, the exercise
+library and the workout drawer with FitNotes, following a page-by-page check of FitLens against FitNotes.
 
-There are no database changes. Every measurement and value you've logged is kept as it was.
+There are no database changes. Everything you've logged is kept as it was.
 
 ## What's new
 
-- **Your measurements, listed.** The body tracker lists every measurement you have switched on (Bodyweight, Body Fat,
-  Waist and the rest, in your order) with its latest value and date. Measurements you haven't logged yet are listed
-  too, ready for a first value.
-- **Track a measurement as you track a set.** Tap a measurement to open its **Track** tab: the day (swipe or use the
-  arrows to change it, or tap it to pick a date), the value with − and + buttons, the time and a comment. **Save**
-  and **Clear** log a new value, and the day's values are listed underneath. Tap one to select it, then **Update** or
-  **Delete** it. Deleting can be undone. A new value starts from your latest one, as in FitNotes.
-- **History.** Every day you logged the measurement, newest first, with the time, comment and change since the value
-  before. Tap a value to open it on Track.
-- **Graph.** The graph keeps its ranges, trend line, goal line, photo days, full-screen view and statistics. It now
-  belongs to the measurement you opened.
+- **A FitNotes-style Today page.**
+  - **Day bar.** A flat, full-width ‹ TODAY › bar over a gold rule. Tap the day to pick a date, long-press it to
+    jump back to today, or use **Go to today** in the ⋮ menu.
+  - **Body values first.** The day's measurements sit at the top in one card, with the name on the left and the value
+    and unit on the right, as in FitNotes. The change since your previous value is shown small underneath. Tap a
+    measurement to open it. Long-press a value you added in FitLens to delete it.
+  - **Exercise cards like FitNotes's.** Each exercise shows its name over a gold rule, then its sets as bold,
+    right-aligned figures. A gold tick appears once every set is marked done. Long-press a card for its options
+    (comment, history, records, reorder, superset, swap, remove).
+  - **Empty days.** A day with nothing logged reads "Workout log empty", with **Add exercise**, **Add workout** and
+    **Copy previous workout** as icons near the bottom of the screen, where FitNotes puts them.
+  - Your photos, workout time, totals and workout comment are still there, placed so they don't change FitNotes's
+    layout.
 
 ## Improved
 
-- **Changes are shown in full figures.** Wherever FitLens shows how something moved, it now gives the value itself,
-  the change in its own unit and the value it moved from, for example "82.4 kg" and "▲ +0.4 kg from 82 kg on
-  1 Oct", rather than a bare "+0.4":
-  - the body values on the day log, the body tracker list and each measurement's History;
-  - Analysis totals ("+2 workouts vs the week before (3 workouts)");
-  - Breakdown, which now shows the selected slice's figure under its percentage, and its value the period before;
-  - exercise goals, which now say how much is left ("10 kg to go").
-- A measurement's goal is set from its ⋮ menu and shown on its Track tab.
-- TalkBack reads body values as "Value 1, 82.4 kilograms, at 07:30" instead of calling them sets.
-
-## Fixed
-
-- **No more black text.** Some text showed in black on the dark backgrounds, across several screens and sheets. All
-  text is now ivory or gold.
+- **Exercise screen.** The top bar now follows FitNotes's order: the rest timer, a trophy for records and goals, then
+  exercise info. In History, each day is headed by its date in gold capitals over a gold rule, as is each
+  measurement's History.
+- **Exercise library.** It opens on **All exercises** with the search field always shown at the top, as in FitNotes.
+- **Workout drawer.** The drawer is headed with the number of exercises and ends with **Add exercise**, **Add to
+  superset** and **Home**. Add to superset lets you choose exercises from the day to group with the one you're on.
 
 ## Known limitations
 
-- Values imported from FitNotes can be viewed but not changed in FitLens, because the next import would bring the
-  original back. Change them in FitNotes and import again.
+- The page-by-page check against FitNotes found two more differences, now planned for a later update: a full-screen
+  exercise editor, and Breakdown's period list and slice arrows.
+- FitNotes uses 1m / 3m / 6m / 1y / all buttons and labelled selector rows on its graphs, while FitLens keeps the
+  compact dropdowns requested earlier. This waits on a decision about which to follow.
