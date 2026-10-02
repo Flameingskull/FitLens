@@ -23,6 +23,8 @@ There are no database changes. Everything you've logged is kept as it was.
   exercise's name, the rest timer, records and info. The phone's back gesture returns to the day.
 - **Settings → Workout & logging → Show sets done** (previously "Tick sets off as you do them") now only controls
   the done counts on the Today page and in the workout drawer.
+- The body tracker list and each measurement's History use the same shorter change wording as the Today page.
+- The README has been refreshed to describe the app as it is in this release.
 
 ## Fixed
 
@@ -34,11 +36,6 @@ There are no database changes. Everything you've logged is kept as it was.
   bottom of the screen.
 - **Better wrapping everywhere.** Headings and running text across the app now break between words, with balanced
   line lengths, and never hyphenate or split a word.
-
-## Also improved
-
-- The body tracker list and each measurement's History use the same shorter change wording.
-- The README has been refreshed to describe the app as it is in this release.
 
 ## Known limitations
 
