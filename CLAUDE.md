@@ -18,11 +18,13 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
    update list (details below).
 3. **Dedicated agents own the backlog.** Bugs and feature requests are GitHub issues, managed by the project agents
    in `.claude/agents/` (details below).
-4. **Brand look:** luxury black, imperial purple and gold. Use the `Brand` colours and the theme in `ui/Theme.kt`.
-   Don't hard-code other colours. Serif headings, letter-spaced labels, gold hairlines.
+4. **Brand look:** luxury black and vibrant gold (owner, 2026-10-02, 1.0.71: no purple). Red and green only for
+   rises, falls and graph lines (a red line over a translucent gold fill). Use the `Brand` colours and the theme in
+   `ui/Theme.kt`. Don't hard-code other colours. Serif headings, letter-spaced labels, fine gold hairlines on glass.
    **Branding art (owner, 2026-10-01, updated to be clearer at small sizes):** the full-body character,
    `branding/full-body-icon-source.jpg` (as PNG: `branding/fitlens-icon-source.png`), and the torso,
-   `branding/torso/torso-icon-source.jpg`. They're final: use them unedited for every icon or branding image, only
+   `branding/torso/torso-icon-source.jpg`, recoloured to black and the app's gold in 1.0.71 at the owner's request
+   (`branding/recolour_black_gold.py`). They're final: use them unedited for every icon or branding image, only
    resized or placed, never redrawn, recoloured or cropped. The smaller the icon, the more it should use the torso
    rather than the full body. Today: the launcher, store and README icons and the faint background behind every
    screen use the full body; the notification picture and the search-field badge use the torso.

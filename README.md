@@ -49,8 +49,8 @@ custom metrics.
   is turned off for FitLens. Backups go only to a folder you choose.
 - **Every update installs over the last one** and keeps your data. Database changes are always migrated, never reset.
 - **Android phones** (Android 10 or newer), across phone screen sizes. A self-hosted web version may come later.
-- **The FitLens look:** luxury black, imperial purple and gold. Cards, bars and buttons are tinted glass with gold
-  rims, headings are serif, and all text is ivory or gold, never black. Text wraps between words, never inside one. The FitLens character stands
+- **The FitLens look:** luxury black and vibrant gold. Cards, bars and buttons are smoked glass with fine gold
+  rims, graphs draw a red line over a translucent gold fill, rises show in green and falls in red, headings are serif, and all text is ivory or gold, never black. Text wraps between words, never inside one. The FitLens character stands
   faintly behind every screen, and its torso appears in notifications and beside the magnifying glass in search
   fields.
 
@@ -166,7 +166,7 @@ custom metrics.
   - **All days** (from the Calendar's top bar): a timeline of every day, with that day's photos, measurements and
     workout summary.
   - **Calendar:** as in FitNotes, a month grid (swipe between months) with category dots, photo and measurement
-    dots, today in gold and the selected day in purple. The selected day's workout shows below the grid (beside it
+    dots, today in gold and the selected day in deep gold. The selected day's workout shows below the grid (beside it
     on wide screens and unfolded foldables); **Open day**
     (or a second tap) opens its log, and tapping one of its exercises opens that exercise's **overview** (history,
     graph, records, stats and goals in one sheet). The search button **filters** the calendar by exercise or
