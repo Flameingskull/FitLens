@@ -244,11 +244,13 @@ fun SetRow(
     badgeSpoken: String? = null,
     /** Effort as shown ("RPE 8") and as spoken ("2 reps in reserve"). */
     effort: String? = null,
-    effortSpoken: String? = null
+    effortSpoken: String? = null,
+    /** What TalkBack calls the row: "Set 2", or "Value 2" for a body measurement. */
+    noun: String = "Set"
 ) {
     val shape = FitShapes.row
     val spoken = buildString {
-        append("Set ").append(index).append(", ")
+        append(noun).append(' ').append(index).append(", ")
         if (badgeSpoken != null) append(badgeSpoken).append(", ")
         append(if (cells != null) cells.joinToString(", ") { it.spoken } else summary)
         if (effortSpoken != null) append(", ").append(effortSpoken)
@@ -276,7 +278,7 @@ fun SetRow(
     Box(modifier.fillMaxWidth().padding(setOuterPadding(framed))) {
         Row(frame.then(click).padding(setInnerPadding(framed, onComment != null)), verticalAlignment = align) {
             if (onComment != null) {
-                val label = if (hasComment) "Edit comment on set $index" else "Add comment to set $index"
+                val label = if (hasComment) "Edit comment on ${noun.lowercase()} $index" else "Add comment to ${noun.lowercase()} $index"
                 IconButton(onClick = onComment) {
                     Icon(
                         if (hasComment) FitIcons.Comment else FitIcons.CommentOutline,

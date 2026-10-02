@@ -394,7 +394,8 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: () ->
         )
         records.forEach { r ->
             val prev = remember(snap, r.id) { snap.recordsByName[r.name]?.lastOrNull { it.date < r.date } }
-            val change = prev?.let { "${fmtSigned(r.value - it.value)} since ${Dates.short(it.date)}" }
+            val change = prev?.let { changeText(it, r) }
+            val def = snap.allMeasurements.firstOrNull { it.name == r.name }
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -406,7 +407,7 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: () ->
                     Text(r.name, style = MaterialTheme.typography.bodyLarge)
                     Text("${fmtNum(r.value)} ${r.unit}", style = MaterialTheme.typography.titleMedium)
                     if (change != null) {
-                        Text(change, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(change, style = MaterialTheme.typography.bodySmall, color = changeColour(def, prev!!.value, r.value))
                     }
                 }
                 if (r.source == "manual") {

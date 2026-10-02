@@ -4,6 +4,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DatePickerColors
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TimePickerColors
 import androidx.compose.material3.TimePickerDefaults
@@ -197,11 +198,21 @@ object Motion {
 /** The category colour bar when a category has no colour of its own. Matches [categoryColour]'s fallback. */
 val CategoryFallbackColour: Color get() = Brand.Outline
 
-/** FitLens always uses its black, imperial purple and gold theme, whatever the system setting. */
+/**
+ * FitLens always uses its black, imperial purple and gold theme, whatever the system setting.
+ *
+ * Every background is dark, so text is never black. Compose's own default content colour is black, and it is what
+ * any text without a colour falls back to wherever its container isn't one of the theme's colours: the transparent
+ * screen scaffold, glass surfaces, translucent fills. Ivory is provided here as that default, for every screen,
+ * sheet and dialog.
+ */
 @Composable
 fun FitLensTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = Scheme, typography = LuxuryType, shapes = LuxuryShapes) {
-        CompositionLocalProvider(LocalChartColors provides ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory)) {
+        CompositionLocalProvider(
+            LocalContentColor provides Brand.Ivory,
+            LocalChartColors provides ChartColors(Brand.Gold, Brand.PurpleLight, Brand.Ivory)
+        ) {
             content()
         }
     }

@@ -180,6 +180,8 @@ fun DonutChart(
                         maxLines = 2
                     )
                     Text(pct(sel), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                    // The figure itself, not just its share (owner, 2026-10-02).
+                    Text(valueFormat(slices[sel].value), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, maxLines = 1)
                 }
             }
             TextButton(onClick = { onSelect((sel + 1) % slices.size) }) { Text("Next") }

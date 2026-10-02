@@ -1,6 +1,5 @@
 package com.fitlens.companion.ui
 
-import com.fitlens.companion.ui.design.DropdownPill
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -51,7 +50,8 @@ import com.fitlens.companion.data.MeasurementDef
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.data.fmtSigned
-import com.fitlens.companion.ui.design.FitTabRow
+import com.fitlens.companion.ui.design.SetCell
+import com.fitlens.companion.ui.design.SetRow as SetRowView
 
 val RANGES = listOf("1M" to 30L, "3M" to 91L, "6M" to 182L, "1Y" to 365L, "All" to 0L)
 
@@ -62,209 +62,170 @@ fun <T> inRange(items: List<T>, range: Long, dateOf: (T) -> String): List<T> {
     return items.filter { Dates.epochDay(dateOf(it)) >= end - range }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The body tracker, as in FitNotes: every measurement in the user's order, with its latest value. Tapping one opens
+ * its own Track, History and Graph tabs ([BodyMeasurementScreen]), laid out like the exercise screen.
+ */
 @Composable
 fun BodyScreen(snap: Snapshot, nav: Nav) {
-    val measurements = snap.usedMeasurements
-    var chosenName by rememberSaveable { mutableStateOf(snap.bodyweightName ?: "") }
-    val selectedName = if (measurements.none { it.name == chosenName } && measurements.isNotEmpty()) measurements.first().name else chosenName
-    var rangeIdx by rememberSaveable { mutableIntStateOf(4) }
-    // Track, History and Graph, as in FitNotes's body tracker (#88).
-    var tab by rememberSaveable { mutableIntStateOf(0) }
-    var logName by remember { mutableStateOf<String?>(null) }
-    var selectedPoint by remember(selectedName, rangeIdx) { mutableStateOf<Int?>(null) }
-    var showTrend by rememberSaveable { mutableStateOf(false) }
-    var fromZero by rememberSaveable { mutableStateOf(false) }
-    var fullScreen by rememberSaveable { mutableStateOf(false) }
-    var adding by remember { mutableStateOf(false) }
-    var editingGoal by remember { mutableStateOf(false) }
+    // Every enabled measurement, logged or not, as FitNotes lists them.
+    val measurements = snap.allMeasurements.filter { it.enabled }
     var ordering by remember { mutableStateOf(false) }
-    var editingRecord by remember { mutableStateOf<MRecord?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         PlainTopBar("Body tracker") {
             IconButton(onClick = { nav.push(Screen.Measurements) }) { Icon(Icons.Filled.Edit, contentDescription = "Manage measurements") }
-            IconButton(onClick = { adding = true }) { Icon(Icons.Filled.Add, contentDescription = "Add measurement") }
             if (measurements.size > 1) IconButton(onClick = { ordering = true }) { Icon(Icons.Filled.Menu, contentDescription = "Reorder measurements") }
         }
         if (measurements.isEmpty()) {
-            EmptyState("No body tracker data yet", "Import a FitNotes backup, or add the standard measurements and your own.") {
+            EmptyState("No measurements yet", "Add the standard measurements and your own, or import a FitNotes backup.") {
                 Row {
-                    TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
                     TextButton(onClick = { nav.push(Screen.Measurements) }) { Text("Measurements") }
+                    TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
                 }
             }
         } else {
-            FitTabRow(titles = listOf("Track", "History", "Graph"), selected = tab, onSelect = { tab = it })
-        }
-        if (measurements.isNotEmpty() && tab == 0) {
-            TrackList(snap, measurements) { logName = it }
-        } else if (measurements.isNotEmpty()) {
-            val def = measurements.firstOrNull { it.name == selectedName }
-            // One compact row (#115): the measurement as a dropdown, then its goal (#27).
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                DropdownPill(
-                    "Measurement",
-                    measurements.map { it.name },
-                    measurements.indexOfFirst { it.name == selectedName }.coerceAtLeast(0)
-                ) { i -> chosenName = measurements[i].name }
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = { editingGoal = true }, enabled = def != null) {
-                    Text(goalText(def), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+                items(measurements, key = { it.name }) { m ->
+                    MeasurementListRow(snap, m) { nav.push(Screen.BodyMeasurement(m.name)) }
+                    GoldHairline()
                 }
-            }
-            val all = remember(snap, selectedName) { snap.dailySeries(selectedName) }
-            val shown = remember(all, rangeIdx) { inRange(all, RANGES[rangeIdx].second) { it.date } }
-            if (tab == 2) {
-                LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                    item {
-                        // Range, trend and from-zero in one compact row (#115).
-                        GraphOptionChips(
-                            rangeIdx, { rangeIdx = it },
-                            showTrend, { showTrend = !showTrend },
-                            fromZero, { fromZero = !fromZero },
-                            trailing = { ExpandGraphButton { fullScreen = true } }
-                        )
-                    }
-                    item {
-                        val points = rememberChartData(shown) {
-                            shown.map { ChartPoint(Dates.epochDay(it.date), it.value, it.date) }
-                        } ?: emptyList()
-                        val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
-                        val unit = def?.unit ?: shown.lastOrNull()?.unit ?: ""
-                        LineChart(
-                            listOf(LineSeries(selectedName, points)),
-                            Modifier.padding(horizontal = 8.dp),
-                            photoDays = photoDays,
-                            goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
-                            selected = selectedPoint?.let { ChartSelection(0, it) },
-                            onSelect = { selectedPoint = it.index; ChartHints.tapped() },
-                            unit = unit,
-                            showTrend = showTrend,
-                            yFromZero = fromZero,
-                            onExpand = { ChartHints.expanded(); fullScreen = true }
-                        )
-                        ChartHint()
-                        if (fullScreen) {
-                            FullScreenChart(
-                                selectedName,
-                                onDismiss = { fullScreen = false },
-                                controls = {
-                                    GraphOptionChips(
-                                        rangeIdx, { rangeIdx = it },
-                                        showTrend, { showTrend = !showTrend },
-                                        fromZero, { fromZero = !fromZero }
-                                    )
-                                },
-                                footer = {
-                                    selectedPoint?.let { points.getOrNull(it) }?.let { p ->
-                                        Text(
-                                            "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
-                                            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                    }
-                                }
-                            ) { vp, h, resetZoom ->
-                                LineChart(
-                                    listOf(LineSeries(selectedName, points)),
-                                    height = h,
-                                    photoDays = photoDays,
-                                    goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
-                                    selected = selectedPoint?.let { ChartSelection(0, it) },
-                                    onSelect = { selectedPoint = it.index },
-                                    unit = unit,
-                                    showTrend = showTrend,
-                                    yFromZero = fromZero,
-                                    viewport = vp,
-                                    onExpand = resetZoom
-                                )
-                            }
-                        }
-                        if (showTrend) trendOf(points)?.let { tr ->
-                            Text(
-                                "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
-                                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Text(
-                            "Tap the graph to see that day. Purple ticks and rings mark days with photos.",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
-                    item {
-                        val sel = selectedPoint?.let { shown.getOrNull(it) }
-                        if (sel != null) SelectedPointCard(snap, nav, sel)
-                    }
-                    item { StatsBlock(shown, def?.unit ?: shown.lastOrNull()?.unit ?: "") }
-                }
-            } else {
-                HistoryTable(snap, snap.recordsByName[selectedName] ?: emptyList(), def) { editingRecord = it }
             }
         }
     }
-    if (adding) AddMeasurementDialog(snap, Dates.today()) { adding = false }
-    logName?.let { n -> AddMeasurementDialog(snap, Dates.today(), initialName = n) { logName = null } }
-    val goalDef = measurements.firstOrNull { it.name == selectedName }
-    if (editingGoal && goalDef != null) MeasurementGoalSheet(goalDef) { editingGoal = false }
     if (ordering) MeasurementOrderSheet(measurements) { ordering = false }
-    editingRecord?.let { r ->
-        MeasurementEntrySheet(snap, r.date, existing = r, onOpenDay = { d -> nav.push(Screen.Day(d)) }) { editingRecord = null }
+}
+
+/** One measurement in the body tracker list: its name, and its latest value and date. */
+@Composable
+private fun MeasurementListRow(snap: Snapshot, m: MeasurementDef, onOpen: () -> Unit) {
+    val recs = snap.recordsByName[m.name].orEmpty()
+    val last = recs.lastOrNull()
+    val prev = recs.getOrNull(recs.size - 2)
+    val unit = m.unit.ifBlank { last?.unit.orEmpty() }
+    val change = if (last != null && prev != null) changeText(prev, last) else null
+    val spoken = m.name + ", " + (last?.let { "${fmtNum(it.value)} $unit on ${Dates.medium(it.date)}" } ?: "nothing logged yet") +
+        (change?.let { ", $it" } ?: "")
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.row)
+            .clickable(onClickLabel = "Open ${m.name}", onClick = onOpen)
+            .semantics(mergeDescendants = true) { contentDescription = spoken }
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(m.name, style = MaterialTheme.typography.titleMedium)
+            if (last != null) {
+                Text(Dates.medium(last.date), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (change != null && prev != null && last != null) {
+                Text(change, style = MaterialTheme.typography.bodySmall, color = changeColour(m, prev.value, last.value))
+            }
+        }
+        Text(last?.let { "${fmtNum(it.value)} $unit".trim() } ?: "—", style = MaterialTheme.typography.titleMedium)
     }
 }
 
-/**
- * The Track tab (#88): every measurement with its latest value, the change since the entry before (an arrow and a
- * sign, coloured by the goal's direction, so colour is never the only cue) and its goal. Tapping one logs a new value.
- */
+/** A measurement's Graph tab: range, trend and from-zero options, the chart with its goal line and photo days, and stats. */
 @Composable
-private fun TrackList(snap: Snapshot, measurements: List<MeasurementDef>, onLog: (String) -> Unit) {
+internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
+    val def = snap.allMeasurements.firstOrNull { it.name == selectedName }
+    var rangeIdx by rememberSaveable { mutableIntStateOf(4) }
+    var selectedPoint by remember(selectedName, rangeIdx) { mutableStateOf<Int?>(null) }
+    var showTrend by rememberSaveable { mutableStateOf(false) }
+    var fromZero by rememberSaveable { mutableStateOf(false) }
+    var fullScreen by rememberSaveable { mutableStateOf(false) }
+    val all = remember(snap, selectedName) { snap.dailySeries(selectedName) }
+    val shown = remember(all, rangeIdx) { inRange(all, RANGES[rangeIdx].second) { it.date } }
+    if (all.isEmpty()) {
+        EmptyState("Nothing to graph yet", "Log $selectedName on the Track tab and it is graphed here.")
+        return
+    }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-        items(measurements, key = { it.name }) { m ->
-            val recs = snap.recordsByName[m.name].orEmpty()
-            val last = recs.lastOrNull()
-            val prev = recs.getOrNull(recs.size - 2)
-            val unit = m.unit.ifBlank { last?.unit.orEmpty() }
-            val change = if (last != null && prev != null) last.value - prev.value else null
-            val spoken = buildString {
-                append(m.name).append(", ")
-                if (last != null) append(fmtNum(last.value)).append(' ').append(unit).append(" on ").append(Dates.medium(last.date))
-                else append("nothing logged yet")
-                if (change != null) append(", ").append(if (change >= 0) "up " else "down ").append(fmtNum(kotlin.math.abs(change))).append(' ').append(unit)
-            }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = Spacing.row)
-                    .clickable(onClickLabel = "Log ${m.name}") { onLog(m.name) }
-                    .semantics(mergeDescendants = true) { contentDescription = spoken }
-                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(m.name, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        listOfNotNull(last?.let { Dates.medium(it.date) } ?: "Tap to log the first value", goalText(m).takeIf { m.goalType != 0 })
-                            .joinToString("  ·  "),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+        item {
+            // Range, trend and from-zero in one compact row (#115).
+            GraphOptionChips(
+                rangeIdx, { rangeIdx = it },
+                showTrend, { showTrend = !showTrend },
+                fromZero, { fromZero = !fromZero },
+                trailing = { ExpandGraphButton { fullScreen = true } }
+            )
+        }
+        item {
+            val points = rememberChartData(shown) {
+                shown.map { ChartPoint(Dates.epochDay(it.date), it.value, it.date) }
+            } ?: emptyList()
+            val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
+            val unit = def?.unit ?: shown.lastOrNull()?.unit ?: ""
+            LineChart(
+                listOf(LineSeries(selectedName, points)),
+                Modifier.padding(horizontal = 8.dp),
+                photoDays = photoDays,
+                goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
+                selected = selectedPoint?.let { ChartSelection(0, it) },
+                onSelect = { selectedPoint = it.index; ChartHints.tapped() },
+                unit = unit,
+                showTrend = showTrend,
+                yFromZero = fromZero,
+                onExpand = { ChartHints.expanded(); fullScreen = true }
+            )
+            ChartHint()
+            if (fullScreen) {
+                FullScreenChart(
+                    selectedName,
+                    onDismiss = { fullScreen = false },
+                    controls = {
+                        GraphOptionChips(
+                            rangeIdx, { rangeIdx = it },
+                            showTrend, { showTrend = !showTrend },
+                            fromZero, { fromZero = !fromZero }
+                        )
+                    },
+                    footer = {
+                        selectedPoint?.let { points.getOrNull(it) }?.let { p ->
+                            Text(
+                                "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
+                                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+                ) { vp, h, resetZoom ->
+                    LineChart(
+                        listOf(LineSeries(selectedName, points)),
+                        height = h,
+                        photoDays = photoDays,
+                        goal = if (def != null && def.goalType != 0 && def.goalValue > 0) def.goalValue else null,
+                        selected = selectedPoint?.let { ChartSelection(0, it) },
+                        onSelect = { selectedPoint = it.index },
+                        unit = unit,
+                        showTrend = showTrend,
+                        yFromZero = fromZero,
+                        viewport = vp,
+                        onExpand = resetZoom
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(last?.let { "${fmtNum(it.value)} $unit" } ?: "—", style = MaterialTheme.typography.titleMedium)
-                    if (change != null && prev != null && last != null) {
-                        Text(
-                            (if (change > 0) "▲ " else if (change < 0) "▼ " else "") + fmtSigned(change),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = changeColour(m, prev.value, last.value)
-                        )
-                    }
-                }
             }
-            GoldHairline()
+            if (showTrend) trendOf(points)?.let { tr ->
+                Text(
+                    "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
+                    Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text(
+                "Tap the graph to see that day. Purple ticks and rings mark days with photos.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
+        item {
+            val sel = selectedPoint?.let { shown.getOrNull(it) }
+            if (sel != null) SelectedPointCard(snap, nav, sel)
+        }
+        item { StatsBlock(shown, def?.unit ?: shown.lastOrNull()?.unit ?: "") }
     }
 }
 
@@ -320,43 +281,62 @@ private fun StatsBlock(list: List<MRecord>, unit: String) {
     }
 }
 
+/**
+ * A measurement's History tab, as the exercise History: each day, newest first, under its date, with the change since
+ * the value before and a dot for a day with photos. Tapping a value opens it on Track for Update or Delete.
+ */
 @Composable
-private fun HistoryTable(snap: Snapshot, records: List<MRecord>, def: MeasurementDef?, onOpen: (MRecord) -> Unit) {
-    val rows = records.reversed()
+internal fun BodyHistoryPane(snap: Snapshot, name: String, onOpen: (MRecord) -> Unit) {
+    val records = snap.recordsByName[name].orEmpty()
+    val def = snap.allMeasurements.firstOrNull { it.name == name }
+    if (records.isEmpty()) {
+        EmptyState("No history yet", "Every value you log for $name appears here, newest first.")
+        return
+    }
+    val byDate = remember(records) { records.groupBy { it.date.take(10) }.toSortedMap() }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-        item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Text("Date", Modifier.weight(1.4f), style = MaterialTheme.typography.labelLarge)
-                Text("Value", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                Text("Change", Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-                Text("Photo", Modifier.width(48.dp), style = MaterialTheme.typography.labelLarge)
-            }
-            HorizontalDivider()
-        }
-        items(rows, key = { it.id }) { r ->
-            val idx = records.indexOf(r)
-            val prev = if (idx > 0) records[idx - 1] else null
-            val photo = snap.photosByDate[r.date]?.firstOrNull()
-            Row(
-                // Tap to edit a value logged by hand, or see an imported one (#27).
-                Modifier.fillMaxWidth().clickable(onClickLabel = "Open this value") { onOpen(r) }.padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1.4f)) {
-                    Text(Dates.medium(r.date), style = MaterialTheme.typography.bodyMedium)
-                    if (!r.comment.isNullOrBlank()) Text(r.comment, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+        byDate.entries.reversed().forEach { (d, l) ->
+            item(key = d) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(Dates.long(d), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
+                    }
+                    l.forEachIndexed { i, r ->
+                        val prev = records.getOrNull(records.indexOf(r) - 1)
+                        SetRowView(
+                            index = i + 1,
+                            summary = "${fmtNum(r.value)} ${r.unit}",
+                            cells = valueCells(r),
+                            comment = r.comment,
+                            framed = false,
+                            showIndex = false,
+                            noun = "Value",
+                            onClick = { onOpen(r) }
+                        )
+                        // The change since the value before, coloured by the goal's direction (#27); the arrow and
+                        // sign keep the meaning without colour.
+                        if (prev != null) {
+                            Text(
+                                changeText(prev, r),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = changeColour(def, prev.value, r.value),
+                                modifier = Modifier.padding(start = 18.dp)
+                            )
+                        }
+                    }
                 }
-                Text("${fmtNum(r.value)} ${r.unit}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                // Coloured by the goal's direction (#27); the sign keeps the meaning without colour.
-                Text(
-                    prev?.let { fmtSigned(r.value - it.value) } ?: "",
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (prev != null) changeColour(def, prev.value, r.value) else MaterialTheme.colorScheme.onSurface
-                )
-                if (photo != null) PhotoThumb(snap, photo, Modifier.size(width = 36.dp, height = 48.dp), sizePx = 120)
-                else Spacer(Modifier.width(48.dp).height(1.dp))
+                HorizontalDivider()
             }
         }
     }
+}
+
+/** A value and the time it was logged, in the set-row columns the exercise screen uses. */
+internal fun valueCells(r: MRecord): List<SetCell> {
+    val time = r.time.take(5)
+    return listOfNotNull(
+        SetCell(fmtNum(r.value), r.unit, "${fmtNum(r.value)} ${r.unit}"),
+        time.takeIf { it.isNotBlank() }?.let { SetCell(it, spoken = "at $it", unitSlot = false) }
+    )
 }

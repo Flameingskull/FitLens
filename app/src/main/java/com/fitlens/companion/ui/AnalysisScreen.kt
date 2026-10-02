@@ -279,9 +279,11 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.titleMedium
                     )
+                    // The change in the metric's own unit, with the value before, never a bare number (owner, 2026-10-02).
                     val change = prev?.let {
-                        " · ${fmtSigned(shown(valueOf(t)) - shown(valueOf(it)), if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0)} " +
-                            "vs the ${period.name.lowercase()} before"
+                        val unitWord = if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
+                        " · ${fmtSigned(shown(valueOf(t)) - shown(valueOf(it)), if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0)}" +
+                            "$unitWord vs the ${period.name.lowercase()} before (${withUnit(shown(valueOf(it)))})"
                     } ?: ""
                     AnalysisNote(withUnit(shown(valueOf(t))) + change)
                     if (t.days.isNotEmpty()) {

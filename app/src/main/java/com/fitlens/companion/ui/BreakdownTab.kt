@@ -159,11 +159,15 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
                         if (group == Analysis.GroupBy.Exercise) s.exerciseId == slice.id
                         else snap.exercises[s.exerciseId]?.categoryId == slice.id
                     }
-                    val diff = slice.value - Analysis.measure(before, measure)
+                    val was = Analysis.measure(before, measure)
+                    val diff = slice.value - was
                     val what = if (span == Analysis.Span.Workout) "the workout before" else "the ${span.label.lowercase()} before"
-                    val diffText = if (measure == Analysis.Measure.Volume) "${fmtSigned(snap.weight(diff), 0)} ${snap.weightUnit}"
-                    else "${fmtSigned(diff, 0)} ${measure.unitMany}"
-                    AnalysisNote("${slice.label}: $diffText vs $what.")
+                    fun amount(v: Double, signed: Boolean): String {
+                        val n = if (measure == Analysis.Measure.Volume) snap.weight(v) else v
+                        val u = if (measure == Analysis.Measure.Volume) snap.weightUnit else measure.unitMany
+                        return "${if (signed) fmtSigned(n, 0) else fmtNum(n, 0)} $u"
+                    }
+                    AnalysisNote("${slice.label}: ${amount(slice.value, false)}, ${amount(diff, true)} vs $what (${amount(was, false)}).")
                 }
                 Row(Modifier.padding(horizontal = 4.dp)) {
                     TextButton(onClick = {

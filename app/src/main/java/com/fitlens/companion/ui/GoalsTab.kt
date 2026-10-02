@@ -147,7 +147,11 @@ internal fun goalText(snap: Snapshot, g: ExerciseGoal, p: GoalProgress): Pair<St
     val best = "${fmtNum(goalShown(snap, g.kind, p.best, g.exerciseId), 1)} $unit".trim()
     val status = when {
         p.achievedDate != null -> "Reached on ${Dates.medium(p.achievedDate)}"
-        p.bestDate != null -> "Best so far $best on ${Dates.medium(p.bestDate)}"
+        p.bestDate != null -> {
+            val left = goalShown(snap, g.kind, g.target, g.exerciseId) - goalShown(snap, g.kind, p.best, g.exerciseId)
+            "Best so far $best on ${Dates.medium(p.bestDate)}" +
+                if (left > 0) " · ${"${fmtNum(left, 1)} $unit".trim()} to go" else ""
+        }
         else -> "Nothing logged towards it yet"
     }
     return "${GoalKinds.label(g.kind)}: $target" to status

@@ -74,6 +74,8 @@ sealed interface Screen {
     data object Timeline : Screen
     data object Calendar : Screen
     data object Body : Screen
+    /** One body measurement (FitNotes's body tracker): Track, History and Graph; [page] is the tab it opens on. */
+    data class BodyMeasurement(val name: String, val page: Int = 0) : Screen
     /** Every body measurement: on/off, custom ones, the standard set (#88). */
     data object Measurements : Screen
     /**
@@ -271,6 +273,8 @@ fun AppRoot(nav: Nav) {
         // Transparent over the ambient glow the glass surfaces catch (#102).
         modifier = Modifier.ambientBackdrop(),
         containerColor = Brand.Black.copy(alpha = 0f),
+        // A transparent container has no matching content colour, so text would fall back to black: ivory instead.
+        contentColor = Brand.Ivory,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbar) }
     ) { inner ->
@@ -300,6 +304,7 @@ fun AppRoot(nav: Nav) {
                         Screen.Timeline -> TimelineScreen(s, nav)
                         Screen.Calendar -> CalendarScreen(s, nav)
                         Screen.Body -> BodyScreen(s, nav)
+                        is Screen.BodyMeasurement -> BodyMeasurementScreen(s, nav, screen.name, screen.page)
                         Screen.Measurements -> MeasurementsScreen(s, nav)
                         Screen.Analysis -> AnalysisScreen(s, nav)
                         is Screen.WorkoutEditor -> WorkoutEditorScreen(s, nav, screen.id)

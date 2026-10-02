@@ -19,10 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.MRecord
 import com.fitlens.companion.data.MeasurementDef
 import com.fitlens.companion.data.MeasurementGoals
 import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.fmtNum
+import com.fitlens.companion.data.fmtSigned
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.ListRowWithMenu
 import kotlinx.coroutines.launch
@@ -39,6 +42,17 @@ fun changeColour(def: MeasurementDef?, from: Double, to: Double): Color {
         false -> Brand.PurpleLight
         null -> MaterialTheme.colorScheme.onSurface
     }
+}
+
+/**
+ * A change between two values of a measurement, in full figures: the arrow, the signed amount in its unit and the
+ * value it started from, "▲ +0.4 kg from 82 kg on 1 Oct". Never a bare number or a percentage.
+ */
+fun changeText(prev: MRecord, now: MRecord): String {
+    val d = now.value - prev.value
+    val arrow = if (d > 0) "▲ " else if (d < 0) "▼ " else ""
+    val unit = now.unit.takeIf { it.isNotBlank() }?.let { " $it" } ?: ""
+    return "$arrow${fmtSigned(d)}$unit from ${fmtNum(prev.value)}$unit on ${Dates.short(prev.date)}"
 }
 
 /** A short description of a measurement's goal, for the Body tab. */
