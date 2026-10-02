@@ -1,39 +1,28 @@
 ## Overview
 
-This update brings the Today page into line with FitNotes. It now looks and works almost exactly like FitNotes's
-day log, so moving across feels familiar from the first screen. It also aligns the exercise screen, the exercise
-library and the workout drawer with FitNotes, following a page-by-page check of FitLens against FitNotes.
+This update makes the Today page easier to read. Body value names no longer break in the middle of a word, the change
+under each value is shorter and clearer, and on a day with only body values or photos, the ways to start a workout
+are in view. Text throughout the app now wraps between words, in balanced lines.
 
 There are no database changes. Everything you've logged is kept as it was.
 
-## What's new
+## Fixed
 
-- **A FitNotes-style Today page.**
-  - **Day bar.** A flat, full-width ‹ TODAY › bar over a gold rule. Tap the day to pick a date, long-press it to
-    jump back to today, or use **Go to today** in the ⋮ menu.
-  - **Body values first.** The day's measurements sit at the top in one card, with the name on the left and the value
-    and unit on the right, as in FitNotes. The change since your previous value is shown small underneath. Tap a
-    measurement to open it. Long-press a value you added in FitLens to delete it.
-  - **Exercise cards like FitNotes's.** Each exercise shows its name over a gold rule, then its sets as bold,
-    right-aligned figures. A gold tick appears once every set is marked done. Long-press a card for its options
-    (comment, history, records, reorder, superset, swap, remove).
-  - **Empty days.** A day with nothing logged reads "Workout log empty", with **Add exercise**, **Add workout** and
-    **Copy previous workout** as icons near the bottom of the screen, where FitNotes puts them.
-  - Your photos, workout time, totals and workout comment are still there, placed so they don't change FitNotes's
-    layout.
+- **Body values read cleanly.** Each measurement's name and value share one line, and the name is never split
+  ("Bodywei / ght" is gone). The change sits on its own line underneath, in plain text rather than spaced-out
+  capitals: "▼ 0.7 kg since 21 Aug · was 113.25 kg", or "No change since 18 Sept" when the value is the same.
+- **Start a workout without scrolling.** On a day with body values or photos but no workout, **Add exercise**,
+  **Add workout** and **Copy previous workout** now sit in one row just below them. Before, they were pushed off the
+  bottom of the screen.
+- **Better wrapping everywhere.** Headings and running text across the app now break between words, with balanced
+  line lengths, and never hyphenate or split a word.
 
 ## Improved
 
-- **Exercise screen.** The top bar now follows FitNotes's order: the rest timer, a trophy for records and goals, then
-  exercise info. In History, each day is headed by its date in gold capitals over a gold rule, as is each
-  measurement's History.
-- **Exercise library.** It opens on **All exercises** with the search field always shown at the top, as in FitNotes.
-- **Workout drawer.** The drawer is headed with the number of exercises and ends with **Add exercise**, **Add to
-  superset** and **Home**. Add to superset lets you choose exercises from the day to group with the one you're on.
+- The body tracker list and each measurement's History use the same shorter change wording.
+- The README has been refreshed to describe the app as it is in this release.
 
 ## Known limitations
 
-- The page-by-page check against FitNotes found two more differences, now planned for a later update: a full-screen
-  exercise editor, and Breakdown's period list and slice arrows.
-- FitNotes uses 1m / 3m / 6m / 1y / all buttons and labelled selector rows on its graphs, while FitLens keeps the
-  compact dropdowns requested earlier. This waits on a decision about which to follow.
+- A very long measurement name is shortened with "…" on the Today page rather than wrapping. Tap the row to see it
+  in full on the measurement's own screen.

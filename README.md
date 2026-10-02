@@ -24,11 +24,12 @@ custom metrics.
   measurements and custom metrics, makes slideshows, videos and PDF reports, and backs everything up locally. Every
   exercise, set and workout records whether it came from FitNotes or was created in FitLens, so the two histories sit
   side by side without colliding.
-- **In progress:** the rest of the FitNotes-style redesign in the FitLens look
-  ([#79](https://github.com/Flameingskull/FitLens/issues/79)): the calendar, the photo screens and a final polish
-  pass. Distance and length units
-  ([#7](https://github.com/Flameingskull/FitLens/issues/7)) will bring FitNotes's cardio graphs. After those come the rest of FitNotes parity
-  ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and the rest of the
+- **In progress:** FitNotes is the guide for every screen that does what a FitNotes screen does, so moving across
+  feels familiar. The day log, body tracker, exercise screen, library and workout drawer now follow FitNotes closely;
+  the remaining differences found in a page-by-page check (a full-screen exercise editor, Breakdown's period list,
+  and the graph controls) are tracked in the
+  [redesign epic (#79)](https://github.com/Flameingskull/FitLens/issues/79). After that come the rest of FitNotes
+  parity ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 - **FitNotes stays supported** as an import source. You can import during first-run setup or at any time afterwards.
   Imports always merge and never overwrite FitLens data. There's no export back to FitNotes.
@@ -49,7 +50,7 @@ custom metrics.
 - **Every update installs over the last one** and keeps your data. Database changes are always migrated, never reset.
 - **Android phones** (Android 10 or newer), across phone screen sizes. A self-hosted web version may come later.
 - **The FitLens look:** luxury black, imperial purple and gold. Cards, bars and buttons are tinted glass with gold
-  rims, headings are serif, and text on buttons and chips is always gold, never black. The FitLens character stands
+  rims, headings are serif, and all text is ivory or gold, never black. Text wraps between words, never inside one. The FitLens character stands
   faintly behind every screen, and its torso appears in notifications and beside the magnifying glass in search
   fields.
 
@@ -80,8 +81,9 @@ custom metrics.
   ask and never on top of exercises you already have.
 - **Workout editing.** Add exercises to a day, and add or edit the workout comment under the day's summary. Copy a logged workout
   to another day (leaving out any exercises you choose), move it, copy a previous workout into today, or delete it.
-  Each of these opens as a sheet, and the result can be undone. **Share workout** sends a workout as text to any app,
-  with a checklist of what to include.
+  Each of these opens as a sheet, and the result can be undone. **Share workout** sends a workout to any app as text or
+  as a FitLens image card (with one of that day's photos only if you choose it), with a checklist of exactly which
+  exercises and sets to include.
 - **Workouts.** The exercise library's title (**+** on the day log) switches between **All exercises**, each of your
   workouts and **Create new workout**. A workout shows its days as cards, with the next one marked in gold, and
   **Log all** adds a whole day at once, with Undo. In the editor, each day has **+** (Add exercise) and a menu to
@@ -121,7 +123,7 @@ custom metrics.
 
   Duplicates are detected and skipped, so re-importing a folder is safe.
 - **Manual entry:** add photos to a specific day and log measurements by hand, with a date, time and comment. A value
-  you logged can be changed or deleted from the body tracker's History. If the same value later arrives in a
+  you logged can be changed or deleted on the measurement's Track tab (tap it there, or in its History). If the same value later arrives in a
   FitNotes backup, the FitNotes copy is skipped and your entry is kept.
 - **Measurements:** the body tracker's **Measurements** screen lists every measurement with an on/off switch, adds
   the standard set (bodyweight, body fat and eight tape measurements), and creates your own, such as calories or
@@ -133,8 +135,10 @@ custom metrics.
   **Settings → Run setup again** opens it any time.
 - **Settings:** open it from the **⋮** menu on the day log. A search field at the top finds any setting and opens
   its page. **Data, backup & import** holds Backups, FitNotes import and Data tools; **Training** holds Units &
-  display, Workout & logging, Rest timer and Personal records. Units & display chooses kilograms or pounds, which
-  also converts bodyweight measurements and the plate calculator's plates (stored values never change), and sets the
+  display, Workout & logging, Rest timer and Personal records. Units & display chooses kilograms or pounds, kilometres
+  or miles, and centimetres or inches, which also converts body measurements and the plate calculator's plates
+  (stored values never change). Any exercise can keep its own weight unit, and any body measurement its own unit,
+  set in the exercise editor and on the Measurements screen. Units & display also sets the
   week start, the weight step and how the day log shows each exercise (category colours, and how many sets each card
   shows). Every page is laid out the same way: grouped rows, switches, and a setting with several choices shows the
   current one in gold and opens a list of them, each explained. Settings that belong to the phone, such as backup
@@ -151,11 +155,14 @@ custom metrics.
   and Back returns you to it. Choices such as a period, a pose or a sort order sit in compact dropdowns, so the data
   gets the screen; the controls you use mid-workout stay in view.
 - **Views:**
-  - **Day log (home):** opens on today. Swipe or use the arrows to move one day at a time, empty days included, and
-    tap the date to jump to any day. It shows the day's progress photos in a strip, a card with the body values logged
-    that day, the workout's duration, sets, volume and comment, and a card for each exercise with its sets, PRs and
-    exercise comment. Tap an exercise to log its sets; its card's menu adds or edits the exercise comment. An empty day offers **Add workout**, **Add exercise** and **Copy
-    previous workout**.
+  - **Day log (home):** laid out as FitNotes's. It opens on today, under a flat ‹ TODAY › bar: swipe or use the
+    arrows to move one day at a time, empty days included, tap the day to jump to any date, and long-press it to come
+    back to today. The day's body values come first, in one card with each name and its value, and the change since
+    the previous value (amount, date and the value it moved from) on its own line. Then come the day's progress photos
+    and a card for each exercise: its name, a gold tick once every set is done, and its sets as bold figures in
+    columns. Tap an exercise to log its sets, or long-press it for its options (comment, history, records, reorder,
+    superset, swap, remove). The workout's time, totals and comment follow. An empty day reads "Workout log empty"
+    and offers **Add exercise**, **Add workout** and **Copy previous workout**.
   - **All days** (from the Calendar's top bar): a timeline of every day, with that day's photos, measurements and
     workout summary.
   - **Calendar:** as in FitNotes, a month grid (swipe between months) with category dots, photo and measurement
@@ -164,21 +171,24 @@ custom metrics.
     (or a second tap) opens its log, and tapping one of its exercises opens that exercise's **overview** (history,
     graph, records, stats and goals in one sheet). The search button **filters** the calendar by exercise or
     category and weight, reps, distance or time, fading the days that don't match and counting those that do.
-  - **Body tracker:** **Track** lists every measurement with its latest value, the change since the entry before
-    (coloured by your goal) and its goal; tap one to log a new value. **History** is a table for each measurement, and
-    **Graph** has the graph (with a range from the last month to all time) and stats (start, latest, change, min, max, weekly rate). Days with
-    photos are marked on the graph. Measurements can be put in your own order, and a tap on a History value opens it
-    to edit.
-  - **Exercise library:** as in FitNotes, your categories first, then a category's exercises, with a search across
-    all of them. Tap an exercise to log it, or long-press to choose several and go through them in turn.
+  - **Body tracker:** as in FitNotes, a list of your measurements in your order, each with its latest value, date and
+    change since the value before (coloured by your goal). Tap one to open its own **Track**, **History** and
+    **Graph** tabs, laid out like the exercise screen. **Track** has the day, the value with − and + buttons (starting
+    from your last value), the time and a comment, **Save** and **Clear**, and the day's values below; tap one to
+    **Update** or **Delete** it, with Undo. **History** lists every day newest first with the change each time, and
+    **Graph** has the graph (with a range from the last month to all time), the goal line, photo days and stats
+    (start, latest, change, min, max, weekly rate). The measurement's goal is set from its ⋮ menu.
+  - **Exercise library:** as in FitNotes, it opens on **All exercises** with the search field always at the top,
+    then your categories, then a category's exercises. Tap an exercise to log it, or long-press to choose several and go through them in turn.
   - **Exercise screen:** **Track** (log sets), **History** (every day you've done it, with its totals, that day's
     exercise comment and **Copy to today**; tap a set to correct or delete it) and **Graph** tabs. The Graph tab has
     FitNotes's list for weight exercises: **Estimated 1RM**, **Max weight**, **Workout volume**, **Workout reps**,
     **Max reps**, **Max volume** (the best single set), **Max weight for reps** (the heaviest set at a rep count you
     choose) and **Personal records** (a line through each day you set a record). Timed and distance exercises graph
-    their longest set, total time and distance. Its menu button opens the **workout drawer**: the day's exercises in order,
-    to jump between, reorder, group into supersets or add to. Its top bar also has the rest timer, and opens
-    **Records**, **Stats** (Max weight, Estimated 1RM, Max reps, Max volume, Workout reps and Workout volume, each with
+    their longest set, total time and distance, and distance-and-time exercises add **Max distance**, **Max speed**
+    and **Max pace**. Its menu button opens the **workout drawer**: the day's exercises in order,
+    to jump between or reorder, with **Add exercise**, **Add to superset** and **Home** at the bottom. As in FitNotes,
+    the top bar then has the rest timer, a trophy that opens **Records**, **Stats** (Max weight, Estimated 1RM, Max reps, Max volume, Workout reps and Workout volume, each with
     its date, which a tap opens, plus totals and first and last logged, for a period or any date range), **Goals** and
     a **1RM calculator**.
     Its **(i)** button shows the exercise's notes and settings, with **Edit**. Its ⋮ menu has a **set calculator** (percentages of your 1RM, or a warm-up ramp) and a **plate calculator**
@@ -197,7 +207,8 @@ custom metrics.
     and options in one compact row of dropdowns. They can add a dashed **trend line** with its change per month, start
     their scale **from zero**, and join every point with an unbroken line. Every graph opens **full screen** (the expand button or a double
     tap), where pinching across zooms the timeline and pinching up and down zooms the values, dragging moves around, and the range and options can change. TalkBack reads each graph's range and
-    values and offers zoom and move actions for both.
+    values and offers zoom and move actions for both. A graph's ⋮ menu can **share it as an image** in the FitLens
+    look.
   - **Photos:** a gallery you can group by month or by pose, with pose filters and counts. It also has multi-select
     for bulk pose tagging, a full-screen viewer with that day's measurements, and a **before/after compare** you can
     share or save as an image.
@@ -292,10 +303,10 @@ The first time FitLens opens, a short guided setup walks through the steps below
 
 - Sets, and exercises in the workout editor, are reordered with buttons (and TalkBack actions), not by dragging.
   Routines from FitNotes backups aren't imported.
-- Distances show "dist" as their unit until unit settings arrive
-  ([#7](https://github.com/Flameingskull/FitLens/issues/7)).
-- Timed and distance exercises don't yet have FitNotes's max distance, time, speed and pace graphs, which need
-  distance units ([#7](https://github.com/Flameingskull/FitLens/issues/7)).
+- Graphs use compact dropdowns rather than FitNotes's 1m / 3m / 6m / 1y / all buttons, pending a decision
+  ([#125](https://github.com/Flameingskull/FitLens/issues/125)).
+- Values imported from FitNotes can be viewed but not edited in FitLens: the next import would bring the original
+  back. Change them in FitNotes and import again.
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So
   FitLens can't pull data out of FitNotes directly or make FitNotes create a backup. Folder sync is the closest to
   automatic that Android allows. It works best if FitNotes saves its backups to one folder on your phone.
