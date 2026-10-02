@@ -457,8 +457,11 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
     }
 }
 
-/** A History heading as FitNotes writes it (#142): "MONDAY, SEPTEMBER 28", with the year when it isn't this one. */
-private fun historyDay(date: String): String {
+/**
+ * A day heading as FitNotes writes it (#142): "MONDAY, SEPTEMBER 28", with the year when it isn't this one. Used by
+ * every History list and the calendar's selected day (#144).
+ */
+internal fun historyDay(date: String): String {
     val d = Dates.parse(date) ?: return date
     val pattern = if (d.year == java.time.LocalDate.now().year) "EEEE, MMMM d" else "EEEE, MMMM d, yyyy"
     return d.format(java.time.format.DateTimeFormatter.ofPattern(pattern, java.util.Locale.getDefault())).uppercase()

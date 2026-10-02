@@ -2,6 +2,7 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.currentWidthBucket
 import com.fitlens.companion.ui.design.WidthBucket
 import com.fitlens.companion.ui.design.GoldButton
@@ -321,7 +322,8 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
     val byExercise = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } } }
     val secs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
     Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Text(Dates.long(date), style = MaterialTheme.typography.titleLarge)
+        // The selected day under a FitNotes heading (#144).
+        SectionLabel(historyDay(date))
         if (sets.isEmpty() && records.isEmpty() && photos.isEmpty()) {
             Text("Nothing logged on this day.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

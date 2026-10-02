@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.SectionLabel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -312,11 +313,11 @@ internal fun BodyHistoryPane(snap: Snapshot, name: String, onOpen: (MRecord) -> 
         byDate.entries.reversed().forEach { (d, l) ->
             item(key = d) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    // FitNotes's day heading, as on the exercise screen's History (#144).
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(Dates.long(d).uppercase(), style = MaterialTheme.typography.titleSmall, color = Brand.Gold, modifier = Modifier.weight(1f))
+                        SectionLabel(historyDay(d), Modifier.weight(1f))
                         if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
                     }
-                    HorizontalDivider(Modifier.padding(top = 2.dp, bottom = 4.dp), color = Brand.Gold)
                     l.forEachIndexed { i, r ->
                         val prev = records.getOrNull(records.indexOf(r) - 1)
                         SetRowView(
@@ -341,7 +342,6 @@ internal fun BodyHistoryPane(snap: Snapshot, name: String, onOpen: (MRecord) -> 
                         }
                     }
                 }
-                HorizontalDivider()
             }
         }
     }

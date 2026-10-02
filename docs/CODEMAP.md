@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.77.
+Last updated: 1.0.78.
 
 ## How data flows
 
@@ -97,11 +97,11 @@ Last updated: 1.0.77.
 | `AnalysisTabs.kt` | Analysis → Exercises (`AnalysisExercisesTab`: exercise picker, then `ExerciseGraphPane` keyed by exercise) and Analysis → Goals (`AnalysisGoalsTab`: every goal by exercise, opens `Screen.ExerciseDetail(id, tab = 2)`, + picks an exercise then `GoalEditor`), #90 |
 | `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |
-| `BodyScreen.kt` | Body tracker (#88), as in FitNotes: `BodyScreen` lists every enabled measurement with its latest value; a tap opens `Screen.BodyMeasurement`. Also the shared `BodyGraphPane` (range, trend, goal line, photo days, stats), `BodyHistoryPane` (days newest first, change since the value before), `valueCells`, `RANGES` and `inRange` for charts |
+| `BodyScreen.kt` | Body tracker (#88), as in FitNotes: `BodyScreen` lists every enabled measurement with its latest value; a tap opens `Screen.BodyMeasurement`. Also the shared `BodyGraphPane` (range, trend, goal line, photo days, stats), `BodyHistoryPane` (days newest first under FitNotes headings, `historyDay`, #144; change since the value before), `valueCells`, `RANGES` and `inRange` for charts |
 | `BodyMeasurementScreen.kt` | One measurement, laid out like the exercise screen: Track (`DayNavigator`, a value `StepperField`, time, comment, Save / Clear or Update / Delete, the day's values as `SetRow`s), History and Graph in a `HorizontalPager`; ⋮ Goal |
 | `Charts.kt` | Shared charts (#50): `FitChart` (was `LineChart`; `kind: ChartKind` LINE, BAR, AREA or STEP, #137: area has no markers, bars stand on zero with gold bodies and red tops, step stays level to the next point), `ChartKind` (`decode`/`encode` of `PortableSettings.graphKinds`), `rememberChartKind(graphId)` (the remembered kind and its setter; ids `exercise:<graph>`, `body:<measurement>`, `analysis:<metric>`), several `LineSeries`, legend, trend, from zero, markers; value and time grid lines, a gold baseline, red lines and a translucent gold fill under the first series, #131; the line is never broken, #116; `height` defaults to `graphHeight()`, about 45% of the screen, #115), `ChartSelection`, `ChartViewport` (time `from`/`to` and values `yFrom`/`yTo`, #96), `trendOf`, `rememberChartData` (off-main-thread data) |
 | `ChartViews.kt` | `DonutChart` (percentages via `Analysis.percents`), `DonutLegend`, `FullScreenDonut` (legend beside it in landscape), `FullScreenChart` (pinch split by direction: across zooms time, up and down zooms values unless `valueZoom = false` for bar charts, #96; pan, reset, TalkBack actions, a `controls` slot; `detectAxisTransformGestures`), `GraphOptionChips` (one compact row, #115: `leading` dropdowns, the range and the chart type (`kind`/`onKind`, #137) as `DropdownPill`s in a sideways-scrolling group so ⋮ and expand stay in view, Trend, From zero and `extra` in an `OptionsMenu`, `onShare` as a one-off `MenuAction` in it, #22, `trailing`), `rangeName`, `ExpandGraphButton`, `ChartHint` |
-| `CalendarScreen.kt` | FitNotes-style calendar (#87): month grid with swipe, category dots, selected day below (beside it on `WidthBucket.Expanded`, #87) with Open day (`nav.home(date)`), the filter bar and dimmed non-matching days (#9) |
+| `CalendarScreen.kt` | FitNotes-style calendar (#87): month grid with swipe, category dots, selected day below under a FitNotes heading (#144) (beside it on `WidthBucket.Expanded`, #87) with Open day (`nav.home(date)`), the filter bar and dimmed non-matching days (#9) |
 | `CalendarFilter.kt` | The calendar filter (#9): `CalendarFilter` (conditions one set must meet, `days`, `describe`, `encode`/`decode` into `DeviceSettings.calendarFilter`) and `CalendarFilterSheet` |
 | `PhotosScreen.kt`, `PhotoViewerScreen.kt` | Gallery, poses, review, viewer, compare, share |
 | `SlideshowScreen.kt` | Slideshow and video options |
