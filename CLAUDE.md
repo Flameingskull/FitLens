@@ -72,7 +72,11 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
   timer. The rest timer times the break between sets, and while it runs its countdown replaces the alarm icon in the
   top bar. The workout timer records how long the workout took. Each set has its own comment (a speech-bubble icon
   opens a Comment box) and a done checkbox. The owner's FitNotes reference screenshots are in
-  `nimbalyst-local/fitnotes-screens/` (local only, not in git).
+  `nimbalyst-local/fitnotes-screens/` (local only, not in git): **check every dated folder**, not only the newest.
+  `2026-09-23/` is the full set (72 shots, 00–71, plus `sheet0`–`sheet7.png` contact sheets: Analysis 0–17, routines
+  and the workout editor 18–34, the library 23–33, the exercise screen 36–63, the day log 46–53), `2026-09-28/` adds
+  the Track tab and comment box, and `2026-10-02/` the day log with body values. There are no screenshots of the
+  calendar, body tracker or Settings.
 - **Redesign first (owner decision, 2026-09-26):** builds now follow #79's page bundles: day log (#81, #84, #8), then
   the library and routine switcher (#83), the exercise screen (#82) and routines (#91, #21, #99). Feature-only builds
   wait until those land.
