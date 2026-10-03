@@ -92,12 +92,12 @@ dependencies {
 
     // Unit tests (#40): database migrations on the JVM, no emulator.
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("androidx.test:core:1.6.1")
     // Screenshot tests (#95): Compose rendered by Robolectric's native graphics and compared by Roborazzi.
     // ui-test-manifest only adds the empty test activity to debug builds; the release APK never contains it.
     testImplementation(composeBom)
     testImplementation("androidx.compose.ui:ui-test-junit4")
-    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.40.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.76.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
