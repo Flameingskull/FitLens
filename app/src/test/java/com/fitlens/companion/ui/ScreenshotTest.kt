@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -61,7 +62,7 @@ import java.io.File
  * without a golden is recorded instead; CI keeps the new images as an artifact so they can be committed. To accept an
  * intended change, delete the old golden and commit the newly recorded one.
  */
-@OptIn(ExperimentalRoborazziApi::class)
+@OptIn(ExperimentalRoborazziApi::class, ExperimentalMaterial3Api::class)
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], application = Application::class, qualifiers = "w420dp-h2000dp-xhdpi")
