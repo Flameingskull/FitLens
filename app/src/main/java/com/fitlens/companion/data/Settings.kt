@@ -127,7 +127,9 @@ data class PortableSettings(
     /** Graphs pinned to Analysis → Overview (#55), in order (`PinnedGraph.encode`), or null when none are pinned. */
     val pinnedGraphs: String? = null,
     /** The exercises each exercise's graph is compared with (#53), "id=id,id;…" (`GraphCompare.encode`). */
-    val graphCompare: String? = null
+    val graphCompare: String? = null,
+    /** Sex for the body fat formula (#153), `BodyFat.Sex.key`, or null until the user chooses. */
+    val profileSex: String? = null
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -285,6 +287,7 @@ object Settings {
         db.setMeta(P_GRAPH_KINDS, s.graphKinds?.takeIf { it.isNotBlank() })
         db.setMeta(P_PINNED_GRAPHS, s.pinnedGraphs?.takeIf { it.isNotBlank() })
         db.setMeta(P_GRAPH_COMPARE, s.graphCompare?.takeIf { it.isNotBlank() })
+        db.setMeta(P_PROFILE_SEX, s.profileSex?.takeIf { it.isNotBlank() })
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -349,6 +352,7 @@ object Settings {
     private const val P_GRAPH_KINDS = "graph_kinds"
     private const val P_PINNED_GRAPHS = "pinned_graphs"
     private const val P_GRAPH_COMPARE = "graph_compare"
+    private const val P_PROFILE_SEX = "profile_sex"
 
     private fun bool(v: String?) = v == "1"
 
@@ -434,7 +438,8 @@ object Settings {
         markComplete = bool(get(P_MARK_COMPLETE)),
         graphKinds = get(P_GRAPH_KINDS)?.takeIf { it.isNotBlank() },
         pinnedGraphs = get(P_PINNED_GRAPHS)?.takeIf { it.isNotBlank() },
-        graphCompare = get(P_GRAPH_COMPARE)?.takeIf { it.isNotBlank() }
+        graphCompare = get(P_GRAPH_COMPARE)?.takeIf { it.isNotBlank() },
+        profileSex = get(P_PROFILE_SEX)?.takeIf { it.isNotBlank() }
     )
 }
 

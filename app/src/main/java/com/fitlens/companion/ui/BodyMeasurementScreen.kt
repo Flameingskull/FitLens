@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.BodyFat
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.MRecord
 import com.fitlens.companion.data.Snapshot
@@ -80,6 +81,9 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
     var comment by remember(name) { mutableStateOf("") }
     var deleting by remember { mutableStateOf<MRecord?>(null) }
     var editingGoal by remember { mutableStateOf(false) }
+    // Body fat can be worked out from the tape measurements (#153).
+    val isBodyFat = BodyFat.isBodyFat(name)
+    var calculating by remember { mutableStateOf(false) }
 
     val dayValues = remember(records, date) { records.filter { it.date.take(10) == date } }
     val chosen = selected?.let { id -> records.firstOrNull { it.id == id } }
@@ -171,6 +175,11 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
                                     value = fmtNum(max(0.0, now + dir * VALUE_STEP), 2)
                                 }
                             )
+                            if (isBodyFat && chosen == null) {
+                                GlassOutlinedButton(onClick = { calculating = true }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                                    Text("Calculate from measurements")
+                                }
+                            }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
                                     value = timeText, onValueChange = { timeText = it },
@@ -258,6 +267,13 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
                     AppScope.scope.launch { Store.addManualRecord(r.name, r.unit, r.date, r.time, r.value, r.comment) }
                 }
             }
+        }
+    }
+    if (calculating) {
+        BodyFatCalculatorSheet(snap, date, onDismiss = { calculating = false }) { p, c ->
+            value = fmtNum(p, 1)
+            comment = c
+            UiEvents.show("Calculated: check it, then Save")
         }
     }
     if (editingGoal && def != null) MeasurementGoalSheet(def) { editingGoal = false }

@@ -10,6 +10,8 @@ object StandardMeasurements {
     val all: List<Pair<String, String>> = listOf(
         "Bodyweight" to "kg",
         "Body fat" to "%",
+        // Height is one of the body fat formula's inputs (#153).
+        "Height" to "cm",
         "Waist" to "cm",
         "Chest" to "cm",
         "Hips" to "cm",

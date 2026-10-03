@@ -289,4 +289,29 @@ class DbMigrationTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM workout_rest WHERE rest_after_seconds=120"))
         }
     }
+
+    @Test
+    fun v17GainsBodyFatAndHeightWithoutDoublingFitNotesBodyFat() {
+        // FitNotes's "Body Fat" exists only as logged values; Waist is a measurement (#153).
+        oldDatabase(
+            17,
+            v12Schema + listOf(
+                "CREATE TABLE measurement(name TEXT PRIMARY KEY, unit TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 999, " +
+                    "goal_type INTEGER NOT NULL DEFAULT 0, goal_value REAL NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, " +
+                    "custom INTEGER NOT NULL DEFAULT 0, link TEXT, edited INTEGER NOT NULL DEFAULT 0, display_unit TEXT)",
+                "CREATE TABLE mrecord(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, unit TEXT NOT NULL DEFAULT '', " +
+                    "date TEXT NOT NULL, time TEXT NOT NULL DEFAULT '', value REAL NOT NULL, comment TEXT, source TEXT NOT NULL)"
+            )
+        ) { db ->
+            db.row("measurement", "name" to "Waist", "unit" to "cm", "sort_order" to 3)
+            db.row("mrecord", "name" to "Body Fat", "unit" to "%", "date" to "2026-09-30", "value" to 18.5, "source" to "fitnotes")
+        }
+        Db(app).writableDatabase.use { db ->
+            assertEquals(Db.VERSION, db.version)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Waist' AND sort_order=3"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Body Fat' AND value=18.5"))
+            assertEquals(0, db.count("SELECT COUNT(*) FROM measurement WHERE lower(name)='body fat'"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Height' AND unit='cm' AND enabled=1 AND custom=1 AND sort_order=4"))
+        }
+    }
 }

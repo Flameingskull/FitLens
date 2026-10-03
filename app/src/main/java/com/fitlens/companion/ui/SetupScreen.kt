@@ -295,7 +295,7 @@ private fun ExercisesStep(snap: Snapshot) {
     val missing = StandardMeasurements.missing(snap.measurementDefs.map { it.name } + snap.recordsByName.keys)
     StepHeading("Body measurements")
     StepText(
-        "Track bodyweight, body fat and ${StandardMeasurements.all.size - 2} tape measurements such as waist and arms. " +
+        "Track bodyweight, body fat, height and ${StandardMeasurements.all.size - 3} tape measurements such as waist and arms. " +
             "Switch off any you don't need, or add your own, from the body tracker's Measurements screen."
     )
     if (missing.isEmpty()) StepStatus("The standard measurements are ready in the body tracker.")

@@ -203,6 +203,14 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
                 summary = "How body measurements are shown and entered. Your logged values aren't changed."
             ) { i -> Settings.updatePortable { it.copy(lengthUnit = if (i == 1) LengthUnits.IN else LengthUnits.CM) } }
         },
+        MainRow(s, "Sex (Body Fat)", "profile sex male female body fat navy formula calculate") {
+            SettingsChoiceRow(
+                "Sex (Body Fat)",
+                com.fitlens.companion.data.BodyFat.Sex.entries.map { it.label },
+                com.fitlens.companion.data.BodyFat.Sex.of(prefs.profileSex)?.ordinal ?: -1,
+                summary = "Used only to calculate body fat from your measurements (US Navy formula)."
+            ) { i -> Settings.updatePortable { it.copy(profileSex = com.fitlens.companion.data.BodyFat.Sex.entries[i].key) } }
+        },
         MainRow(s, "Calendar Week Start", "monday sunday saturday week starts") {
             val days = listOf(1 to "Monday", 6 to "Saturday", 7 to "Sunday")
             SettingsChoiceRow(

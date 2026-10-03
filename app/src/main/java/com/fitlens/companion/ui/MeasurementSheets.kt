@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import com.fitlens.companion.data.BodyFat
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.MRecord
 import com.fitlens.companion.data.Snapshot
@@ -61,6 +62,7 @@ fun MeasurementEntrySheet(
     }
     var pickDate by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var calculating by remember { mutableStateOf(false) }
     val editable = existing == null || existing.source == "manual"
     val unit = existing?.unit ?: snap.measurementDefs.firstOrNull { it.name == name }?.unit
         ?: snap.recordsByName[name]?.lastOrNull()?.unit ?: ""
@@ -121,6 +123,10 @@ fun MeasurementEntrySheet(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
+            // Body fat can be worked out from the tape measurements (#153).
+            if (existing == null && BodyFat.isBodyFat(name)) {
+                TextButton(onClick = { calculating = true }) { Text("Calculate from measurements") }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 GlassOutlinedButton(onClick = { pickDate = true }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) {
                     Text(Dates.medium(theDate))
@@ -139,6 +145,12 @@ fun MeasurementEntrySheet(
         }
         if (existing != null && onOpenDay != null) {
             TextButton(onClick = { onDismiss(); onOpenDay(existing.date) }) { Text("Open ${Dates.medium(existing.date)}") }
+        }
+    }
+    if (calculating) {
+        BodyFatCalculatorSheet(snap, theDate, onDismiss = { calculating = false }) { p, c ->
+            value = fmtNum(p, 1)
+            comment = c
         }
     }
     if (pickDate) PickDateDialog(theDate, onDismiss = { pickDate = false }) { theDate = it }

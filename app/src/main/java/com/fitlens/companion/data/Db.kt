@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 17
+        const val VERSION = 18
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -125,6 +125,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             "CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT)"
         )
         stmts.forEach { db.execSQL(it) }
+        addDefaultMeasurements(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -272,6 +273,40 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             }
             if (hasTable(db, "routine_day_set")) addColumn(db, "routine_day_set", "rest_seconds", "INTEGER")
             db.execSQL(CREATE_WORKOUT_REST.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
+        }
+        if (oldVersion < 18) {
+            // ---- 1.0.93: body fat and height for everyone (#153) ---------------------------------------------------
+            // Two rows, added only when no measurement or logged value already has the name (ignoring capitals), so
+            // FitNotes's "Body Fat" isn't doubled. Nothing existing changes, and the step replays safely (#77).
+            if (hasTable(db, "measurement")) addDefaultMeasurements(db)
+        }
+    }
+
+    /**
+     * Body fat (%) and Height (cm) are default measurements (#153): body fat is logged or calculated from the tape
+     * measurements, and height is one of the formula's inputs. Each is added after the others unless its name is
+     * already used by a measurement or a logged value, ignoring capitals.
+     */
+    private fun addDefaultMeasurements(db: SQLiteDatabase) {
+        val names = HashSet<String>()
+        db.rawQuery("SELECT name FROM measurement", null).use { c -> while (c.moveToNext()) names += c.getString(0).trim().lowercase() }
+        if (hasTable(db, "mrecord")) {
+            db.rawQuery("SELECT DISTINCT name FROM mrecord", null).use { c -> while (c.moveToNext()) names += c.getString(0).trim().lowercase() }
+        }
+        // A very old table may lack the later columns until its own steps add them: fill in only those it has.
+        val has = listOf("sort_order", "enabled", "custom", "edited").filter { hasColumn(db, "measurement", it) }.toSet()
+        var order = if ("sort_order" !in has) 0 else
+            db.rawQuery("SELECT IFNULL(MAX(sort_order), 0) FROM measurement WHERE sort_order < 900", null).use { c ->
+                if (c.moveToFirst()) c.getInt(0) else 0
+            }
+        listOf(BodyFat.NAME to BodyFat.UNIT, "Height" to LengthUnits.CM).forEach { (name, unit) ->
+            if (name.lowercase() in names) return@forEach
+            order++
+            db.insertWithOnConflict("measurement", null, ContentValues().apply {
+                put("name", name); put("unit", unit)
+                if ("sort_order" in has) put("sort_order", order)
+                listOf("enabled", "custom", "edited").filter { it in has }.forEach { put(it, 1) }
+            }, SQLiteDatabase.CONFLICT_IGNORE)
         }
     }
 
