@@ -75,16 +75,16 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // FitNotes's one BREAKDOWN list (#145): each measure by category, then by exercise.
+            val measures = Analysis.Measure.entries
+            val groups = Analysis.GroupBy.entries
             DropdownPill(
-                label = "Measure",
-                options = Analysis.Measure.entries.map { it.label },
-                selected = measureIdx
-            ) { measureIdx = it }
-            DropdownPill(
-                label = "Split",
-                options = Analysis.GroupBy.entries.map { "By ${it.label.lowercase()}" },
-                selected = groupIdx
-            ) { groupIdx = it }
+                label = "Breakdown",
+                options = groups.flatMap { g ->
+                    measures.map { m -> (if (m == Analysis.Measure.Volume) "Training Volume" else "Number Of ${m.label}") + " (By ${g.label})" }
+                },
+                selected = groupIdx * measures.size + measureIdx
+            ) { i -> groupIdx = i / measures.size; measureIdx = i % measures.size }
             DropdownPill(
                 label = "Span",
                 options = Analysis.Span.entries.map { it.label },

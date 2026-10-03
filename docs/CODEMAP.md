@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.81.
+Last updated: 1.0.82.
 
 ## How data flows
 
@@ -93,7 +93,7 @@ Last updated: 1.0.81.
 | `ExerciseOverview.kt` | `ExerciseOverviewSheet` (#26): History, Graph, Records, Stats and Goals in one sheet, from the calendar's selected day and the day log |
 | `ExerciseStats.kt` | `ExerciseStatsTab` (#24: tiles by period; cardio has Best and Average pace via `pace`, Longest distance) and `OneRepMaxSheet` (#28: rep maxes and percentages). Stats tiles (`StatItem`) with a date open that day; Custom range via `DateRangePickerDialog` (#24). |
 | `TrainingScreen.kt` | `ExerciseDetailScreen` (Records, Stats and Goals tabs; as FitNotes's, its bar shows the 1RM calculator on Records and + on Goals, #142), `RecordsTab` (TYPE actual or estimated, PERIOD, then FitNotes's rep-max list, `RecordRow`, superseded records greyed), the shared `ExerciseGraphPane` and `ExerciseHistoryPane` (day totals and Copy to today, #22) used by the exercise screen and the overview, `graphLabels`, `e1rm`. Graph names are the `GRAPH_*` constants; `graphLabels` only ever appends (#15 stores the index), #22 added Max volume, Max weight for reps (`RepsForGraph`) and Personal records (`Records.recordProgress`), then (1.0.66) Max distance, Max speed and Max pace for distance-and-time types (`speedOf`, `paceSecondsOf`, `speedUnit`; `GraphType.lowerIsBetter` marks pace); "Longest set" is now named Max time. A `GraphType` with `series` builds the whole line. The ⋮ menu shares the graph via `ShareImages`. History days are FitNotes headings (`historyDay`, "MONDAY, SEPTEMBER 28", a `SectionLabel`) with the totals and Copy to today under the sets; its set rows open `Screen.SetEntry(date, id, setId = …)`. |
-| `AnalysisScreen.kt` | `AnalysisScreen` (top bar; + on Goals) and `AnalysisHub` (#90): tabs Workouts, Breakdown, Exercises, Goals, Records (`TAB_*`); Workouts tab (#51, bar totals; Duration as total or average per workout and `DurationPerWorkout`, #12), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
+| `AnalysisScreen.kt` | `AnalysisScreen` (top bar; + on Goals) and `AnalysisHub` (#90): tabs Workouts, Breakdown, Exercises, Goals, Records (`TAB_*`); Workouts tab (#51; one FitNotes GRAPH list, "Sets Per Week" …, and FILTER No Filter / Category / Exercise, #145; Duration as total or average per workout and `DurationPerWorkout`, #12), `AnalysisFilterChips`, `filterLabel`, `AnalysisNote` |
 | `AnalysisTabs.kt` | Analysis → Exercises (`AnalysisExercisesTab`: exercise picker, then `ExerciseGraphPane` keyed by exercise) and Analysis → Goals (`AnalysisGoalsTab`: every goal by exercise, opens `Screen.ExerciseDetail(id, tab = 2)`, + picks an exercise then `GoalEditor`), #90 |
 | `BreakdownTab.kt` | Analysis → Breakdown (#52): donut by category or exercise, period stepper, previous-period compare, stat tiles |
 | `RecordsBoard.kt` | Analysis → Records (#54): 1RM–15RM grid across exercises, fixed first column and header sharing one horizontal `ScrollState` |

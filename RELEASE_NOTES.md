@@ -1,28 +1,26 @@
 ## Overview
 
-A correction to the FitNotes comparison of the exercise library and the workout editor. 1.0.77 was compared without
-the FitNotes reference screens for these pages; this release matches them, including putting each workout day back
-in its card, as FitNotes shows it.
+A correction to the FitNotes comparison of Analysis. 1.0.79 only changed its headings; this release matches its
+controls and wording to FitNotes's Analysis screens.
 
 There are no database changes. Everything you've logged is kept as it was.
 
 ## Improved
 
-- **Workout days are cards again**, as in FitNotes, both in the library and in the workout editor. In the library,
-  each card has the day's name with **LOG ALL** on the right; in the editor, the name with **+** and ⋮. Each exercise
-  is listed under it with how its sets are filled.
-- **TAP TO CREATE A NEW DAY** sits under the day cards in the editor, and an empty day reads "You haven't added any
-  exercises yet".
-- **How sets are filled** is asked as FitNotes asks it: "How would you like the sets for this exercise to be
-  populated?", with **Copy previous sets**, **Use predefined sets** and **Don't populate any sets**, each explained.
-- **Predefined sets** are laid out as FitNotes's **SET 1**, **SET 2** … blocks, each value between − and + buttons,
-  with **ADD SET** at the end. Each set's ⋮ can duplicate or remove it.
-- **The library's lists** match FitNotes: each category and exercise is its name and a ⋮, with a fine rule between
-  them. Favourites are set from an exercise's ⋮ menu and keep a small gold star after the name; categories can be
-  edited from theirs.
+- **Analysis → Workouts** chooses its graph from one list, as FitNotes does: **Workouts Per Week**, **Volume Per
+  Week**, **Sets Per Week**, **Reps Per Week** and **Workout Duration Per Week**, then the same per month and per
+  year. The filter offers **No Filter**, **Category** and **Exercise**.
+- **Analysis → Breakdown** chooses what it splits from one list: **Number Of Sets (By Category)**, **Number Of
+  Reps**, **Number Of Workouts** and **Training Volume**, by category or by exercise.
+- **Graph names** read as in FitNotes: Estimated 1RM, Max Weight, Max Reps, Max Volume, Max Weight for Reps, Workout
+  Volume, Workout Reps and Personal Records (and Max Time, Max Distance, Max Speed and Max Pace for timed and distance
+  exercises).
+- **The hint under each graph** reads as FitNotes's: "Tap a point on the graph to view more details. Double tap graph
+  to expand."
 
 ## Known limitations
 
-- The "last done" date and exercise type no longer show under each exercise in the library; the type is in the
-  exercise's info, and the date in its History.
-- The full-screen New Exercise form (#126) comes later.
+- Because graph names changed, an exercise graph's chart type chosen in 1.0.74 to 1.0.81 goes back to Line once; choose
+  it again and it's remembered.
+- FitNotes's range buttons (1m, 3m, 6m, 1y, all) stay a compact dropdown (#125), and Breakdown's dated period list and
+  up/down arrows (#127) come later.

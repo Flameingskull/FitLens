@@ -255,16 +255,17 @@ object ChartHints {
     }
 }
 
-/** "Tap a point for details. Double tap to expand." under a graph, until the user has done both once. */
+/** FitNotes's hint under a graph (#145), until the user has tapped a point and expanded a graph once. */
 @Composable
 fun ChartHint(modifier: Modifier = Modifier) {
     val device by Settings.device.collectAsState()
     if (!(device.chartTapSeen && device.chartExpandSeen)) {
         Text(
-            "Tap a point for details. Double tap to expand.",
-            modifier.padding(horizontal = 16.dp),
+            "Tap a point on the graph to view more details.\nDouble tap graph to expand.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
         )
     }
 }

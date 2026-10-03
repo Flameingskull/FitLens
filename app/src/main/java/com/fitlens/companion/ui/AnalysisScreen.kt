@@ -123,10 +123,11 @@ internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilt
     }
     DropdownPill(
         "Training",
+        // FitNotes's FILTER choices (#145): No Filter, Category, Exercise.
         listOf(
-            "All training",
-            if (current == 1) filterLabel(snap, filter) else "A category…",
-            if (current == 2) filterLabel(snap, filter) else "An exercise…"
+            "No Filter",
+            if (current == 1) filterLabel(snap, filter) else "Category",
+            if (current == 2) filterLabel(snap, filter) else "Exercise"
         ),
         current
     ) { i ->
@@ -236,8 +237,14 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
         // Everything that shapes the graph in two compact rows (#115): what, per what, for which training; then the
         // range, options and full screen.
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            DropdownPill("Measure", Analysis.Metric.entries.map { it.label }, metricIdx) { metricIdx = it }
-            DropdownPill("Per", Analysis.Period.entries.map { "per ${it.label.lowercase()}" }, periodIdx) { periodIdx = it }
+            // FitNotes's one list of graphs (#145): every measure per week, then per month, then per year.
+            val metrics = Analysis.Metric.entries
+            val periods = Analysis.Period.entries
+            DropdownPill(
+                "Graph",
+                periods.flatMap { p -> metrics.map { m -> "${if (m == Analysis.Metric.Duration) "Workout Duration" else m.label} Per ${p.name}" } },
+                periodIdx * metrics.size + metricIdx
+            ) { i -> periodIdx = i / metrics.size; metricIdx = i % metrics.size }
             AnalysisFilterChips(snap, filter, onFilter)
         }
         GraphOptionChips(

@@ -92,20 +92,20 @@ fun graphLabels(type: Int, timeBased: Boolean): List<String> =
     }
 
 internal const val GRAPH_E1RM = "Estimated 1RM"
-internal const val GRAPH_MAX_WEIGHT = "Max weight"
-internal const val GRAPH_WORKOUT_VOLUME = "Workout volume"
-internal const val GRAPH_WORKOUT_REPS = "Workout reps"
-internal const val GRAPH_MAX_REPS = "Max reps"
-internal const val GRAPH_MAX_VOLUME = "Max volume"
-internal const val GRAPH_WEIGHT_FOR_REPS = "Max weight for reps"
-internal const val GRAPH_RECORDS = "Personal records"
+internal const val GRAPH_MAX_WEIGHT = "Max Weight"
+internal const val GRAPH_WORKOUT_VOLUME = "Workout Volume"
+internal const val GRAPH_WORKOUT_REPS = "Workout Reps"
+internal const val GRAPH_MAX_REPS = "Max Reps"
+internal const val GRAPH_MAX_VOLUME = "Max Volume"
+internal const val GRAPH_WEIGHT_FOR_REPS = "Max Weight for Reps"
+internal const val GRAPH_RECORDS = "Personal Records"
 /** FitNotes's name for the longest single set (#22); "Longest set" before 1.0.66. */
-internal const val GRAPH_LONGEST = "Max time"
-internal const val GRAPH_TOTAL_TIME = "Total time"
+internal const val GRAPH_LONGEST = "Max Time"
+internal const val GRAPH_TOTAL_TIME = "Total Time"
 internal const val GRAPH_DISTANCE = "Distance"
-internal const val GRAPH_MAX_DISTANCE = "Max distance"
-internal const val GRAPH_MAX_SPEED = "Max speed"
-internal const val GRAPH_MAX_PACE = "Max pace"
+internal const val GRAPH_MAX_DISTANCE = "Max Distance"
+internal const val GRAPH_MAX_SPEED = "Max Speed"
+internal const val GRAPH_MAX_PACE = "Max Pace"
 
 /** Speed per hour in km or mi ("km/h", "mph"); metres, as swimmers and rowers count them, per minute (#22). */
 internal fun speedUnit(distUnit: String): String = when (distUnit) {
