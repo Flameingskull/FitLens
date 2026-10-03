@@ -4,6 +4,7 @@ import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.FitIcons
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.semantics.semantics
@@ -159,12 +160,15 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long, initialTab: Int =
     val statSets = snap.statSetsByExercise[exId] ?: emptyList()
     var tab by rememberSaveable { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
     var calculator by remember { mutableStateOf(false) }
+    var e1rmSettings by remember { mutableStateOf(false) }
     var addGoal by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         // FitNotes's bar follows the tab (#142): the calculator on Records, + on Goals.
         BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() }) {
             if (tab == 0 && !timeBased) {
                 IconButton(onClick = { calculator = true }) { Icon(FitIcons.Calculate, contentDescription = "1RM calculator") }
+                // FitNotes's gear beside it opens the Estimated 1RM Settings (#148).
+                IconButton(onClick = { e1rmSettings = true }) { Icon(Icons.Filled.Settings, contentDescription = "Estimated 1RM settings") }
             }
             if (tab == 2) IconButton(onClick = { addGoal = true }) { Icon(Icons.Filled.Add, contentDescription = "Add a goal") }
         }
@@ -176,6 +180,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long, initialTab: Int =
         }
     }
     if (calculator) OneRepMaxSheet(snap, statSets.maxByOrNull { Records.oneRepMax(it) }) { calculator = false }
+    if (e1rmSettings) EstimatedOneRmSettingsSheet { e1rmSettings = false }
 }
 
 /** An exercise's graph: type, range and options, full screen, trend and goal line (#82's Graph tab, #50, #96). */

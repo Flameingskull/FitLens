@@ -22,6 +22,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.fitlens.companion.ui.design.SectionLabel
+import com.fitlens.companion.data.Settings
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -158,23 +162,29 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
 }
 
 /**
- * The 1RM calculator (#28): a weight and reps give an estimated one-rep max with FitLens's formula (#23), and a table
- * of what that means for 1 to 12 reps and for percentages of it, in the user's unit.
+ * The Estimated 1RM Calculator, as FitNotes's (#28, #148): WEIGHT and REPS steppers, then 1RM to 8RM, each with its
+ * weight and its percentage of the 1RM under it. FitLens adds 9RM to 12RM (marked approximate past 10 reps) and a
+ * percentage table. The estimate uses the formula and rep limit chosen in Settings (#42, #148).
  */
 @Composable
 fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
-    val unit = snap.weightUnitOf(start?.exerciseId)
-    var weight by remember { mutableStateOf(start?.weightKg?.takeIf { it > 0 }?.let { fmtNum(snap.weight(it, start?.exerciseId), 2) } ?: "") }
+    val exId = start?.exerciseId
+    val unit = snap.weightUnitOf(exId)
+    val ex = exId?.let { snap.exercises[it] }
+    // The exercise's own step, then the global one when the units agree, as on the Track tab.
+    val globalStepKg = Settings.currentPortable().weightIncrementKg?.takeIf { snap.weightUnitOf(exId) == snap.weightUnit }
+    val step = (ex?.weightStepKg ?: globalStepKg)?.let { snap.weight(it, exId) } ?: 2.5
+    var weight by remember { mutableStateOf(start?.weightKg?.takeIf { it > 0 }?.let { fmtNum(snap.weight(it, exId), 2) } ?: "") }
     var reps by remember { mutableStateOf(start?.reps?.takeIf { it > 0 }?.toString() ?: "5") }
-    val kg = snap.toKg(weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0, start?.exerciseId)
+    val kg = snap.toKg(weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0, exId)
     val r = reps.trim().toIntOrNull() ?: 0
     val oneRm = Records.oneRepMax(kg, r)
-    FitSheet(title = "1RM calculator", onDismiss = onDismiss, dismissLabel = "Close") {
+    FitSheet(title = "Estimated 1RM Calculator", onDismiss = onDismiss, dismissLabel = "OK") {
         StepperField(
             label = "Weight ($unit)",
             value = weight,
             onValue = { weight = it },
-            onStep = { d -> weight = fmtNum(max(0.0, (weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0) + d * 2.5), 2) }
+            onStep = { d -> weight = fmtNum(max(0.0, (weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0) + d * step), 2) }
         )
         StepperField(
             label = "Reps",
@@ -183,37 +193,112 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
             onStep = { d -> reps = max(1, (reps.trim().toIntOrNull() ?: 0) + d).toString() },
             keyboard = KeyboardType.Number
         )
-        Text(
-            if (oneRm > 0) (if (Records.approximate(r)) "≈ " else "") + "${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "—",
-            Modifier.semantics {
-                contentDescription = if (oneRm > 0) (if (Records.approximate(r)) "About " else "Estimated one rep max ") +
-                    "${snap.fmtWeight(oneRm, start?.exerciseId)} $unit" else "Enter a weight and 1 to ${Records.MAX_ESTIMATE_REPS} reps"
-            },
-            style = MaterialTheme.typography.displaySmall,
-            color = Brand.Gold
-        )
-        Text("ESTIMATED ONE-REP MAX", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (oneRm > 0) {
-            GoldHairline()
-            Text("REP MAXES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            (1..12).chunked(3).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    row.forEach { n ->
-                        Text("${n}RM  ${snap.fmtWeight(Records.weightFor(oneRm, n), start?.exerciseId)}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
+        GoldHairline()
+        if (oneRm <= 0) {
+            Text(
+                "Enter a weight and 1 to ${Records.maxRepsFor()} reps.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            (1..12).forEach { n ->
+                val w = Records.weightFor(oneRm, n)
+                if (w > 0) RepMaxLine(n, snap.fmtWeight(w, exId), unit, w / oneRm * 100)
             }
-            GoldHairline()
-            Text("PERCENTAGES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SectionLabel("Percentages of 1RM")
             (100 downTo 50 step 5).chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     row.forEach { pct ->
-                        Text("$pct%  ${snap.fmtWeight(oneRm * pct / 100.0, start?.exerciseId)}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                        Text("$pct%  ${snap.fmtWeight(oneRm * pct / 100.0, exId)}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                     }
                     repeat(3 - row.size) { androidx.compose.foundation.layout.Spacer(Modifier.weight(1f)) }
                 }
             }
-            Text("Weights in $unit. Estimates are most reliable from sets of 10 reps or fewer.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "Weights in $unit. Estimates past 10 reps (≈) are less reliable.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** One calculator line, as FitNotes lays it out: "3RM" on the left, the weight with the % of 1RM under it on the right. */
+@Composable
+private fun RepMaxLine(reps: Int, weight: String, unit: String, percent: Double) {
+    val approx = if (Records.approximate(reps)) "≈ " else ""
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = Spacing.xs)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "$reps rep max, ${if (approx.isEmpty()) "" else "about "}$weight $unit, " +
+                    "${fmtNum(percent, 1)} percent of one rep max"
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("${reps}RM", Modifier.weight(1f).padding(start = Spacing.lg), style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("$approx$weight", style = MaterialTheme.typography.titleLarge, color = Brand.Gold)
+                Text(" $unit", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Text("${String.format(java.util.Locale.US, "%.1f", percent)}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * FitNotes's Estimated 1RM Settings (#148): the most reps a set can have to be estimated from. Cancel, Reset (back to
+ * the formula's own limit) and OK. Records, graphs and the calculator follow at once; logged sets never change.
+ */
+@Composable
+fun EstimatedOneRmSettingsSheet(onDismiss: () -> Unit) {
+    val formula = Records.chosen()
+    val current = Settings.currentPortable().e1rmMaxReps
+    var reps by remember { mutableStateOf(if (current > 0) current.toString() else "") }
+    val typed = reps.trim().toIntOrNull()
+    val valid = reps.isBlank() || (typed != null && typed in 1..formula.maxReps)
+    fun save(value: Int) {
+        Settings.updatePortable { it.copy(e1rmMaxReps = value) }
+        onDismiss()
+    }
+    FitSheet(
+        title = "Estimated 1RM Settings",
+        onDismiss = onDismiss,
+        confirmLabel = "OK",
+        confirmEnabled = valid,
+        onConfirm = { save(typed ?: 0) },
+        secondaryLabel = "Reset",
+        onSecondary = { save(0) }
+    ) {
+        Text(
+            "Sets with a high number of reps can reduce the accuracy of the 1-rep-max calculation. Specify the maximum " +
+                "number of reps you would like to be included in the calculation.",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            "(Recommended: 10–15. Leave it empty for the ${formula.label} formula's limit of ${formula.maxReps}.)",
+            style = MaterialTheme.typography.bodySmall,
+            fontStyle = FontStyle.Italic,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        StepperField(
+            label = "Reps",
+            value = reps,
+            onValue = { reps = it.filter { c -> c.isDigit() }.take(2) },
+            onStep = { d ->
+                val base = typed ?: formula.maxReps
+                reps = (base + d).coerceIn(1, formula.maxReps).toString()
+            },
+            keyboard = KeyboardType.Number
+        )
+        if (!valid) {
+            Text(
+                "Choose 1 to ${formula.maxReps} reps.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 }

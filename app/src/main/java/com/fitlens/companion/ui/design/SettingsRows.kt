@@ -10,9 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,7 +40,9 @@ fun SettingsGroup(title: String) {
     SectionLabel(title, Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.xl, bottom = Spacing.xs))
 }
 
-/** A setting that's on or off. Tapping anywhere on the row switches it. */
+/**
+ * A setting that's on or off, with FitNotes's checkbox on the right (#147). Tapping anywhere on the row switches it.
+ */
 @Composable
 fun SettingsSwitchRow(
     title: String,
@@ -53,13 +55,13 @@ fun SettingsSwitchRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
-            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Checkbox, onValueChange = onChange)
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         RowText(title, summary, Modifier.weight(1f))
         Spacer(Modifier.width(Spacing.md))
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled)
+        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
     }
 }
 

@@ -81,9 +81,21 @@ object Records {
      */
     fun approximate(reps: Int): Boolean = reps > AUTO_BLEND_REPS
 
-    /** Estimated one-rep max in kg for [weightKg] × [reps], or 0 when it can't be estimated. */
+    /**
+     * The most reps a set can have to be estimated from with [formula]: the user's limit from the Estimated 1RM
+     * settings (#148, FitNotes's "maximum reps to include", recommended 10–15), never above the formula's own.
+     */
+    fun maxRepsFor(formula: Formula = chosen()): Int {
+        val user = Settings.currentPortable().e1rmMaxReps
+        return if (user in 1..formula.maxReps) user else formula.maxReps
+    }
+
+    /**
+     * Estimated one-rep max in kg for [weightKg] × [reps], or 0 when it can't be estimated, including sets above the
+     * user's rep limit ([maxRepsFor]). Tables built from a known 1RM ([weightFor]) aren't limited.
+     */
     fun oneRepMax(weightKg: Double, reps: Int, formula: Formula = chosen()): Double =
-        if (weightKg <= 0) 0.0 else weightKg * factor(reps, formula)
+        if (weightKg <= 0 || reps > maxRepsFor(formula)) 0.0 else weightKg * factor(reps, formula)
 
     fun oneRepMax(s: SetRow): Double = oneRepMax(s.weightKg, s.reps)
 

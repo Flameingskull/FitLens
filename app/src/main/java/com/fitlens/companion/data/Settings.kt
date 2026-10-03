@@ -87,6 +87,9 @@ data class PortableSettings(
     val warmupsCount: Boolean = false,
     /** The estimated-1RM formula's key (`Records.Formula`), used everywhere an estimate appears (#42). */
     val e1rmFormula: String = "auto",
+    /** The most reps a set can have to be estimated from (FitNotes's Estimated 1RM settings, #148), or 0 for the
+     *  formula's own limit. Never above the formula's limit. */
+    val e1rmMaxReps: Int = 0,
     /** The plate calculator's bar in kg, or null for a standard bar in the display unit (#28). */
     val barKg: Double? = null,
     /** The plate calculator counts the bar in the target weight (#28). */
@@ -258,6 +261,7 @@ object Settings {
         db.setMeta(P_BACKUP_TIMESTAMP, if (s.backupTimestamp) null else "0")
         db.setMeta(P_WARMUPS_COUNT, if (s.warmupsCount) "1" else null)
         db.setMeta(P_E1RM_FORMULA, s.e1rmFormula.takeIf { it != "auto" })
+        db.setMeta(P_E1RM_MAX_REPS, s.e1rmMaxReps.takeIf { it > 0 }?.toString())
         db.setMeta(P_BAR_KG, s.barKg?.toString())
         db.setMeta(P_COUNT_BAR, if (s.countBar) null else "0")
         db.setMeta(P_PLATES, s.plates)
@@ -319,6 +323,7 @@ object Settings {
     private const val P_BACKUP_TIMESTAMP = "backup_timestamp"
     private const val P_WARMUPS_COUNT = "warmups_count"
     private const val P_E1RM_FORMULA = "e1rm_formula"
+    private const val P_E1RM_MAX_REPS = "e1rm_max_reps"
     private const val P_BAR_KG = "bar_kg"
     private const val P_COUNT_BAR = "count_bar"
     private const val P_PLATES = "plates"
@@ -401,6 +406,7 @@ object Settings {
         warmupsCount = bool(get(P_WARMUPS_COUNT)),
         // An unknown formula (from a later build's backup) falls back to Automatic.
         e1rmFormula = Records.Formula.of(get(P_E1RM_FORMULA)).key,
+        e1rmMaxReps = get(P_E1RM_MAX_REPS)?.toIntOrNull()?.takeIf { it in 1..Records.MAX_ESTIMATE_REPS } ?: 0,
         barKg = get(P_BAR_KG)?.toDoubleOrNull()?.takeIf { it >= 0 },
         countBar = get(P_COUNT_BAR) != "0",
         plates = get(P_PLATES)?.takeIf { it.isNotBlank() },

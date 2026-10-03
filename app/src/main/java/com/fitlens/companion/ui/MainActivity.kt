@@ -321,7 +321,7 @@ fun AppRoot(nav: Nav) {
                         is Screen.Compare -> CompareScreen(s, nav, screen.a, screen.b)
                         is Screen.Slideshow -> SlideshowScreen(s, nav, screen.ids)
                         Screen.Review -> ReviewScreen(s, nav)
-                        Screen.SettingsHome -> SettingsScreen(nav)
+                        Screen.SettingsHome -> SettingsScreen(s, nav)
                         is Screen.SettingsPage -> SettingsPageScreen(s, nav, screen.section)
                         Screen.Setup -> SetupScreen(s, nav)
                     }
