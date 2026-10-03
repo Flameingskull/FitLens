@@ -344,11 +344,12 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
         title = "Delete ${selected.size} photo${if (selected.size == 1) "" else "s"}?",
         message = "They're removed from FitLens only — the originals on your phone aren't touched.",
         confirmLabel = "Delete photos",
-        onDismiss = { deleteDialog = false }
-    ) {
-        val ids = selected.toList(); selected.clear()
-        AppScope.scope.launch { Store.deletePhotos(ids) }
-    }
+        onDismiss = { deleteDialog = false },
+        onConfirm = {
+            val ids = selected.toList(); selected.clear()
+            AppScope.scope.launch { Store.deletePhotos(ids) }
+        }
+    )
 }
 
 /** Front / Side / Back / Other / Not set, as full-width buttons. */
@@ -394,6 +395,7 @@ fun ImportPoseDialog(count: Int, onCancel: () -> Unit, onPick: (String) -> Unit)
 }
 
 /** Photos whose date came from the file's modified time or wasn't found at all. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReviewScreen(snap: Snapshot, nav: Nav) {
     val list = snap.reviewPhotos

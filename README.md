@@ -29,7 +29,7 @@ custom metrics.
   feels familiar. A screen-by-screen pass laid each FitLens screen beside FitNotes and fixed the differences, one
   group per release from 1.0.75 to 1.0.87: the day log and workout drawer, the exercise screen, the library and
   workout editor, the calendar and Body Tracker, Analysis, the photo screens and finally Settings, now FitNotes's
-  single list. In 1.0.95 the photo, viewer, compare, slideshow and PDF screens joined the same design system
+  single list. In 1.0.96 the photo, viewer, compare, slideshow and PDF screens joined the same design system
   ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on the
   [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). Next come the rest of FitNotes parity
   ([#59](https://github.com/Flameingskull/FitLens/issues/59)), the rest of the analysis hub
@@ -327,7 +327,7 @@ The rules are also documented in the code (`data/Workouts.kt`).
 
 Each release includes the APK, the full source code, SHA-256 checksums and professionally written notes on what
 changed. The version number goes up with every release (`1.0.<build>`). A number can be skipped: a build that fails
-publishes nothing but still uses up its number (as with 1.0.54 and 1.0.56), and earlier releases skipped some
+publishes nothing but still uses up its number (as with 1.0.54, 1.0.56 and 1.0.95), and earlier releases skipped some
 (1.0.8 was followed by 1.0.13) because pull request checks shared the release build counter
 ([#78](https://github.com/Flameingskull/FitLens/issues/78)). A higher number is
 always the newer build.

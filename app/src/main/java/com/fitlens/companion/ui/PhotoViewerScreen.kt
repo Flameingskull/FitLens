@@ -215,13 +215,13 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
         title = "Delete this photo?",
         message = "It's removed from FitLens only — the original on your phone isn't touched.",
         confirmLabel = "Delete photo",
-        onDismiss = { confirmDelete = false }
-    ) {
-        AppScope.scope.launch { Store.deletePhotos(listOf(current.id)) }
-    }
+        onDismiss = { confirmDelete = false },
+        onConfirm = { AppScope.scope.launch { Store.deletePhotos(listOf(current.id)) } }
+    )
 }
 
 /** Two photos side by side on black (#92), with the body values on each date and the change between them. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
     var aId by rememberSaveable { mutableLongStateOf(a) }
