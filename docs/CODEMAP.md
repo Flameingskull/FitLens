@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.87.
+Last updated: 1.0.88.
 
 ## How data flows
 
@@ -167,6 +167,15 @@ Last updated: 1.0.87.
   `Backups.writeArchive`, `unpack` and `installDatabase`. All use a plain `Application`, so `Store` and `Settings`
   don't start: test seams take a database or file, not the singletons. **Every database change adds an upgrade test**,
   and every change to the importer's rules or the archive format adds a case.
+- **Screenshot tests (#95):** `ui/ScreenshotTest.kt` draws the shared design components with Roborazzi on
+  Robolectric's native graphics at 360dp and 411dp, font scale 1.0 and 2.0, with made-up data. Goldens are in
+  `app/src/test/screenshots/`: an existing one is verified (a change fails the build; diffs land in
+  `app/build/outputs/roborazzi/`), a missing one is recorded. CI keeps both as the `screenshots-N` artifact. A new
+  component adds a `@Test fun x() = shoot("x") { … }`; commit the golden from the artifact. To accept an intended
+  change, delete the old golden and commit the recorded one. A screen added later uses fake data only.
+- **Derived data (#60):** work over the whole history goes through `rememberDerived(name, snap.trainingKey, …)`
+  (`Charts.kt`): off the main thread, cached across screens, and not redone by photo or body writes. Put every
+  input in the keys (the Records board includes the 1RM formula and rep limit).
 
 ## Where things usually go
 
