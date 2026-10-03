@@ -1,53 +1,40 @@
 ## Overview
 
-This update makes Analysis yours to arrange and lets you set rests the way you already set sets. **Pin** any graph
-with its star, and it appears on Analysis's new **Overview** tab, with its latest value and how far it has moved.
-**Compare** up to five exercises on one graph, as weights or as a percentage of where each one started. In the
-workout editor, an exercise's rest can now **copy the previous workout's rest**, just as its sets can copy the
-previous workout's sets. Exercise graphs and the Records tab are also quicker to come back to.
+This update makes trend lines exact. Every graph's **Trend line** option is now worked out by one shared, tested
+calculation, fitted to exactly the points it describes. Each trend comes with its figures written underneath: how
+fast the value is changing, where the trend starts and ends, how many points it rests on and how closely it fits. A
+trend line should never look like a generic slope laid over your data, and now it can't.
 
 There are no database changes. Everything you've logged is kept as it was, and so are all your settings. Install it
 over the current app as usual.
 
-## What's new
+## Fixed
 
-- **Copy previous rest.** When you choose how an exercise's sets are filled in a workout, the Rest section now
-  offers **Copy previous rest** beside **Set the rest**. When the day is logged, the rest between sets, the rest
-  before the next exercise and each set's own rest come from that exercise's most recent workout. The sheet shows
-  what it will copy, or says that the exercise's usual rest applies when its last workout had none. A day's menu
-  (**Set rest for every exercise**) offers the same choice for every exercise at once, and the exercise row reads
-  "Copy previous rest".
-- **Pin graphs to an Overview.** A star beside the full-screen button pins a graph: any exercise graph (on the
-  exercise's Graph tab or in Analysis → Exercises) and any Workouts graph, with its filter. Pinned graphs appear on
-  **Analysis → Overview**, the new first tab, as compact cards: the chart, the latest value, and the change over the
-  range in its own unit, with the value it moved from. Tap a card to open the full graph with its range and
-  comparison. Use a card's ⋮ or drag its handle to reorder, and ⋮ → Unpin to remove it. Analysis opens on the
-  Overview once something is pinned. Pins travel in your backups.
-- **Compare exercises on one graph.** From an exercise graph's ⋮, **Compare exercises…** adds up to four more
-  exercises, each in its own colour and marker shape. Tap a name in the legend to hide or show it. Tap a date to see
-  every exercise's value on that date, or on the nearest date it was logged. Turn on **Relative (% of first value)**
-  in the same menu to show each exercise as a percentage of its first value in the range, so a 140 kg squat and a
-  60 kg press can be compared fairly. Each exercise remembers its comparison, and a pinned graph keeps its own.
-
-## Improved
-
-- **Exercise graphs and records come back instantly.** An exercise's graph (including comparisons) and its Records
-  tab are worked out in the background and remembered, as Analysis's other screens already were. Adding a photo or
-  a body value no longer makes them work everything out again, and a first visit shows "Working it out…" instead of
-  an empty graph.
-- **The README** is refreshed for this release: the FitNotes-style Settings list, exercise comments, the new
-  exercise form, pinned graphs, comparisons and copying the previous rest.
+- **Trend lines follow your data.** With enough points (eight or more), the trend is now a smoothed curve through your
+  values, a locally weighted regression, so a plateau, a cut or a bulk shows as the bend it really is instead of
+  being hidden by one straight line. With fewer points it's the straight best-fit line. Graphs with fewer than three
+  points on different days no longer show a trend at all, because two points always make a "perfect" line that says
+  nothing.
+- **Every trend states its figures.** Under each graph with the trend on: the rate in the graph's own unit per week,
+  month or year (whichever suits the range), the fitted value at the start and the end with their dates, and the
+  straight-line fit it's based on (the number of points and R², how much of the variation the trend explains). This
+  now appears on exercise graphs, compared exercises (one line each), Body tracker measurements, Analysis → Workouts
+  and the workout-length graph, where before several of them drew a line with no figures.
+- **Weak trends are flagged.** A trend from fewer than five points says to read it with care. One that explains less
+  than a third of the variation says the values vary more than they trend.
+- **Workouts totals leave out the period in progress.** The current week, month or year isn't finished, so its
+  partial total used to pull the trend down. It's no longer counted in the trend, and a note under the graph says so.
+- **The line and the rate always agree.** Analysis → Workouts used to draw its line against dates but work out its
+  stated rate against the order of the points, so months of different lengths gave two different answers. Both now
+  come from the same fit.
+- **Zoomed graphs get their own trend.** In full screen, the trend and its figures describe exactly the stretch
+  you've zoomed to.
+- **Pace trends read in minutes.** A pace graph's trend now reads "min /km" (or your distance unit), not just "/km".
+- **Shared graph images match the screen.** A shared graph draws the same trend, kept inside the graph's frame, and
+  prints its figures under the summary.
 
 ## Known limitations
 
-- A comparison shows weights in the first exercise's unit. Distances are shown as each exercise records them, so
-  compare distance graphs between exercises that use the same distance unit.
-- An exercise that doesn't offer the chosen graph (for example a timed exercise on Estimated 1RM) is left off it,
-  with a note saying so.
-- A pinned **Max weight for reps** card uses 5 reps. The rep count you choose on the graph itself is still kept
-  only while the app is open.
-- The last part of the performance work (#60), measuring save-to-screen times over several years of data, is still
-  to come.
-- Please check on your phone that the app updates over the installed version, that a pinned graph survives a
-  backup and restore, and that a workout day with **Copy previous rest** starts the rest timer with last time's
-  rest.
+- Figures for a fitted trend are shown to one decimal place, in the graph's unit. Pace trends are given in decimal
+  minutes rather than minutes and seconds.
+- The Analysis overview's pinned cards don't show trend lines.

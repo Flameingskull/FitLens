@@ -19,3 +19,5 @@ that stop being true. The repository is public: no personal data, secrets or `FI
 - 2026-09-25: Charts (1.0.22, #50): every graph uses `ui/Charts.kt` / `ui/ChartViews.kt`, with colours from
   `LocalChartColors.palette` via `seriesColor(i)`. `FrameRenderer` has its own unrelated `ChartSeries` (video), so
   don't reuse that name. #96 still needs Y-axis zoom and the buttons on the redesign's future graph screens.
+
+- Trend lines (#152): every trend, on screen and in shared images, comes from `ui/Trend.kt` (`trendOf`, `trendText`), fitted to the points in view. Never fit against point indices or draw a trend without its figures.
