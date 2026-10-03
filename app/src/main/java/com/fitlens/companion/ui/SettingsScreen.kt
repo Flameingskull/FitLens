@@ -63,7 +63,9 @@ enum class SettingsSection(val title: String) {
     DataTools("Export and delete history"),
     Home("Home screen settings"),
     // The rest timer's options lived only in its sheet until #86 gave them a page.
-    Rest("Rest timer")
+    Rest("Rest timer"),
+    // Defaults for photos, the slideshow and video, and the PDF report (#46).
+    Media("Progress photos and media")
 }
 
 /** One searchable setting on a page (#86): what it's called, other words people might search for, and the page. */
@@ -88,7 +90,13 @@ private val CATALOGUE = listOf(
     SettingEntry("Rest length", SettingsSection.Rest, "seconds break between sets"),
     SettingEntry("Start the rest timer after saving a set", SettingsSection.Rest, "auto start"),
     SettingEntry("Vibrate when rest is over", SettingsSection.Rest, "vibration haptic"),
-    SettingEntry("Rest-over sound and volume", SettingsSection.Rest, "ringtone alarm notification")
+    SettingEntry("Rest-over sound and volume", SettingsSection.Rest, "ringtone alarm notification"),
+    SettingEntry("Pose for new photos", SettingsSection.Media, "front side back import default"),
+    SettingEntry("Group photos by", SettingsSection.Media, "day week month year pose gallery"),
+    SettingEntry("Remember slideshow and video options", SettingsSection.Media, "video slideshow overlay format"),
+    SettingEntry("Reset slideshow and video options", SettingsSection.Media, "video slideshow defaults"),
+    SettingEntry("PDF report pages", SettingsSection.Media, "dark light print style"),
+    SettingEntry("PDF photos per day", SettingsSection.Media, "report daily log")
 )
 
 /** FitNotes's three headings, in its order (#147). */
@@ -326,6 +334,13 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
                 value = "Up to $limit reps"
             ) { e1rmLimit = true }
         },
+        // FitLens's own: photos, the slideshow and video, and the PDF report (#46).
+        MainRow(s, "Progress Photos & Media", "photos pose slideshow video pdf report group") {
+            SettingsActionRow(
+                "Progress Photos & Media",
+                "The pose for new photos, how the gallery is grouped, and the slideshow, video and PDF defaults"
+            ) { open(SettingsSection.Media) }
+        },
         MainRow(d, "Backup", "save share fitlens file") {
             SettingsActionRow("Backup", "Back up your data to a file, then keep it off your phone or share it with an app you choose") {
                 open(SettingsSection.Backups)
@@ -468,6 +483,7 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
                 SettingsSection.DataTools -> DataToolsPage(snap)
                 SettingsSection.Home -> HomePage()
                 SettingsSection.Rest -> RestPage()
+                SettingsSection.Media -> MediaPage()
             }
         }
     }
@@ -488,6 +504,59 @@ private fun HomePage() {
         counts.indexOf(prefs.homeSetsShown).coerceAtLeast(0),
         summary = "A card with more sets ends with \"+N more sets\"; tap it to see them all."
     ) { i -> Settings.updatePortable { it.copy(homeSetsShown = counts[i]) } }
+    SettingsNote("These preferences travel with your .fitlens backups.")
+}
+
+/**
+ * Settings → Progress photos and media (#46): the defaults FitLens's own photo features start from. All of them
+ * travel in backups, and each is validated when read, so a newer build's backup can't break these screens.
+ */
+@Composable
+private fun MediaPage() {
+    val prefs by Settings.portable.collectAsState()
+    SettingsGroup("Photos")
+    // Ask each time, then None, then the poses: null, Poses.NONE and the pose names as stored.
+    val poses: List<String?> = listOf(null, com.fitlens.companion.data.Poses.NONE) + com.fitlens.companion.data.Poses.all
+    SettingsChoiceRow(
+        "Pose for new photos",
+        listOf("Ask each time", "None") + com.fitlens.companion.data.Poses.all,
+        poses.indexOf(prefs.photoDefaultPose).coerceAtLeast(0),
+        summary = "Used for every photo you import, one or many. Ask each time shows the pose question before an import."
+    ) { i -> Settings.updatePortable { it.copy(photoDefaultPose = poses[i]) } }
+    val groups = com.fitlens.companion.data.MediaPrefs.GROUPS
+    SettingsChoiceRow(
+        "Group photos by",
+        groups.map { com.fitlens.companion.data.MediaPrefs.groupLabel(it) },
+        groups.indexOf(prefs.photoGroupBy).coerceAtLeast(0),
+        summary = "How the Photos screen sections your photos. Changing it on the Photos screen changes it here too."
+    ) { i -> Settings.updatePortable { it.copy(photoGroupBy = groups[i]) } }
+
+    SettingsGroup("Slideshow and video")
+    SettingsSwitchRow(
+        "Remember slideshow and video options", prefs.rememberVideoOpts,
+        summary = "Open the slideshow with the pose, timing, overlays, title and video size you used last. The dates always start at all photos."
+    ) { on -> Settings.updatePortable { it.copy(rememberVideoOpts = on) } }
+    SettingsActionRow(
+        "Reset slideshow and video options",
+        if (prefs.videoOpts == null) "Already at the defaults" else "Go back to the default options next time",
+        enabled = prefs.videoOpts != null
+    ) {
+        Settings.updatePortable { it.copy(videoOpts = null) }
+        UiEvents.show("Slideshow and video options reset")
+    }
+
+    SettingsGroup("PDF report")
+    SettingsChoiceRow(
+        "PDF report pages",
+        listOf("Dark (matches the app)", "Light (better for printing)"),
+        if (prefs.pdfDark) 0 else 1
+    ) { i -> Settings.updatePortable { it.copy(pdfDark = i == 0) } }
+    SettingsChoiceRow(
+        "PDF photos per day",
+        (0..4).map { if (it == 0) "None" else "$it" },
+        prefs.pdfPhotosPerDay.coerceIn(0, 4),
+        summary = "How many photos each day of the report's daily log shows. You can still change it for one report."
+    ) { i -> Settings.updatePortable { it.copy(pdfPhotosPerDay = i) } }
     SettingsNote("These preferences travel with your .fitlens backups.")
 }
 

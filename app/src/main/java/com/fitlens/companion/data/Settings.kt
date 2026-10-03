@@ -129,7 +129,19 @@ data class PortableSettings(
     /** The exercises each exercise's graph is compared with (#53), "id=id,id;…" (`GraphCompare.encode`). */
     val graphCompare: String? = null,
     /** Sex for the body fat formula (#153), `BodyFat.Sex.key`, or null until the user chooses. */
-    val profileSex: String? = null
+    val profileSex: String? = null,
+    /** The pose new photos get (#46): null to ask each time, [Poses.NONE] for none, or one of [Poses.all]. */
+    val photoDefaultPose: String? = null,
+    /** How the Photos grid is grouped (#46), one of [MediaPrefs.GROUPS]. */
+    val photoGroupBy: String = MediaPrefs.GROUP_MONTH,
+    /** Open the slideshow and video screen with the options last used (#46). */
+    val rememberVideoOpts: Boolean = true,
+    /** Those options (`SlideshowPrefs.encode`), or null for the defaults. */
+    val videoOpts: String? = null,
+    /** The PDF report's pages: dark (as in the app) or light (for printing) (#46). */
+    val pdfDark: Boolean = true,
+    /** Photos per day in the PDF report's daily log, 0 to 4 (#46). */
+    val pdfPhotosPerDay: Int = 2
 ) {
     companion object {
         const val AUTOFILL_LAST = "last"
@@ -288,6 +300,12 @@ object Settings {
         db.setMeta(P_PINNED_GRAPHS, s.pinnedGraphs?.takeIf { it.isNotBlank() })
         db.setMeta(P_GRAPH_COMPARE, s.graphCompare?.takeIf { it.isNotBlank() })
         db.setMeta(P_PROFILE_SEX, s.profileSex?.takeIf { it.isNotBlank() })
+        db.setMeta(P_PHOTO_POSE, MediaPrefs.storeDefaultPose(s.photoDefaultPose))
+        db.setMeta(P_PHOTO_GROUP, s.photoGroupBy.takeIf { it != MediaPrefs.GROUP_MONTH })
+        db.setMeta(P_REMEMBER_VIDEO, if (s.rememberVideoOpts) null else "0")
+        db.setMeta(P_VIDEO_OPTS, s.videoOpts?.takeIf { it.isNotBlank() })
+        db.setMeta(P_PDF_STYLE, if (s.pdfDark) null else "light")
+        db.setMeta(P_PDF_PHOTOS, s.pdfPhotosPerDay.takeIf { it != 2 }?.toString())
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------
@@ -353,6 +371,13 @@ object Settings {
     private const val P_PINNED_GRAPHS = "pinned_graphs"
     private const val P_GRAPH_COMPARE = "graph_compare"
     private const val P_PROFILE_SEX = "profile_sex"
+    // Progress photos and media (#46), with the names the issue gave them.
+    private const val P_PHOTO_POSE = "photo_default_pose"
+    private const val P_PHOTO_GROUP = "photo_group_by"
+    private const val P_REMEMBER_VIDEO = "remember_video_opts"
+    private const val P_VIDEO_OPTS = "video_opts"
+    private const val P_PDF_STYLE = "pdf_style"
+    private const val P_PDF_PHOTOS = "pdf_photos_per_day"
 
     private fun bool(v: String?) = v == "1"
 
@@ -439,7 +464,14 @@ object Settings {
         graphKinds = get(P_GRAPH_KINDS)?.takeIf { it.isNotBlank() },
         pinnedGraphs = get(P_PINNED_GRAPHS)?.takeIf { it.isNotBlank() },
         graphCompare = get(P_GRAPH_COMPARE)?.takeIf { it.isNotBlank() },
-        profileSex = get(P_PROFILE_SEX)?.takeIf { it.isNotBlank() }
+        profileSex = get(P_PROFILE_SEX)?.takeIf { it.isNotBlank() },
+        // Unknown values (from a later build's backup) fall back to the defaults (#46).
+        photoDefaultPose = MediaPrefs.defaultPoseOf(get(P_PHOTO_POSE)),
+        photoGroupBy = MediaPrefs.groupOf(get(P_PHOTO_GROUP)),
+        rememberVideoOpts = get(P_REMEMBER_VIDEO) != "0",
+        videoOpts = get(P_VIDEO_OPTS)?.takeIf { it.isNotBlank() },
+        pdfDark = get(P_PDF_STYLE) != "light",
+        pdfPhotosPerDay = MediaPrefs.photosPerDayOf(get(P_PDF_PHOTOS))
     )
 }
 

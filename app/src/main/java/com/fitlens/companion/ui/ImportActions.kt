@@ -6,12 +6,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.PhotoImportResult
 import com.fitlens.companion.data.PhotoImporter
 import com.fitlens.companion.data.Poses
+import com.fitlens.companion.data.Settings
 import android.util.Log
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -81,12 +83,30 @@ object PhotoImports {
     fun request(p: PendingPhotoImport) { pending.value = p }
 }
 
-/** Shows the pose question for a pending photo import, then runs the import. Placed once in the app root. */
+/**
+ * Shows the pose question for a pending photo import, then runs the import. Placed once in the app root. With a
+ * pose for new photos chosen in Settings (#46), the question is skipped and that pose is used.
+ */
 @Composable
 fun PhotoImportHost() {
     val pending by PhotoImports.pending.collectAsState()
+    val prefs by Settings.portable.collectAsState()
     val ctx = LocalContext.current.applicationContext
     val p = pending ?: return
+    val defaultPose = prefs.photoDefaultPose
+    if (defaultPose != null) {
+        LaunchedEffect(p) {
+            PhotoImports.pending.value = null
+            AppScope.scope.launch {
+                try {
+                    p.onDone(runPhotoImport(ctx, p.uris, p.forcedDate, defaultPose))
+                } catch (e: Exception) {
+                    UiEvents.show("Something went wrong: ${e.message}")
+                }
+            }
+        }
+        return
+    }
     ImportPoseDialog(
         count = p.uris.size,
         onCancel = {

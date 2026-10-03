@@ -170,7 +170,7 @@ fun PhotoThumb(snap: Snapshot, photo: Photo, modifier: Modifier = Modifier, size
         model = ImageRequest.Builder(ctx).data(snap.photoFile(photo)).size(sizePx).crossfade(true).build(),
         contentDescription = "Progress photo ${photo.date ?: ""} ${photo.pose}",
         contentScale = contentScale,
-        modifier = modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceVariant)
+        modifier = modifier.clip(FitShapes.row).background(MaterialTheme.colorScheme.surfaceVariant)
     )
 }
 

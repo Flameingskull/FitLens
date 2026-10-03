@@ -1,5 +1,10 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.DropdownPill
+import com.fitlens.companion.ui.design.FitSheet
+import com.fitlens.companion.ui.design.PickerPill
+import com.fitlens.companion.ui.design.SectionLabel
+import com.fitlens.companion.ui.design.SegmentedSwitch
 import com.fitlens.companion.ui.design.SettingsActionRow
 import com.fitlens.companion.ui.design.SettingsChoiceRow
 import com.fitlens.companion.ui.design.SettingsGroup
@@ -41,6 +46,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -304,20 +310,25 @@ private fun RestoreDialog(info: Backups.Info, onDismiss: () -> Unit, onConfirm: 
     )
 }
 
+/**
+ * The PDF report's options as a FitLens sheet (#92). It opens with the page style and photos per day saved in
+ * Settings → Progress photos and media (#46); the period and sections are chosen per report.
+ */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ReportDialog(snap: Snapshot, onDismiss: () -> Unit, onCreate: (ReportOptions) -> Unit) {
     val first = snap.allDates.lastOrNull() ?: Dates.today()
     val last = snap.allDates.firstOrNull() ?: Dates.today()
+    val saved = remember { Settings.currentPortable() }
     var from by remember { mutableStateOf(first) }
     var to by remember { mutableStateOf(last) }
     var pickFrom by remember { mutableStateOf(false) }
     var pickTo by remember { mutableStateOf(false) }
-    var dark by remember { mutableStateOf(true) }
+    var dark by remember { mutableStateOf(saved.pdfDark) }
     var measurements by remember { mutableStateOf(true) }
     var training by remember { mutableStateOf(true) }
     var daily by remember { mutableStateOf(true) }
-    var perDay by remember { mutableIntStateOf(2) }
+    var perDay by remember { mutableIntStateOf(saved.pdfPhotosPerDay.coerceIn(0, 4)) }
     var onlyPhotoDays by remember { mutableStateOf(false) }
     var hq by remember { mutableStateOf(false) }
 
@@ -331,59 +342,69 @@ private fun ReportDialog(snap: Snapshot, onDismiss: () -> Unit, onCreate: (Repor
         from = if (monthsBack == null) first else maxOf(first, LocalDate.parse(last).minusMonths(monthsBack).toString())
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("PDF report") },
-        text = {
-            Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Period", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = from == first && to == last, onClick = { range(null) }, label = { Text("All") })
-                    FilterChip(selected = false, onClick = { range(12) }, label = { Text("Last year") })
-                    FilterChip(selected = false, onClick = { range(3) }, label = { Text("3 months") })
-                    FilterChip(selected = false, onClick = { range(1) }, label = { Text("1 month") })
-                }
-                FlowRow {
-                    TextButton(onClick = { pickFrom = true }) { Text("From ${Dates.medium(from)}") }
-                    TextButton(onClick = { pickTo = true }) { Text("To ${Dates.medium(to)}") }
-                }
-
-                Text("Include", style = MaterialTheme.typography.labelLarge)
-                ToggleRow("Measurement charts and stats", measurements) { measurements = it }
-                ToggleRow("Training summary", training) { training = it }
-                ToggleRow("Daily log", daily) { daily = it }
-                if (daily) {
-                    ToggleRow("Only days with photos", onlyPhotoDays) { onlyPhotoDays = it }
-                    Text("Photos per day", style = MaterialTheme.typography.labelLarge)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        (0..4).forEach { n -> FilterChip(selected = perDay == n, onClick = { perDay = n }, label = { Text("$n") }) }
-                    }
-                }
-
-                Text("Style", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(selected = dark, onClick = { dark = true }, label = { Text("Dark (as in the app)") })
-                    FilterChip(selected = !dark, onClick = { dark = false }, label = { Text("Light (for printing)") })
-                }
-                ToggleRow("High-quality photos", hq) { hq = it }
-
-                Text(
-                    "$days days · about $photos photos · roughly ${if (estMb < 1) "<1" else "%.0f".format(estMb)} MB",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (photos > 400) Text(
-                    "This is a large report and may take a few minutes. Fewer photos per day or a shorter period makes it faster and smaller.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error
-                )
+    FitSheet(
+        title = "PDF report",
+        onDismiss = onDismiss,
+        confirmLabel = "Create PDF",
+        onConfirm = {
+            if (from > to) UiEvents.show("The start date is after the end date") else onCreate(opts)
+        }
+    ) {
+        SectionLabel("Period")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(selected = from == first && to == last, onClick = { range(null) }, label = { Text("All") })
+            FilterChip(selected = false, onClick = { range(12) }, label = { Text("Last year") })
+            FilterChip(selected = false, onClick = { range(3) }, label = { Text("3 months") })
+            FilterChip(selected = false, onClick = { range(1) }, label = { Text("1 month") })
+        }
+        FlowRow(verticalArrangement = Arrangement.Center) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("From", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                PickerPill("From", Dates.medium(from)) { pickFrom = true }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                if (from > to) UiEvents.show("The start date is after the end date") else onCreate(opts)
-            }) { Text("Create") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("to", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                PickerPill("To", Dates.medium(to)) { pickTo = true }
+            }
+        }
+
+        SectionLabel("Include")
+        ToggleRow("Measurement charts and stats", measurements, inset = 0.dp) { measurements = it }
+        ToggleRow("Training summary", training, inset = 0.dp) { training = it }
+        ToggleRow("Daily log", daily, inset = 0.dp) { daily = it }
+        if (daily) {
+            ToggleRow("Only days with photos", onlyPhotoDays, inset = 0.dp) { onlyPhotoDays = it }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Photos per day", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                DropdownPill(
+                    label = "Photos per day",
+                    options = (0..4).map { if (it == 0) "None" else "$it" },
+                    selected = perDay
+                ) { perDay = it }
+            }
+        }
+
+        SectionLabel("Style")
+        SegmentedSwitch(
+            options = listOf("Dark (as in the app)", "Light (for printing)"),
+            selected = if (dark) 0 else 1,
+            onSelect = { dark = it == 0 }
+        )
+        ToggleRow("High-quality photos", hq, inset = 0.dp) { hq = it }
+
+        Text(
+            "$days days · about $photos photos · roughly ${if (estMb < 1) "<1" else "%.0f".format(estMb)} MB",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (photos > 400) Text(
+            "This is a large report and may take a few minutes. Fewer photos per day or a shorter period makes it faster and smaller.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error
+        )
+        Text(
+            "The page style and photos per day start from Settings → Progress Photos & Media.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
     if (pickFrom) PickDateDialog(from, onDismiss = { pickFrom = false }) { from = it }
     if (pickTo) PickDateDialog(to, onDismiss = { pickTo = false }) { to = it }
 }

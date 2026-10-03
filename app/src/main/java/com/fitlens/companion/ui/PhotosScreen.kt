@@ -33,9 +33,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -44,7 +41,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -57,13 +53,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Photo
 import com.fitlens.companion.data.Poses
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import com.fitlens.companion.data.MediaPrefs
+import com.fitlens.companion.data.Settings
+import com.fitlens.companion.ui.design.ConfirmSheet
+import com.fitlens.companion.ui.design.FitIcons
+import com.fitlens.companion.ui.design.FitSheet
+import com.fitlens.companion.ui.design.FitTopBar
+import com.fitlens.companion.ui.design.GoldButton
+import com.fitlens.companion.ui.design.MenuAction
+import com.fitlens.companion.ui.design.TopBarAction
+import java.time.LocalDate
 import com.fitlens.companion.ui.design.DropdownPill
 
 /** Filter / group key for photos without a pose. */
@@ -73,19 +83,31 @@ private const val NOT_SET = "Not set"
 
 private fun poseKey(p: Photo): String = p.pose.ifBlank { UNSET }
 
-/** A titled block of photos in the Photos grid: one month, or one pose. */
+/** A titled block of photos in the Photos grid: one day, week, month or year, or one pose. */
 private class PhotoSection(val key: String, val title: String, val photos: List<Photo>)
 
+/** The heading of a date section starting on [start], grouped by [group] (#46). */
+private fun sectionTitle(start: LocalDate, group: String): String = when (group) {
+    MediaPrefs.GROUP_DAY -> Dates.long(start.toString())
+    MediaPrefs.GROUP_WEEK -> "Week of ${Dates.medium(start.toString())}"
+    MediaPrefs.GROUP_YEAR -> start.year.toString()
+    else -> Dates.monthYear(start)
+}
+
+/**
+ * The Photos gallery (#92): the FitLens top bar with icon actions and an overflow menu, which becomes a selection bar
+ * with the count while photos are selected. Sections follow "Group photos by" (#46), remembered in Settings.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PhotosScreen(snap: Snapshot, nav: Nav) {
+    val prefs by Settings.portable.collectAsState()
     var poseFilter by rememberSaveable { mutableStateOf("All") }
-    var groupBy by rememberSaveable { mutableStateOf("Month") }
-    // The selection and open dialogs come back after rotation or a restart in the background (#37).
+    val groupBy = prefs.photoGroupBy
+    // The selection and open sheets come back after rotation or a restart in the background (#37).
     val state = viewModel<PhotosState>()
     val selected = state.savedIds("selected")
     val selectedSet by remember { derivedStateOf { selected.toHashSet() } }
-    var menu by state.saved("menu", false)
     var poseDialog by state.saved("poseDialog", false)
     var dateDialog by state.saved("dateDialog", false)
     var deleteDialog by state.saved("deleteDialog", false)
@@ -101,17 +123,18 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
             else -> base.filter { it.pose == poseFilter }
         }
     }
-    val sections = remember(filtered, groupBy) {
-        if (groupBy == "Pose") {
+    val sections = remember(filtered, groupBy, prefs.weekStart) {
+        if (groupBy == MediaPrefs.GROUP_POSE) {
             val byPose = filtered.groupBy { poseKey(it) }
             val order = Poses.all + UNSET
             (order.filter { it in byPose } + byPose.keys.filter { it !in order }).map { k ->
                 PhotoSection("p$k", if (k == UNSET) "Pose not set" else k, byPose.getValue(k))
             }
         } else {
-            filtered.groupBy { it.date!!.take(7) }.map { (month, list) ->
-                PhotoSection("m$month", Dates.monthYear(Dates.parse("$month-01")!!), list)
-            }
+            // The photos are newest first, so the sections are too.
+            filtered.groupBy { p ->
+                MediaPrefs.sectionStart(Dates.parse(p.date) ?: LocalDate.MIN, groupBy, prefs.weekStart)
+            }.map { (start, list) -> PhotoSection("d$groupBy$start", sectionTitle(start, groupBy), list) }
         }
     }
     val orderedIds = remember(sections) { sections.flatMap { s -> s.photos.map { it.id } } }
@@ -124,64 +147,56 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
 
     Column(Modifier.fillMaxSize()) {
         if (selected.isEmpty()) {
-            PlainTopBar("Photos") {
-                IconButton(onClick = { nav.push(Screen.Slideshow()) }, enabled = snap.datedPhotos.isNotEmpty()) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = "Slideshow and video")
-                }
-                Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Filled.Add, contentDescription = "Import photos") }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text("Choose photos…") }, onClick = { menu = false; importFiles() })
-                        DropdownMenuItem(text = { Text("Import a whole folder…") }, onClick = { menu = false; importFolder() })
+            FitTopBar(
+                title = "Photos",
+                onBack = LocalNavBack.current,
+                actions = listOf(
+                    TopBarAction(Icons.Filled.Add, "Import photos") { importFiles() },
+                    TopBarAction(Icons.Filled.PlayArrow, "Slideshow and video", enabled = snap.datedPhotos.isNotEmpty()) {
+                        nav.push(Screen.Slideshow())
                     }
+                ),
+                overflow = buildList {
+                    add(MenuAction("Import a whole folder…") { importFolder() })
+                    if (snap.reviewPhotos.isNotEmpty()) {
+                        add(MenuAction("Check photo dates (${snap.reviewPhotos.size})") { nav.push(Screen.Review) })
+                    }
+                    add(MenuAction("Photo and media settings") { nav.push(Screen.SettingsPage(SettingsSection.Media)) })
                 }
-            }
+            )
         } else {
-            TopAppBar(
-                title = { Text("${selected.size} selected", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = { IconButton(onClick = { selected.clear() }) { Icon(Icons.Filled.Close, contentDescription = "Clear selection") } },
-                actions = {
-                    if (selected.size == 2) TextButton(onClick = {
+            val allShown = orderedIds.isNotEmpty() && selectedSet.containsAll(orderedIds)
+            FitTopBar(
+                title = "${selected.size} selected",
+                centered = false,
+                navigation = TopBarAction(Icons.Filled.Close, "Clear selection") { selected.clear() },
+                actions = listOf(
+                    TopBarAction(FitIcons.Compare, "Compare the two selected photos", enabled = selected.size == 2) {
                         val (a, b) = selected.sortedBy { snap.photosById[it]?.date ?: "" }
                         selected.clear()
                         nav.push(Screen.Compare(a, b))
-                    }) { Text("Compare") }
-                    TextButton(onClick = { poseDialog = true }) { Text("Pose") }
-                    TextButton(onClick = { dateDialog = true }) { Text("Date") }
-                    IconButton(onClick = { val ids = selected.toList(); selected.clear(); nav.push(Screen.Slideshow(ids)) }) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = "Slideshow of selected")
-                    }
-                    IconButton(onClick = { deleteDialog = true }) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
-                }
-            )
-            // Selection helper: select everything the current filter shows in one tap.
-            val allShown = orderedIds.isNotEmpty() && selectedSet.containsAll(orderedIds)
-            Row(
-                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(start = 16.dp, end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Tap photos to add or remove",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    },
+                    TopBarAction(Icons.Filled.PlayArrow, "Slideshow of the selected photos") {
+                        val ids = selected.toList(); selected.clear(); nav.push(Screen.Slideshow(ids))
+                    },
+                    TopBarAction(Icons.Filled.Delete, "Delete the selected photos") { deleteDialog = true }
+                ),
+                overflow = listOf(
+                    MenuAction("Set pose…") { poseDialog = true },
+                    MenuAction("Change date…") { dateDialog = true },
+                    MenuAction(if (allShown) "Deselect all" else "Select all shown (${orderedIds.size})") { toggleAll(orderedIds) }
                 )
-                TextButton(onClick = { toggleAll(orderedIds) }) {
-                    Text(if (allShown) "Deselect all" else "Select all shown (${orderedIds.size})", maxLines = 1)
-                }
-            }
-            GoldHairline()
+            )
         }
 
         if (snap.photos.isEmpty()) {
             EmptyState(
                 "No progress photos yet",
-                "Import photos in bulk. Each one is matched to its date from the photo's metadata, so it lines up with your FitNotes data."
+                "Import photos in bulk. Each one is matched to its date from the photo's metadata, so it lines up with your training."
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = importFiles) { Text("Choose photos") }
-                    TextButton(onClick = importFolder) { Text("Import folder") }
+                    GoldButton(onClick = importFiles) { Text("Choose photos") }
+                    GlassOutlinedButton(onClick = importFolder) { Text("Import folder") }
                 }
             }
         } else {
@@ -212,27 +227,28 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                 }
                 item(span = { GridItemSpan(maxLineSpan) }, key = "filters") {
                     Column {
-                        // One compact row (#115): which poses, and how the grid is grouped.
+                        // One compact row (#115): which poses, and how the grid is grouped (remembered, #46).
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             val poses = listOf("All") + Poses.all + UNSET
                             DropdownPill(
                                 label = "Pose",
                                 options = poses.map { p ->
                                     val n = if (p == "All") snap.datedPhotos.size else counts[p] ?: 0
-                                    "${if (p == "All") "All poses" else p} · $n"
+                                    val name = when (p) { "All" -> "All poses"; UNSET -> "Pose not set"; else -> p }
+                                    "$name · $n"
                                 },
                                 selected = poses.indexOf(poseFilter).coerceAtLeast(0)
                             ) { poseFilter = poses[it] }
-                            val groups = listOf("Month", "Pose")
+                            val groups = MediaPrefs.GROUPS
                             DropdownPill(
                                 label = "Group by",
-                                options = groups.map { "By ${it.lowercase()}" },
+                                options = groups.map { "By ${MediaPrefs.groupLabel(it).lowercase()}" },
                                 selected = groups.indexOf(groupBy).coerceAtLeast(0)
-                            ) { groupBy = groups[it] }
+                            ) { i -> Settings.updatePortable { it.copy(photoGroupBy = groups[i]) } }
                         }
                         if (selected.isEmpty()) {
                             Text(
-                                "To set a pose on many photos, long-press one or tap Select on a section, then tap Pose.",
+                                "Long-press a photo, or tap Select on a section, to choose several and set their pose or date.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(top = 2.dp)
@@ -254,7 +270,7 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = section.key) {
                         val ids = section.photos.map { it.id }
                         val allSel = ids.isNotEmpty() && selectedSet.containsAll(ids)
-                        // Each month or pose under a FitNotes heading (#146), with Select beside it.
+                        // Each section under a FitNotes heading (#146), with Select beside it.
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                             SectionLabel(section.title + " · ${section.photos.size}", Modifier.weight(1f))
                             TextButton(onClick = { toggleAll(ids) }) {
@@ -273,7 +289,15 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                         val isSel = p.id in selectedSet
                         Box(
                             Modifier.aspectRatio(0.75f)
+                                .clip(FitShapes.row)
+                                .semantics { this.selected = isSel }
                                 .combinedClickable(
+                                    onClickLabel = when {
+                                        selected.isEmpty() -> "Open"
+                                        isSel -> "Deselect"
+                                        else -> "Select"
+                                    },
+                                    onLongClickLabel = if (isSel) "Deselect" else "Select",
                                     onClick = {
                                         if (selected.isNotEmpty()) { if (isSel) selected.remove(p.id) else selected.add(p.id) }
                                         else nav.push(Screen.PhotoViewer(orderedIds, orderedIds.indexOf(p.id).coerceAtLeast(0)))
@@ -291,9 +315,9 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                                     .background(Brand.Black.copy(alpha = 0.6f), RoundedCornerShape(topEnd = 6.dp)).padding(horizontal = 4.dp, vertical = 1.dp)
                             )
                             if (isSel) {
-                                Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)))
+                                Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, FitShapes.row))
                                 Icon(
-                                    Icons.Filled.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.onPrimary,
+                                    Icons.Filled.Check, contentDescription = null, tint = Brand.Black,
                                     modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
                                         .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50))
                                 )
@@ -316,9 +340,10 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
             AppScope.scope.launch { Store.setPhotoDate(ids, d) }
         }
     }
-    if (deleteDialog) ConfirmDialog(
-        "Delete ${selected.size} photos?",
-        "They're removed from FitLens only — the originals on your phone aren't touched.",
+    if (deleteDialog) ConfirmSheet(
+        title = "Delete ${selected.size} photo${if (selected.size == 1) "" else "s"}?",
+        message = "They're removed from FitLens only — the originals on your phone aren't touched.",
+        confirmLabel = "Delete photos",
         onDismiss = { deleteDialog = false }
     ) {
         val ids = selected.toList(); selected.clear()
@@ -339,43 +364,33 @@ private fun PoseOptions(onPick: (String) -> Unit) {
     }
 }
 
-/** Sets the pose of one or more existing photos. */
+/** Sets the pose of one or more existing photos, as a FitLens sheet (#92). */
 @Composable
 fun PoseDialog(onDismiss: () -> Unit, count: Int = 0, onPick: (String) -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (count > 1) "Set pose for $count photos" else "Set pose") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                PoseOptions { pose -> onPick(pose); onDismiss() }
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
+    FitSheet(title = if (count > 1) "Set pose for $count photos" else "Set pose", onDismiss = onDismiss) {
+        PoseOptions { pose -> onPick(pose); onDismiss() }
+    }
 }
 
-/** Asked before every bulk photo import: the pose is applied to all the photos being added. */
+/**
+ * Asked before a photo import, one photo or many (#92): the pose is applied to every photo being added. Settings →
+ * Progress photos and media can choose a pose for new photos instead, and then this isn't asked (#46).
+ */
 @Composable
 fun ImportPoseDialog(count: Int, onCancel: () -> Unit, onPick: (String) -> Unit) {
-    AlertDialog(
-        onDismissRequest = onCancel,
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(if (count == 1) "Pose for this photo" else "Pose for these $count photos") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text(
-                    "Applied to every photo in this import. You can change it later for one photo or many.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                PoseOptions(onPick)
-            }
-        },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel import") } }
-    )
+    FitSheet(
+        title = if (count == 1) "Pose for this photo" else "Pose for these $count photos",
+        onDismiss = onCancel,
+        dismissLabel = "Cancel import"
+    ) {
+        Text(
+            "Applied to every photo in this import. You can change it later for one photo or many, or choose a pose " +
+                "for every new photo in Settings → Progress Photos & Media.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        PoseOptions(onPick)
+    }
 }
 
 /** Photos whose date came from the file's modified time or wasn't found at all. */
@@ -384,12 +399,16 @@ fun ReviewScreen(snap: Snapshot, nav: Nav) {
     val list = snap.reviewPhotos
     var editing by remember { mutableStateOf<Photo?>(null) }
     Column(Modifier.fillMaxSize()) {
-        BackTopBar("Check photo dates", onBack = { nav.pop() }) {
-            if (list.any { it.date != null }) TextButton(onClick = {
-                val ids = list.filter { it.date != null }.map { it.id }
-                AppScope.scope.launch { Store.confirmPhotoDates(ids) }
-            }) { Text("Accept all") }
-        }
+        FitTopBar(
+            title = "Check photo dates",
+            onBack = { nav.pop() },
+            actions = if (list.any { it.date != null }) listOf(
+                TopBarAction(Icons.Filled.Done, "Accept every date shown") {
+                    val ids = list.filter { it.date != null }.map { it.id }
+                    AppScope.scope.launch { Store.confirmPhotoDates(ids) }
+                }
+            ) else emptyList()
+        )
         Text(
             "These photos had no camera date in their metadata, so FitLens used the file date or found nothing. " +
                 "Accept the date if it's right, or set the correct one.",
@@ -398,7 +417,7 @@ fun ReviewScreen(snap: Snapshot, nav: Nav) {
         )
         if (list.isEmpty()) {
             EmptyState("All photo dates checked", "Every photo is matched to a date.") {
-                TextButton(onClick = { nav.pop() }) { Text("Back to photos") }
+                GlassOutlinedButton(onClick = { nav.pop() }) { Text("Back to photos") }
             }
         } else {
             androidx.compose.foundation.lazy.LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

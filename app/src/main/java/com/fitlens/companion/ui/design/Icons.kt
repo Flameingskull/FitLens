@@ -83,4 +83,38 @@ object FitIcons {
             "M12,4c-4.97,0 -9,4.03 -9,9s4.02,9 9,9c4.97,0 9,-4.03 9,-9s-4.03,-9 -9,-9z" +
             "M12,20c-3.87,0 -7,-3.13 -7,-7s3.13,-7 7,-7 7,3.13 7,7 -3.13,7 -7,7z"
     )
+
+    /** Options (#92): the slideshow and video settings sheet. */
+    val Tune: ImageVector = icon(
+        "FitLens.Tune",
+        "M3,17v2h6v-2H3zM3,5v2h10V5H3zM13,21v-2h8v-2h-8v-2h-2v6h2zM7,9v2H3v2h4v2h2V9H7zM21,13v-2H11v2h10zM15,9h2V7h4V5h-4V3h-2v6z"
+    )
+
+    /** Pause the slideshow preview (#92). */
+    val Pause: ImageVector = icon("FitLens.Pause", "M6,19h4V5H6v14zM14,5v14h4V5h-4z")
+
+    /** The next photo (#92). */
+    val SkipNext: ImageVector = icon("FitLens.SkipNext", "M6,18l8.5,-6L6,6v12zM16,6v12h2V6h-2z")
+
+    /** The previous photo (#92). */
+    val SkipPrevious: ImageVector = icon("FitLens.SkipPrevious", "M6,6h2v12H6zM9.5,12l8.5,6V6z")
+
+    /** Swap the two sides of a comparison (#92). */
+    val SwapHoriz: ImageVector = icon(
+        "FitLens.SwapHoriz",
+        "M6.99,11L3,15l3.99,4v-3H14v-2H6.99v-3zM21,9l-3.99,-4v3H10v2h7.01v3L21,9z"
+    )
+
+    /** Compare two photos side by side (#92). */
+    val Compare: ImageVector = icon(
+        "FitLens.Compare",
+        "M10,3H5c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h5v2h2V1h-2v2zM10,18H5l5,-6v6z" +
+            "M19,3h-5v2h5v13l-5,-6v9h5c1.1,0 2,-0.9 2,-2V5c0,-1.1 -0.9,-2 -2,-2z"
+    )
+
+    /** A photo's pose (#92): a standing figure. */
+    val Pose: ImageVector = icon(
+        "FitLens.Pose",
+        "M12,2c1.1,0 2,0.9 2,2s-0.9,2 -2,2 -2,-0.9 -2,-2 0.9,-2 2,-2zM21,9h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"
+    )
 }
