@@ -21,14 +21,16 @@ custom metrics.
 - **Today:** FitLens opens on today's training log and moves around the way FitNotes does. It logs your workouts
   (an exercise library with ten exercise types, set-by-set entry with set types, effort, comments and a done tick,
   workouts made of days you name with planned sets and rests, a workout timer and a rest timer), analyses your training (with graphs you can compare side by side and pin to an overview), tracks goals, and imports and shows your FitNotes history. It also manages progress photos, tracks body
-  measurements and custom metrics, makes slideshows, videos and PDF reports, and backs everything up locally. Every
+  measurements (with body fat calculated from them) and custom metrics, shows the nearest progress photo beside a
+  graph point, makes slideshows, videos and PDF reports that remember your options, and backs everything up locally. Every
   exercise, set and workout records whether it came from FitNotes or was created in FitLens, so the two histories sit
   side by side without colliding.
 - **In progress:** FitNotes is the guide for every screen that does what a FitNotes screen does, so moving across
   feels familiar. A screen-by-screen pass laid each FitLens screen beside FitNotes and fixed the differences, one
   group per release from 1.0.75 to 1.0.87: the day log and workout drawer, the exercise screen, the library and
   workout editor, the calendar and Body Tracker, Analysis, the photo screens and finally Settings, now FitNotes's
-  single list ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on the
+  single list. In 1.0.95 the photo, viewer, compare, slideshow and PDF screens joined the same design system
+  ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on the
   [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). Next come the rest of FitNotes parity
   ([#59](https://github.com/Flameingskull/FitLens/issues/59)), the rest of the analysis hub
   ([#58](https://github.com/Flameingskull/FitLens/issues/58)) and the rest of the
@@ -133,7 +135,8 @@ custom metrics.
   backups, then tap **Sync now**, or turn on automatic sync to import the newest backup whenever FitLens opens.
   Automatic sync is **off by default**. You can also share a backup from FitNotes straight into FitLens.
 - **Bulk photo import:** choose many photos or a whole folder, or share photos from your gallery. You pick the pose
-  (Front, Side, Back or Other) for the batch as you import. Each photo is dated from:
+  (Front, Side, Back or Other) for the batch as you import, or set a **pose for new photos** in **Settings → Progress
+  Photos & Media** and FitLens stops asking. Each photo is dated from:
   1. camera metadata (EXIF "date taken"),
   2. then the media library date,
   3. then a date in the file name (for example `IMG_20230826_132000.jpg`, `PXL_…` or `Screenshot_2023-08-26…`),
@@ -144,17 +147,25 @@ custom metrics.
   you logged can be changed or deleted on the measurement's Track tab (tap it there, or in its History). If the same value later arrives in a
   FitNotes backup, the FitNotes copy is skipped and your entry is kept.
 - **Measurements:** the body tracker's **Measurements** screen lists every measurement with an on/off switch, adds
-  the standard set (bodyweight, body fat and eight tape measurements), and creates your own, such as calories or
-  sleep, with their own unit. You can link one to a FitNotes measurement so imports fill it in, and imports keep your
-  on/off choices.
+  the standard set (bodyweight and eight tape measurements), and creates your own, such as calories or sleep, with
+  their own unit. **Body fat** and **Height** are there for everyone. You can link one to a FitNotes measurement so
+  imports fill it in, and imports keep your on/off choices.
+- **Body fat from your measurements:** enter body fat by hand, or tap **Calculate from measurements**. It uses the US
+  Navy circumference method (metric body-density form with Siri's equation, typically within about ±3.5 percentage
+  points of underwater weighing), working from your latest height, neck and waist (plus hips for women). Each one is
+  shown with its date, and any value more than 14 days old is flagged. A missing measurement is named so you can enter
+  it on the spot, and impossible inputs are refused with the reason. **Settings → Sex (Body Fat)** holds the one
+  choice the formula needs.
 - **Guided setup:** a fresh install opens a short, skippable setup: restore a FitLens backup, or choose your units,
   an automatic backup folder, a FitNotes import, your progress photos, the starter exercise library and the standard
   body measurements.
   **Settings → Show Setup Again** opens it any time.
 - **Settings:** open it from the **⋮** menu on the day log. As in FitNotes, it's one list. **SETTINGS** has Theme,
   Unit System, Calendar Week Start, Default Weight Increment, Home Screen Settings, Track Personal Records, Mark Sets
-  Complete, Auto-Select Next Set and Keep Screen On, in FitNotes's order, then FitLens's own: the rest timer, how new
-  sets fill in, set types, effort, warm-ups, the workout timer, and the estimated 1RM formula and settings. **DATA**
+  Complete, Auto-Select Next Set and Keep Screen On, in FitNotes's order, then FitLens's own: your units, sex for the
+  body fat formula, the rest timer, how new sets fill in, set types, effort, warm-ups, the workout timer, the
+  estimated 1RM formula and settings, and **Progress Photos & Media** (the pose for new photos, how the gallery is
+  grouped, remembered slideshow and video options, and the PDF report's page style and photos per day). **DATA**
   has Backup, Restore, Automatic Backup, Spreadsheet Export, Calculate Personal Records, Delete Workout History and
   Import From FitNotes, and **OTHER** has Help, Feedback, Change Log, Show Setup Again, Privacy Policy and About.
   On/off settings are checkboxes, and the search field filters the list so a setting can be changed right there.
@@ -162,7 +173,7 @@ custom metrics.
   units below it for any mix (stored values never change, and the plate calculator's plates convert too). Any
   exercise can keep its own weight unit, and any body measurement its own unit. Settings that belong to the phone,
   such as backup folders and schedules, stay on the phone and are never replaced by a restore. Preferences such as
-  your units, chart types, comparisons and pinned graphs travel with your backups.
+  your units, chart types, comparisons, pinned graphs and photo and media options travel with your backups.
 - **Data tools** (in Settings):
   - **CSV export:** workouts (with set and exercise comments) or body data for any date range, in kilograms or
     pounds, saved to a file or shared, for spreadsheets. The columns are listed on the page. A CSV can't be restored; that's what backups are for.
@@ -172,8 +183,10 @@ custom metrics.
 - **Getting around:** as in FitNotes, there's no tab bar. The **day log** is home, and its top bar has **Calendar**,
   **+** (the exercise library and workout switcher), the rest countdown while you rest, and a **⋮** menu with the
   day's workout actions, then Analysis, Body tracker, Photos and Settings. Each of those slides in on top of the log,
-  and Back returns you to it. Choices such as a period, a pose or a sort order sit in compact dropdowns, so the data
-  gets the screen; the controls you use mid-workout stay in view.
+  and Back returns you to it. Rotating the phone, or Android closing FitLens in the background, keeps your place:
+  the screen you were on and the ones under it, with their open sheets, selections and filters. Choices such as a
+  period, a pose or a sort order sit in compact dropdowns, so the data gets the screen; the controls you use
+  mid-workout stay in view.
 - **Views:**
   - **Day log (home):** laid out as FitNotes's. It opens on today, under a flat ‹ TODAY › bar: swipe or use the
     arrows to move one day at a time, empty days included, tap the day to jump to any date, and long-press it to come
@@ -196,7 +209,7 @@ custom metrics.
     value before (coloured by your goal), or "Tap to record a value". **History** shows every value, newest day first,
     for all measurements or one. **Graph** shows one measurement with its range, trend line, goal line, photo days and
     stats. Tap a measurement to log a value: the day, the value with − and + buttons, the time and a comment, with its
-    own History and Graph. The pencil opens **Measurements**, where each measurement shows its unit and goal and a
+    own History and Graph (Body fat adds **Calculate from measurements**). The pencil opens **Measurements**, where each measurement shows its unit and goal and a
     checkbox turns tracking on or off.
   - **Exercise library:** as in FitNotes, it opens on **All exercises** with the search field always at the top,
     then your categories, then a category's exercises. Tap an exercise to log it, or long-press to choose several and go through them in turn.
@@ -232,22 +245,31 @@ custom metrics.
     1RM to 15RM for many exercises side by side, for all training, a category or the exercises you choose.
   - **Graphs** (Body tracker, exercise screen and Analysis) are sized from your screen, with their graph type, range,
     **chart type** and options in one compact row of dropdowns. Each graph can be drawn as a **line**, **bars**, an
-    **area** or **steps**, and remembers your choice (it travels in backups too). They can add a dashed **trend line**
-    with its change per month and start their scale **from zero** (bars always do), and a line never breaks between
-    points. Every graph opens **full screen** (the expand button or a double
+    **area** or **steps**, and remembers your choice (it travels in backups too). They can add a dashed **trend line**:
+    a smoothed curve through your values from eight points on (so a plateau, cut or bulk shows as a bend), otherwise
+    the straight best-fit line, and none from fewer than three days. Its figures are written under the graph: the rate
+    in the graph's unit per week, month or year, the fitted start and end, and the number of points and R², with a
+    note when the trend rests on few points or explains little. Graphs can start their scale **from zero** (bars
+    always do), and a line never breaks between points. Tapping a point on an exercise graph or the workout-length
+    graph shows the **progress photo nearest that date** (within 14 days), which opens in the viewer. Every graph opens **full screen** (the expand button or a double
     tap), where pinching across zooms the timeline and pinching up and down zooms the values, dragging moves around, and the range and options can change. TalkBack reads each graph's range and
     values and offers zoom and move actions for both. A graph's ⋮ menu can **share it as an image** in the FitLens
     look. An exercise graph's ⋮ can **compare** up to five exercises on one graph, each with its own colour and
     marker (tap a name in the legend to hide it, tap a date for every value on it), as values or as a percentage of
     each one's first value in the range. The **star** beside full screen pins a graph to Analysis → Overview.
-  - **Photos:** a gallery you can group by month or by pose, with pose filters and counts. It also has multi-select
-    for bulk pose tagging, a full-screen viewer with that day's measurements, and a **before/after compare** you can
-    share or save as an image.
+  - **Photos:** a gallery grouped by day, week, month, year or pose (remembered), with pose filters and counts.
+    Long-press to select photos: the top bar then shows the count, with compare, slideshow and delete, and the ⋮ menu
+    sets the pose or date of all of them. The viewer shows each photo edge to edge on black; tap it to fade the
+    controls away, swipe for the next, and open the details for the pose, the date and that day's body values. The
+    **before/after compare** sits side by side on black, with the change in each body value, and can be shared or
+    saved as an image.
 - **Slideshow and video:** plays your photos in date order with overlays: the date, a day or week counter, the pose,
-  chosen measurements (with the change since the start) and a moving progress chart. It exports an **MP4 video**,
-  rendered on the phone, in Portrait HD, Full HD or Square. Videos are saved to *Movies/FitLens* and can be shared.
+  chosen measurements (with the change since the start) and a moving progress chart. Every option is in one options
+  sheet, and FitLens remembers them for next time (the dates always start at all photos; **Settings → Progress Photos
+  & Media** can switch this off or reset them). It exports an **MP4 video**, rendered on the phone, in Portrait HD,
+  Full HD or Square. Videos are saved to *Movies/FitLens* and can be shared.
 - **PDF report:** a readable report with your photos, measurement charts, training summary and a daily log, in dark
-  (as in the app) or light (for printing).
+  (as in the app) or light (for printing). The page style and photos per day start from your Settings choice.
 - **Backups, all on your phone** (in **Settings → Backups**):
   - **Backup file:** save everything, photos included, as one `.fitlens` file, or **share** it with an app you
     already use (email, Drive, Dropbox and so on; FitLens itself never uploads anything). Restore it after
@@ -325,8 +347,8 @@ The first time FitLens opens, a short guided setup walks through the steps below
    photos. FitLens dates each photo and places it on the right day.
 4. If any photos had no camera date, a banner says **"N photos need their date checked"**. Tap it to accept or fix
    the dates.
-5. Tag poses (Front/Side/Back) while importing, in the photo viewer, or with multi-select. Slideshows and comparisons
-   can then use one pose.
+5. Tag poses (Front/Side/Back) while importing, in the photo viewer, or with multi-select, or choose a pose for every
+   new photo in **Settings → Progress Photos & Media**. Slideshows and comparisons can then use one pose.
 6. **Settings → Backups:** choose a backup folder and turn on automatic backups.
 
 ## Limits

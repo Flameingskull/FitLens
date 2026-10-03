@@ -38,19 +38,12 @@ object MediaPrefs {
      * The pose new photos get without asking (#46): null to ask each time, [Poses.NONE] for no pose, or one of
      * [Poses.all]. [stored] is the `meta` value.
      */
-    fun defaultPoseOf(stored: String?): String? = when (stored) {
-        null -> null
-        POSE_NONE -> Poses.NONE
-        in Poses.all -> stored
-        else -> null
-    }
+    fun defaultPoseOf(stored: String?): String? =
+        if (stored == POSE_NONE) Poses.NONE else stored?.takeIf { it in Poses.all }
 
     /** The `meta` value for [defaultPoseOf]'s result. */
-    fun storeDefaultPose(pose: String?): String? = when (pose) {
-        null -> null
-        Poses.NONE -> POSE_NONE
-        else -> pose.takeIf { it in Poses.all }
-    }
+    fun storeDefaultPose(pose: String?): String? =
+        if (pose == Poses.NONE) POSE_NONE else pose?.takeIf { it in Poses.all }
 
     /** PDF photos per day (#46): 0 to 4, 2 when missing or out of range. */
     fun photosPerDayOf(stored: String?): Int = stored?.toIntOrNull()?.takeIf { it in 0..4 } ?: 2

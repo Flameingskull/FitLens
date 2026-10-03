@@ -133,7 +133,7 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
         } else {
             // The photos are newest first, so the sections are too.
             filtered.groupBy { p ->
-                MediaPrefs.sectionStart(Dates.parse(p.date) ?: LocalDate.MIN, groupBy, prefs.weekStart)
+                Dates.parse(p.date)?.let { MediaPrefs.sectionStart(it, groupBy, prefs.weekStart) } ?: LocalDate.MIN
             }.map { (start, list) -> PhotoSection("d$groupBy$start", sectionTitle(start, groupBy), list) }
         }
     }
@@ -317,7 +317,7 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                             if (isSel) {
                                 Box(Modifier.fillMaxSize().border(3.dp, MaterialTheme.colorScheme.primary, FitShapes.row))
                                 Icon(
-                                    Icons.Filled.Check, contentDescription = null, tint = Brand.Black,
+                                    Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
                                         .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(50))
                                 )

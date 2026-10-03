@@ -1,32 +1,50 @@
 ## Overview
 
-FitLens now remembers where you were. Turning your phone, or coming back after Android has closed FitLens in the
-background to free memory, used to drop you back on the day log. From this update you return to the same screen,
-showing the same exercise, day or photo, with its sheets and selections as you left them.
+This update is about FitLens's own strengths: your progress photos, the slideshow and video, and the PDF report. They
+now remember how you like them. A new **Settings → Progress Photos & Media** page sets the defaults once, and the
+photo screens have been rebuilt in the same black-and-gold design as the rest of the app. Training graphs also gain
+a first link to your photos: tap a point and the progress photo nearest that date appears beneath it.
 
-Under the hood, the app's screens now run on Android's standard navigation system (Navigation Compose), and the
-busiest screens keep their state in ViewModels. This is groundwork that every future screen is built on. There's no
-database change: everything you've logged and every setting is kept. Install it over the current app as usual.
+There's no database change. The new preferences are stored like your other settings, and they travel with your
+`.fitlens` backups. Everything you've logged is kept. Install it over the current app as usual.
+
+## What's new
+
+- **Settings → Progress Photos & Media**, under FitLens's own settings:
+  - **Pose for new photos:** Ask each time (as before), None, Front, Side, Back or Other. With a pose chosen, imports
+    of one photo or many, including photos shared from your gallery, use it without asking.
+  - **Group photos by:** Day, Week, Month, Year or Pose. The Photos screen opens grouped the way you chose, and
+    changing it there changes it here too. Weeks start on your calendar's first day of the week.
+  - **Remember slideshow and video options** (on by default), and **Reset slideshow and video options**.
+  - **PDF report pages** (dark or light) and **PDF photos per day** (none to 4): the defaults the report starts from.
+- **The slideshow remembers your options.** Pose, one photo per day, timing, cross-fade, the date, counter and pose
+  labels, the data on the video and its order, the title and the video size all come back next time. The dates always
+  start at all your photos, and a slideshow of photos you selected shows all of them, whatever pose was remembered.
+- **The nearest progress photo under a graph point.** Tap a point on an exercise graph, or on Analysis → Workouts'
+  workout-length graph, and the progress photo nearest that date (within 14 days) appears with how many days apart
+  they are. Tap it to open the photo.
 
 ## Improved
 
-- **Your place survives a rotation or a restart in the background.** Every screen, with what it was showing (the
-  day, the exercise and its tab, the measurement, the photo, the Settings page), comes back after you turn the phone
-  or switch back to FitLens after a while away. Back still works through the same screens in the same order.
-- **Open sheets, dialogs and selections are kept** on the day log (copy, move, share, workout time, the rest timer
-  and the rest), the photo gallery (selected photos, pose, date and delete dialogs) and the photo viewer.
-- **Screens you return to keep their place.** Going back to a screen lower in the stack, such as the photo gallery
-  after viewing a photo, now keeps its scroll position and choices instead of starting over.
-- **Back behaves as before.** A pushed screen closes, the day log is home, and Back on the day log leaves the app,
-  as in FitNotes. Screens still slide in when opened and back out when closed, and moving to another day or the next
-  exercise still changes the screen in place.
-- **Shared files open as before**, whether FitLens was already running or not: FitNotes backups go to Import From
-  FitNotes, `.fitlens` backups to Backup, and photos ask for their pose.
+- **Photos** uses the FitLens top bar: **+** imports photos, ▶ opens the slideshow, and the ⋮ menu has Import a whole
+  folder, Check photo dates and the photo settings. Selecting photos turns the bar into a selection bar showing the
+  count, with Compare, Slideshow and Delete, and Set pose, Change date and Select all in its menu.
+- **The photo viewer is edge to edge on black.** Tap the photo to fade the top bar and details away and see it whole;
+  tap again to bring them back. Compare and Delete are icons, Change date and Open this day are in the ⋮ menu, and the
+  details show the pose, where the date came from, and that day's body values.
+- **Compare** sits on black under a gold rule, with Swap and Share as icons and Save to gallery in its menu. The photo
+  picker matches the app.
+- **Slideshow and video** shows the preview with play, pause and skip buttons, a summary of the options in use, and one
+  **options sheet** for everything.
+- **The PDF report's options** open as a FitLens sheet, with the period, sections, style and photos per day.
+- **Sheets instead of dialogs:** the pose question before an import, Set pose and deleting photos now open as FitLens
+  sheets. On/off options on these screens are checkboxes, as in Settings.
 
 ## Known limitations
 
-- The remaining screens keep their sheets and dialogs in memory only, so a dialog left open on them closes when the
-  phone turns. Their screen and arguments are still restored. They move to the same saved state as they are next
-  worked on.
-- Rotation and returning after Android has closed the app are best checked on a real phone. To test the second, turn
-  on Developer options → "Don't keep activities", open a few screens, switch away and back.
+- Training graphs show the nearest photo for a tapped point. Overlaying a body measurement, a relative-strength graph
+  and comparing photos picked from two graph points are still to come
+  ([#56](https://github.com/Flameingskull/FitLens/issues/56)).
+- Analysis → Workouts' weekly, monthly and yearly totals don't show a photo, because each point covers a whole period
+  rather than one day.
+- The PDF report remembers only its page style and photos per day; the period and sections are chosen for each report.

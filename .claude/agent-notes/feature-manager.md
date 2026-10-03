@@ -113,3 +113,8 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   `nav.replace(screen)` (same kind updates the entry in place, another kind pops and pushes). `nav.top` / `atHome`
   update synchronously after each call, so loops like `while (!nav.atHome && nav.top !is Screen.Day) nav.pop()` end.
   Screen state that must survive rotation goes in a `ScreenState` ViewModel (`ui/ScreenState.kt`).
+- 1.0.95 (#46, #92): a stored option list or blob goes in `PortableSettings` as text with a plain-Kotlin codec that
+  validates on read (`data/MediaPrefs.kt`, `SlideshowPrefs`), unit-tested in `src/test`. A screen that remembers its
+  options saves a moment after the last change and on leaving, and only once something changed, so opening it never
+  turns defaults into saved values. Inside `Modifier.semantics { }`, a local named `selected` shadows the semantics
+  property: write `this.selected = …`. Icons missing from icons-core are added to `FitIcons` from the Material paths.
