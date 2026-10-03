@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -410,4 +411,44 @@ fun shareFile(ctx: Context, file: File, mime: String) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     ctx.startActivity(Intent.createChooser(send, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+/** How far from a graph point a progress photo may be and still be shown with it (#56). */
+const val GRAPH_PHOTO_DAYS = 14
+
+/**
+ * The progress photo nearest [date], within [GRAPH_PHOTO_DAYS], as a thumbnail with its date (#56): a graph's tapped
+ * point shows what the user looked like then. Tapping it opens the viewer on that photo. Shows nothing without one.
+ */
+@Composable
+fun NearestPhotoThumb(snap: Snapshot, nav: Nav, date: String, modifier: Modifier = Modifier) {
+    val photo = remember(snap.datedPhotos, date) { nearestPhoto(snap, date, GRAPH_PHOTO_DAYS) } ?: return
+    val taken = photo.date ?: return
+    val days = Dates.epochDay(taken) - Dates.epochDay(date)
+    val gap = when {
+        days == 0L -> "same day"
+        days < 0 -> "${-days} day${if (days == -1L) "" else "s"} before"
+        else -> "$days day${if (days == 1L) "" else "s"} after"
+    }
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(FitShapes.row)
+            .clickable(onClickLabel = "Open the photo") {
+                val ids = snap.datedPhotos.reversed().map { it.id }
+                nav.push(Screen.PhotoViewer(ids, ids.indexOf(photo.id).coerceAtLeast(0)))
+            }
+            .semantics(mergeDescendants = true) {}
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PhotoThumb(snap, photo, Modifier.width(48.dp).aspectRatio(0.75f), sizePx = 160)
+        Column(Modifier.padding(start = 12.dp).weight(1f)) {
+            Text("Progress photo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "${Dates.medium(taken)} · $gap" + if (photo.pose.isNotBlank()) " · ${photo.pose}" else "",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }

@@ -506,6 +506,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(p.date)) }.padding(16.dp),
                     style = MaterialTheme.typography.titleMedium
                 )
+                // What the user looked like then (#56).
+                NearestPhotoThumb(snap, nav, p.date, Modifier.padding(horizontal = 16.dp))
             } else if (summary.isNotEmpty()) {
                 Text(
                     summary,

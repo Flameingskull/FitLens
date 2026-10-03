@@ -416,7 +416,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         val all = totals.sumOf { it.days.size }
                         val timed = totals.sumOf { it.timed }
                         AnalysisNote("Only workouts with a start and finish time count: $timed of $all here.")
-                        DurationPerWorkout(snap, filter, from)
+                        DurationPerWorkout(snap, nav, filter, from)
                     }
                     else -> {}
                 }
@@ -464,7 +464,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
  * per-workout graph FitNotes has, with the usual trend, full screen and tap for details.
  */
 @Composable
-private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: String?) {
+private fun DurationPerWorkout(snap: Snapshot, nav: Nav, filter: Analysis.Filter, from: String?) {
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fromZero by rememberSaveable { mutableStateOf(false) }
     var fullScreen by remember { mutableStateOf(false) }
@@ -506,8 +506,10 @@ private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: St
         onExpand = { ChartHints.expanded(); fullScreen = true }
     )
     val picked = sel?.let { points.getOrNull(it) }
-    if (picked != null) AnalysisNote("${Dates.long(picked.date)}: ${fmtDuration((picked.y * 60).toInt())}.")
-    else if (points.isNotEmpty()) AnalysisNote("${points.size} timed workouts, ${fmtDuration((points.sumOf { it.y } / points.size * 60).toInt())} on average.")
+    if (picked != null) {
+        AnalysisNote("${Dates.long(picked.date)}: ${fmtDuration((picked.y * 60).toInt())}.")
+        NearestPhotoThumb(snap, nav, picked.date, Modifier.padding(horizontal = 16.dp))
+    } else if (points.isNotEmpty()) AnalysisNote("${points.size} timed workouts, ${fmtDuration((points.sumOf { it.y } / points.size * 60).toInt())} on average.")
     if (fullScreen) {
         FullScreenChart(
             "Workout length · ${filterLabel(snap, filter)}",
