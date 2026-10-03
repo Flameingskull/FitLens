@@ -1,18 +1,20 @@
 ## Overview
 
-The fifth step of the screen-by-screen FitNotes comparison covers Analysis and Settings: every section heading in the
-app now reads as FitNotes's do. This release also refreshes the project's README.
+The last step of the screen-by-screen FitNotes comparison brings the FitLens-only photo screens into the same pattern
+as the rest of the app, so every screen now shares one structure and look.
 
 There are no database changes. Everything you've logged is kept as it was.
 
 ## Improved
 
-- **Settings groups** (Data, backup & import, Training and the groups on every settings page) are headed as FitNotes
-  heads its settings categories: the name in capitals over a fine gold rule, with more space above each group.
-- **Section headings everywhere else** use the same style: Analysis (Summary, Each workout, This period and each
-  exercise on the Exercises tab), Units & display, the slideshow's options and the workout editor's Days.
+- **Photos** are grouped under the same headings as the rest of the app: each month (or pose) in capitals over a fine
+  gold rule, with its photo count and **Select** beside it.
+- **"Photos need their date checked"** now appears as a raised glass card, like the app's other notices.
+- The slideshow's option groups (Photos, Timing, Overlay, Data on the video and Video) use the same headings since
+  1.0.79.
 
 ## Known limitations
 
-- Breakdown's FitNotes-style date period list and up/down slice arrows are still to come (#127).
-- The last step of the comparison, the FitLens-only photo screens (#146), follows.
+- The photo viewer, compare screen and PDF options keep their current layout; a fuller restyle of the media screens
+  is tracked in #92.
+- Breakdown's FitNotes-style date period list (#127) and the full-screen exercise editor (#126) are still to come.

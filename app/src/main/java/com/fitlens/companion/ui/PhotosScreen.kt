@@ -1,5 +1,8 @@
 package com.fitlens.companion.ui
 
+import androidx.compose.foundation.clickable
+import com.fitlens.companion.ui.design.SectionLabel
+import com.fitlens.companion.ui.design.raisedGlass
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -30,8 +33,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -190,10 +191,13 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
             ) {
                 if (snap.reviewPhotos.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = "review") {
-                        Card(
-                            onClick = { nav.push(Screen.Review) },
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f)),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                        // A raised glass card, as the rest of the app draws a tappable notice (#146).
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp)
+                                .raisedGlass(FitShapes.card)
+                                .clickable(onClickLabel = "Review dates") { nav.push(Screen.Review) }
                         ) {
                             Text(
                                 "${snap.reviewPhotos.size} photo${if (snap.reviewPhotos.size == 1) "" else "s"} need their date checked " +
@@ -247,14 +251,9 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                     item(span = { GridItemSpan(maxLineSpan) }, key = section.key) {
                         val ids = section.photos.map { it.id }
                         val allSel = ids.isNotEmpty() && selectedSet.containsAll(ids)
+                        // Each month or pose under a FitNotes heading (#146), with Select beside it.
                         Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                section.title + " · ${section.photos.size}",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
+                            SectionLabel(section.title + " · ${section.photos.size}", Modifier.weight(1f))
                             TextButton(onClick = { toggleAll(ids) }) {
                                 Text(
                                     when {
