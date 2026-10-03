@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -120,32 +122,6 @@ data class LineSeries(val label: String, val points: List<ChartPoint>)
 
 /** The selected point: which series, and the point's index within it. */
 data class ChartSelection(val series: Int, val index: Int)
-
-/** A least-squares trend line, y = intercept + slope × x, with x in epoch days. */
-data class TrendLine(val slope: Double, val intercept: Double) {
-    fun at(x: Long): Double = intercept + slope * x
-
-    /** The change over an average month (30.44 days). */
-    val perMonth: Double get() = slope * 30.44
-}
-
-/** The least-squares trend through [points], or null when there aren't two distinct days to fit. */
-fun trendOf(points: List<ChartPoint>): TrendLine? {
-    if (points.size < 2) return null
-    val n = points.size.toDouble()
-    val mx = points.sumOf { it.x.toDouble() } / n
-    val my = points.sumOf { it.y } / n
-    var sxx = 0.0
-    var sxy = 0.0
-    points.forEach { p ->
-        val dx = p.x - mx
-        sxx += dx * dx
-        sxy += dx * (p.y - my)
-    }
-    if (sxx == 0.0) return null
-    val slope = sxy / sxx
-    return TrendLine(slope, my - slope * mx)
-}
 
 /**
  * The part of a chart that's shown, as fractions of the whole (0..1): [from]..[to] of the time range, and
@@ -286,7 +262,8 @@ fun graphHeight(): Dp = (LocalConfiguration.current.screenHeightDp * 0.45f).dp.c
  *
  * - Tap to select the nearest point; double tap calls [onExpand] (full screen) when it's given.
  * - A legend appears for more than one series or when [showTrend] is on. Tapping a series in it hides or shows it.
- * - [showTrend] adds a dashed least-squares trend per series. [yFromZero] starts the y axis at zero.
+ * - [showTrend] adds a dashed trend per series ([trendOf], #152), fitted to the points in view, with its figures
+ *   written under the legend. [yFromZero] starts the y axis at zero.
  * - The line joins every point, however far apart, so it's never broken (owner, #116).
  * - Days with progress photos get a tick on the time axis and a ring on their point.
  * - Style (1.0.71): value and time grid lines behind a red line, with a translucent gold fill under the first series.
@@ -297,7 +274,10 @@ fun FitChart(
     series: List<LineSeries>,
     modifier: Modifier = Modifier,
     kind: ChartKind = ChartKind.LINE,
-    /** Unspecified sizes the graph from the screen ([graphHeight]). */
+    /**
+     * Unspecified sizes the graph from the screen ([graphHeight]). A given height (full screen) includes the trend's
+     * figures when [showTrend] is on, so the whole chart still fits it.
+     */
     height: Dp = Dp.Unspecified,
     photoDays: Set<Long> = emptySet(),
     goal: Double? = null,
@@ -306,6 +286,10 @@ fun FitChart(
     yFormat: (Double) -> String = { fmtNum(it, 1) },
     unit: String = "",
     showTrend: Boolean = false,
+    /** The unit the trend's figures are written in, when the values' own [unit] doesn't say it (pace: "min /km"). */
+    trendUnit: String = unit,
+    /** The last point is a period still in progress, so the trend leaves it out (#152). */
+    trendSkipLast: Boolean = false,
     yFromZero: Boolean = false,
     viewport: ChartViewport = ChartViewport(),
     onExpand: (() -> Unit)? = null
@@ -313,17 +297,90 @@ fun FitChart(
     var hidden by remember(series.size) { mutableStateOf(emptySet<Int>()) }
     val visible = series.indices.filter { it !in hidden && series[it].points.isNotEmpty() }
     val all = visible.flatMap { series[it].points }
-    val plotHeight = if (height == Dp.Unspecified) graphHeight() else height
+    val plotHeight = when {
+        height == Dp.Unspecified -> graphHeight()
+        showTrend -> (height - TREND_ROOM).coerceAtLeast(120.dp)
+        else -> height
+    }
+    // Each series' trend, fitted to exactly the points in view (#152): zoomed in, it describes that stretch.
+    val (xMin, xMax) = if (all.isEmpty()) 0.0 to 0.0 else viewRange(all, viewport)
+    val trends = remember(series, visible, showTrend, trendSkipLast, xMin, xMax) {
+        if (!showTrend) emptyMap() else visible.mapNotNull { i ->
+            val pts = series[i].points.let { if (trendSkipLast) it.dropLast(1) else it }
+            trendOf(pts.filter { it.x >= xMin && it.x <= xMax })?.let { i to it }
+        }.toMap()
+    }
     Column(modifier) {
         if (all.isEmpty()) {
             ChartEmpty(Modifier, plotHeight)
         } else {
-            LinePlot(series, visible, kind, plotHeight, photoDays, goal, selected, onSelect, yFormat, unit, showTrend, yFromZero, viewport, onExpand)
+            LinePlot(series, visible, kind, plotHeight, photoDays, goal, selected, onSelect, yFormat, unit, trends, yFromZero, viewport, onExpand)
         }
         if (series.size > 1 || showTrend) {
             ChartLegend(series.map { it.label }, hidden, showTrend) { i ->
                 hidden = if (i in hidden) hidden - i else hidden + i
             }
+        }
+        if (showTrend && all.isNotEmpty()) TrendReadout(series, visible, trends, trendUnit, trendSkipLast)
+    }
+}
+
+/**
+ * The time range in view, in epoch days: the whole data range (widened to two days for a single day), narrowed by
+ * [viewport]. The plot and the trend fit both use it, so they always cover the same points.
+ */
+internal fun viewRange(all: List<ChartPoint>, viewport: ChartViewport): Pair<Double, Double> {
+    val dataMin = all.minOf { it.x }
+    val dataMax = all.maxOf { it.x }
+    val fullMin = if (dataMax == dataMin) dataMin - 1 else dataMin
+    val fullMax = if (dataMax == dataMin) dataMax + 1 else dataMax
+    val fullSpan = (fullMax - fullMin).toDouble()
+    return (fullMin + viewport.from * fullSpan) to (fullMin + viewport.to * fullSpan)
+}
+
+/** The most room the trend's figures take under a chart: [TrendReadout] scrolls beyond it. */
+private val TREND_ROOM = 100.dp
+
+/**
+ * What each trend line means, in figures (#152): its rate, the fitted values at either end, the points it's fitted to
+ * and how well. Several series each get a line, named. Scrolls when there are many, so the graph keeps its room.
+ */
+@Composable
+private fun TrendReadout(
+    series: List<LineSeries>,
+    visible: List<Int>,
+    trends: Map<Int, TrendLine>,
+    unit: String,
+    skippedLast: Boolean
+) {
+    Column(
+        Modifier
+            .heightIn(max = 96.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        visible.forEach { i ->
+            val s = series[i]
+            val name = if (series.size > 1) "${s.label}: " else ""
+            val t = trends[i]
+            // Plain counts (workouts, sets) have no unit: name what's counted instead.
+            val u = unit.ifBlank { if (series.size == 1) s.label.lowercase() else "" }
+            Text(
+                name + if (t == null) "No trend: it needs at least ${TrendLine.MIN_POINTS} points on different days in view."
+                // Fitted values aren't logged ones: one decimal, so a count's trend isn't rounded away.
+                else "Trend " + trendText(t, { v -> fmtNum(v, 1) }, u),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (t == null) MaterialTheme.colorScheme.onSurfaceVariant
+                else deltaColour(t.slope, MaterialTheme.colorScheme.onSurfaceVariant)
+            )
+        }
+        if (skippedLast && trends.isNotEmpty()) {
+            Text(
+                "The period still in progress isn't counted in the trend.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -340,7 +397,7 @@ private fun LinePlot(
     onSelect: (ChartSelection) -> Unit,
     yFormat: (Double) -> String,
     unit: String,
-    showTrend: Boolean,
+    trends: Map<Int, TrendLine>,
     yFromZero: Boolean,
     viewport: ChartViewport,
     onExpand: (() -> Unit)?
@@ -355,13 +412,7 @@ private fun LinePlot(
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = textColor, letterSpacing = TextUnit.Unspecified)
 
     val all = visible.flatMap { series[it].points }
-    val dataMin = all.minOf { it.x }
-    val dataMax = all.maxOf { it.x }
-    val fullMin = if (dataMax == dataMin) dataMin - 1 else dataMin
-    val fullMax = if (dataMax == dataMin) dataMax + 1 else dataMax
-    val fullSpan = (fullMax - fullMin).toDouble()
-    val xMin = fullMin + viewport.from * fullSpan
-    val xMax = fullMin + viewport.to * fullSpan
+    val (xMin, xMax) = viewRange(all, viewport)
     val inView = all.filter { it.x >= xMin - 1 && it.x <= xMax + 1 }.ifEmpty { all }
     var yMin = inView.minOf { it.y }
     var yMax = inView.maxOf { it.y }
@@ -385,10 +436,6 @@ private fun LinePlot(
         visible.maxOfOrNull { si -> series[si].points.count { it.x >= xMin && it.x <= xMax } }?.coerceAtLeast(1) ?: 1
     fun barWidth(plotWidth: Float, maxPx: Float): Float =
         if (kind != ChartKind.BAR) 0f else (plotWidth / barSlots * 0.7f).coerceIn(2f, maxPx)
-
-    val trends = remember(series, visible, showTrend) {
-        if (!showTrend) emptyMap() else visible.mapNotNull { i -> trendOf(series[i].points)?.let { i to it } }.toMap()
-    }
 
     // What TalkBack reads: each series' range, low, high and latest value, then the selected point.
     val u = if (unit.isBlank()) "" else " $unit"
@@ -529,12 +576,18 @@ private fun LinePlot(
                     val width = if (kind == ChartKind.AREA) 1.5.dp.toPx() else 2.5.dp.toPx()
                     drawPath(outline(pts), color, style = Stroke(width = width, cap = StrokeCap.Round, join = StrokeJoin.Round))
                 }
+                // The trend (#152): the smoothed curve through the points in view, or the straight fit when there are few.
                 trends[si]?.let { tr ->
-                    val a = pts.first().x
-                    val b = pts.last().x
-                    drawLine(
-                        color.copy(alpha = 0.8f), Offset(px(a), py(tr.at(a))), Offset(px(b), py(tr.at(b))),
-                        strokeWidth = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))
+                    val path = Path()
+                    tr.drawn().forEachIndexed { i, (x, y) ->
+                        if (i == 0) path.moveTo(px(x), py(y)) else path.lineTo(px(x), py(y))
+                    }
+                    drawPath(
+                        path, color.copy(alpha = 0.85f),
+                        style = Stroke(
+                            width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))
+                        )
                     )
                 }
                 val shownCount = pts.count { it.x >= xMin && it.x <= xMax }

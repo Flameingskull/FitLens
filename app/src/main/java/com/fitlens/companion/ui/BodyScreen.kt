@@ -358,13 +358,6 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
                     )
                 }
             }
-            if (showTrend) trendOf(points)?.let { tr ->
-                Text(
-                    "Trend: ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} $unit per month",
-                    Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
-                    color = deltaColour(tr.perMonth, MaterialTheme.colorScheme.onSurfaceVariant)
-                )
-            }
             Text(
                 "Tap the graph to see that day. Gold ticks and rings mark days with photos.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,

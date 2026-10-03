@@ -77,6 +77,8 @@ object ShareImages {
         val format: (Double) -> String,
         val summary: String,
         val trend: TrendLine? = null,
+        /** The trend in words ([trendText]), written under the summary so the image carries its figures (#152). */
+        val trendNote: String? = null,
         val goal: Double? = null,
         /** Drawn as the graph is on screen: line, bar, area or step (#137). */
         val kind: ChartKind = ChartKind.LINE
@@ -89,7 +91,10 @@ object ShareImages {
         background(c, h)
         var y = header(c, g.title, "${g.graph.uppercase()}  ·  ${g.range.uppercase()}")
 
-        val chart = RectF(PAD + 120f, y + 40f, W - PAD, h - 320f)
+        // A trend's figures need room under the summary (#152).
+        val note = text(muted, 30f)
+        val noteLines = g.trendNote?.let { wrap(it, note, W - 2 * PAD) }.orEmpty()
+        val chart = RectF(PAD + 120f, y + 40f, W - PAD, h - 320f - noteLines.size * 42f)
         c.drawRoundRect(RectF(PAD - 24f, chart.top - 40f, W - PAD + 24f, chart.bottom + 90f), 36f, 36f, fill(card))
         drawLine(c, g, chart)
 
@@ -97,6 +102,7 @@ object ShareImages {
         wrap(g.summary, text(ivory, 40f, serif = true), W - 2 * PAD).forEach { line ->
             c.drawText(line, PAD, y, text(ivory, 40f, serif = true)); y += 54f
         }
+        noteLines.forEach { line -> c.drawText(line, PAD, y, note); y += 42f }
         footer(c, h)
         return bmp
     }
@@ -134,8 +140,14 @@ object ShareImages {
             c.drawLine(r.left, py(goal), r.right, py(goal), stroke(ivory, 3f, dashed = true))
             c.drawText("Goal", r.right - label.measureText("Goal"), py(goal) - 14f, text(ivory, 28f))
         }
+        // The same trend as on screen (#152): the smoothed curve, or the straight fit, kept inside the frame.
         g.trend?.let { t ->
-            c.drawLine(px(x0), py(t.at(x0)), px(x1), py(t.at(x1)), stroke(goldLight, 4f, dashed = true))
+            val trendPath = Path()
+            t.drawn().forEachIndexed { i, (x, v) -> if (i == 0) trendPath.moveTo(px(x), py(v)) else trendPath.lineTo(px(x), py(v)) }
+            c.save()
+            c.clipRect(r)
+            c.drawPath(trendPath, stroke(goldLight, 4f, dashed = true))
+            c.restore()
         }
         if (g.kind == ChartKind.BAR) {
             // Gold columns with a red top, as on screen (#137).

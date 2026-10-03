@@ -359,6 +359,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                     yFormat = fmt,
                     unit = unit,
                     showTrend = showTrend,
+                    trendSkipLast = partial,
                     yFromZero = true,
                     onExpand = { ChartHints.expanded(); fullScreen = true }
                 )
@@ -408,12 +409,6 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                         (if (complete.size < totals.size) " (not counting this ${period.name.lowercase()}, still in progress)" else "") +
                         ". Best: ${Analysis.longLabel(best, period)}, ${withUnit(shown(valueOf(best)))}."
                 )
-                if (showTrend) trendOf(points.mapIndexed { i, p -> ChartPoint(i.toLong(), p.y, p.date) })?.let { tr ->
-                    AnalysisNote(
-                        "Trend: ${fmtSigned(tr.slope, 1)} ${if (unit.isEmpty()) metric.label.lowercase() else unit} per ${period.name.lowercase()}.",
-                        deltaColour(tr.slope, MaterialTheme.colorScheme.onSurfaceVariant)
-                    )
-                }
                 when (metric) {
                     Analysis.Metric.Volume, Analysis.Metric.Reps ->
                         AnalysisNote("Time and distance sets aren't counted in ${metric.label.lowercase()}.")
@@ -455,6 +450,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 yFormat = fmt,
                 unit = unit,
                 showTrend = showTrend,
+                trendSkipLast = partial,
                 yFromZero = true,
                 viewport = vp,
                 onExpand = resetZoom

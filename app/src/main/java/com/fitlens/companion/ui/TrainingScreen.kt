@@ -394,6 +394,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             val shown = series.first().points
             val photoDays = remember(snap.photosByDate) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
             val unit = if (isRelative) "%" else graphUnit(snap, exId, g.label)
+            // Pace is graphed in minutes per distance, so its trend reads "min /km" (#152).
+            val trendUnit = if (g.label == GRAPH_MAX_PACE && !isRelative) "min $unit" else unit
             fun show(v: Double): String = graphValueText(g.label, v, unit)
             // Each series from its first value to its last, with its best (#53 lists every series).
             fun line(s: LineSeries, name: String): String? {
@@ -418,6 +420,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 shareRequested = false
                 if (shown.isEmpty()) { UiEvents.show("Nothing to share in this range"); return@LaunchedEffect }
                 val name = ex?.name ?: "Exercise"
+                // The same fit as the graph on screen shows, over the whole range (#152).
+                val trend = if (showTrend) trendOf(shown) else null
                 val image = ShareImages.GraphImage(
                     title = name,
                     graph = g.label,
@@ -425,7 +429,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     points = shown,
                     format = { v -> show(v) },
                     summary = line(series[0], g.label).orEmpty(),
-                    trend = if (showTrend) trendOf(shown) else null,
+                    trend = trend,
+                    trendNote = trend?.let { "Trend " + trendText(it, { v -> fmtNum(v, 1) }, trendUnit) },
                     goal = goalLine,
                     kind = kind
                 )
@@ -448,6 +453,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     onSelect = { sel = it; ChartHints.tapped() },
                     unit = unit,
                     showTrend = showTrend,
+                    trendUnit = trendUnit,
                     yFromZero = fromZero,
                     goal = goalLine,
                     onExpand = { ChartHints.expanded(); fullScreen = true }
@@ -486,20 +492,11 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                         onSelect = { sel = it },
                         unit = unit,
                         showTrend = showTrend,
+                        trendUnit = trendUnit,
                         yFromZero = fromZero,
                         goal = goalLine,
                         viewport = vp,
                         onExpand = resetZoom
-                    )
-                }
-            }
-            if (showTrend) series.forEach { s ->
-                trendOf(s.points)?.let { tr ->
-                    Text(
-                        (if (series.size > 1) "${s.label} trend" else "Trend") +
-                            ": ${if (tr.perMonth >= 0) "+" else ""}${fmtNum(tr.perMonth, 1)} ${if (g.lowerIsBetter && !isRelative) "min $unit" else unit} per month",
-                        Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium,
-                        color = deltaColour(tr.perMonth, MaterialTheme.colorScheme.onSurfaceVariant)
                     )
                 }
             }
