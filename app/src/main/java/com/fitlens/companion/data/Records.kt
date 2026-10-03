@@ -86,7 +86,9 @@ object Records {
      * settings (#148, FitNotes's "maximum reps to include", recommended 10–15), never above the formula's own.
      */
     fun maxRepsFor(formula: Formula = chosen()): Int {
-        val user = Settings.currentPortable().e1rmMaxReps
+        // The in-memory value, not currentPortable(): it never blocks, and it works where the app hasn't started
+        // Settings (unit tests). Settings load at start-up, long before any estimate is drawn.
+        val user = Settings.portable.value.e1rmMaxReps
         return if (user in 1..formula.maxReps) user else formula.maxReps
     }
 
