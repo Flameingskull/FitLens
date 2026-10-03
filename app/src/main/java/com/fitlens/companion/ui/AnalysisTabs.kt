@@ -91,7 +91,7 @@ fun AnalysisGoalsTab(snap: Snapshot, nav: Nav, adding: Boolean, onAddingDone: ()
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
             byExercise.forEach { (exId, goals) ->
                 item(key = "exercise-$exId") {
-                    SectionTitle(snap.exercises[exId]?.name ?: "Exercise", Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp))
+                    SectionTitle(snap.exercises[exId]?.name ?: "Exercise")
                 }
                 items(goals, key = { it.id }) { g ->
                     val sets = snap.statSetsByExercise[exId].orEmpty()

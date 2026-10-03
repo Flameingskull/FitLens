@@ -179,14 +179,13 @@ fun Dot(color: Color, size: Dp = 8.dp) {
     Box(Modifier.size(size).clip(CircleShape).background(color))
 }
 
+/**
+ * A section's heading, as FitNotes heads its sections and settings groups (#145): the name in capitals over a fine
+ * gold rule ([com.fitlens.companion.ui.design.SectionLabel]).
+ */
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text.uppercase(),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)
-    )
+    com.fitlens.companion.ui.design.SectionLabel(text, modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp))
 }
 
 /**

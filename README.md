@@ -25,10 +25,10 @@ custom metrics.
   exercise, set and workout records whether it came from FitNotes or was created in FitLens, so the two histories sit
   side by side without colliding.
 - **In progress:** FitNotes is the guide for every screen that does what a FitNotes screen does, so moving across
-  feels familiar. A screen-by-screen pass lays each FitLens screen beside FitNotes and fixes every difference, one
-  group of screens per release: the day log and workout drawer first, then the exercise screen's History, Graph,
-  records and info, the library and workout editor, the calendar and body tracker, Analysis and Settings, and finally
-  the FitLens-only photo screens ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on
+  feels familiar. A screen-by-screen pass has laid each FitLens screen beside FitNotes and fixed the differences, one
+  group of screens per release (1.0.75 to 1.0.79): the day log and workout drawer, the exercise screen's History,
+  records, stats, goals and info, the library and workout editor, the calendar and body tracker, and Analysis and
+  Settings. The FitLens-only photo screens follow the same pattern next ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on
   the [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). After that come the rest of FitNotes
   parity ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
@@ -152,7 +152,7 @@ custom metrics.
   (stored values never change). Any exercise can keep its own weight unit, and any body measurement its own unit,
   set in the exercise editor and on the Measurements screen. Units & display also sets the
   week start, the weight step and how the day log shows each exercise (category colours, and how many sets each card
-  shows). Every page is laid out the same way: grouped rows, switches, and a setting with several choices shows the
+  shows). Every page is laid out the same way: groups under FitNotes-style headings, rows, switches, and a setting with several choices shows the
   current one in gold and opens a list of them, each explained. Settings that belong to the phone, such as backup
   folders and schedules, stay on the phone and are never replaced by a restore. Preferences such as your weight unit travel with your backups.
 - **Data tools** (in Settings):
@@ -193,7 +193,8 @@ custom metrics.
   - **Exercise library:** as in FitNotes, it opens on **All exercises** with the search field always at the top,
     then your categories, then a category's exercises. Tap an exercise to log it, or long-press to choose several and go through them in turn.
   - **Exercise screen:** **Track** (log sets: each field under an uppercase heading, its value between square − and
-    + buttons, straight under the tabs, with the day's sets below), **History** (every day you've done it, with its totals, that day's
+    + buttons, straight under the tabs, with the day's sets below as a plain list), **History** (each day under a
+    FitNotes heading such as **MONDAY, SEPTEMBER 28**, every day you've done it, with its totals, that day's
     exercise comment and **Copy to today**; tap a set to correct or delete it) and **Graph** tabs. The Graph tab has
     FitNotes's list for weight exercises: **Estimated 1RM**, **Max weight**, **Workout volume**, **Workout reps**,
     **Max reps**, **Max volume** (the best single set), **Max weight for reps** (the heaviest set at a rep count you

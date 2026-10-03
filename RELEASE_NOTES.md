@@ -1,20 +1,18 @@
 ## Overview
 
-The fourth step of the screen-by-screen FitNotes comparison covers the calendar and the body tracker, so their day
-headings match the rest of the app and FitNotes.
+The fifth step of the screen-by-screen FitNotes comparison covers Analysis and Settings: every section heading in the
+app now reads as FitNotes's do. This release also refreshes the project's README.
 
 There are no database changes. Everything you've logged is kept as it was.
 
 ## Improved
 
-- **A measurement's History** heads each day as FitNotes does, for example **MONDAY, SEPTEMBER 28** over a fine
-  rule, the same as an exercise's History, without a rule between days.
-- **The calendar's selected day** sits under the same kind of heading.
-- **A measurement's Track tab** shares the exercise screen's FitNotes layout from 1.0.72 and 1.0.75: an uppercase
-  heading over a gold rule, the value between square − and + buttons, and the day's values as a plain list.
+- **Settings groups** (Data, backup & import, Training and the groups on every settings page) are headed as FitNotes
+  heads its settings categories: the name in capitals over a fine gold rule, with more space above each group.
+- **Section headings everywhere else** use the same style: Analysis (Summary, Each workout, This period and each
+  exercise on the Exercises tab), Units & display, the slideshow's options and the workout editor's Days.
 
 ## Known limitations
 
-- The reference screenshots don't include these screens, so this comparison follows FitNotes's behaviour and its look
-  elsewhere. Anything still different can be reported on #144.
-- Next in the comparison: Analysis and Settings (#145).
+- Breakdown's FitNotes-style date period list and up/down slice arrows are still to come (#127).
+- The last step of the comparison, the FitLens-only photo screens (#146), follows.

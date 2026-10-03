@@ -26,7 +26,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import com.fitlens.companion.ui.GoldHairline
-import com.fitlens.companion.ui.SectionTitle
 import com.fitlens.companion.ui.Spacing
 
 /*
@@ -35,11 +34,10 @@ import com.fitlens.companion.ui.Spacing
  * sentence: its title, its current value or state, then its explanation.
  */
 
-/** A Settings group: a letter-spaced heading over a gold hairline. */
+/** A Settings group: FitNotes's category heading, the name in capitals over a gold rule (#145). */
 @Composable
 fun SettingsGroup(title: String) {
-    SectionTitle(title, Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.lg))
-    GoldHairline()
+    SectionLabel(title, Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.xl, bottom = Spacing.xs))
 }
 
 /** A setting that's on or off. Tapping anywhere on the row switches it. */
