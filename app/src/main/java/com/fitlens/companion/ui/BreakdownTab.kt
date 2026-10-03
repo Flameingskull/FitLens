@@ -57,7 +57,9 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
     val group = Analysis.GroupBy.entries[groupIdx]
     val span = Analysis.Span.entries[spanIdx]
 
-    val windows = remember(snap, span) { Analysis.windows(snap, span) }
+    // Worked out off the main thread and cached (#60); a photo or body write doesn't redo them.
+    val windowList = rememberDerived("breakdownWindows", snap.trainingKey, span) { Analysis.windows(snap, span) }
+    val windows = windowList.orEmpty()
     val window: Analysis.DateWindow? = if (span == Analysis.Span.Custom) {
         custom?.let { (a, b) -> Analysis.DateWindow(a, b, "${Dates.medium(a)} – ${Dates.medium(b)}") }
     } else {
@@ -65,9 +67,12 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
     }
     var sel by remember(measure, group, window) { mutableIntStateOf(0) }
 
-    val slices = remember(snap, measure, group, window) {
+    val sliceResult = rememberDerived("breakdownSlices", snap.trainingKey, measure, group, window) {
         window?.let { Analysis.breakdown(snap, measure, group, it.from, it.to) }.orEmpty()
     }
+    val slices = sliceResult.orEmpty()
+    // Only on the first visit: after that the cached result shows straight away.
+    val working = (windowList == null && span != Analysis.Span.Custom) || (window != null && sliceResult == null)
     fun shown(v: Double) = if (measure == Analysis.Measure.Volume) snap.weight(v) else v
     fun withUnit(v: Double): String = when (measure) {
         Analysis.Measure.Volume -> "${fmtNum(snap.weight(v), 0)} ${snap.weightUnit}"
@@ -119,7 +124,9 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
             Text(window.label, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.titleSmall)
         }
 
-        if (window == null || slices.isEmpty()) {
+        if (working) {
+            AnalysisNote("Working it out…")
+        } else if (window == null || slices.isEmpty()) {
             EmptyState(
                 "Nothing to break down",
                 if (span == Analysis.Span.Custom && custom == null) "Choose a date range to see how your training splits up."
@@ -197,7 +204,7 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
             }
 
             // Totals for the whole period, whatever the grouping.
-            val sets = remember(snap, window) { Analysis.setsIn(snap, window.from, window.to) }
+            val sets = remember(snap.trainingKey, window) { Analysis.setsIn(snap, window.from, window.to) }
             SectionTitle("This period")
             Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatTile("Workouts", fmtNum(Analysis.measure(sets, Analysis.Measure.Workouts), 0), Modifier.weight(1f))

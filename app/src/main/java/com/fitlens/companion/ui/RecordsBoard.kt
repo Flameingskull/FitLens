@@ -73,7 +73,11 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
     var selected by remember { mutableStateOf<Pair<Long, Int>?>(null) }
     val sort = BoardSort.entries[sortIdx]
 
-    val columns = rememberChartData(snap, estimated, sort, categoryId, chosen) {
+    // The 1RM formula and rep limit are in the key too, so a Settings change isn't hidden by the cache (#60).
+    val formula = Records.chosen()
+    val columns = rememberDerived(
+        "recordsBoard", snap.trainingKey, estimated, sort, categoryId, chosen, formula, Records.maxRepsFor(formula)
+    ) {
         buildColumns(snap, estimated, sort, categoryId, chosen)
     }
 

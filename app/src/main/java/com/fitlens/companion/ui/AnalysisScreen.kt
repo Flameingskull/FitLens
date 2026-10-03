@@ -203,7 +203,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     val from = if (days > 0) LocalDate.now().minusDays(days).format(Dates.ISO) else null
     var sel by remember(period, metric, rangeIdx, filter) { mutableStateOf<Int?>(null) }
 
-    val totals = rememberChartData(snap, metric, period, filter, from) {
+    val totals = rememberDerived("analysisTotals", snap.trainingKey, metric, period, filter, from) {
         Analysis.totals(snap, metric, period, filter, from)
     }
     val avgDuration = metric == Analysis.Metric.Duration && durationAvg
@@ -388,7 +388,7 @@ private fun DurationPerWorkout(snap: Snapshot, filter: Analysis.Filter, from: St
     var fromZero by rememberSaveable { mutableStateOf(false) }
     var fullScreen by remember { mutableStateOf(false) }
     var sel by remember(filter, from) { mutableStateOf<Int?>(null) }
-    val points = rememberChartData(snap, filter, from) {
+    val points = rememberDerived("durationPerWorkout", snap.trainingKey, filter, from) {
         snap.setsByDate.entries
             .filter { (d, sets) -> (from == null || d >= from) && sets.any { filter.matches(snap, it) } }
             .mapNotNull { (d, _) ->

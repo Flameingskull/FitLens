@@ -87,7 +87,7 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
     val shift by rememberUpdatedState<(Long) -> Unit>({ n -> monthStr = month.plusMonths(n).toString() })
     val device by Settings.device.collectAsState()
     val filter = remember(device.calendarFilter) { CalendarFilter.decode(device.calendarFilter) }
-    val matches = remember(snap, filter) { filter.days(snap) }
+    val matches = rememberDerived("calendarFilter", snap.trainingKey, filter) { filter.days(snap) }.orEmpty()
     var filtering by remember { mutableStateOf(false) }
     var overview by remember { mutableStateOf<Long?>(null) }
     var sharing by remember { mutableStateOf(false) }

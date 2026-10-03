@@ -140,6 +140,12 @@ class Snapshot internal constructor(
     internal fun replacing(setPart: SetPart): Snapshot =
         Snapshot(library, setPart, notes, body, photoPart, weightUnit, photoDir, weekStart, globalDistanceUnit)
 
+    /**
+     * What training calculations depend on (#60): the library, the sets, the workout notes and times, and the units.
+     * A photo or body write leaves it equal, so results cached against it (`rememberDerived`) stay valid.
+     */
+    val trainingKey: List<Any> get() = listOf(library, setPart, notes, weightUnit, weekStart, globalDistanceUnit)
+
     /** Body lengths are shown in this unit (#7). */
     val lengthUnit: String get() = body.lengthUnit
 

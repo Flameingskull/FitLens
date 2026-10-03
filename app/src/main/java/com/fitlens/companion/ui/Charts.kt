@@ -203,6 +203,36 @@ fun <T> rememberChartData(vararg keys: Any?, compute: () -> T): T? {
     return state.value
 }
 
+/**
+ * The last few [rememberDerived] results, shared across screens (#60), so going back to a graph or breakdown shows it
+ * straight away instead of working it out again. Kept small: each key can hold on to an older snapshot's parts.
+ */
+private object DerivedCache {
+    private const val SIZE = 8
+    private val map = object : LinkedHashMap<List<Any?>, Any>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<Any?>, Any>?): Boolean = size > SIZE
+    }
+
+    @Synchronized fun get(key: List<Any?>): Any? = map[key]
+    @Synchronized fun put(key: List<Any?>, value: Any) { map[key] = value }
+}
+
+/**
+ * [rememberChartData] with a shared cache (#60): works [compute] out off the main thread once per [name] and [keys],
+ * and remembers the result across screens. [keys] must hold everything the result depends on; for training data
+ * use `snap.trainingKey` rather than the snapshot, so a photo or body write doesn't redo the work.
+ */
+@Suppress("UNCHECKED_CAST")
+@Composable
+fun <T : Any> rememberDerived(name: String, vararg keys: Any?, compute: () -> T): T? {
+    val key = listOf(name, *keys)
+    val state = produceState(DerivedCache.get(key) as T?, *keys) {
+        value = (DerivedCache.get(key) as T?)
+            ?: withContext(Dispatchers.Default) { compute() }.also { DerivedCache.put(key, it) }
+    }
+    return state.value
+}
+
 /** The colour of series [i]: the brand palette in order, then the palette again, lighter. */
 fun ChartColors.seriesColor(i: Int): Color {
     val base = palette[i % palette.size]
