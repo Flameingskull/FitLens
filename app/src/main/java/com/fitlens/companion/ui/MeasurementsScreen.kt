@@ -1,5 +1,9 @@
 package com.fitlens.companion.ui
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Checkbox
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -49,6 +53,7 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<MeasurementDef?>(null) }
     var deleting by remember { mutableStateOf<MeasurementDef?>(null) }
+    var goalFor by remember { mutableStateOf<MeasurementDef?>(null) }
     val all = remember(snap) { snap.allMeasurements }
     val missing = remember(snap) { StandardMeasurements.missing(snap.measurementDefs.map { it.name }) }
 
@@ -59,11 +64,10 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
         LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
             item {
                 Column(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
+                    // FitNotes's words at the top of Measurements (#144).
                     Text(
-                        "Switch a measurement off to hide it from the body tracker and the day log. Its values are kept, " +
-                            "and FitNotes imports keep your choice. A weight or length can have its own unit.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        "Tap a measurement below to edit it or set a goal. Enable a measurement for tracking by hitting the checkbox.",
+                        style = MaterialTheme.typography.bodyMedium
                     )
                     if (missing.isNotEmpty()) {
                         GlassOutlinedButton(
@@ -72,25 +76,28 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
                         ) { Text("Add the standard measurements (${missing.size})") }
                     }
                 }
-                GoldHairline()
+                HorizontalDivider(color = Brand.Hairline)
             }
             if (all.isEmpty()) {
                 item { EmptyState("No measurements yet", "Add the standard set, create your own with +, or import a FitNotes backup.") }
             }
             items(all, key = { it.name }) { m ->
-                val count = snap.recordsByName[m.name]?.size ?: 0
-                val kind = if (m.custom) "Yours" else "From FitNotes"
-                val subtitle = listOf(if (count == 1) "1 value" else "$count values", kind).joinToString("  ·  ")
+                // As FitNotes lists them (#144): the name in bold, its unit in full, its goal, then the tracking checkbox.
+                // Tapping the row edits its goal (and, for one of your own, the measurement itself from its ⋮).
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(min = Spacing.row)
+                        .heightIn(min = 72.dp)
+                        .clickable(onClickLabel = "Set a goal for ${m.name}") { goalFor = m }
                         .padding(start = Spacing.lg, end = Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f).padding(vertical = Spacing.sm)) {
-                        Text(m.name + if (m.unit.isNotBlank()) " (${m.unit})" else "", style = MaterialTheme.typography.bodyLarge)
-                        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(m.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+                        if (m.unit.isNotBlank()) {
+                            Text(unitLongName(m.unit), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(goalText(m), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         // Its own unit (#7): a weight in kg or lbs, a length in cm or in, whatever Settings says for the
                         // rest. Values are stored as logged and converted for display.
                         val choices = MeasureUnits.choices(m.unit)
@@ -106,7 +113,7 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
                             }
                         }
                     }
-                    Switch(
+                    Checkbox(
                         checked = m.enabled,
                         onCheckedChange = { on -> AppScope.scope.launch { Store.setMeasurementEnabled(m.name, m.unit, on) } },
                         modifier = Modifier.semantics {
@@ -129,6 +136,7 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
         }
     }
 
+    goalFor?.let { m -> MeasurementGoalSheet(m) { goalFor = null } }
     if (creating) CustomMetricEditor(snap, null) { creating = false }
     editing?.let { m -> CustomMetricEditor(snap, m) { editing = null } }
     deleting?.let { m ->
@@ -140,4 +148,21 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
             onDismiss = { deleting = null }
         ) { AppScope.scope.launch { Store.deleteCustomMetric(m.name) } }
     }
+}
+
+/** A unit as FitNotes names it on Measurements (#144): "Kilograms (kgs)", "Milligrams (mg)", "Percent (%)". */
+internal fun unitLongName(unit: String): String = when (unit.trim().lowercase()) {
+    "kg", "kgs" -> "Kilograms (kgs)"
+    "lb", "lbs" -> "Pounds (lbs)"
+    "mg" -> "Milligrams (mg)"
+    "mcg", "µg", "ug" -> "Micrograms (mcg)"
+    "g" -> "Grams (g)"
+    "iu" -> "International Unit (IU)"
+    "%" -> "Percent (%)"
+    "cm" -> "Centimetres (cm)"
+    "in" -> "Inches (in)"
+    "mm" -> "Millimetres (mm)"
+    "ml" -> "Millilitres (ml)"
+    "kcal" -> "Calories (kcal)"
+    else -> unit
 }

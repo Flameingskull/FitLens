@@ -2,6 +2,7 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.material3.HorizontalDivider
 import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.currentWidthBucket
 import com.fitlens.companion.ui.design.WidthBucket
@@ -338,43 +339,44 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        byExercise.forEach { (exId, exSets) ->
-            // Tap an exercise for its overview (#26): history, graph, records, stats and goals in one sheet.
-            Row(
-                Modifier.fillMaxWidth().clickable(onClickLabel = "Show overview") { onOverview(exId) }.heightIn(min = Spacing.touch),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Dot(categoryColour(snap.categoryOf(exId)?.colour ?: 0), 8.dp)
-                Spacer(Modifier.width(Spacing.sm))
-                Column(Modifier.weight(1f)) {
-                    Text(snap.exercises[exId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        exSets.joinToString(", ") { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec, it.exerciseId) },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    // The exercise's comment in this workout (#107).
-                    snap.exerciseComments[date.take(10)]?.get(exId)?.let { note ->
-                        Text(
-                            "“$note”",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-                if (exSets.any { it.isPr }) Text("PR", style = MaterialTheme.typography.labelMedium, color = Brand.Gold)
+        // As FitNotes shows the chosen day (#144): the body values as name / value rows, then each exercise under its
+        // name in capitals over a rule, with its sets in columns. Tapping an exercise opens its overview (#26).
+        records.forEach { r ->
+            Row(Modifier.fillMaxWidth().heightIn(min = Spacing.touch), verticalAlignment = Alignment.CenterVertically) {
+                Text(r.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                Text(fmtNum(r.value), style = MaterialTheme.typography.titleMedium)
+                if (r.unit.isNotBlank()) Text(" ${r.unit}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            HorizontalDivider(color = Brand.Hairline)
         }
-        if (records.isNotEmpty()) {
-            Text(
-                records.joinToString("  ·  ") { "${it.name} ${fmtNum(it.value)} ${it.unit}".trim() },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        byExercise.forEach { (exId, exSets) ->
+            val fields = setFields(snap, exId, exSets)
+            Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Show overview") { onOverview(exId) }.padding(top = Spacing.sm)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel(snap.exercises[exId]?.name ?: "Exercise", Modifier.weight(1f))
+                    if (exSets.any { it.isPr }) Text(" PR", style = MaterialTheme.typography.labelMedium, color = Brand.Gold)
+                }
+                exSets.forEachIndexed { i, s ->
+                    val marks = setMarks(s)
+                    com.fitlens.companion.ui.design.SetRow(
+                        index = i + 1,
+                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
+                        cells = setCells(snap, fields, s),
+                        comment = s.comment,
+                        isPr = s.isPr,
+                        framed = false,
+                        showIndex = false,
+                        badge = marks.badge,
+                        badgeSpoken = marks.badgeSpoken,
+                        effort = marks.effort,
+                        effortSpoken = marks.effortSpoken
+                    )
+                }
+                // The exercise's comment in this workout (#107).
+                snap.exerciseComments[date.take(10)]?.get(exId)?.let { note ->
+                    Text("\u201C$note\u201D", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
         if (photos.isNotEmpty()) {
             Text(

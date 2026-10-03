@@ -1,5 +1,16 @@
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.DropdownPill
+import com.fitlens.companion.ui.design.MenuAction
+import com.fitlens.companion.ui.design.TopBarAction
+import com.fitlens.companion.ui.design.FitTabRow
+import com.fitlens.companion.ui.design.FitTopBar
+import androidx.compose.foundation.background
+import androidx.compose.runtime.key
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.HorizontalPager
 import com.fitlens.companion.ui.design.SectionLabel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -65,20 +76,30 @@ fun <T> inRange(items: List<T>, range: Long, dateOf: (T) -> String): List<T> {
 }
 
 /**
- * The body tracker, as in FitNotes: every measurement in the user's order, with its latest value. Tapping one opens
- * its own Track, History and Graph tabs ([BodyMeasurementScreen]), laid out like the exercise screen.
+ * The Body Tracker, laid out as FitNotes's (its screenshots of 2026-09-23, #144): one screen with TRACK, HISTORY and
+ * GRAPH tabs across every measurement. Track lists each enabled measurement with how long ago it was last logged and
+ * its latest value and change ("Tap to record a value" when there's none); History lists every value, newest day
+ * first, filtered to one measurement or All; Graph shows one measurement, chosen from a dropdown. The pencil opens
+ * Measurements and ⋮ reorders. Tapping a measurement opens it to log or edit a value ([BodyMeasurementScreen]).
  */
 @Composable
 fun BodyScreen(snap: Snapshot, nav: Nav) {
     // Every enabled measurement, logged or not, as FitNotes lists them.
     val measurements = snap.allMeasurements.filter { it.enabled }
     var ordering by remember { mutableStateOf(false) }
+    val pager = rememberPagerState(pageCount = { 3 })
+    val scope = rememberCoroutineScope()
 
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Body tracker") {
-            IconButton(onClick = { nav.push(Screen.Measurements) }) { Icon(Icons.Filled.Edit, contentDescription = "Manage measurements") }
-            if (measurements.size > 1) IconButton(onClick = { ordering = true }) { Icon(Icons.Filled.Menu, contentDescription = "Reorder measurements") }
-        }
+        FitTopBar(
+            title = "Body Tracker",
+            onBack = LocalNavBack.current,
+            actions = listOf(TopBarAction(Icons.Filled.Edit, "Measurements") { nav.push(Screen.Measurements) }),
+            overflow = listOfNotNull(
+                if (measurements.size > 1) MenuAction("Reorder measurements") { ordering = true } else null,
+                MenuAction("Measurements") { nav.push(Screen.Measurements) }
+            )
+        )
         if (measurements.isEmpty()) {
             EmptyState("No measurements yet", "Add the standard measurements and your own, or import a FitNotes backup.") {
                 Row {
@@ -87,10 +108,30 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                 }
             }
         } else {
-            LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                items(measurements, key = { it.name }) { m ->
-                    MeasurementListRow(snap, m) { nav.push(Screen.BodyMeasurement(m.name)) }
-                    GoldHairline()
+            FitTabRow(
+                titles = listOf("Track", "History", "Graph"),
+                selected = pager.currentPage,
+                onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
+            )
+            HorizontalPager(state = pager, modifier = Modifier.weight(1f)) { page ->
+                when (page) {
+                    0 -> LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+                        items(measurements, key = { it.name }) { m ->
+                            MeasurementListRow(snap, m) { nav.push(Screen.BodyMeasurement(m.name)) }
+                            HorizontalDivider(color = Brand.Hairline)
+                        }
+                    }
+                    1 -> BodyHistoryAll(snap, measurements) { r -> nav.push(Screen.BodyMeasurement(r.name)) }
+                    else -> {
+                        var graphOf by rememberSaveable { mutableStateOf(measurements.first().name) }
+                        val names = measurements.map { it.name }
+                        val shown = graphOf.takeIf { it in names } ?: names.first()
+                        Column {
+                            // FitNotes's "GRAPH: Bodyweight" picker over the graph.
+                            DropdownPill("Graph", names, names.indexOf(shown), Modifier.padding(horizontal = 4.dp)) { graphOf = names[it] }
+                            key(shown) { BodyGraphPane(snap, nav, shown) }
+                        }
+                    }
                 }
             }
         }
@@ -98,7 +139,27 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     if (ordering) MeasurementOrderSheet(measurements) { ordering = false }
 }
 
-/** One measurement in the body tracker list: its name, and its latest value and date. */
+/** How long ago a value was logged, as FitNotes says it: "4 hours ago", "5 days ago", "1 month ago", "2 years ago". */
+internal fun agoText(date: String, time: String): String {
+    val at = runCatching { java.time.LocalDateTime.parse(date.take(10) + "T" + time.take(5).ifBlank { "12:00" }) }.getOrNull()
+        ?: return Dates.medium(date)
+    val now = java.time.LocalDateTime.now()
+    val mins = java.time.Duration.between(at, now).toMinutes().coerceAtLeast(0)
+    fun n(v: Long, unit: String) = "$v $unit${if (v == 1L) "" else "s"} ago"
+    return when {
+        mins < 1 -> "Just now"
+        mins < 60 -> n(mins, "minute")
+        mins < 60 * 24 -> n(mins / 60, "hour")
+        mins < 60 * 24 * 30 -> n(mins / (60 * 24), "day")
+        mins < 60 * 24 * 365 -> n(mins / (60 * 24 * 30), "month")
+        else -> n(mins / (60 * 24 * 365), "year")
+    }
+}
+
+/**
+ * One measurement on the Track tab, as FitNotes lists it: the name in bold with how long ago it was logged (or "Tap
+ * to record a value"), and on the right the latest value with its unit, the change since the value before under it.
+ */
 @Composable
 private fun MeasurementListRow(snap: Snapshot, m: MeasurementDef, onOpen: () -> Unit) {
     val recs = snap.recordsByName[m.name].orEmpty()
@@ -111,28 +172,101 @@ private fun MeasurementListRow(snap: Snapshot, m: MeasurementDef, onOpen: () -> 
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = Spacing.row)
+            .heightIn(min = 72.dp)
             .clickable(onClickLabel = "Open ${m.name}", onClick = onOpen)
             .semantics(mergeDescendants = true) { contentDescription = spoken }
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(m.name, style = MaterialTheme.typography.titleMedium)
-            if (last != null) {
-                Text(Dates.medium(last.date), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (change != null && prev != null && last != null) {
-                Text(change, style = MaterialTheme.typography.bodySmall, color = changeColour(m, prev.value, last.value))
+            Text(m.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+            Text(
+                last?.let { agoText(it.date, it.time) } ?: "Tap to record a value",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (last != null) {
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(start = Spacing.md)) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(fmtNum(last.value), style = MaterialTheme.typography.titleLarge, maxLines = 1, softWrap = false)
+                    if (unit.isNotBlank()) Text(" $unit", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (change != null && prev != null) {
+                    Text(change, style = MaterialTheme.typography.bodySmall, color = changeColour(m, prev.value, last.value), maxLines = 1)
+                }
             }
         }
-        Text(
-            last?.let { "${fmtNum(it.value)} $unit".trim() } ?: "—",
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.padding(start = Spacing.md)
-        )
+    }
+}
+
+/**
+ * The History tab, as FitNotes's (#144): a "History" filter (All, or one measurement), then every value newest first
+ * under a band for its day ("Wednesday, September 23"), each with its name and time on the left and its value and
+ * change on the right. Tapping a value opens its measurement.
+ */
+@Composable
+private fun BodyHistoryAll(snap: Snapshot, measurements: List<MeasurementDef>, onOpen: (MRecord) -> Unit) {
+    var filter by rememberSaveable { mutableStateOf<String?>(null) }
+    val names = measurements.map { it.name }
+    val all = remember(snap, filter) {
+        names.filter { filter == null || it == filter }.flatMap { snap.recordsByName[it].orEmpty() }
+            .sortedWith(compareByDescending<MRecord> { it.date.take(10) }.thenByDescending { it.time })
+    }
+    val byDay = remember(all) { all.groupBy { it.date.take(10) } }
+    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
+        item(key = "filter") {
+            DropdownPill("History", listOf("All") + names, (filter?.let { names.indexOf(it) + 1 } ?: 0), Modifier.padding(horizontal = 4.dp)) { i ->
+                filter = if (i == 0) null else names[i - 1]
+            }
+        }
+        if (all.isEmpty()) {
+            item(key = "none") {
+                Text("Nothing logged yet.", Modifier.padding(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        byDay.forEach { (day, recs) ->
+            item(key = "d$day") {
+                // FitNotes's day band: the date in normal case on a slightly lighter strip.
+                Text(
+                    Dates.parse(day)?.format(java.time.format.DateTimeFormatter.ofPattern(
+                        if (Dates.parse(day)?.year == java.time.LocalDate.now().year) "EEEE, MMMM d" else "EEEE, MMMM d, yyyy",
+                        java.util.Locale.getDefault()
+                    )) ?: day,
+                    Modifier.fillMaxWidth().background(Brand.SurfaceHigh).padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    style = MaterialTheme.typography.titleSmall.copy(letterSpacing = androidx.compose.ui.unit.TextUnit.Unspecified)
+                )
+            }
+            items(recs, key = { "r${it.id}" }) { r ->
+                val history = snap.recordsByName[r.name].orEmpty()
+                val prev = history.getOrNull(history.indexOfFirst { it.id == r.id } - 1)
+                val def = measurements.firstOrNull { it.name == r.name }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = Spacing.row)
+                        .clickable(onClickLabel = "Open ${r.name}") { onOpen(r) }
+                        .semantics(mergeDescendants = true) {}
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(r.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+                        if (r.time.isNotBlank()) Text(r.time.take(5), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(fmtNum(r.value), style = MaterialTheme.typography.titleLarge, maxLines = 1, softWrap = false)
+                            if (r.unit.isNotBlank()) Text(" ${r.unit}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (prev != null) {
+                            Text(changeText(prev, r), style = MaterialTheme.typography.bodySmall, color = changeColour(def, prev.value, r.value), maxLines = 1)
+                        }
+                    }
+                }
+                HorizontalDivider(color = Brand.Hairline)
+            }
+        }
     }
 }
 

@@ -75,8 +75,10 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
   `nimbalyst-local/fitnotes-screens/` (local only, not in git): **check every dated folder**, not only the newest.
   `2026-09-23/` is the full set (72 shots, 00–71, plus `sheet0`–`sheet7.png` contact sheets: Analysis 0–17, routines
   and the workout editor 18–34, the library 23–33, the exercise screen 36–63, the day log 46–53), `2026-09-28/` adds
-  the Track tab and comment box, and `2026-10-02/` the day log with body values. There are no screenshots of the
-  calendar, body tracker or Settings.
+  the Track tab and comment box, and `2026-10-02/` the day log with body values. `from-chats/` holds every screenshot
+  pasted into earlier chats (pulled out of the session transcripts; contact sheets `t0`–`t9.png`): Body Tracker
+  (Track, History, Graph), Measurements, Calendar, Settings, the day log's ⋮ menu, Workout Time, Copy, Share and
+  Create Workout, and the 1RM calculator. Pasted images aren't saved as files, so save new ones there.
 - **Redesign first (owner decision, 2026-09-26):** builds now follow #79's page bundles: day log (#81, #84, #8), then
   the library and routine switcher (#83), the exercise screen (#82) and routines (#91, #21, #99). Feature-only builds
   wait until those land.
