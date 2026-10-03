@@ -1,5 +1,5 @@
 > **Status (2026-10-03): in progress.** Builds A–C done (1.0.72–1.0.74). Parity Builds D–I done (1.0.75–1.0.85,
-> with #143, #145 and the Body Tracker redone against the full screenshot set). Build J (1.0.86): #147 (Settings as
+> with #143, #145 and the Body Tracker redone against the full screenshot set). Build J (1.0.87): #147 (Settings as
 > FitNotes's single list), #148 (Copy Workout, Workout Time, Share/Create Workout, 1RM calculator and settings), #127
 > (Breakdown Date list and arrows) and #126 (full-screen New Exercise). **Remaining:** #95 (screenshot tests,
 > optional). Not verified: nothing squeezed at 320dp (owner's phone test). Next: `/safe-build 95`, or close the plan
