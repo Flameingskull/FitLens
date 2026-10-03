@@ -324,6 +324,11 @@ private fun DayContent(
                 ).joinToString("  ·  ")
                 Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
                     Text(info.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // The workout comment is the day's own note on the session as a whole (owner, 2026-10-03), under a
+                    // heading so it reads apart from the exercises' comments.
+                    if (comments.isNotEmpty() || sets.isNotEmpty()) {
+                        com.fitlens.companion.ui.design.SectionLabel("Workout comment", Modifier.padding(top = Spacing.md))
+                    }
                     comments.forEach {
                         Text(
                             "“$it”",
@@ -662,7 +667,10 @@ private fun ExerciseOnDay(
             describe = "$name · ${Dates.medium(date)}",
             initial = exerciseComment,
             onSave = { text -> AppScope.scope.launch { Workouts.setExerciseComment(date, exId, text) } },
-            onDismiss = { commenting = false }
+            onDismiss = { commenting = false },
+            title = "Exercise comment",
+            detailed = true,
+            earlier = earlierExerciseComments(snap, exId, date, 5)
         )
     }
     if (confirmDelete) {

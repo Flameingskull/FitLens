@@ -80,7 +80,7 @@ fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            label = { Text("How did it go?") },
+            label = { Text("Notes on the day and the workout as a whole") },
             modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp)
         )
         if ((snap.workoutComments[date]?.size ?: 0) > 1) {

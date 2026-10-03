@@ -466,7 +466,13 @@ fun SetRow(
  * (or "Add exercise comment") beside a speech bubble, gold when there is one; tapping it opens [onEdit].
  */
 @Composable
-fun ExerciseCommentRow(comment: String?, onEdit: () -> Unit, modifier: Modifier = Modifier) {
+fun ExerciseCommentRow(
+    comment: String?,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** The exercise's comment from the last time it was logged, as (when, text), so notes carry forward (owner, 2026-10-03). */
+    previous: Pair<String, String>? = null
+) {
     val has = !comment.isNullOrBlank()
     Row(
         modifier
@@ -490,15 +496,42 @@ fun ExerciseCommentRow(comment: String?, onEdit: () -> Unit, modifier: Modifier 
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (has) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (previous != null) {
+                Text(
+                    "LAST TIME · ${previous.first.uppercase()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Brand.Gold,
+                    modifier = Modifier.padding(top = Spacing.xs)
+                )
+                Text(
+                    previous.second,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
 
 @Composable
-fun SetCommentSheet(describe: String, initial: String?, onSave: (String?) -> Unit, onDismiss: () -> Unit) {
+fun SetCommentSheet(
+    describe: String,
+    initial: String?,
+    onSave: (String?) -> Unit,
+    onDismiss: () -> Unit,
+    /**
+     * An exercise comment (owner, 2026-10-03): detailed notes on the exercise in this workout, kept to read later, so the
+     * box is large and its earlier notes are listed under it. A set's comment stays a short note.
+     */
+    title: String = "Comment",
+    detailed: Boolean = false,
+    earlier: List<Pair<String, String>> = emptyList()
+) {
     var text by remember { mutableStateOf(initial.orEmpty()) }
     FitSheet(
-        title = "Comment",
+        title = title,
         onDismiss = onDismiss,
         confirmLabel = "Save",
         onConfirm = {
@@ -510,11 +543,18 @@ fun SetCommentSheet(describe: String, initial: String?, onSave: (String?) -> Uni
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            placeholder = { Text("Comment text…") },
-            minLines = 2,
-            maxLines = 5,
+            placeholder = { Text(if (detailed) "Notes on this exercise: form, feel, equipment, what to change next time…" else "Comment text…") },
+            minLines = if (detailed) 6 else 2,
+            maxLines = if (detailed) 16 else 5,
             modifier = Modifier.fillMaxWidth()
         )
+        if (earlier.isNotEmpty()) {
+            SectionLabel("Earlier notes", Modifier.padding(top = Spacing.md))
+            earlier.forEach { (whenText, note) ->
+                Text(whenText.uppercase(), style = MaterialTheme.typography.labelSmall, color = Brand.Gold, modifier = Modifier.padding(top = Spacing.sm))
+                Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
 

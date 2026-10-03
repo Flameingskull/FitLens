@@ -163,6 +163,17 @@ internal fun startRestAfterSet(
     RestTimer.start(context, restFor(snap, date, exerciseId, setId, last))
 }
 
+/**
+ * The exercise's comments from workouts before [date], newest first, as (day, text), at most [limit] (owner,
+ * 2026-10-03: exercise comments are detailed notes to use later).
+ */
+internal fun earlierExerciseComments(snap: Snapshot, exerciseId: Long, date: String, limit: Int): List<Pair<String, String>> =
+    snap.exerciseComments.entries
+        .filter { (d, m) -> d < date.take(10) && !m[exerciseId].isNullOrBlank() }
+        .sortedByDescending { it.key }
+        .take(limit)
+        .map { (d, m) -> Dates.medium(d) to m.getValue(exerciseId) }
+
 /** How long the screen waits after an exercise's last set is ticked before moving on (#136, owner: about 1.5 s). */
 private const val ADVANCE_DELAY_MS = 1_500L
 
@@ -644,8 +655,13 @@ fun SetEntryScreen(
                 }
             }
             // One comment for the whole exercise in today's workout (#107), under its sets.
+            // The last note on this exercise from an earlier workout shows under it, to use today (owner, 2026-10-03).
             item(key = "exercise-comment") {
-                ExerciseCommentRow(snap.exerciseComments[date.take(10)]?.get(exerciseId), onEdit = { editingExerciseComment = true })
+                ExerciseCommentRow(
+                    snap.exerciseComments[date.take(10)]?.get(exerciseId),
+                    onEdit = { editingExerciseComment = true },
+                    previous = earlierExerciseComments(snap, exerciseId, date, 1).firstOrNull()
+                )
             }
             if (sets.isNotEmpty()) {
                 item {
@@ -706,7 +722,10 @@ fun SetEntryScreen(
             describe = "${ex?.name ?: "Exercise"} · ${relativeDayLabel(date)}",
             initial = snap.exerciseComments[date.take(10)]?.get(exerciseId),
             onSave = { text -> AppScope.scope.launch { Workouts.setExerciseComment(date, exerciseId, text) } },
-            onDismiss = { editingExerciseComment = false }
+            onDismiss = { editingExerciseComment = false },
+            title = "Exercise comment",
+            detailed = true,
+            earlier = earlierExerciseComments(snap, exerciseId, date, 5)
         )
     }
     commenting?.let { s ->

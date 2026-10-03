@@ -65,8 +65,10 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
   names simply (weekdays, or "Push Day", "Pull Day", "Leg Day"). The separate Saved workouts and Routines pages built in
   1.0.4x are to be merged into it, keeping existing data. A **logged workout** is what was recorded on a date. Adding a
   workout adds a whole group of exercises; a control that adds one exercise always says "Add exercise".
-- **Comments (owner decision, 2026-09-28):** a workout comment belongs to a day's recorded workout, and an exercise
-  comment to that exercise in the workout. Both are reached there, never from the main ⋮ menu.
+- **Comments (owner decisions, 2026-09-28 and 2026-10-03):** a **workout comment** is on the day, for notes on the
+  overall workout and day. An **exercise comment** is detailed commentary on that exercise in the workout, kept for
+  later: a large box, the last note shown under it the next time the exercise is logged, earlier notes listed in its
+  editor, and every one in the exercise's History. Both are reached where they belong, never from the main ⋮ menu.
 - **Live logging (owner, 2026-09-28):** workouts are often logged live in the gym, not only afterwards. The screens
   used mid-workout come first: set entry (Track, History, Graph), the workout drawer, the rest timer and the workout
   timer. The rest timer times the break between sets, and while it runs its countdown replaces the alarm icon in the
