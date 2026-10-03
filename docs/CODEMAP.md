@@ -5,11 +5,11 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.92.
+Last updated: 1.0.93.
 
 ## How data flows
 
-- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 17 (v5 added `workout_set.set_type` and `rpe`; v6 added `exercise_goal`, `exercise.weight_step` and `default_graph`, and `measurement.edited`; v7 added `saved_workout`, `saved_workout_exercise` and `saved_workout_set`; v8 added `routine`, `routine_day` and `workout_origin`; v9 added `workout_set.position` and the `set_position` trigger that gives each new set the next position; v10 added `workout_set.superset`, `saved_workout_exercise.superset` and the `set_superset` trigger that puts a new set into its exercise's group; v11 added `workout_set.done` for "mark sets complete", #19; v12 added `exercise.rest_seconds`, #15; v13 (#106) added `routine_day_exercise` and `routine_day_set`, copied every saved workout into the routine days that used it (unused ones became one-day workouts), re-pointed `workout_origin` at workout and day, and left the `saved_workout*` tables empty so older builds still open the database, #77; v14 added `exercise_comment`, one comment per exercise per date, #107; v15 added `exercise.distance_unit`, #7; v16 added `exercise.weight_unit` and `measurement.display_unit`, #7; v17 added prescribed rest, #138: `routine_day_set.rest_seconds`, `routine_day_exercise.rest_seconds` and `rest_after_seconds`, `workout_set.rest_seconds` and the `workout_rest` table (date, exercise, rest between sets, rest after)). Schema changes
+- **One SQLite database**, `fitlens.db`, opened by `data/Db.kt` (`SQLiteOpenHelper`). `Db.VERSION` is 18 (v5 added `workout_set.set_type` and `rpe`; v6 added `exercise_goal`, `exercise.weight_step` and `default_graph`, and `measurement.edited`; v7 added `saved_workout`, `saved_workout_exercise` and `saved_workout_set`; v8 added `routine`, `routine_day` and `workout_origin`; v9 added `workout_set.position` and the `set_position` trigger that gives each new set the next position; v10 added `workout_set.superset`, `saved_workout_exercise.superset` and the `set_superset` trigger that puts a new set into its exercise's group; v11 added `workout_set.done` for "mark sets complete", #19; v12 added `exercise.rest_seconds`, #15; v13 (#106) added `routine_day_exercise` and `routine_day_set`, copied every saved workout into the routine days that used it (unused ones became one-day workouts), re-pointed `workout_origin` at workout and day, and left the `saved_workout*` tables empty so older builds still open the database, #77; v14 added `exercise_comment`, one comment per exercise per date, #107; v15 added `exercise.distance_unit`, #7; v16 added `exercise.weight_unit` and `measurement.display_unit`, #7; v17 added prescribed rest, #138: `routine_day_set.rest_seconds`, `routine_day_exercise.rest_seconds` and `rest_after_seconds`, `workout_set.rest_seconds` and the `workout_rest` table (date, exercise, rest between sets, rest after); v18 added the default Body fat and Height measurements, `addDefaultMeasurements`, also run by `onCreate`, #153). Schema changes
   bump it and add an `if (oldVersion < N)` block in `onUpgrade` that keeps every row. `.fitlens` restores of older
   backups go through the same upgrade.
 - **Settings** (#38) go through `data/Settings.kt` only. Phone-only settings (`DeviceSettings`: folders, schedules,
@@ -62,6 +62,7 @@ Last updated: 1.0.92.
 | `PhotoImporter.kt` | Photo import, date detection (EXIF, media store, file name, modified), duplicate hashing |
 | `StarterLibrary.kt` | Optional starter exercise library |
 | `StandardMeasurements.kt` | The standard body measurements (#27) and `missing`; added by `Store.addStandardMeasurements` from setup and the Measurements screen |
+| `BodyFat.kt` | Body fat from measurements (#153), plain Kotlin, tested in `BodyFatTest`: `navy` (US Navy circumference method, metric body-density form, Siri's equation; refuses impossible inputs), `Sex`, `Input` (the formula's measurements and the names they match), `inputs(sex)`, `isBodyFat(name)`, `STALE_DAYS`, `TYPICAL_ERROR`. `PortableSettings.profileSex` holds the sex |
 | `Settings.kt` | The typed settings layer: `DeviceSettings` (DataStore), `PortableSettings` (`meta`), the one-time move from `meta` |
 
 ### `ui/`
@@ -114,6 +115,7 @@ Last updated: 1.0.92.
 | `CustomMetrics.kt` | `CustomMetricEditor` (create or edit a custom measurement) |
 | `MeasurementsScreen.kt` | `Screen.Measurements` (#88): FitNotes's list (name, `unitLongName`, `goalText`, a tracking checkbox; a tap sets the goal, #144), custom ones, the standard set |
 | `MeasurementSheets.kt` | `MeasurementEntrySheet` (#27, #88): log a value, or edit/delete one logged by hand; `AddMeasurementDialog` in `DayScreen.kt` delegates to it |
+| `BodyFatSheet.kt` | `BodyFatCalculatorSheet` (#153): sex, each input's latest value and age with a field for a new one, the missing inputs named, the result; Use saves typed values as measurements and fills the body fat value with a comment saying how it was calculated. Opened from `BodyMeasurementScreen`'s Track tab and `MeasurementEntrySheet` |
 
 ### Other
 | File | Owns |
