@@ -44,8 +44,9 @@ knowledge carries over, so each extra item costs much less than the first.
 - Full issues close (`Closes #N` / `Fixes #N`). Partly done issues use `Refs #N` and get a progress comment.
 
 ## 1. Preflight
-- Read every plan in `nimbalyst-local/plans/` (its `> **Status**` line): fold its remaining issues into this build's
-  choices, and update the Status line after the push.
+- Read every plan in `docs/plans/` (its `> **Status**` block) and the open `plan` items in the tracker: fold their
+  remaining issues into this build's choices. After the push, update the plan's Status block, commit it with the
+  release, and set the plan item's `progress`; mark it `completed` only when every issue it depends on has shipped.
 - Work in the repository root. `git status` must be clean (local commits not yet pushed are fine). If it isn't, stop
   and show the owner what's uncommitted.
 - `git pull --ff-only origin main`, and check `gh auth status`.
