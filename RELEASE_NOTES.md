@@ -1,39 +1,32 @@
 ## Overview
 
-Body fat is now a standard part of the body tracker. Everyone has a **Body fat** measurement and a **Height**
-measurement, and body fat can be entered by hand as before or **calculated from your body measurements**. The
-calculation uses the US Navy circumference method, the most accurate of the tape-measure formulas, and works from
-the measurements you've already logged. If any it needs are missing, it tells you which ones and asks you to add
-them first.
+FitLens now remembers where you were. Turning your phone, or coming back after Android has closed FitLens in the
+background to free memory, used to drop you back on the day log. From this update you return to the same screen,
+showing the same exercise, day or photo, with its sheets and selections as you left them.
 
-This update includes a small database update that adds the two new measurements. Everything you've logged is kept as
-it was, and so are all your settings. Install it over the current app as usual.
+Under the hood, the app's screens now run on Android's standard navigation system (Navigation Compose), and the
+busiest screens keep their state in ViewModels. This is groundwork that every future screen is built on. There's no
+database change: everything you've logged and every setting is kept. Install it over the current app as usual.
 
-## What's new
+## Improved
 
-- **Body fat and Height for everyone.** Both now appear in the body tracker, whether or not you added the standard
-  measurements. If you already have a body fat measurement, including FitNotes's "Body Fat", it's kept and used, and
-  no duplicate is added.
-- **Calculate body fat from your measurements.** On Body fat's Track tab, or when logging body fat from the day log,
-  tap **Calculate from measurements**. The calculator:
-  - uses your latest height, neck and waist, plus hips for women, and shows each one with the date it was logged;
-  - names any measurement that's missing, lets you enter it right there, and calculates only once everything is in.
-    Values you enter are saved to your body tracker on that day;
-  - flags any measurement more than 14 days older than the day you're logging, so you can re-measure first;
-  - says where to measure each one (the neck just below the Adam's apple, the waist at the navel for men and at its
-    narrowest for women, the hips at their widest);
-  - converts inch values exactly, and refuses impossible inputs (a waist no larger than the neck, a height that can't
-    be right, or a result outside 2–75%) with the reason.
-
-  **Use** fills in the result. Check it and save it like any other value. Its comment records that it was calculated
-  and from which measurements.
-- **The formula.** The US Navy circumference method (Hodgdon & Beckett), in its original metric body-density form
-  with Siri's equation. Checked against underwater weighing, it has a typical error of about ±3.5 percentage points.
-- **Sex for the calculation.** The formula differs for men and women. The calculator asks for it the first time, and
-  you can change it any time in **Settings → Sex (Body Fat)**. It's used for nothing else and is kept in your
-  backups.
+- **Your place survives a rotation or a restart in the background.** Every screen, with what it was showing (the
+  day, the exercise and its tab, the measurement, the photo, the Settings page), comes back after you turn the phone
+  or switch back to FitLens after a while away. Back still works through the same screens in the same order.
+- **Open sheets, dialogs and selections are kept** on the day log (copy, move, share, workout time, the rest timer
+  and the rest), the photo gallery (selected photos, pose, date and delete dialogs) and the photo viewer.
+- **Screens you return to keep their place.** Going back to a screen lower in the stack, such as the photo gallery
+  after viewing a photo, now keeps its scroll position and choices instead of starting over.
+- **Back behaves as before.** A pushed screen closes, the day log is home, and Back on the day log leaves the app,
+  as in FitNotes. Screens still slide in when opened and back out when closed, and moving to another day or the next
+  exercise still changes the screen in place.
+- **Shared files open as before**, whether FitLens was already running or not: FitNotes backups go to Import From
+  FitNotes, `.fitlens` backups to Backup, and photos ask for their pose.
 
 ## Known limitations
 
-- Height is logged in your length unit (centimetres or inches), not in feet and inches.
-- Body fat entered by hand isn't compared with the calculated value.
+- The remaining screens keep their sheets and dialogs in memory only, so a dialog left open on them closes when the
+  phone turns. Their screen and arguments are still restored. They move to the same saved state as they are next
+  worked on.
+- Rotation and returning after Android has closed the app are best checked on a real phone. To test the second, turn
+  on Developer options → "Don't keep activities", open a few screens, switch away and back.

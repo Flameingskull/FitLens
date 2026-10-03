@@ -108,3 +108,8 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   (`GraphOptionChips` with `DropdownPill` / `OptionsMenu`); lines never break; no bar charts. Body values in kg or lbs
   are converted for display in `BodyPart` and back in `Store` writes, so stored values never change. Left on #115: the
   same compact-controls pass on every other screen.
+- 1.0.94 (#37): Navigation Compose runs behind `Nav`. The `NavHost` has one destination, `Route(s)`, whose argument
+  is the `Screen` as JSON, so no screen needs its own route or nav types. Never write to a stack directly: use
+  `nav.replace(screen)` (same kind updates the entry in place, another kind pops and pushes). `nav.top` / `atHome`
+  update synchronously after each call, so loops like `while (!nav.atHome && nav.top !is Screen.Day) nav.pop()` end.
+  Screen state that must survive rotation goes in a `ScreenState` ViewModel (`ui/ScreenState.kt`).

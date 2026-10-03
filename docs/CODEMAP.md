@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.93.
+Last updated: 1.0.94.
 
 ## How data flows
 
@@ -68,7 +68,8 @@ Last updated: 1.0.93.
 ### `ui/`
 | File | Owns |
 | --- | --- |
-| `MainActivity.kt` | `Screen` (sealed destinations), `Nav` (a simple back stack: `push` / `pop` / `home(date)`, `atHome`), `AppRoot` and `LocalNavBack`. FitNotes-style navigation (#79): no bottom bar; the day log (`Screen.Day`) is the root and every other screen is pushed on it. Shared files open their Settings page (`openSettingsPage`). `AppRoot` wraps the top screen in `AnimatedContent` keyed on its class and stack depth: screens slide in and out, and replacing the top screen with one of the same kind (another day, the next exercise) stays in place (#86, #93) |
+| `MainActivity.kt` | `Screen` (sealed, `@Serializable` destinations), `Route` (the `NavHost`'s one destination: the `Screen` as JSON), `Nav` (the back stack as screens see it, over a `NavHostController`, #37: `push` / `pop` / `home(date)` / `replace`, with `top` and `atHome` as state; calls made before the `NavHost` exists wait for `attach`), `AppRoot` (the `NavHost`, slide transitions, the spinner until the data loads), `ScreenContent` (the `when` from `Screen` to its composable) and `LocalNavBack`. FitNotes-style navigation (#79): no bottom bar; the day log (`Screen.Day`) is the root and every other screen is pushed on it. Navigation saves the stack and every screen's arguments, so rotation and process death keep the current screen. `nav.replace` with a screen of the same kind (another day, the next exercise) updates the entry's saved state in place, so it doesn't animate or lose its state (#86, #93). Shared files open their Settings page (`openSettingsPage`) |
+| `ScreenState.kt` | `ScreenState` (#37): a screen's ViewModel, owned by its back-stack entry; `saved(key, initial)` and `savedIds(key)` keep sheets, dialogs and selections in the entry's saved state. `DayState`, `PhotosState`, `PhotoViewerState` |
 | `SettingsScreen.kt` | Settings as FitNotes's single list (#147): `mainRows` builds every row (`MainRow`: heading, title, search keywords, the row) under `SettingsHeading` SETTINGS, DATA and OTHER, FitNotes's rows first in its order and wording, then FitLens's; a new main-list setting is a `MainRow`. The search field filters `mainRows` in place and lists matching `CATALOGUE` entries (settings on sub-pages; a new page row belongs there). `SettingsSection` is only the pages it opens: Backups, Import, DataTools, Home (Home Screen Settings) and Rest (`RestPage`). Also `UnitSystemRow` (metric/imperial in one go), `RecalculateRecordsSheet`, `AboutSheet`, `WeightStepRow` (Default Weight Increment), `FormulaChoice` |
 | `DataToolsScreen.kt` | Settings → Data tools: CSV export (save or share) and Delete workout history (safety copy first), built from the settings rows, each with its own date-range choice row |
 | `SetupScreen.kt` | The guided first-run setup (#29): welcome/restore, units, automatic backups, FitNotes import, photos, starter library. Shown once when a phone has no data (`DeviceSettings.setupDone`, checked in `AppRoot`) |
@@ -133,11 +134,15 @@ Last updated: 1.0.93.
 - **No black text (#104):** filled controls carry gold text on a dark fill. Use `GoldButton` for primary actions and
   `errorContainer` / `onErrorContainer` for destructive ones; never fill a button or chip with the gold `primary`.
 
-- **Screens** are `@Composable fun XScreen(snap: Snapshot, nav: Nav, …)`. To add a destination, add it to `Screen` in
-  `MainActivity.kt` and to the `when` in `AppRoot`, and reach it from the day log's ⋮ menu (`DayScreen`) or another
-  screen. There are no tabs: every screen but the day log is pushed and uses a back arrow. `nav.home(date)` returns
-  to the day log. Navigation Compose isn't used yet (#37).
-- **State:** `rememberSaveable` for UI choices, `remember(keys)` for derived lists. There are no ViewModels yet (#37).
+- **Screens** are `@Composable fun XScreen(snap: Snapshot, nav: Nav, …)`. To add a destination, add a `@Serializable`
+  class or object to `Screen` in `MainActivity.kt` (arguments must serialise: ids, strings, numbers, enums, lists of
+  ids) and a line to `ScreenContent`, and reach it from the day log's ⋮ menu (`DayScreen`) or another screen. There
+  are no tabs: every screen but the day log is pushed and uses a back arrow. `nav.home(date)` returns to the day log;
+  `nav.replace(screen)` swaps the top screen. Never hold a `NavController` in a screen: go through `Nav` (#37).
+- **State:** a sheet, dialog or selection that should outlive rotation lives in the screen's `ScreenState` ViewModel
+  (`viewModel<XState>()`, then `state.saved("key", initial)`; new screens with real state get one, #37).
+  `rememberSaveable` for other UI choices (each back-stack entry keeps its own, so a screen you return to keeps its
+  scroll and choices), `remember(keys)` for derived lists.
   Launch writes with `AppScope` / `runBusy`, and report results through `UiEvents`.
 - **Brand:** black and vibrant gold, no purple (1.0.71). Colours come from `MaterialTheme.colorScheme`, `Brand` or `LocalChartColors`; a shown change uses `deltaColour` (or `changeColour` for a measurement with a goal). Never write `Color(0x…)`
   outside `Theme.kt`. **Type is Manrope** (#135): use `MaterialTheme.typography` roles, never a `.sp` size outside `Theme.kt`; Canvas text uses `BrandFonts.typeface()`. Section headings are `SectionLabel`, dividers `GoldHairline`.
@@ -193,7 +198,7 @@ Last updated: 1.0.93.
 | New setting | A field in `DeviceSettings` (phone-only) or `PortableSettings` (travels in backups) in `data/Settings.kt`, with its key and default, then a `MainRow` in `mainRows` under the matching heading (SettingsScreen.kt), or a row on one of its pages plus a `CATALOGUE` entry |
 | Records or 1RM logic | `data/Records.kt` only. Screens and the PDF call it |
 | New graph | Build its points in `rememberChartData(keys) { … }`, get `val (kind, setKind) = rememberChartKind("<area>:<graph>")`, draw with `FitChart(kind = kind)` (line, bar, area or step, #137) or `DonutChart`, pass `kind`/`onKind` to `GraphOptionChips`, add an `ExpandGraphButton` and a `FullScreenChart` (#96, `valueZoom = kind != ChartKind.BAR`) with `GraphOptionChips` as its `controls`, and a `ChartHint` under it; share images take the `kind` too |
-| New screen | `Screen` and `AppRoot` in `MainActivity.kt`, and a new `ui/XScreen.kt` built from `ui/design/` |
+| New screen | A `@Serializable` entry in `Screen` and a line in `ScreenContent` (`MainActivity.kt`), a new `ui/XScreen.kt` built from `ui/design/`, and an `XState` in `ScreenState.kt` if it has sheets or a selection to keep |
 - 1.0.66 (#22, #7, #11 closed): branded share images live in `ui/ShareImages.kt` (Canvas, `Brand` colours via
   `toArgb()`); reuse it rather than drawing another. `MenuAction` already exists in `ui/design/TopBar.kt` (label,
   `enabled`, `onClick`): pass `onClick` by name. Database v16 adds `exercise.weight_unit` and
