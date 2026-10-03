@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -103,8 +104,14 @@ fun AnalysisHub(snap: Snapshot, nav: Nav, tab: Int, onTab: (Int) -> Unit, adding
             TAB_EXERCISES -> AnalysisExercisesTab(snap, nav)
             // A pinned card opens its graph, with its settings, in Exercises.
             TAB_OVERVIEW -> AnalysisOverviewTab(snap) { pin ->
-                openPinnedGraph(pin)
-                onTab(TAB_EXERCISES)
+                if (pin.totals) {
+                    filter = pin.totalsFilter
+                    TotalsChoice.pin = pin
+                    onTab(TAB_WORKOUTS)
+                } else {
+                    openPinnedGraph(pin)
+                    onTab(TAB_EXERCISES)
+                }
             }
             TAB_BREAKDOWN -> BreakdownTab(snap, nav) { f ->
                 filter = f
@@ -197,40 +204,97 @@ internal fun AnalysisNote(text: String, color: Color = MaterialTheme.colorScheme
 
 // ---------- Workouts: totals by week, month or year (#51) ----------
 
+/** A Workouts pin (#55) waiting to be opened in the Workouts tab, used once. */
+private object TotalsChoice {
+    var pin: PinnedGraph? = null
+}
+
+/** A period's value: its total, or for average duration the total over its timed workouts (#12). */
+internal fun totalsValue(t: Analysis.PeriodTotal, avgDuration: Boolean): Double =
+    if (avgDuration) (if (t.timed > 0) t.value / t.timed else 0.0) else t.value
+
+/** A value as shown: volume in the display unit, total duration in hours and average duration in minutes. */
+internal fun totalsShown(snap: Snapshot, metric: Analysis.Metric, avgDuration: Boolean, v: Double): Double = when {
+    metric == Analysis.Metric.Volume -> snap.weight(v)
+    avgDuration -> v / 60.0
+    metric == Analysis.Metric.Duration -> v / 3600.0
+    else -> v
+}
+
+/** The unit a Workouts graph shows; empty for counts, which read "12 sets". */
+internal fun totalsUnit(snap: Snapshot, metric: Analysis.Metric, avgDuration: Boolean): String = when {
+    metric == Analysis.Metric.Volume -> snap.weightUnit
+    avgDuration -> "min"
+    metric == Analysis.Metric.Duration -> "h"
+    else -> ""
+}
+
+/** A shown value with its unit ([totalsUnit], or the count's name): "1,240 kg", "3.5 h", "12 sets". */
+internal fun totalsText(metric: Analysis.Metric, avgDuration: Boolean, unit: String, v: Double): String {
+    val digits = if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0
+    return fmtNum(v, digits) + if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
+}
+
+/** FitNotes's name for a Workouts graph (#145): "Volume Per Week", "Workout Duration Per Month". */
+internal fun totalsGraphName(metric: Analysis.Metric, period: Analysis.Period): String =
+    "${if (metric == Analysis.Metric.Duration) "Workout Duration" else metric.label} Per ${period.name}"
+
+/** A pinned Workouts graph's metric and period (#55), or null when the pin names ones this build doesn't know. */
+internal fun totalsOf(pin: PinnedGraph): Pair<Analysis.Metric, Analysis.Period>? {
+    if (!pin.totals) return null
+    val m = Analysis.Metric.entries.firstOrNull { it.name == pin.graph.substringBefore('/') } ?: return null
+    val p = Analysis.Period.entries.firstOrNull { it.name == pin.graph.substringAfter('/') } ?: return null
+    return m to p
+}
+
+/** The first day range [rangeIdx] of [RANGES] covers, counted back from today, or null for all time. */
+internal fun rangeFrom(rangeIdx: Int): String? {
+    val days = RANGES[rangeIdx.coerceIn(RANGES.indices)].second
+    return if (days > 0) LocalDate.now().minusDays(days).format(Dates.ISO) else null
+}
+
+/** One point per period at its first day (#116), in the shown unit. It goes over the whole history: call it off the main thread. */
+internal fun totalsPoints(
+    snap: Snapshot, metric: Analysis.Metric, period: Analysis.Period, filter: Analysis.Filter, from: String?, avgDuration: Boolean
+): List<ChartPoint> =
+    Analysis.totals(snap, metric, period, filter, from).map {
+        ChartPoint(it.start.toEpochDay(), totalsShown(snap, metric, avgDuration, totalsValue(it, avgDuration)), it.start.format(Dates.ISO))
+    }
+
 @Composable
 private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFilter: (Analysis.Filter) -> Unit) {
-    var periodIdx by rememberSaveable { mutableIntStateOf(0) }
-    var metricIdx by rememberSaveable { mutableIntStateOf(0) }
-    var rangeIdx by rememberSaveable { mutableIntStateOf(1) }
+    // A pinned Workouts graph opened from the Overview (#55) sets the graph, range and option once.
+    val opened = remember { TotalsChoice.pin.also { TotalsChoice.pin = null }?.let { p -> totalsOf(p)?.let { p to it } } }
+    var periodIdx by rememberSaveable { mutableIntStateOf(opened?.second?.second?.ordinal ?: 0) }
+    var metricIdx by rememberSaveable { mutableIntStateOf(opened?.second?.first?.ordinal ?: 0) }
+    var rangeIdx by rememberSaveable { mutableIntStateOf(opened?.first?.range ?: 1) }
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fullScreen by remember { mutableStateOf(false) }
     var showDays by remember { mutableStateOf(false) }
     // Duration as the period's total, or as the average length of its timed workouts (#12).
-    var durationAvg by rememberSaveable { mutableStateOf(false) }
+    var durationAvg by rememberSaveable { mutableStateOf(opened?.first?.average ?: false) }
     val period = Analysis.Period.entries[periodIdx]
     val metric = Analysis.Metric.entries[metricIdx]
-    val days = RANGES[rangeIdx].second
-    val from = if (days > 0) LocalDate.now().minusDays(days).format(Dates.ISO) else null
+    val from = rangeFrom(rangeIdx)
     var sel by remember(period, metric, rangeIdx, filter) { mutableStateOf<Int?>(null) }
 
     val totals = rememberDerived("analysisTotals", snap.trainingKey, metric, period, filter, from) {
         Analysis.totals(snap, metric, period, filter, from)
     }
     val avgDuration = metric == Analysis.Metric.Duration && durationAvg
-    // A period's value: its total, or for average duration the total over its timed workouts (#12).
-    fun valueOf(t: Analysis.PeriodTotal): Double = if (avgDuration) (if (t.timed > 0) t.value / t.timed else 0.0) else t.value
+    fun valueOf(t: Analysis.PeriodTotal): Double = totalsValue(t, avgDuration)
     // Volume in the display unit, total duration in hours and average duration in minutes; counts as they are.
-    fun shown(v: Double): Double = when {
-        metric == Analysis.Metric.Volume -> snap.weight(v)
-        avgDuration -> v / 60.0
-        metric == Analysis.Metric.Duration -> v / 3600.0
-        else -> v
-    }
-    val unit = when {
-        metric == Analysis.Metric.Volume -> snap.weightUnit
-        avgDuration -> "min"
-        metric == Analysis.Metric.Duration -> "h"
-        else -> ""
+    fun shown(v: Double): Double = totalsShown(snap, metric, avgDuration, v)
+    val unit = totalsUnit(snap, metric, avgDuration)
+    // Pinned to the Analysis overview (#55), one pin per graph and filter, kept in step with its range and option.
+    val pins = rememberPins()
+    val pinNow = PinnedGraph(
+        filter.exerciseId ?: 0L, "${metric.name}/${period.name}", rangeIdx,
+        totals = true, categoryId = filter.categoryId ?: 0L, average = avgDuration
+    )
+    val pinned = pins.any { it.sameGraph(pinNow) }
+    LaunchedEffect(pinned, pinNow) {
+        if (pinned) updatePins { list -> list.map { if (it.sameGraph(pinNow) && it != pinNow) pinNow else it } }
     }
     val fmt: (Double) -> String = if (metric == Analysis.Metric.Duration && !avgDuration) { v -> fmtNum(v, 1) } else { v -> fmtNum(v, 0) }
     fun withUnit(v: Double) = fmt(v) + if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
@@ -252,7 +316,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             val periods = Analysis.Period.entries
             DropdownPill(
                 "Graph",
-                periods.flatMap { p -> metrics.map { m -> "${if (m == Analysis.Metric.Duration) "Workout Duration" else m.label} Per ${p.name}" } },
+                periods.flatMap { p -> metrics.map { m -> totalsGraphName(m, p) } },
                 periodIdx * metrics.size + metricIdx
             ) { i -> periodIdx = i / metrics.size; metricIdx = i % metrics.size }
             AnalysisFilterChips(snap, filter, onFilter)
@@ -264,7 +328,18 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             extra = if (metric == Analysis.Metric.Duration) {
                 listOf(ToggleOption("Average per workout", durationAvg) { durationAvg = !durationAvg })
             } else emptyList(),
-            trailing = { ExpandGraphButton { fullScreen = true } }
+            trailing = {
+                PinGraphButton(pinned) {
+                    if (pinned) {
+                        updatePins { list -> list.filterNot { it.sameGraph(pinNow) } }
+                        UiEvents.show("Unpinned from the Analysis overview")
+                    } else {
+                        updatePins { list -> list.filterNot { it.sameGraph(pinNow) } + pinNow }
+                        UiEvents.show("Pinned to the Analysis overview")
+                    }
+                }
+                ExpandGraphButton { fullScreen = true }
+            }
         )
 
         when {

@@ -10,9 +10,12 @@ class PinnedGraphTest {
     @Test
     fun pinsRoundTripInOrder() {
         val pins = listOf(
-            PinnedGraph(3, "Estimated 1RM", 2, listOf(7, 9), relative = true),
+            PinnedGraph(3, "Estimated 1RM", 2, listOf(7L, 9L), relative = true),
             PinnedGraph(1, "Max Pace", 4),
-            PinnedGraph(3, "Workout Volume", 0)
+            PinnedGraph(3, "Workout Volume", 0),
+            // Workouts graphs (#51): all training, and one category with the average-duration option.
+            PinnedGraph(0, "Volume/Week", 1, totals = true),
+            PinnedGraph(0, "Duration/Month", 3, totals = true, categoryId = 4, average = true)
         )
         assertEquals(pins, PinnedGraph.decode(PinnedGraph.encode(pins)))
     }
@@ -22,7 +25,17 @@ class PinnedGraphTest {
         val decoded = PinnedGraph.decode("x|Max Weight|1\n5||2\n5|Max Weight|99|5,6,6|0\n5|Max Weight|1|8|1\nnonsense")
         // The bad exercise id, the blank graph and the junk line go; the range falls back to All; the exercise itself
         // and repeats leave the comparison; the second pin of the same graph is dropped.
-        assertEquals(listOf(PinnedGraph(5, "Max Weight", 4, listOf(6), false)), decoded)
+        assertEquals(listOf(PinnedGraph(5, "Max Weight", 4, listOf(6L), false)), decoded)
+    }
+
+    @Test
+    fun oneWorkoutsPinPerGraphAndFilter() {
+        val all = PinnedGraph(0, "Sets/Week", 1, totals = true)
+        val legs = all.copy(categoryId = 2)
+        assertEquals(false, all.sameGraph(legs))
+        assertEquals(true, all.sameGraph(all.copy(range = 4, average = true)))
+        // An exercise graph and a Workouts graph never match, even with the same name.
+        assertEquals(false, PinnedGraph(0, "Sets/Week").sameGraph(all))
     }
 
     @Test

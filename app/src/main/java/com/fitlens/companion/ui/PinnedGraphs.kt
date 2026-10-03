@@ -24,10 +24,10 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
-import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DragHandle
 import com.fitlens.companion.ui.design.FitIcons
 import com.fitlens.companion.ui.design.MenuAction
@@ -36,22 +36,34 @@ import com.fitlens.companion.ui.design.OverflowMenu
 /**
  * A graph pinned to Analysis → Overview (#55): an exercise's graph by name, its range (an index into [RANGES]), the
  * exercises it's compared with (#53) and whether the comparison is relative. Its chart kind is the graph's own (#137).
- * Pins live in `PortableSettings.pinnedGraphs`, so they travel in `.fitlens` backups with no schema change.
+ *
+ * A [totals] pin is an Analysis → Workouts graph (#51) instead: [graph] is "Metric/Period" (`Analysis.Metric` and
+ * `Analysis.Period` names), [exerciseId] or [categoryId] its filter (0 for none) and [average] the average-duration
+ * option. Pins live in `PortableSettings.pinnedGraphs`, so they travel in `.fitlens` backups with no schema change.
  */
 data class PinnedGraph(
     val exerciseId: Long,
     val graph: String,
     val range: Int = 4,
     val compare: List<Long> = emptyList(),
-    val relative: Boolean = false
+    val relative: Boolean = false,
+    val totals: Boolean = false,
+    val categoryId: Long = 0,
+    val average: Boolean = false
 ) {
-    /** One pin per exercise and graph: pinning it again replaces its settings. */
-    fun sameGraph(o: PinnedGraph): Boolean = exerciseId == o.exerciseId && graph == o.graph
+    /** One pin per graph (and, for totals, per filter): pinning it again replaces its settings. */
+    fun sameGraph(o: PinnedGraph): Boolean =
+        totals == o.totals && exerciseId == o.exerciseId && graph == o.graph && categoryId == o.categoryId
+
+    /** A Workouts pin's filter: one exercise, one category or all training. */
+    val totalsFilter: Analysis.Filter
+        get() = Analysis.Filter(categoryId = categoryId.takeIf { it > 0 }, exerciseId = exerciseId.takeIf { it > 0 })
 
     companion object {
         /**
-         * One pin per line, "exercise|graph|range|compared ids|relative". A line that doesn't parse (or a later build's
-         * format) is skipped, so a bad value can never break the Overview.
+         * One pin per line, "exercise|graph|range|compared ids|relative|totals|category|average" (the last three
+         * optional). A line that doesn't parse (or a later build's format) is skipped, so a bad value can never break
+         * the Overview.
          */
         fun decode(s: String?): List<PinnedGraph> =
             s.orEmpty().lines().mapNotNull { line ->
@@ -63,15 +75,19 @@ data class PinnedGraph(
                     id, graph,
                     p[2].toIntOrNull()?.takeIf { it in RANGES.indices } ?: 4,
                     p.getOrNull(3).orEmpty().split(',').mapNotNull { it.toLongOrNull() }.filter { it != id }.distinct().take(GraphCompare.MAX - 1),
-                    p.getOrNull(4) == "1"
+                    p.getOrNull(4) == "1",
+                    totals = p.getOrNull(5) == "1",
+                    categoryId = p.getOrNull(6)?.toLongOrNull() ?: 0,
+                    average = p.getOrNull(7) == "1"
                 )
-            }.distinctBy { it.exerciseId to it.graph }
+            }.distinctBy { listOf(it.totals, it.exerciseId, it.graph, it.categoryId) }
 
         fun encode(pins: List<PinnedGraph>): String? =
             pins.joinToString("\n") { p ->
                 listOf(
                     p.exerciseId.toString(), p.graph.replace("|", " ").replace("\n", " "), p.range.toString(),
-                    p.compare.joinToString(","), if (p.relative) "1" else "0"
+                    p.compare.joinToString(","), if (p.relative) "1" else "0",
+                    if (p.totals) "1" else "0", p.categoryId.toString(), if (p.average) "1" else "0"
                 ).joinToString("|")
             }.ifEmpty { null }
     }
@@ -145,12 +161,15 @@ fun PinGraphButton(pinned: Boolean, onToggle: () -> Unit) {
 fun AnalysisOverviewTab(snap: Snapshot, onOpen: (PinnedGraph) -> Unit) {
     val all = rememberPins()
     val pins = all.filter { p ->
-        snap.exercises.containsKey(p.exerciseId) && p.graph in graphLabelsFor(snap, p.exerciseId)
+        if (p.totals) {
+            totalsOf(p) != null && (p.exerciseId == 0L || snap.exercises.containsKey(p.exerciseId)) &&
+                (p.categoryId == 0L || snap.categories.containsKey(p.categoryId))
+        } else snap.exercises.containsKey(p.exerciseId) && p.graph in graphLabelsFor(snap, p.exerciseId)
     }
     if (pins.isEmpty()) {
         EmptyState(
             "No pinned graphs yet",
-            "Open any exercise graph, here in Exercises or on the exercise's Graph tab, and tap its star. It appears here with its latest value and change."
+            "Tap the star on a Workouts graph, or on any exercise graph here in Exercises or on the exercise's Graph tab. It appears here with its latest value and change."
         )
         return
     }
@@ -160,7 +179,7 @@ fun AnalysisOverviewTab(snap: Snapshot, onOpen: (PinnedGraph) -> Unit) {
         if (from < 0 || to !in list.indices) list else list.toMutableList().also { it.add(to, it.removeAt(from)) }
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-        itemsIndexed(pins, key = { _, p -> "${p.exerciseId}:${p.graph}" }) { i, p ->
+        itemsIndexed(pins, key = { _, p -> "${p.totals}:${p.exerciseId}:${p.categoryId}:${p.graph}" }) { i, p ->
             PinnedGraphCard(
                 snap, p,
                 onOpen = { onOpen(p) },
@@ -187,28 +206,39 @@ private fun PinnedGraphCard(
     onMoveUp: (() -> Unit)?,
     onMoveDown: (() -> Unit)?
 ) {
-    val name = snap.exercises[pin.exerciseId]?.name ?: "Exercise"
-    val title = "$name · ${pin.graph}"
+    // A Workouts pin (#51) or an exercise graph, with its comparison (#53).
+    val totals = totalsOf(pin)
+    val avgDuration = totals?.first == Analysis.Metric.Duration && pin.average
+    val title = if (totals != null) "${totalsGraphName(totals.first, totals.second)} · ${filterLabel(snap, pin.totalsFilter)}"
+    else "${snap.exercises[pin.exerciseId]?.name ?: "Exercise"} · ${pin.graph}"
     val formula = Records.chosen()
     val series = rememberDerived(
         "pinnedGraph", snap.trainingKey, pin, formula, Records.maxRepsFor(formula)
-    ) { comparedSeries(snap, pin.exerciseId, pin.graph, pin.compare, pin.range, pin.relative) }
-    val (kind, _) = rememberChartKind("exercise:${pin.graph}")
-    val unit = if (pin.relative) "%" else graphUnit(snap, pin.exerciseId, pin.graph)
+    ) {
+        if (totals != null) {
+            val pts = totalsPoints(snap, totals.first, totals.second, pin.totalsFilter, rangeFrom(pin.range), avgDuration)
+            listOf(LineSeries(totals.first.label, pts))
+        } else comparedSeries(snap, pin.exerciseId, pin.graph, pin.compare, pin.range, pin.relative)
+    }
+    val (kind, _) = rememberChartKind(if (totals != null) "analysis:${totals.first.name}" else "exercise:${pin.graph}")
+    val unit = when {
+        totals != null -> totalsUnit(snap, totals.first, avgDuration)
+        pin.relative -> "%"
+        else -> graphUnit(snap, pin.exerciseId, pin.graph)
+    }
+    fun show(v: Double): String =
+        if (totals != null) totalsText(totals.first, avgDuration, unit, v) else graphValueText(pin.graph, v, unit)
     val main = series?.firstOrNull()?.points.orEmpty()
     val summary = when {
         series == null -> "Working it out…"
         main.isEmpty() -> "No data in this range"
         else -> {
-            val show = { v: Double -> graphValueText(pin.graph, v, unit) }
+            // The latest value, then the change in its own unit from the first in the range (never a bare number).
             val first = main.first().y
             val last = main.last().y
             val change = last - first
             val sign = if (change >= 0) "+" else "−"
-            val changeText = if (pin.graph == GRAPH_MAX_PACE) {
-                "$sign${graphValueText(pin.graph, kotlin.math.abs(change), unit)}"
-            } else "$sign${fmtNum(kotlin.math.abs(change), 1)} $unit".trim()
-            "Latest ${show(last)} · $changeText from ${show(first)} (${rangeName(RANGES[pin.range].first)})"
+            "Latest ${show(last)} · $sign${show(kotlin.math.abs(change))} from ${show(first)} (${rangeName(RANGES[pin.range].first)})"
         }
     }
     val moveActions = listOfNotNull(
