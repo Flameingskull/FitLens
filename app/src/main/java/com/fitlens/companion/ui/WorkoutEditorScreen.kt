@@ -470,6 +470,8 @@ fun restLabel(seconds: Int): String = when {
  * or "varies" when its sets each have their own), then the rest before the next exercise. Null when none is set.
  */
 fun restSummary(p: PlannedExercise): String? {
+    // "Copy previous rest" (#151) is one choice for the whole exercise.
+    if (Routines.copiesRest(p)) return "Copy previous rest"
     val setRests = if (p.fill == Routines.FILL_PLANNED) p.sets.mapNotNull { it.restSeconds }.distinct() else emptyList()
     val between = when {
         setRests.size > 1 -> "Rest varies"
@@ -545,11 +547,25 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
     }
     val modes = listOf(Routines.FILL_LAST, Routines.FILL_PLANNED, Routines.FILL_NONE)
     // Prescribed rest (#138). Per-set rests only exist for predefined sets.
+    // "Copy previous rest" (#151) takes every rest from the exercise's most recent workout, as "Copy previous sets"
+    // does for its sets.
+    var copyRest by remember { mutableStateOf(Routines.copiesRest(planned)) }
     var sameRest by remember { mutableStateOf(planned.sets.none { it.restSeconds != null }) }
-    var rest by remember { mutableStateOf(planned.restSeconds) }
-    var restAfter by remember { mutableStateOf(planned.restAfterSeconds) }
+    var rest by remember { mutableStateOf(planned.restSeconds?.takeIf { it > 0 }) }
+    var restAfter by remember { mutableStateOf(planned.restAfterSeconds?.takeIf { it > 0 }) }
     val fallbackRest = ex?.restSeconds ?: Settings.currentPortable().restSeconds
-    val perSet = fill == Routines.FILL_PLANNED && !sameRest
+    val perSet = fill == Routines.FILL_PLANNED && !sameRest && !copyRest
+    // What "Copy previous rest" would copy today, in the same words as the exercise row.
+    val previousRest = remember(snap, planned.exerciseId) {
+        val copying = planned.copy(fill = Routines.FILL_LAST, restSeconds = Routines.REST_PREVIOUS, restAfterSeconds = Routines.REST_PREVIOUS)
+        val r = Routines.resolveRest(snap, copying, "9999-12-31")
+        restSummary(
+            PlannedExercise(
+                planned.exerciseId, Routines.FILL_PLANNED, Routines.resolve(snap, copying, "9999-12-31"),
+                restSeconds = r.restSeconds, restAfterSeconds = r.restAfterSeconds
+            )
+        )
+    }
 
     FitSheet(
         title = ex?.name ?: "Sets",
@@ -567,8 +583,8 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                 planned.copy(
                     fill = fill,
                     sets = if (fill == Routines.FILL_PLANNED) sets else planned.sets.map { it.copy(restSeconds = null) },
-                    restSeconds = if (perSet) null else rest,
-                    restAfterSeconds = restAfter
+                    restSeconds = if (copyRest) Routines.REST_PREVIOUS else if (perSet) null else rest,
+                    restAfterSeconds = if (copyRest) Routines.REST_PREVIOUS else restAfter
                 )
             )
         }
@@ -646,71 +662,92 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
             }
         }
         SectionLabel("Rest", Modifier.padding(top = Spacing.md))
-        if (fill == Routines.FILL_PLANNED) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Same rest for every set", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                Switch(checked = sameRest, onCheckedChange = { sameRest = it })
+        // The same choice as the sets above (#151): copy last time's rest, or set it here.
+        FillChoice(
+            "Copy previous rest",
+            "Automatically copy the rest from the exercise's most recent workout" +
+                (previousRest?.let { ": ${it.replaceFirstChar { c -> c.lowercase() }}." }
+                    ?: ". It had no rest of its own, so its usual rest of ${restLabel(fallbackRest)} applies."),
+            copyRest
+        ) { copyRest = true }
+        FillChoice("Set the rest", "Choose the rest for this exercise in every workout", !copyRest) { copyRest = false }
+        if (!copyRest) {
+            if (fill == Routines.FILL_PLANNED) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Same rest for every set", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    Switch(checked = sameRest, onCheckedChange = { sameRest = it })
+                }
             }
-        }
-        if (perSet) {
-            Text(
-                "Each set's rest is in the rest column above. A blank one uses ${restLabel(fallbackRest)}, this exercise's usual rest.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
+            if (perSet) {
+                Text(
+                    "Each set's rest is in the rest column above. A blank one uses ${restLabel(fallbackRest)}, this exercise's usual rest.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                RestLengthStepper(
+                    seconds = rest ?: fallbackRest,
+                    onChange = { rest = it },
+                    label = "Between sets (seconds)",
+                    isDefault = rest == null,
+                    onDefault = { rest = null }
+                )
+            }
             RestLengthStepper(
-                seconds = rest ?: fallbackRest,
-                onChange = { rest = it },
-                label = "Between sets (seconds)",
-                isDefault = rest == null,
-                onDefault = { rest = null }
+                seconds = restAfter ?: rest ?: fallbackRest,
+                onChange = { restAfter = it },
+                label = "Before the next exercise (seconds)",
+                isDefault = restAfter == null,
+                onDefault = { restAfter = null }
             )
         }
-        RestLengthStepper(
-            seconds = restAfter ?: rest ?: fallbackRest,
-            onChange = { restAfter = it },
-            label = "Before the next exercise (seconds)",
-            isDefault = restAfter == null,
-            onDefault = { restAfter = null }
-        )
     }
 }
 
 /**
  * "Set rest for every exercise" on a day's menu (#138): one rest between sets and one before the next exercise, for
- * every exercise of the day. "Default" leaves either unset.
+ * every exercise of the day. "Default" leaves either unset; "Copy previous rest" (#151) copies each one's last rest.
  */
 @Composable
 private fun DayRestSheet(dayName: String, onDismiss: () -> Unit, onDone: (Int?, Int?) -> Unit) {
     val fallback = Settings.currentPortable().restSeconds
     var rest by remember { mutableStateOf<Int?>(null) }
     var after by remember { mutableStateOf<Int?>(null) }
+    // "Copy previous rest" (#151) for the whole day: each exercise takes its rest from its own last workout.
+    var copyRest by remember { mutableStateOf(false) }
     FitSheet(
         title = "Rest for $dayName",
         onDismiss = onDismiss,
         confirmLabel = "Set for every exercise",
-        onConfirm = { onDone(rest, after) }
+        onConfirm = { if (copyRest) onDone(Routines.REST_PREVIOUS, Routines.REST_PREVIOUS) else onDone(rest, after) }
     ) {
         Text(
             "Replaces the rest set on each exercise and set of this day. Default uses each exercise's usual rest.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        RestLengthStepper(
-            seconds = rest ?: fallback,
-            onChange = { rest = it },
-            label = "Between sets (seconds)",
-            isDefault = rest == null,
-            onDefault = { rest = null }
-        )
-        RestLengthStepper(
-            seconds = after ?: rest ?: fallback,
-            onChange = { after = it },
-            label = "Before the next exercise (seconds)",
-            isDefault = after == null,
-            onDefault = { after = null }
-        )
+        FillChoice(
+            "Copy previous rest",
+            "Each exercise copies the rest from its most recent workout",
+            copyRest
+        ) { copyRest = true }
+        FillChoice("Set the rest", "One rest for every exercise of this day", !copyRest) { copyRest = false }
+        if (!copyRest) {
+            RestLengthStepper(
+                seconds = rest ?: fallback,
+                onChange = { rest = it },
+                label = "Between sets (seconds)",
+                isDefault = rest == null,
+                onDefault = { rest = null }
+            )
+            RestLengthStepper(
+                seconds = after ?: rest ?: fallback,
+                onChange = { after = it },
+                label = "Before the next exercise (seconds)",
+                isDefault = after == null,
+                onDefault = { after = null }
+            )
+        }
     }
 }
 

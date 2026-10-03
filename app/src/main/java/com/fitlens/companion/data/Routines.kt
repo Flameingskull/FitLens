@@ -66,6 +66,34 @@ object Routines {
     const val FILL_PLANNED = 1
     const val FILL_NONE = 2
 
+    /**
+     * "Copy previous rest" (#151), stored in the rest columns in place of a length: the rest between sets, before the
+     * next exercise and after each set comes from the exercise's most recent workout, as "Copy previous sets" does
+     * for its sets. No schema change: a real rest is always at least a second.
+     */
+    const val REST_PREVIOUS = -1
+
+    /** Whether [p] copies its rest from the previous workout (#151). */
+    fun copiesRest(p: PlannedExercise): Boolean = p.restSeconds == REST_PREVIOUS || p.restAfterSeconds == REST_PREVIOUS
+
+    /** The last date before [date] that exercise [exId] was logged, or null. */
+    private fun previousDay(snap: Snapshot, exId: Long, date: String): String? =
+        snap.setsByExercise[exId].orEmpty().filter { it.date < date }.maxOfOrNull { it.date }
+
+    /**
+     * The rest [p] prescribes when logged on [date] (#138). "Copy previous rest" (#151) takes each part from the
+     * exercise's most recent workout before [date]; a part that workout didn't prescribe stays unset, so the
+     * exercise's usual rest applies.
+     */
+    fun resolveRest(snap: Snapshot, p: PlannedExercise, date: String): WorkoutRest {
+        if (!copiesRest(p)) return p.rest
+        val prev = previousDay(snap, p.exerciseId, date)?.let { snap.workoutRests[it.take(10)]?.get(p.exerciseId) }
+        return WorkoutRest(
+            if (p.restSeconds == REST_PREVIOUS) prev?.restSeconds else p.restSeconds,
+            if (p.restAfterSeconds == REST_PREVIOUS) prev?.restAfterSeconds else p.restAfterSeconds
+        )
+    }
+
     const val CREATE_ROUTINE =
         "CREATE TABLE routine(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, notes TEXT, " +
             "sort_order INTEGER NOT NULL DEFAULT 0)"
@@ -278,15 +306,19 @@ object Routines {
     fun resolve(snap: Snapshot, p: PlannedExercise, date: String): List<PlannedSet> {
         if (p.fill == FILL_NONE) return emptyList()
         val history = snap.setsByExercise[p.exerciseId].orEmpty()
-        val lastDay = history.filter { it.date < date }.maxOfOrNull { it.date }
+        val lastDay = previousDay(snap, p.exerciseId, date)
         val previous = if (lastDay == null) emptyList() else history.filter { it.date == lastDay }.map { it.toPlanned() }
-        // Copied sets take the day's prescribed rest, not the rest they were logged with (#138).
-        if (p.fill == FILL_LAST) return previous.map { it.copy(restSeconds = null) }
+        // "Copy previous rest" (#151) keeps each set's rest from last time; otherwise copied sets take the day's
+        // prescribed rest, not the rest they were logged with (#138).
+        val copyRest = copiesRest(p)
+        if (p.fill == FILL_LAST) return previous.map { if (copyRest) it else it.copy(restSeconds = null) }
         return p.sets.mapIndexed { i, s ->
             val before = previous.getOrNull(i) ?: previous.lastOrNull()
-            if (before == null) s else s.copy(
+            val rest = if (copyRest || s.restSeconds == REST_PREVIOUS) previous.getOrNull(i)?.restSeconds else s.restSeconds
+            if (before == null) s.copy(restSeconds = rest) else s.copy(
                 weightKg = if (s.weightKg == 0.0) before.weightKg else s.weightKg,
-                reps = if (s.reps == 0) before.reps else s.reps
+                reps = if (s.reps == 0) before.reps else s.reps,
+                restSeconds = rest
             )
         }.filter { !it.isEmpty }
     }

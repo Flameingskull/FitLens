@@ -119,7 +119,7 @@ fun logWorkoutDay(
     val oldComments = if (replace) snap.exerciseComments[date].orEmpty() else emptyMap()
     val groups = exercises.filter { it.superset > 0 }.associate { it.exerciseId to it.superset }
     // The day's prescribed rest (#138) is kept on the date, for the rest timer.
-    val rests = exercises.associate { it.exerciseId to it.rest }.filterValues { !it.isEmpty }
+    val rests = exercises.associate { it.exerciseId to Routines.resolveRest(snap, it, date) }.filterValues { !it.isEmpty }
     AppScope.scope.launch {
         try {
             if (replace && old.isNotEmpty()) Workouts.deleteHistory(date, date, emptySet())
