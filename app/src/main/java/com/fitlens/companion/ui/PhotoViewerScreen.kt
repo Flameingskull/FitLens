@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
 import android.content.Context
@@ -84,8 +85,9 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
     }
     val pager = rememberPagerState(initialPage = index.coerceIn(0, photos.lastIndex)) { photos.size }
     val current = photos[pager.currentPage.coerceIn(0, photos.lastIndex)]
-    var pickDate by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
+    val state = viewModel<PhotoViewerState>()
+    var pickDate by state.saved("pickDate", false)
+    var confirmDelete by state.saved("confirmDelete", false)
 
     Column(Modifier.fillMaxSize()) {
         BackTopBar(current.date?.let { Dates.long(it) } ?: "No date", onBack = { nav.pop() }) {

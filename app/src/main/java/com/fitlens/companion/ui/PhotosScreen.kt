@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.clickable
 import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.raisedGlass
@@ -80,12 +81,14 @@ private class PhotoSection(val key: String, val title: String, val photos: List<
 fun PhotosScreen(snap: Snapshot, nav: Nav) {
     var poseFilter by rememberSaveable { mutableStateOf("All") }
     var groupBy by rememberSaveable { mutableStateOf("Month") }
-    val selected = remember { mutableStateListOf<Long>() }
+    // The selection and open dialogs come back after rotation or a restart in the background (#37).
+    val state = viewModel<PhotosState>()
+    val selected = state.savedIds("selected")
     val selectedSet by remember { derivedStateOf { selected.toHashSet() } }
-    var menu by remember { mutableStateOf(false) }
-    var poseDialog by remember { mutableStateOf(false) }
-    var dateDialog by remember { mutableStateOf(false) }
-    var deleteDialog by remember { mutableStateOf(false) }
+    var menu by state.saved("menu", false)
+    var poseDialog by state.saved("poseDialog", false)
+    var dateDialog by state.saved("dateDialog", false)
+    var deleteDialog by state.saved("deleteDialog", false)
     val importFiles = rememberPhotoImporter()
     val importFolder = rememberFolderPhotoImporter()
 

@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.animation.AnimatedContent
@@ -112,20 +113,22 @@ private fun shiftDay(date: String, days: Long): String =
 fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     val prefs by Settings.portable.collectAsState()
     val sets = snap.setsByDate[date] ?: emptyList()
-    var addMeasurement by remember { mutableStateOf(false) }
-    var editComment by remember { mutableStateOf(false) }
-    var copyPrevious by remember { mutableStateOf(false) }
-    var copyToDay by remember { mutableStateOf(false) }
-    var moveToDay by remember { mutableStateOf(false) }
-    var deleteWorkout by remember { mutableStateOf(false) }
+    // Open sheets and dialogs come back after rotation or a restart in the background (#37).
+    val state = viewModel<DayState>()
+    var addMeasurement by state.saved("addMeasurement", false)
+    var editComment by state.saved("editComment", false)
+    var copyPrevious by state.saved("copyPrevious", false)
+    var copyToDay by state.saved("copyToDay", false)
+    var moveToDay by state.saved("moveToDay", false)
+    var deleteWorkout by state.saved("deleteWorkout", false)
     // Workouts (#100, #106): add a workout day (or replace the day's sets with one), or save this day as a workout day.
-    var addWorkout by remember { mutableStateOf(false) }
-    var replaceWorkout by remember { mutableStateOf(false) }
-    var saveAsWorkout by remember { mutableStateOf(false) }
-    var editTime by remember { mutableStateOf(false) }
-    var share by remember { mutableStateOf(false) }
-    var copyChooser by remember { mutableStateOf(false) }
-    var restSheet by remember { mutableStateOf(false) }
+    var addWorkout by state.saved("addWorkout", false)
+    var replaceWorkout by state.saved("replaceWorkout", false)
+    var saveAsWorkout by state.saved("saveAsWorkout", false)
+    var editTime by state.saved("editTime", false)
+    var share by state.saved("share", false)
+    var copyChooser by state.saved("copyChooser", false)
+    var restSheet by state.saved("restSheet", false)
     val running = WorkoutClock.running(snap, date)
     val importForDay = rememberPhotoImporter(forcedDate = date)
     val hasWorkout = sets.isNotEmpty() || snap.workoutComments.containsKey(date)
