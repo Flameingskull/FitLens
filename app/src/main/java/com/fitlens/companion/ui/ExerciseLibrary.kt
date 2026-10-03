@@ -6,6 +6,7 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.material3.HorizontalDivider
 import com.fitlens.companion.ui.design.SectionLabel
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.text.style.TextAlign
@@ -364,13 +365,18 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
         routine.days.forEach { d ->
             item(key = d.id) {
                 val isNext = d.id == next?.id
-                // FitNotes lists a routine's days as sections (#143): the day's name in capitals over a rule, with Log
-                // all beside it, then its exercises on the glass.
-                Column(Modifier.fillMaxWidth().padding(top = Spacing.md)) {
-                    Row(Modifier.fillMaxWidth().padding(start = Spacing.lg, end = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                // FitNotes's routine card (#143, its screenshot 19): the day's name with LOG ALL on the right over a
+                // rule, then each exercise with how its sets are filled and a ⋮.
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
+                        .raisedGlass(FitShapes.card)
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(start = Spacing.lg, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            d.name.uppercase() + if (isNext) "  ·  NEXT" else "",
-                            style = MaterialTheme.typography.titleSmall,
+                            d.name + if (isNext) "  ·  Next" else "",
+                            style = MaterialTheme.typography.titleMedium,
                             color = if (isNext) Brand.Gold else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -380,13 +386,14 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
                             onClick = { onLogAll(d) },
                             enabled = d.exercises.isNotEmpty(),
                             modifier = Modifier.heightIn(min = Spacing.touch)
-                        ) { Text("Log all") }
+                        ) { Text("LOG ALL", style = MaterialTheme.typography.labelMedium) }
                     }
-                    Box(Modifier.padding(horizontal = Spacing.lg).fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
                     if (d.exercises.isEmpty()) {
                         Text("No exercises yet", Modifier.padding(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    d.exercises.forEach { p ->
+                    d.exercises.forEachIndexed { i, p ->
+                        if (i > 0) HorizontalDivider(color = Brand.Hairline)
                         Column(
                             Modifier
                                 .fillMaxWidth()
@@ -425,30 +432,33 @@ private fun toggle(picked: MutableList<Long>, id: Long) {
 @Composable
 private fun CategoryList(snap: Snapshot, selectedId: Long?, modifier: Modifier = Modifier, onOpen: (Long) -> Unit) {
     val counts = remember(snap) { snap.exercisesSorted.groupingBy { it.categoryId }.eachCount() }
+    var editing by remember { mutableStateOf<com.fitlens.companion.data.Category?>(null) }
     LazyColumn(modifier, contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         if (snap.favouriteExercises.isNotEmpty()) {
             item(key = "fav") {
-                CategoryRow("Favourites", Brand.Gold, snap.favouriteExercises.size, selectedId == FAVOURITES) { onOpen(FAVOURITES) }
+                CategoryRow("Favourites", snap.favouriteExercises.size, selectedId == FAVOURITES, emptyList()) { onOpen(FAVOURITES) }
             }
         }
         snap.categoriesSorted.forEach { c ->
             item(key = "c${c.id}") {
-                CategoryRow(c.name, categoryColour(c.colour), counts[c.id] ?: 0, selectedId == c.id) { onOpen(c.id) }
+                CategoryRow(c.name, counts[c.id] ?: 0, selectedId == c.id, listOf(MenuAction("Edit category") { editing = c })) { onOpen(c.id) }
             }
         }
         val loose = counts[Workouts.UNCATEGORISED] ?: 0
         if (loose > 0) {
             item(key = "none") {
-                CategoryRow("Uncategorised", MaterialTheme.colorScheme.outline, loose, selectedId == Workouts.UNCATEGORISED) {
+                CategoryRow("Uncategorised", loose, selectedId == Workouts.UNCATEGORISED, emptyList()) {
                     onOpen(Workouts.UNCATEGORISED)
                 }
             }
         }
     }
+    editing?.let { c -> CategoryEditorSheet(snap, existing = c, onDismiss = { editing = null }) }
 }
 
+/** A category as FitNotes lists it (#143, its screenshots 25 and 32): the name and a ⋮, a fine rule under each. */
 @Composable
-private fun CategoryRow(name: String, colour: Color, count: Int, selected: Boolean, onClick: () -> Unit) {
+private fun CategoryRow(name: String, count: Int, selected: Boolean, menu: List<MenuAction>, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -459,15 +469,13 @@ private fun CategoryRow(name: String, colour: Color, count: Int, selected: Boole
                 contentDescription = "$name, ${countOf(count, "exercise")}"
                 this.selected = selected
             }
-            .padding(end = Spacing.lg),
+            .padding(start = Spacing.lg, end = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.width(6.dp).height(Spacing.row).background(colour))
-        Spacer(Modifier.width(Spacing.lg))
-        Text(name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-        Text("$count", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        if (menu.isNotEmpty()) OverflowMenu(menu, description = "Options for $name") else Spacer(Modifier.size(Spacing.touch))
     }
-    GoldHairline()
+    HorizontalDivider(color = Brand.Hairline)
 }
 
 /** A category's exercises, or search results grouped by category. */
@@ -518,6 +526,10 @@ private fun ExerciseList(
                         onOpen = { onOpen(ex) },
                         onPick = { onPick(ex) },
                         menu = listOf(
+                            // FitNotes's row has no star (#143); favourites are set from the menu.
+                            MenuAction(if (ex.favourite) "Remove from favourites" else "Add to favourites") {
+                                AppScope.scope.launch { Workouts.setFavourite(ex.id, !ex.favourite) }
+                            },
                             MenuAction("Edit") { onEdit(ex) },
                             MenuAction("Records and goals", enabled = (snap.workoutsByExercise[ex.id] ?: 0) > 0) { onDetails(ex) },
                             MenuAction("Merge into…") { onMerge(ex) },
@@ -544,11 +556,6 @@ private fun ExerciseRow(
     onPick: () -> Unit,
     menu: List<MenuAction>
 ) {
-    val last = snap.lastUsedByExercise[ex.id]
-    val sub = listOfNotNull(
-        ExerciseTypes.label(ex.type).takeIf { ex.type != ExerciseTypes.WEIGHT_REPS },
-        last?.let { "Last ${Dates.medium(it)}" } ?: "Not logged yet"
-    ).joinToString(" · ")
     Row(
         Modifier
             .fillMaxWidth()
@@ -568,17 +575,20 @@ private fun ExerciseRow(
             Checkbox(checked = order != null, onCheckedChange = null)
             Spacer(Modifier.width(Spacing.sm))
         }
-        Column(Modifier.weight(1f).padding(vertical = Spacing.sm)) {
-            Text(ex.name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(
-                if (order != null) "$sub · ${ordinal(order)}" else sub,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        // As FitNotes lists exercises (#143): the name and a ⋮, a fine rule under each. A favourite keeps a small gold
+        // star after its name; while choosing several, each chosen one shows its place.
+        Row(Modifier.weight(1f).padding(vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+            Text(ex.name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            if (ex.favourite) {
+                Icon(Icons.Filled.Star, contentDescription = "Favourite", tint = Brand.Gold, modifier = Modifier.padding(start = Spacing.xs).size(16.dp))
+            }
+            if (order != null) {
+                Text("  ${ordinal(order)}", style = MaterialTheme.typography.bodySmall, color = Brand.Gold)
+            }
         }
-        FavouriteButton(ex)
         OverflowMenu(menu, description = "Options for ${ex.name}")
     }
+    HorizontalDivider(color = Brand.Hairline)
 }
 
 private fun ordinal(n: Int): String = n.toString() + when {

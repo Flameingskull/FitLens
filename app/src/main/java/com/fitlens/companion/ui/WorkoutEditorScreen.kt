@@ -2,6 +2,12 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.OverflowMenu
+import com.fitlens.companion.ui.design.StepperField
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
@@ -165,7 +171,6 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                SectionTitle("Days")
             }
             days.forEachIndexed { di, day ->
                 item(key = "day-${day.key}") {
@@ -191,14 +196,17 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                 }
             }
             item(key = "add-day") {
-                GlassOutlinedButton(
-                    onClick = { days.add(DayDraft(key(), 0L, "Day ${days.size + 1}", emptyList())) },
-                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md).heightIn(min = Spacing.touch)
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Spacer(Modifier.width(Spacing.sm))
-                    Text("Add day")
-                }
+                // FitNotes's "TAP TO CREATE A NEW DAY" bar under the day cards (#143, its screenshots 26 and 27).
+                Text(
+                    "TAP TO CREATE A NEW DAY",
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
+                        .raisedGlass(FitShapes.row, elevation = 2.dp, inset = 6.dp)
+                        .clickable(onClickLabel = "Create a new day") { days.add(DayDraft(key(), 0L, "Day ${days.size + 1}", emptyList())) }
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
         }
         GoldHairline()
@@ -357,13 +365,18 @@ private fun DayCard(
 ) {
     var menu by remember { mutableStateOf(false) }
     val slots = day.slots
-    // FitNotes edits a routine's days as sections (#143): the day's name in capitals over a gold rule, its + and menu
-    // beside it, then its exercises on the glass.
-    Column(Modifier.fillMaxWidth().padding(top = Spacing.sm)) {
+    // FitNotes's day card (#143, its screenshots 26 and 33): the day's name with + and ⋮ over a rule, then each
+    // exercise with how its sets are filled, its ⋮ and a drag handle.
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
+            .raisedGlass(FitShapes.card)
+    ) {
         Row(Modifier.fillMaxWidth().padding(start = Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                label.uppercase(),
-                style = MaterialTheme.typography.titleSmall,
+                label,
+                style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -386,10 +399,10 @@ private fun DayCard(
                 }
             }
         }
-        Box(Modifier.padding(horizontal = Spacing.lg).fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
         if (slots.isEmpty()) {
             Text(
-                "No exercises yet. Tap + to add one.",
+                "You haven't added any exercises yet",
                 Modifier.padding(Spacing.lg),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -560,56 +573,76 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
             )
         }
     ) {
-        SegmentedSwitch(
-            options = listOf("Copy previous", "Predefined", "None"),
-            selected = modes.indexOf(fill).coerceAtLeast(0),
-            onSelect = { fill = modes[it] }
+        Text(
+            "How would you like the sets for this exercise to be populated?",
+            style = MaterialTheme.typography.bodyLarge
         )
-        when (fill) {
-            Routines.FILL_LAST -> Text(
-                if (last.isEmpty()) "It hasn't been logged yet, so there's nothing to copy. Choose Predefined to plan its sets."
-                else "Each time you log this day, it copies what you did the previous time: ${Routines.describe(snap, last, planned.exerciseId)}.",
-                style = MaterialTheme.typography.bodyMedium,
+        FillChoice(
+            "Copy previous sets",
+            "Automatically copy sets from the exercise's most recent workout" +
+                if (last.isEmpty()) ". It hasn't been logged yet, so there's nothing to copy yet." else ": ${Routines.describe(snap, last, planned.exerciseId)}.",
+            fill == Routines.FILL_LAST
+        ) { fill = Routines.FILL_LAST }
+        FillChoice("Use predefined sets", "Define exactly how sets should be populated in each workout", fill == Routines.FILL_PLANNED) {
+            fill = Routines.FILL_PLANNED
+        }
+        FillChoice("Don't populate any sets", "Record sets for this exercise on-the-fly during each workout", fill == Routines.FILL_NONE) {
+            fill = Routines.FILL_NONE
+        }
+        if (fill == Routines.FILL_PLANNED) {
+            Text(
+                "Leave a field blank if you want the value of that set to automatically copy between workouts.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Routines.FILL_NONE -> Text(
-                "The exercise is added with no sets, ready for you to log them as you go.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            else -> {
-                Text(
-                    "Leave a weight or reps blank to copy it from the previous time.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                rows.forEachIndexed { i, r ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                        Text("${i + 1}", Modifier.width(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (ExerciseTypes.usesWeight(type)) {
-                            SmallField(r.weight, snap.weightUnitOf(planned.exerciseId), KeyboardType.Decimal, Modifier.weight(1f)) { rows[i] = r.copy(weight = it) }
-                        }
-                        if (ExerciseTypes.usesReps(type)) {
-                            SmallField(r.reps, "reps", KeyboardType.Number, Modifier.weight(1f)) { rows[i] = r.copy(reps = it) }
-                        }
-                        if (ExerciseTypes.usesDistance(type)) {
-                            SmallField(r.distance, snap.distanceUnit(planned.exerciseId), KeyboardType.Decimal, Modifier.weight(1f)) { rows[i] = r.copy(distance = it) }
-                        }
-                        if (ExerciseTypes.usesDuration(type)) {
-                            SmallField(r.time, "m:ss", KeyboardType.Text, Modifier.weight(1f)) { rows[i] = r.copy(time = it) }
-                        }
-                        if (perSet) {
-                            SmallField(r.rest, "rest s", KeyboardType.Number, Modifier.weight(1f)) { rows[i] = r.copy(rest = it.filter { c -> c.isDigit() || c == ':' }) }
-                        }
-                        IconButton(onClick = { rows.removeAt(i) }, enabled = rows.size > 1) {
-                            Icon(Icons.Filled.Close, contentDescription = "Remove set ${i + 1}")
-                        }
-                    }
+            val unit = snap.weightUnitOf(planned.exerciseId)
+            val wStep = ex?.weightStepKg?.let { snap.weight(it, planned.exerciseId) } ?: 2.5
+            rows.forEachIndexed { i, r ->
+                // FitNotes's SET N block (its screenshot 20): the set's number and ⋮, then a stepper per field.
+                Row(Modifier.fillMaxWidth().padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    Text("SET ${i + 1}", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                    OverflowMenu(
+                        listOf(
+                            MenuAction("Duplicate set") { rows.add(i + 1, r) },
+                            MenuAction("Remove set", enabled = rows.size > 1) { rows.removeAt(i) }
+                        ),
+                        description = "Options for set ${i + 1}"
+                    )
                 }
-                TextButton(
-                    onClick = { rows.add(rows.lastOrNull() ?: SetDraft()) },
-                    modifier = Modifier.heightIn(min = Spacing.touch)
-                ) { Text("Add set") }
+                HorizontalDivider(color = Brand.Hairline)
+                fun step(text: String, by: Double, digits: Int) = fmtNum(kotlin.math.max(0.0, num(text) + by), digits).let { if (it == "0") "" else it }
+                if (ExerciseTypes.usesWeight(type)) {
+                    StepperField("Weight ($unit)", r.weight, { rows[i] = rows[i].copy(weight = it) }, { d -> rows[i] = rows[i].copy(weight = step(rows[i].weight, d * wStep, 2)) })
+                }
+                if (ExerciseTypes.usesReps(type)) {
+                    StepperField("Reps", r.reps, { rows[i] = rows[i].copy(reps = it) }, { d -> rows[i] = rows[i].copy(reps = step(rows[i].reps, d.toDouble(), 0)) }, keyboard = KeyboardType.Number)
+                }
+                if (ExerciseTypes.usesDistance(type)) {
+                    StepperField("Distance (${snap.distanceUnit(planned.exerciseId)})", r.distance, { rows[i] = rows[i].copy(distance = it) }, { d -> rows[i] = rows[i].copy(distance = step(rows[i].distance, d * 0.5, 2)) })
+                }
+                if (ExerciseTypes.usesDuration(type)) {
+                    StepperField("Time (m:ss)", r.time, { rows[i] = rows[i].copy(time = it) }, { d ->
+                        val next = kotlin.math.max(0, seconds(rows[i].time) + d * 15)
+                        rows[i] = rows[i].copy(time = if (next == 0) "" else fmtDuration(next))
+                    }, keyboard = KeyboardType.Text)
+                }
+                if (perSet) {
+                    StepperField("Rest (seconds)", r.rest, { t -> rows[i] = rows[i].copy(rest = t.filter { c -> c.isDigit() }) }, { d ->
+                        rows[i] = rows[i].copy(rest = (kotlin.math.max(0, (rows[i].rest.toIntOrNull() ?: 0) + d * 5)).takeIf { it > 0 }?.toString() ?: "")
+                    }, keyboard = KeyboardType.Number)
+                }
+            }
+            // FitNotes's ADD SET + row.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Spacing.touch)
+                    .clickable(onClickLabel = "Add set") { rows.add(rows.lastOrNull() ?: SetDraft()) }
+                    .padding(vertical = Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("ADD SET", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                Icon(Icons.Filled.Add, contentDescription = null, tint = Brand.Gold)
             }
         }
         SectionLabel("Rest", Modifier.padding(top = Spacing.md))
@@ -678,6 +711,25 @@ private fun DayRestSheet(dayName: String, onDismiss: () -> Unit, onDone: (Int?, 
             isDefault = after == null,
             onDefault = { after = null }
         )
+    }
+}
+
+/** One of FitNotes's fill choices (its screenshot 23): a radio button, the choice and what it does. */
+@Composable
+private fun FillChoice(title: String, description: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(Spacing.md))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
