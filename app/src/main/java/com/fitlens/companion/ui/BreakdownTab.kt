@@ -9,7 +9,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -96,21 +101,19 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
             }
         }
 
-        // The period stepper: newest first, with only periods that hold training.
+        // The period: newest first, with only periods that hold training.
         if (span == Analysis.Span.Custom) {
             TextButton(onClick = { pickingCustom = true }, modifier = Modifier.padding(horizontal = 4.dp)) {
                 Text(window?.label ?: "Choose dates")
             }
         } else if (windows.isNotEmpty() && span != Analysis.Span.All) {
+            // FitNotes's DATE dropdown (#127): every period that holds training, newest first.
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { windowIdx++ }, enabled = windowIdx < windows.lastIndex) { Text("‹ Earlier") }
-                Text(
-                    window?.label ?: "",
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleSmall,
-                    textAlign = TextAlign.Center
-                )
-                TextButton(onClick = { windowIdx-- }, enabled = windowIdx > 0) { Text("Later ›") }
+                DropdownPill(
+                    label = "Date",
+                    options = windows.map { it.label },
+                    selected = windowIdx.coerceIn(0, windows.lastIndex)
+                ) { i -> windowIdx = i }
             }
         } else if (window != null) {
             Text(window.label, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.titleSmall)
@@ -131,14 +134,25 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End) {
                 ExpandGraphButton { fullScreen = true }
             }
-            DonutChart(
-                donut,
-                selected = sel,
-                onSelect = { sel = it },
-                modifier = Modifier.padding(bottom = 8.dp),
-                valueFormat = donutFormat,
-                onExpand = { ChartHints.expanded(); fullScreen = true }
-            )
+            // FitNotes's up and down arrows beside the donut step through the slices (#127).
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                DonutChart(
+                    donut,
+                    selected = sel,
+                    onSelect = { sel = it },
+                    modifier = Modifier.weight(1f).padding(bottom = 8.dp),
+                    valueFormat = donutFormat,
+                    onExpand = { ChartHints.expanded(); fullScreen = true }
+                )
+                Column(Modifier.padding(end = 4.dp)) {
+                    IconButton(onClick = { sel = (sel - 1 + donut.size) % donut.size }, enabled = donut.size > 1) {
+                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Previous slice", tint = Brand.Gold)
+                    }
+                    IconButton(onClick = { sel = (sel + 1) % donut.size }, enabled = donut.size > 1) {
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Next slice", tint = Brand.Gold)
+                    }
+                }
+            }
             if (fullScreen) {
                 FullScreenDonut(
                     "${measure.label} by ${group.label.lowercase()} · ${window.label}",
