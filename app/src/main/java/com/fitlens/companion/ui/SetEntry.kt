@@ -195,7 +195,7 @@ private fun autoAdvance(snap: Snapshot, nav: Nav, date: String, exerciseId: Long
         val pending = AppScope.scope.launch {
             delay(ADVANCE_DELAY_MS)
             if (stillHere()) {
-                nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
+                nav.replace(Screen.SetEntry(date, next, queue))
                 switched = true
             }
         }
@@ -204,7 +204,7 @@ private fun autoAdvance(snap: Snapshot, nav: Nav, date: String, exerciseId: Long
             AppScope.scope.launch { Workouts.setDone(setId, false) }
             val top = nav.top
             if (switched && top is Screen.SetEntry && top.date == date && top.exerciseId == next) {
-                nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, exerciseId, queue)
+                nav.replace(Screen.SetEntry(date, exerciseId, queue))
             }
         }
     } else {
@@ -347,7 +347,7 @@ fun SetEntryScreen(
                     if (endOfRound) startRestAfterSet(appContext, snap, date, exerciseId, fromSave = true)
                     if (members.size > 1 && at >= 0) {
                         val next = members[(at + 1) % members.size]
-                        if (nav.top is Screen.SetEntry) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next, queue)
+                        if (nav.top is Screen.SetEntry) nav.replace(Screen.SetEntry(date, next, queue))
                     }
                     // The first set of today can start the workout timer (#12), unless a time is already recorded.
                     if (firstOfDay && date == Dates.today() && Settings.currentPortable().workoutTimerAuto &&
@@ -403,12 +403,12 @@ fun SetEntryScreen(
                     current = exerciseId,
                     onOpen = { id ->
                         scope.launch { drawer.close() }
-                        if (id != exerciseId) nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, id)
+                        if (id != exerciseId) nav.replace(Screen.SetEntry(date, id))
                     },
                     onAddExercise = { scope.launch { drawer.close() }; nav.push(Screen.Library(date)) },
                     onDayLog = {
                         scope.launch { drawer.close() }
-                        while (nav.stack.size > 1 && nav.top !is Screen.Day) nav.pop()
+                        while (!nav.atHome && nav.top !is Screen.Day) nav.pop()
                     },
                     onAddToSuperset = {
                         scope.launch { drawer.close() }
@@ -584,7 +584,7 @@ fun SetEntryScreen(
                     // logged workout are reached by auto-advance instead (#136), so the button is only for the rest.
                     if (next != null && next.id !in displayOrder(snap, date)) {
                         GlassOutlinedButton(
-                            onClick = { nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, next.id, queue.drop(1)) },
+                            onClick = { nav.replace(Screen.SetEntry(date, next.id, queue.drop(1))) },
                             modifier = Modifier.fillMaxWidth().height(52.dp)
                         ) {
                             Text(

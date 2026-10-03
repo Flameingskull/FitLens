@@ -135,7 +135,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     fun go(d: String) {
         if (d == date) return
         forward = d > date
-        nav.stack[nav.stack.lastIndex] = Screen.Day(d)
+        nav.replace(Screen.Day(d))
     }
     // The swipe detector is set up once, so it reads the current day through this.
     val step by rememberUpdatedState<(Long) -> Unit>({ days -> go(shiftDay(date, days)) })

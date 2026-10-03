@@ -186,7 +186,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
 
     fun open(ids: List<Long>) {
         if (ids.isEmpty()) return
-        nav.stack[nav.stack.lastIndex] = Screen.SetEntry(date, ids.first(), ids.drop(1))
+        nav.replace(Screen.SetEntry(date, ids.first(), ids.drop(1)))
     }
     fun back() {
         when {

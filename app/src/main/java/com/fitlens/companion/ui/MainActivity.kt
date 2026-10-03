@@ -4,16 +4,15 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import com.fitlens.companion.ui.design.UndoSnackbarHost
 import com.fitlens.companion.ui.design.CharacterBackdrop
@@ -44,7 +43,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,6 +53,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.Dates
@@ -62,40 +65,55 @@ import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.Settings
+import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * Destinations. Navigation follows FitNotes (#79): the day log ([Day]) is home and the root of the stack, and
  * everything else is pushed on top of it and returns with Back. There is no bottom tab bar.
  */
+@Serializable
 sealed interface Screen {
     /** Every day with photos, measurements or a workout (the old Log tab), from the day log's menu. */
+    @Serializable
     data object Timeline : Screen
+    @Serializable
     data object Calendar : Screen
+    @Serializable
     data object Body : Screen
     /** One body measurement (FitNotes's body tracker): Track, History and Graph; [page] is the tab it opens on. */
+    @Serializable
     data class BodyMeasurement(val name: String, val page: Int = 0) : Screen
     /** Every body measurement: on/off, custom ones, the standard set (#88). */
+    @Serializable
     data object Measurements : Screen
     /**
      * Creating ([id] 0) or editing a workout (#106, FitNotes's routine): exercises grouped by user-named days. Reached
      * from the library's title switcher and the day log's Add workout.
      */
+    @Serializable
     data class WorkoutEditor(val id: Long) : Screen
     /** The Analysis hub (#90). */
+    @Serializable
     data object Analysis : Screen
+    @Serializable
     data object Photos : Screen
     /** The day log (#81). At the root of the stack it is the home screen. */
+    @Serializable
     data class Day(val date: String) : Screen
     /** The exercise library (#83), choosing exercises to log on [date] (null: today). */
+    @Serializable
     data class Library(val date: String? = null) : Screen
     /**
      * The exercise screen (#16, #82): Track, History and Graph for one exercise on one day. [queue] holds the exercises
      * chosen together in the library (#83), opened one after another with "Next exercise". [page] is the tab it opens
      * on: 0 Track, 1 History, 2 Graph. [setId] opens Track with that set selected for Update or Delete (#22).
      */
+    @Serializable
     data class SetEntry(
         val date: String,
         val exerciseId: Long,
@@ -104,26 +122,126 @@ sealed interface Screen {
         val setId: Long? = null
     ) : Screen
     /** An exercise's Records, Stats and Goals; [tab] is the one it opens on (2 is Goals, from Analysis, #90). */
+    @Serializable
     data class ExerciseDetail(val id: Long, val tab: Int = 0) : Screen
+    @Serializable
     data class PhotoViewer(val ids: List<Long>, val index: Int) : Screen
+    @Serializable
     data class Compare(val a: Long, val b: Long) : Screen
+    @Serializable
     data class Slideshow(val ids: List<Long>? = null) : Screen
+    @Serializable
     data object Review : Screen
     /** The main Settings screen, opened from the day log's menu (#38). */
+    @Serializable
     data object SettingsHome : Screen
+    @Serializable
     data class SettingsPage(val section: SettingsSection) : Screen
     /** The guided setup (#29): first run, or again from Settings. */
+    @Serializable
     data object Setup : Screen
 }
 
+/**
+ * The one destination in the [NavHost] (#37). [s] is the [Screen] it shows, as JSON, so every destination and its
+ * arguments live in Navigation's back stack, which survives rotation and process death.
+ */
+@Serializable
+data class Route(val s: String)
+
+/**
+ * The back stack, as screens see it: [push], [pop], [home] and [replace] over Navigation Compose (#37). The day log
+ * is the root. [MainActivity] builds it before the [NavHost] exists, so anything asked of it before [attach] (a file
+ * shared to a cold start) waits until then.
+ */
 class Nav {
-    val stack = mutableStateListOf<Screen>(Screen.Day(Dates.today()))
-    val top: Screen get() = stack.last()
-    val atHome: Boolean get() = stack.size == 1
-    fun push(s: Screen) { stack.add(s) }
-    fun pop() { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
+    private var controller: NavHostController? = null
+    private val waiting = ArrayList<(NavHostController) -> Unit>()
+
+    /** The screen on top. State, so screens that read it recompose when it changes. */
+    var top: Screen by mutableStateOf<Screen>(Screen.Day(Dates.today()))
+        private set
+    /** Whether the top screen is the root (the day log as home). */
+    var atHome: Boolean by mutableStateOf(true)
+        private set
+    /** Whether the last move went back towards home, so the screens slide the matching way. */
+    var goingBack = false
+        private set
+
+    fun push(s: Screen) = act { c ->
+        goingBack = false
+        c.navigate(Route(encode(s)))
+    }
+
+    fun pop() = act { c ->
+        if (c.previousBackStackEntry != null) {
+            goingBack = true
+            c.popBackStack()
+        }
+    }
+
     /** Clears the stack back to the day log (home), showing [date]. */
-    fun home(date: String = Dates.today()) { stack.clear(); stack.add(Screen.Day(date)) }
+    fun home(date: String = Dates.today()) = act { c ->
+        goingBack = true
+        c.navigate(Route(encode(Screen.Day(date)))) { popUpTo(c.graph.id) { inclusive = true } }
+    }
+
+    /**
+     * Swaps the top screen for [s]. One of the same kind (another day, the next exercise) keeps the screen in place
+     * without animating, as before; another kind replaces it with the usual slide.
+     */
+    fun replace(s: Screen) = act { c ->
+        val entry = c.currentBackStackEntry
+        if (entry != null && entry.screen()::class == s::class) {
+            entry.savedStateHandle[KEY] = encode(s)
+        } else {
+            goingBack = false
+            c.navigate(Route(encode(s))) { popUpTo<Route> { inclusive = true } }
+        }
+    }
+
+    /** Called once the [NavHost] has its graph: runs anything asked for before then. */
+    fun attach(c: NavHostController) {
+        controller = c
+        sync(c)
+        val queued = waiting.toList()
+        waiting.clear()
+        queued.forEach { it(c) }
+        sync(c)
+    }
+
+    /** Follows the stack after a change made elsewhere (system Back, predictive back). */
+    fun sync(c: NavHostController) {
+        val entry = c.currentBackStackEntry ?: return
+        top = entry.screen()
+        atHome = c.previousBackStackEntry == null
+    }
+
+    private fun act(action: (NavHostController) -> Unit) {
+        val c = controller
+        if (c == null) {
+            waiting.add(action)
+        } else {
+            action(c)
+            sync(c)
+        }
+    }
+
+    companion object {
+        /** The [Route] argument holding the screen; also its key in each entry's saved state. */
+        const val KEY = "s"
+        private val json = Json { ignoreUnknownKeys = true }
+
+        fun encode(s: Screen): String = json.encodeToString(Screen.serializer(), s)
+
+        /** A screen saved by an older version that no longer reads falls back to today's day log. */
+        fun decode(text: String?): Screen =
+            text?.let { runCatching { json.decodeFromString(Screen.serializer(), it) }.getOrNull() }
+                ?: Screen.Day(Dates.today())
+
+        fun NavBackStackEntry.screen(): Screen =
+            decode(savedStateHandle.get<String>(KEY) ?: arguments?.getString(KEY))
+    }
 }
 
 class MainActivity : ComponentActivity() {
@@ -266,9 +384,13 @@ fun AppRoot(nav: Nav) {
             Settings.updateDevice { it.copy(setupDone = true) }
         }
     }
-    val top = nav.top
-    // At the root, Back leaves the app as it does in FitNotes.
-    BackHandler(enabled = !nav.atHome) { nav.pop() }
+    val controller = rememberNavController()
+    // The first screen is today's day log. After rotation or process death Navigation restores the saved stack.
+    val start = remember { Route(Nav.encode(Screen.Day(Dates.today()))) }
+    LaunchedEffect(controller) {
+        nav.attach(controller)
+        controller.currentBackStackEntryFlow.collect { nav.sync(controller) }
+    }
 
     Scaffold(
         // Transparent over the ambient glow the glass surfaces catch (#102).
@@ -283,49 +405,31 @@ fun AppRoot(nav: Nav) {
         Box(Modifier.fillMaxSize().padding(inner).consumeWindowInsets(inner).navigationBarsPadding()) {
             // The full-body character, faint, behind every screen (owner's branding, 2026-10-01).
             CharacterBackdrop()
-            val s = snap
-            if (s == null) {
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
-            } else {
-                val back = remember(nav) { { nav.pop() } }
-                CompositionLocalProvider(LocalNavBack provides back) {
-                // Screens slide in when opened and back out when closed (#86, #93). Replacing the top screen with
-                // one of the same kind (another day, the next exercise) keeps it in place, so it doesn't animate.
-                AnimatedContent(
-                    targetState = top to nav.stack.size,
-                    contentKey = { (screen, depth) -> screen::class to depth },
-                    transitionSpec = {
-                        val dir = if (targetState.second >= initialState.second) 1 else -1
-                        (slideInHorizontally(tween(Motion.STANDARD)) { w -> dir * w / 5 } + fadeIn(tween(Motion.STANDARD))) togetherWith
-                            (slideOutHorizontally(tween(Motion.STANDARD)) { w -> -dir * w / 5 } + fadeOut(tween(Motion.FAST)))
-                    },
-                    label = "screen"
-                ) { (screen, _) ->
-                    when (screen) {
-                        Screen.Timeline -> TimelineScreen(s, nav)
-                        Screen.Calendar -> CalendarScreen(s, nav)
-                        Screen.Body -> BodyScreen(s, nav)
-                        is Screen.BodyMeasurement -> BodyMeasurementScreen(s, nav, screen.name, screen.page)
-                        Screen.Measurements -> MeasurementsScreen(s, nav)
-                        Screen.Analysis -> AnalysisScreen(s, nav)
-                        is Screen.WorkoutEditor -> WorkoutEditorScreen(s, nav, screen.id)
-                        Screen.Photos -> PhotosScreen(s, nav)
-                        is Screen.Day -> DayScreen(s, nav, screen.date)
-                        is Screen.Library -> ExerciseLibraryScreen(s, nav, screen.date)
-                        // A set opened from History is a fresh screen, on Track with that set selected (#22).
-                        is Screen.SetEntry -> key(screen.setId) {
-                            SetEntryScreen(s, nav, screen.date, screen.exerciseId, screen.queue, screen.page, screen.setId)
+            val back = remember(nav) { { nav.pop() } }
+            CompositionLocalProvider(LocalNavBack provides back) {
+                // Screens slide in when opened and back out when closed (#86, #93). Navigation handles Back: a
+                // pushed screen pops, and at the root Back leaves the app as it does in FitNotes.
+                NavHost(
+                    navController = controller,
+                    startDestination = start,
+                    enterTransition = { slideIn(if (nav.goingBack) -1 else 1) },
+                    exitTransition = { slideOut(if (nav.goingBack) -1 else 1) },
+                    popEnterTransition = { slideIn(-1) },
+                    popExitTransition = { slideOut(-1) }
+                ) {
+                    composable<Route> { entry ->
+                        // Replacing a screen with one of its own kind updates this entry's saved state in place.
+                        val text by remember(entry) {
+                            entry.savedStateHandle.getStateFlow(Nav.KEY, entry.arguments?.getString(Nav.KEY) ?: "")
+                        }.collectAsState()
+                        val screen = remember(text) { Nav.decode(text) }
+                        val s = snap
+                        if (s == null) {
+                            Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
+                        } else {
+                            ScreenContent(s, nav, screen)
                         }
-                        is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, screen.id, screen.tab)
-                        is Screen.PhotoViewer -> PhotoViewerScreen(s, nav, screen.ids, screen.index)
-                        is Screen.Compare -> CompareScreen(s, nav, screen.a, screen.b)
-                        is Screen.Slideshow -> SlideshowScreen(s, nav, screen.ids)
-                        Screen.Review -> ReviewScreen(s, nav)
-                        Screen.SettingsHome -> SettingsScreen(s, nav)
-                        is Screen.SettingsPage -> SettingsPageScreen(s, nav, screen.section)
-                        Screen.Setup -> SetupScreen(s, nav)
                     }
-                }
                 }
             }
             if (busy != null) {
@@ -345,5 +449,40 @@ fun AppRoot(nav: Nav) {
             PhotoImportHost()
             toAcknowledge?.let { m -> ResultDialog(m) { toAcknowledge = null } }
         }
+    }
+}
+
+private fun slideIn(dir: Int): EnterTransition =
+    slideInHorizontally(tween(Motion.STANDARD)) { w -> dir * w / 5 } + fadeIn(tween(Motion.STANDARD))
+
+private fun slideOut(dir: Int): ExitTransition =
+    slideOutHorizontally(tween(Motion.STANDARD)) { w -> -dir * w / 5 } + fadeOut(tween(Motion.FAST))
+
+/** The composable for each [Screen]. A new destination adds a [Screen] and a line here. */
+@Composable
+private fun ScreenContent(s: Snapshot, nav: Nav, screen: Screen) {
+    when (screen) {
+        Screen.Timeline -> TimelineScreen(s, nav)
+        Screen.Calendar -> CalendarScreen(s, nav)
+        Screen.Body -> BodyScreen(s, nav)
+        is Screen.BodyMeasurement -> BodyMeasurementScreen(s, nav, screen.name, screen.page)
+        Screen.Measurements -> MeasurementsScreen(s, nav)
+        Screen.Analysis -> AnalysisScreen(s, nav)
+        is Screen.WorkoutEditor -> WorkoutEditorScreen(s, nav, screen.id)
+        Screen.Photos -> PhotosScreen(s, nav)
+        is Screen.Day -> DayScreen(s, nav, screen.date)
+        is Screen.Library -> ExerciseLibraryScreen(s, nav, screen.date)
+        // A set opened from History is a fresh screen, on Track with that set selected (#22).
+        is Screen.SetEntry -> key(screen.setId) {
+            SetEntryScreen(s, nav, screen.date, screen.exerciseId, screen.queue, screen.page, screen.setId)
+        }
+        is Screen.ExerciseDetail -> ExerciseDetailScreen(s, nav, screen.id, screen.tab)
+        is Screen.PhotoViewer -> PhotoViewerScreen(s, nav, screen.ids, screen.index)
+        is Screen.Compare -> CompareScreen(s, nav, screen.a, screen.b)
+        is Screen.Slideshow -> SlideshowScreen(s, nav, screen.ids)
+        Screen.Review -> ReviewScreen(s, nav)
+        Screen.SettingsHome -> SettingsScreen(s, nav)
+        is Screen.SettingsPage -> SettingsPageScreen(s, nav, screen.section)
+        Screen.Setup -> SetupScreen(s, nav)
     }
 }
