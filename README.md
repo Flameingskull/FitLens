@@ -27,8 +27,8 @@ custom metrics.
 - **In progress:** FitNotes is the guide for every screen that does what a FitNotes screen does, so moving across
   feels familiar. A screen-by-screen pass has laid each FitLens screen beside FitNotes and fixed the differences, one
   group of screens per release (1.0.75 to 1.0.79): the day log and workout drawer, the exercise screen's History,
-  records, stats, goals and info, the library and workout editor, the calendar and body tracker, and Analysis and
-  Settings. The FitLens-only photo screens follow the same pattern next ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on
+  records, stats, goals and info, the library and workout editor, the calendar and Body Tracker, Analysis, and the
+  photo screens (1.0.75 to 1.0.84). Settings as FitNotes's single list is next ([#147](https://github.com/Flameingskull/FitLens/issues/147)) ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on
   the [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). After that come the rest of FitNotes
   parity ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
@@ -183,13 +183,13 @@ custom metrics.
     (or a second tap) opens its log, and tapping one of its exercises opens that exercise's **overview** (history,
     graph, records, stats and goals in one sheet). The search button **filters** the calendar by exercise or
     category and weight, reps, distance or time, fading the days that don't match and counting those that do.
-  - **Body tracker:** as in FitNotes, a list of your measurements in your order, each with its latest value, date and
-    change since the value before (coloured by your goal). Tap one to open its own **Track**, **History** and
-    **Graph** tabs, laid out like the exercise screen. **Track** has the day, the value with − and + buttons (starting
-    from your last value), the time and a comment, **Save** and **Clear**, and the day's values below; tap one to
-    **Update** or **Delete** it, with Undo. **History** lists every day newest first with the change each time, and
-    **Graph** has the graph (with a range from the last month to all time), the goal line, photo days and stats
-    (start, latest, change, min, max, weekly rate). The measurement's goal is set from its ⋮ menu.
+  - **Body Tracker:** as in FitNotes, one screen with **Track**, **History** and **Graph** tabs for all your
+    measurements. **Track** lists each one with how long ago it was logged, its latest value and the change since the
+    value before (coloured by your goal), or "Tap to record a value". **History** shows every value, newest day first,
+    for all measurements or one. **Graph** shows one measurement with its range, trend line, goal line, photo days and
+    stats. Tap a measurement to log a value: the day, the value with − and + buttons, the time and a comment, with its
+    own History and Graph. The pencil opens **Measurements**, where each measurement shows its unit and goal and a
+    checkbox turns tracking on or off.
   - **Exercise library:** as in FitNotes, it opens on **All exercises** with the search field always at the top,
     then your categories, then a category's exercises. Tap an exercise to log it, or long-press to choose several and go through them in turn.
   - **Exercise screen:** **Track** (log sets: each field under an uppercase heading, its value between square − and
