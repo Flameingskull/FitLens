@@ -25,10 +25,10 @@ class TrendTest {
 
     @Test
     fun matchesTextbookLeastSquares() {
-        // x 0..4, y 2,4,5,4,5: slope 0.6, intercept 2.2, R² 0.6.
+        // x 0..4, y 2,4,5,4,5: slope 0.6, intercept 2.8 (4 − 0.6 × 2), R² 0.6.
         val t = trendOf(pts(0L to 2.0, 1L to 4.0, 2L to 5.0, 3L to 4.0, 4L to 5.0))!!
         assertEquals(0.6, t.slope, 1e-9)
-        assertEquals(2.2, t.at(0), 1e-9)
+        assertEquals(2.8, t.at(0), 1e-9)
         assertEquals(0.6, t.r2, 1e-9)
     }
 
