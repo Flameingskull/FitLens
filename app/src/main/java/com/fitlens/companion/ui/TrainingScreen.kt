@@ -525,9 +525,9 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             onDismiss = { comparing = null }
         )
         "pick" -> {
-            val items = remember(snap, compare) {
-                exercisePickerItems(snap).filter { it.id != exId && it.id !in compare && snap.setsByExercise[it.id].orEmpty().isNotEmpty() }
-            }
+            // exercisePickerItems is composable (category colours), so it's filtered here rather than remembered.
+            val items = exercisePickerItems(snap)
+                .filter { it.id != exId && it.id !in compare && snap.setsByExercise[it.id].orEmpty().isNotEmpty() }
             SearchablePicker(
                 title = "Compare with",
                 items = items,
