@@ -85,6 +85,13 @@ old history live in the private `Flameingskull/FitLens-private-archive`.
   the library and routine switcher (#83), the exercise screen (#82) and routines (#91, #21, #99). Feature-only builds
   wait until those land.
 
+## Plans (check at the start of every session)
+
+Multi-build plans live in `nimbalyst-local/plans/` (local only, not in git). **At the start of every session, and
+before any build, read each plan there.** Each starts with a `> **Status**` line: what's done, what's left (by issue
+number) and the suggested next command. Continue an unfinished plan unless the owner asks for something else, and
+after every build that advances one, update its Status line in the same session. A plan marked `done` needs no action.
+
 ## Backlog agents
 
 | Agent | Owns | Labels |
