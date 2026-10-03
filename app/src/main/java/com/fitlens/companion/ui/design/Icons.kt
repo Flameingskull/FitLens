@@ -52,6 +52,13 @@ object FitIcons {
             "M19,5H8C6.9,5 6,5.9 6,7v14c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7C21,5.9 20.1,5 19,5zM19,21H8V7h11V21z"
     )
 
+    /** Save and add another (#126), FitNotes's ✓+ beside ✓ on the exercise editor. */
+    val CheckPlus: ImageVector = icon(
+        "FitLens.CheckPlus",
+        "M7,15.17L3.83,12l-1.42,1.41L7,18l9,-9l-1.41,-1.41z" +
+            "M19,3h-2v3h-3v2h3v3h2V8h3V6h-3z"
+    )
+
     /** The 1RM calculator on the Records tab (#142), as FitNotes's calculator. */
     val Calculate: ImageVector = icon(
         "FitLens.Calculate",

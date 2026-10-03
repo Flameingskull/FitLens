@@ -70,6 +70,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.fitlens.companion.ui.design.FitIcons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.Surface
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -694,8 +702,9 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
 // ---------------------------------------------------------------------------------------------------------
 
 /**
- * Creates or edits an exercise, as a sheet (#83). "Add another" saves and keeps the sheet open for the next exercise,
- * with the category kept. [onSaved] runs after a plain save of a new exercise, so the library can open it.
+ * Creates or edits an exercise on its own full screen, as FitNotes does (#83, #126): NAME, NOTES, CATEGORY (with + for
+ * a new one), TYPE and WEIGHT UNIT, then FitLens's own defaults. ✓ saves; ✓+ saves and clears the form for the next
+ * exercise, keeping the category. [onSaved] runs after a plain save of a new exercise, so the library can open it.
  */
 @Composable
 fun ExerciseEditorSheet(
@@ -762,140 +771,162 @@ fun ExerciseEditorSheet(
         }
     }
 
-    FitSheet(
-        title = if (existing == null) "New exercise" else "Edit exercise",
-        onDismiss = onDismiss,
-        confirmLabel = "Save",
-        onConfirm = { save(keepOpen = false) },
-        confirmEnabled = name.isNotBlank(),
-        secondaryLabel = if (existing == null) "Add another" else null,
-        onSecondary = if (existing == null) ({ save(keepOpen = true) }) else null
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false)
     ) {
-        OutlinedTextField(
-            value = name, onValueChange = { name = it }, label = { Text("Name") },
-            singleLine = true, modifier = Modifier.fillMaxWidth()
-        )
-        FieldLabel("Category")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            snap.categoriesSorted.forEach { c ->
-                FilterChip(
-                    selected = categoryId == c.id,
-                    onClick = { categoryId = c.id },
-                    label = { Text(c.name) },
-                    leadingIcon = { Dot(categoryColour(c.colour), 8.dp) }
-                )
-            }
-            FilterChip(
-                selected = categoryId == Workouts.UNCATEGORISED,
-                onClick = { categoryId = Workouts.UNCATEGORISED },
-                label = { Text("Uncategorised") }
-            )
-            FilterChip(selected = false, onClick = { newCategory = true }, label = { Text("New category…") })
-        }
-        // The type decides what each set records (#14): the two main types first, as in FitNotes, then the rest.
-        FieldLabel("Type")
-        val main = listOf(ExerciseTypes.WEIGHT_REPS, ExerciseTypes.DISTANCE_TIME)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            main.forEach { t ->
-                FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
-            }
-        }
-        FieldLabel("More types")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ExerciseTypes.all.filter { it !in main }.forEach { t ->
-                FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
-            }
-        }
-        Text(
-            "For example: ${ExerciseTypes.example(type)}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        if (existing != null && type != existing.type && (snap.workoutsByExercise[existing.id] ?: 0) > 0) {
-            Text(
-                "Sets already logged keep every value. Any value the new type doesn't record still shows in its own column.",
-                style = MaterialTheme.typography.bodySmall,
-                color = Brand.GoldLight
-            )
-        }
-        if (ExerciseTypes.usesWeight(type)) {
-            // Its own weight unit (#7): weights are stored in kg, so a change only converts how they're shown.
-            FieldLabel("Weight unit")
-            DropdownPill(
-                "Weight unit",
-                listOf("As in Settings (${snap.weightUnit})", "Kilograms (kg)", "Pounds (lbs)"),
-                when (weightUnit) { "kg" -> 1; "lbs" -> 2; else -> 0 }
-            ) { i -> weightUnit = when (i) { 1 -> "kg"; 2 -> "lbs"; else -> null } }
-            val shownUnit = weightUnit ?: snap.weightUnit
-            val lbs = shownUnit == "lbs"
-            val steps = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
-            FieldLabel("Weight step")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(selected = stepKg == null, onClick = { stepKg = null }, label = { Text("As in Settings") })
-                steps.forEach { v ->
-                    val kg = WeightUnits.convert(v, shownUnit, "kg")
-                    FilterChip(
-                        selected = stepKg?.let { kotlin.math.abs(it - kg) < 0.001 } == true,
-                        onClick = { stepKg = kg },
-                        label = { Text("${fmtNum(v, 2)} $shownUnit") }
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = Brand.Ivory) {
+            Column(Modifier.fillMaxSize().imePadding()) {
+                FitTopBar(
+                    title = if (existing == null) "New exercise" else "Edit exercise",
+                    onBack = onDismiss,
+                    backLabel = "Close without saving",
+                    actions = listOfNotNull(
+                        TopBarAction(Icons.Filled.Check, "Save", enabled = name.isNotBlank()) { save(keepOpen = false) },
+                        if (existing == null) TopBarAction(FitIcons.CheckPlus, "Save and add another", enabled = name.isNotBlank()) {
+                            save(keepOpen = true)
+                        } else null
                     )
+                )
+                Column(
+                    Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+                ) {
+                    SectionLabel("Name")
+                    OutlinedTextField(
+                        value = name, onValueChange = { name = it },
+                        singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                    SectionLabel("Notes (optional)")
+                    OutlinedTextField(
+                        value = notes, onValueChange = { notes = it },
+                        placeholder = { Text("Form cues, machine settings, links") },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp)
+                    )
+                    SectionLabel("Category")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        snap.categoriesSorted.forEach { c ->
+                            FilterChip(
+                                selected = categoryId == c.id,
+                                onClick = { categoryId = c.id },
+                                label = { Text(c.name) },
+                                leadingIcon = { Dot(categoryColour(c.colour), 8.dp) }
+                            )
+                        }
+                        FilterChip(
+                            selected = categoryId == Workouts.UNCATEGORISED,
+                            onClick = { categoryId = Workouts.UNCATEGORISED },
+                            label = { Text("Uncategorised") }
+                        )
+                        // FitNotes's + beside CATEGORY.
+                        FilterChip(
+                            selected = false,
+                            onClick = { newCategory = true },
+                            label = { Text("New category") },
+                            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                        )
+                    }
+                    // The type decides what each set records (#14): the two main types first, as in FitNotes, then the rest.
+                    SectionLabel("Type")
+                    val main = listOf(ExerciseTypes.WEIGHT_REPS, ExerciseTypes.DISTANCE_TIME)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        main.forEach { t ->
+                            FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
+                        }
+                    }
+                    FieldLabel("More types")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        ExerciseTypes.all.filter { it !in main }.forEach { t ->
+                            FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
+                        }
+                    }
+                    Text(
+                        "For example: ${ExerciseTypes.example(type)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (existing != null && type != existing.type && (snap.workoutsByExercise[existing.id] ?: 0) > 0) {
+                        Text(
+                            "Sets already logged keep every value. Any value the new type doesn't record still shows in its own column.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Brand.GoldLight
+                        )
+                    }
+                    if (ExerciseTypes.usesWeight(type)) {
+                        // Its own weight unit (#7): weights are stored in kg, so a change only converts how they're shown.
+                        SectionLabel("Weight unit")
+                        DropdownPill(
+                            "Weight unit",
+                            listOf("As in Settings (${snap.weightUnit})", "Kilograms (kg)", "Pounds (lbs)"),
+                            when (weightUnit) { "kg" -> 1; "lbs" -> 2; else -> 0 }
+                        ) { i -> weightUnit = when (i) { 1 -> "kg"; 2 -> "lbs"; else -> null } }
+                        val shownUnit = weightUnit ?: snap.weightUnit
+                        val lbs = shownUnit == "lbs"
+                        val steps = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
+                        FieldLabel("Weight step")
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = stepKg == null, onClick = { stepKg = null }, label = { Text("As in Settings") })
+                            steps.forEach { v ->
+                                val kg = WeightUnits.convert(v, shownUnit, "kg")
+                                FilterChip(
+                                    selected = stepKg?.let { kotlin.math.abs(it - kg) < 0.001 } == true,
+                                    onClick = { stepKg = kg },
+                                    label = { Text("${fmtNum(v, 2)} $shownUnit") }
+                                )
+                            }
+                        }
+                    }
+                    // Its own distance unit (#7): distances are kept as typed, so a change relabels them without converting.
+                    if (ExerciseTypes.usesDistance(type) || (existing != null && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 })) {
+                        val global = Settings.portable.collectAsState().value.distanceUnit
+                        FieldLabel("Distance unit")
+                        DropdownPill(
+                            "Distance unit",
+                            listOf("As in Settings ($global)") + DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
+                            distUnit?.let { DistanceUnits.ALL.indexOf(it) + 1 } ?: 0
+                        ) { i -> distUnit = if (i == 0) null else DistanceUnits.ALL[i - 1] }
+                        if (existing != null && distUnit != existing.distanceUnit && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 }) {
+                            Text(
+                                "Distances already logged keep their numbers and are shown in the new unit.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Brand.GoldLight
+                            )
+                        }
+                    }
+                    // Its own rest length (#15), any exact length (#105): the rest timer uses it after this exercise's sets.
+                    // Default follows the rest timer's own length.
+                    FieldLabel("Rest time")
+                    val defaultRest = Settings.portable.collectAsState().value.restSeconds
+                    RestLengthStepper(
+                        seconds = restSec ?: defaultRest,
+                        onChange = { restSec = it },
+                        isDefault = restSec == null,
+                        onDefault = { restSec = null }
+                    )
+                    FieldLabel("Opens on graph")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        graphLabels(type, timeBased = ExerciseTypes.timeBased(type, anyWeightOrReps = false)).forEachIndexed { i, label ->
+                            FilterChip(
+                                selected = defaultGraph == i || (defaultGraph < 0 && i == 0),
+                                onClick = { defaultGraph = i },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                    if (existing?.imported == true) {
+                        Text(
+                            "This exercise came from FitNotes. Editing it makes it FitLens's own; its history is kept and a " +
+                                "later import follows the change.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
-        // Its own distance unit (#7): distances are kept as typed, so a change relabels them without converting.
-        if (ExerciseTypes.usesDistance(type) || (existing != null && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 })) {
-            val global = Settings.portable.collectAsState().value.distanceUnit
-            FieldLabel("Distance unit")
-            DropdownPill(
-                "Distance unit",
-                listOf("As in Settings ($global)") + DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
-                distUnit?.let { DistanceUnits.ALL.indexOf(it) + 1 } ?: 0
-            ) { i -> distUnit = if (i == 0) null else DistanceUnits.ALL[i - 1] }
-            if (existing != null && distUnit != existing.distanceUnit && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 }) {
-                Text(
-                    "Distances already logged keep their numbers and are shown in the new unit.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Brand.GoldLight
-                )
-            }
+        if (newCategory) {
+            CategoryEditorSheet(snap, existing = null, onDismiss = { newCategory = false }) { id -> categoryId = id }
         }
-        // Its own rest length (#15), any exact length (#105): the rest timer uses it after this exercise's sets.
-        // Default follows the rest timer's own length.
-        FieldLabel("Rest time")
-        val defaultRest = Settings.portable.collectAsState().value.restSeconds
-        RestLengthStepper(
-            seconds = restSec ?: defaultRest,
-            onChange = { restSec = it },
-            isDefault = restSec == null,
-            onDefault = { restSec = null }
-        )
-        FieldLabel("Opens on graph")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            graphLabels(type, timeBased = ExerciseTypes.timeBased(type, anyWeightOrReps = false)).forEachIndexed { i, label ->
-                FilterChip(
-                    selected = defaultGraph == i || (defaultGraph < 0 && i == 0),
-                    onClick = { defaultGraph = i },
-                    label = { Text(label) }
-                )
-            }
-        }
-        OutlinedTextField(
-            value = notes, onValueChange = { notes = it },
-            label = { Text("Notes (form cues, machine settings, links)") },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp)
-        )
-        if (existing?.imported == true) {
-            Text(
-                "This exercise came from FitNotes. Editing it makes it FitLens's own; its history is kept and a " +
-                    "later import follows the change.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-
-    if (newCategory) {
-        CategoryEditorSheet(snap, existing = null, onDismiss = { newCategory = false }) { id -> categoryId = id }
     }
 }
 
