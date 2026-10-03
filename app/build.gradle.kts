@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.fitlens.companion"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.fitlens.companion"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 36
         // Each cloud build gets a higher version so it installs as an update over the previous one.
         // FITLENS_BUILD is set by CI (run number + offset); it must only ever increase.
         val build = (System.getenv("FITLENS_BUILD") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()

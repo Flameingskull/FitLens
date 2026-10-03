@@ -352,7 +352,7 @@ GitHub builds a test APK for every pull request.
 ## Build it yourself
 
 The app is native Android: **Kotlin** and **Jetpack Compose** (Material 3), with a local SQLite database. It targets
-Android 15 (API 35) and runs on Android 10 (API 29) or newer.
+Android 16 (API 36) and runs on Android 10 (API 29) or newer.
 
 Open the project in **Android Studio** and click **Run**, or run `./gradlew assembleDebug`. Your own builds are signed
 with your debug key, so Android won't install them over the official release. Test on an emulator or a spare phone.

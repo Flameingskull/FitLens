@@ -158,7 +158,7 @@ Last updated: 1.0.87.
   only) wins over the global unit in `MeasureUnits.display`. The plate list is converted on a unit
   change (`withPlatesConverted`).
 - **Comments** explain why and cite the issue (`// … (#69)`), like the code around them.
-- **Toolchain:** Kotlin 2.0.21, Compose with Material 3, `compileSdk` 35, `minSdk` 29. There's no local Android SDK,
+- **Toolchain:** Kotlin 2.0.21, AGP 8.9.1, Compose with Material 3, `compileSdk` and `targetSdk` 36 (#61), `minSdk` 29. There's no local Android SDK,
   so CI is the compiler.
 - **Tests (#40):** JVM unit tests with Robolectric in `app/src/test` (`./gradlew testDebugUnitTest`), run by CI before
   every release build; a failure stops the release and its names land in `errors.txt`. `data/DbMigrationTest.kt`
