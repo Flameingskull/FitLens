@@ -279,7 +279,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
             when {
                 snap.exercises.isEmpty() -> EmptyState(
                     "Your library is empty",
-                    "Create your own exercises, start from FitLens's starter library, or import a FitNotes backup from Settings → FitNotes import."
+                    "Create your own exercises, start from FitLens's starter library, or import a FitNotes backup from Settings → Import From FitNotes."
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         GoldButton(onClick = { seeding = true }) { Text("Add starter library") }
@@ -966,7 +966,7 @@ private fun DeleteExerciseSheet(snap: Snapshot, ex: Exercise, onDismiss: () -> U
 /**
  * Merges a duplicate exercise into another one (#57): pick the exercise to keep (same type only, so weights never mix
  * with distances or times), confirm what moves, then merge after a safety copy, so it can be undone from
- * Settings → Backups like other bulk changes.
+ * Settings → Backup like other bulk changes.
  */
 @Composable
 private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Unit) {
@@ -1003,7 +1003,7 @@ private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Uni
             "its goals and its places in saved workouts all move across, and ${ex.name} is removed. ${target.name} keeps " +
             "its name, category and settings. Personal records are worked out again, and later FitNotes imports add " +
             "${ex.name}'s history to ${target.name}. A safety copy is taken first, so you can undo this from " +
-            "Settings → Backups for ${Backups.UNDO_DAYS} days.",
+            "Settings → Backup for ${Backups.UNDO_DAYS} days.",
         confirmLabel = "Merge",
         onDismiss = onDismiss,
         onConfirm = {
@@ -1013,7 +1013,7 @@ private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Uni
                 if (!safety.ok) return@runBusy safety
                 try {
                     val n = Workouts.mergeExercises(ex.id, target.id)
-                    ImportSummary("Merged ${ex.name} into ${target.name} (${countOf(n, "set")}). Undo is in Settings → Backups.", ok = true)
+                    ImportSummary("Merged ${ex.name} into ${target.name} (${countOf(n, "set")}). Undo is in Settings → Backup.", ok = true)
                 } catch (e: WorkoutDataException) {
                     ImportSummary(e.message ?: "Couldn't merge those exercises.", ok = false)
                 }

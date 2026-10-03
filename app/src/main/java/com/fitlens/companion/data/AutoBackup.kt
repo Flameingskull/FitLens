@@ -53,7 +53,7 @@ object AutoBackup {
     const val KEY_REASON = "reason"
     const val REASON_SCHEDULED = "scheduled"
     const val REASON_CHANGES = "changes"
-    /** Intent extra: open Settings → Backups. */
+    /** Intent extra: open Settings → Backup. */
     const val EXTRA_OPEN_BACKUPS = "com.fitlens.companion.OPEN_BACKUPS"
     const val THROTTLE_MS = 3600_000L
 

@@ -20,7 +20,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * Settings → FitNotes import: a backup file, or the FitNotes backup folder with optional auto-sync. It replaced the
+ * Settings → Import From FitNotes: a backup file, or the FitNotes backup folder with optional auto-sync. It replaced the
  * Sync tab (#35). The screen showing it also needs a [FitNotesImportHost].
  */
 @Composable

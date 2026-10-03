@@ -85,7 +85,7 @@ data class AppResult(val at: Long, val text: String, val level: ResultLevel)
 object UiEvents {
     val messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 16)
     val busy = MutableStateFlow<String?>(null)
-    /** A backup file opened from outside the app, waiting for Settings → Backups to confirm the restore. */
+    /** A backup file opened from outside the app, waiting for Settings → Backup to confirm the restore. */
     val pendingRestore = MutableStateFlow<android.net.Uri?>(null)
     /** The most recent result above [ResultLevel.Info]. Survives rotation, navigation and process death. */
     val lastResult = MutableStateFlow<AppResult?>(null)
@@ -291,7 +291,7 @@ fun PickDateDialog(initial: String?, onDismiss: () -> Unit, onPicked: (String) -
 /**
  * A result the user has to acknowledge (#62). Restore and backup failures used to share a four-second snackbar
  * with "Backup saved with 12 photos"; here they stay on screen until they have been read, keep any action such as
- * Undo, and remain re-readable in Settings → Backups afterwards.
+ * Undo, and remain re-readable in Settings → Backup afterwards.
  */
 @Composable
 fun ResultDialog(m: UiMessage, onDismiss: () -> Unit) {

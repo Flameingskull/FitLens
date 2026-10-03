@@ -286,7 +286,7 @@ fun SetEntryScreen(
     // Add to superset from the workout drawer (#124).
     var grouping by remember { mutableStateOf(false) }
 
-    // The global step from Settings → Units & display (#7) is stored in kg; the field works in the display unit.
+    // The global step from Settings → Unit System (#7) is stored in kg; the field works in the display unit.
     // This exercise's own step comes first (#15), then the global one.
     // An exercise in its own weight unit (#7) skips the global step, which is sized for the global unit (2.5 kg would
     // step 5.51 lbs), and uses 2.5 in its unit unless it has its own step.

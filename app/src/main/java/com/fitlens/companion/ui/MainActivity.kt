@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
         setContent { FitLensTheme { AppRoot(nav) } }
         lifecycleScope.launch {
             Store.reload()
-            // A result the user hadn't read when the app was closed stays readable in Settings → Backups (#62).
+            // A result the user hadn't read when the app was closed stays readable in Settings → Backup (#62).
             UiEvents.loadLastResult()
             // Safety copies (#47) are kept for a limited time only.
             Backups.pruneSafety(applicationContext)
@@ -207,14 +207,14 @@ class MainActivity : ComponentActivity() {
             when (FitNotesImporter.sniff(this, u)) {
                 FileKind.IMAGE -> images.add(u)
                 FileKind.FITNOTES_BACKUP -> {
-                    // Settings → FitNotes import shows what the backup adds before importing it (#35).
+                    // Settings → Import From FitNotes shows what the backup adds before importing it (#35).
                     openSettingsPage(SettingsSection.Import)
                     FitNotesImports.pending.value = u
                 }
                 FileKind.BODY_CSV -> FitNotesImporter.importBodyCsv(this, u).let { UiEvents.show(it.message, it.level()) }
                 FileKind.WORKOUT_CSV -> UiEvents.show("Workout CSVs aren't needed — share a FitNotes backup (.fitnotes) instead; it contains everything.")
                 FileKind.ARCHIVE -> {
-                    // A .fitlens backup: Settings → Backups checks it and asks before restoring.
+                    // A .fitlens backup: Settings → Backup checks it and asks before restoring.
                     openBackups()
                     UiEvents.pendingRestore.value = u
                 }

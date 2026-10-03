@@ -60,7 +60,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** Settings → Backups: backup files, automatic backups and PDF reports. Everything stays on the device. */
+/** Settings → Backup: backup files, automatic backups and PDF reports. Everything stays on the device. */
 @Composable
 fun BackupsPage(snap: Snapshot) {
     val ctx = LocalContext.current.applicationContext

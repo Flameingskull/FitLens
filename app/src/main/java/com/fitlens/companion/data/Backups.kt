@@ -268,7 +268,7 @@ object Backups {
                         // Nothing further can be done here; the message below tells the user what to do next.
                     }
                     val wayBack = if (runCatching { undoAvailable(context) }.getOrDefault(false)) {
-                        "The safety copy taken just before this restore is still here: use Undo in Settings → Backups " +
+                        "The safety copy taken just before this restore is still here: use Undo in Settings → Backup " +
                             "to put your previous data back."
                     } else {
                         "Check what's there before adding anything new; restoring again is safe."
@@ -564,7 +564,7 @@ object Backups {
                 prune(context, tree)
                 ImportSummary("Automatic backup saved ($photos photos).", true)
             } catch (e: SecurityException) {
-                failed("FitLens lost access to the backup folder. Choose it again in Settings → Backups.", true)
+                failed("FitLens lost access to the backup folder. Choose it again in Settings → Backup.", true)
             } catch (e: java.io.FileNotFoundException) {
                 failed(FOLDER_MISSING, true)
             } catch (e: IllegalArgumentException) {
@@ -576,7 +576,7 @@ object Backups {
     }
 
     private const val FOLDER_MISSING =
-        "The backup folder isn't available. If it's on an SD card, check the card is in; otherwise choose the folder again in Settings → Backups."
+        "The backup folder isn't available. If it's on an SD card, check the card is in; otherwise choose the folder again in Settings → Backup."
 
     private fun prune(context: Context, tree: Uri) {
         val resolver = context.contentResolver

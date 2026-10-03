@@ -61,7 +61,7 @@ import com.fitlens.companion.ui.design.SegmentedSwitch
  * feature: units ([Settings]), automatic backups ([Backups], [AutoBackup]), the FitNotes merge import
  * ([FitNotesImports]), photo import and the starter library.
  *
- * Choosing to restore a FitLens backup ends setup and hands the file to Settings → Backups, which checks it and asks
+ * Choosing to restore a FitLens backup ends setup and hands the file to Settings → Backup, which checks it and asks
  * before replacing anything, because the backup brings its own preferences with it.
  */
 private enum class SetupStep(val title: String) {
@@ -88,7 +88,7 @@ fun SetupScreen(snap: Snapshot, nav: Nav) {
     val restore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             Settings.updateDevice { it.copy(setupDone = true) }
-            // Settings → Backups inspects the file and asks before restoring (BackupsPage).
+            // Settings → Backup inspects the file and asks before restoring (BackupsPage).
             nav.home()
             nav.push(Screen.SettingsHome)
             nav.push(Screen.SettingsPage(SettingsSection.Backups))
@@ -182,7 +182,7 @@ private fun UnitsStep() {
             Settings.updatePortable { it.copy(weightUnit = unit, weightUnitManual = true) }
         }
     )
-    StepText("Weights are stored exactly, so you can switch at any time in Settings → Units & display.")
+    StepText("Weights are stored exactly, so you can switch at any time in Settings → Unit System.")
     DistanceAndLengthSetting(prefs.distanceUnit, prefs.lengthUnit)
     WeekStartSetting(prefs.weekStart)
 }
@@ -198,7 +198,7 @@ private fun BackupsStep() {
         if (uri != null) {
             Backups.setAutoFolder(ctx, uri)
             AutoBackup.schedule(ctx)
-            // So FitLens can say if the backup folder ever becomes unreachable, as in Settings → Backups.
+            // So FitLens can say if the backup folder ever becomes unreachable, as in Settings → Backup.
             if (Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -230,7 +230,7 @@ private fun BackupsStep() {
                 )
             }
         }
-        StepText("How many backups to keep, and backing up after changes, are in Settings → Backups.")
+        StepText("How many backups to keep, and backing up after changes, are in Settings → Backup.")
     }
 }
 
@@ -256,7 +256,7 @@ private fun FitNotesStep(snap: Snapshot) {
     if (last != null) StepStatus("Imported: $last · ${snap.setsByDate.size} workouts, ${snap.sets.size} sets.")
     GoldButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text(if (last == null) "Import a FitNotes backup" else "Import another backup") }
     StepText(
-        "Later imports merge in the same way, from Settings → FitNotes import. Syncing a FitNotes backup folder " +
+        "Later imports merge in the same way, from Settings → Import From FitNotes. Syncing a FitNotes backup folder " +
             "automatically is also there, and is off unless you turn it on."
     )
 }

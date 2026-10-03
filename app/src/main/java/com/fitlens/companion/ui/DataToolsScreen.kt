@@ -269,7 +269,7 @@ private fun DeleteHistorySection(snap: Snapshot) {
             title = "Delete ${plural(matching.size, "set", "sets")}?",
             message = "This deletes $summary for $exerciseLabel, ${range.label}.$fitNotesNote Personal records are " +
                 "worked out again afterwards. A safety copy is taken first, so you can undo this from " +
-                "Settings → Backups for ${Backups.UNDO_DAYS} days.",
+                "Settings → Backup for ${Backups.UNDO_DAYS} days.",
             confirmLabel = "Delete ${plural(matching.size, "set", "sets")}",
             onDismiss = { confirming = false },
             onConfirm = {
@@ -279,7 +279,7 @@ private fun DeleteHistorySection(snap: Snapshot) {
                     val safety = Backups.safetyCopy(ctx, "Before deleting workout history")
                     if (!safety.ok) return@runBusy safety
                     val n = Workouts.deleteHistory(from, to, ids)
-                    ImportSummary("Deleted ${plural(n, "set", "sets")}. Undo is in Settings → Backups.", ok = true)
+                    ImportSummary("Deleted ${plural(n, "set", "sets")}. Undo is in Settings → Backup.", ok = true)
                 }
             }
         )
