@@ -404,6 +404,8 @@ fun GraphOptionChips(
     onFromZero: (() -> Unit)? = null,
     extra: List<ToggleOption> = emptyList(),
     onShare: (() -> Unit)? = null,
+    /** One-off commands in the ⋮ after the share action, such as "Compare exercises…" (#53). */
+    actions: List<MenuAction> = emptyList(),
     /** The chart kind (#137): Line, Bar, Area or Step, as a dropdown after the range. Null hides it. */
     kind: ChartKind? = null,
     onKind: ((ChartKind) -> Unit)? = null,
@@ -428,7 +430,7 @@ fun GraphOptionChips(
                 onFromZero?.let { ToggleOption("Start from zero", fromZero, it) }
             ) + extra,
             // Share the graph as a branded image (#22).
-            actions = listOfNotNull(onShare?.let { MenuAction("Share graph as image", onClick = it) })
+            actions = listOfNotNull(onShare?.let { MenuAction("Share graph as image", onClick = it) }) + actions
         )
         trailing()
     }

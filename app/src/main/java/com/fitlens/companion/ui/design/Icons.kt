@@ -24,6 +24,13 @@ object FitIcons {
         "M20,2H4c-1.1,0 -2,0.9 -2,2v18l4,-4h14c1.1,0 2,-0.9 2,-2V4c0,-1.1 -0.9,-2 -2,-2z"
     )
 
+    /** A graph not pinned to the Analysis overview yet (#55); pinned ones use the filled star. */
+    val StarOutline: ImageVector = icon(
+        "FitLens.StarOutline",
+        "M22,9.24l-7.19,-0.62L12,2 9.19,8.63 2,9.24l5.46,4.73L5.82,21 12,17.27 18.18,21l-1.63,-7.03L22,9.24z" +
+            "M12,15.4l-3.76,2.27 1,-4.28 -3.32,-2.88 4.38,-0.38L12,6.1l1.71,4.04 4.38,0.38 -3.32,2.88 1,4.28L12,15.4z"
+    )
+
     /** A set without a comment yet (#108). */
     val CommentOutline: ImageVector = icon(
         "FitLens.CommentOutline",

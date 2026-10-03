@@ -30,9 +30,20 @@ import com.fitlens.companion.ui.design.ListRowWithMenu
 import com.fitlens.companion.ui.design.PickerPill
 import com.fitlens.companion.ui.design.SearchablePicker
 
-/** The exercise Analysis → Exercises showed last, kept between visits while the app is open (#90). */
+/**
+ * The exercise Analysis → Exercises showed last, kept between visits while the app is open (#90), and a pinned graph
+ * (#55) waiting to be opened there.
+ */
 private object AnalysisChoice {
     var exerciseId: Long? = null
+    var pin: PinnedGraph? = null
+}
+
+/** Shows [pin] in Analysis → Exercises next time it opens (#55): its exercise, graph, range and comparison. */
+internal fun openPinnedGraph(pin: PinnedGraph) {
+    AnalysisChoice.exerciseId = pin.exerciseId
+    AnalysisChoice.pin = pin
+    saveCompare(pin.exerciseId, pin.compare)
 }
 
 /**
@@ -42,6 +53,8 @@ private object AnalysisChoice {
 @Composable
 fun AnalysisExercisesTab(snap: Snapshot, nav: Nav) {
     var exId by rememberSaveable { mutableStateOf(AnalysisChoice.exerciseId) }
+    // A pinned graph opened from the Overview, used once.
+    val pin = remember { AnalysisChoice.pin.also { AnalysisChoice.pin = null } }
     var picking by remember { mutableStateOf(false) }
     val chosen = exId?.takeIf { snap.exercises.containsKey(it) && snap.setsByExercise[it].orEmpty().isNotEmpty() }
     Column(Modifier.fillMaxSize()) {
@@ -55,7 +68,7 @@ fun AnalysisExercisesTab(snap: Snapshot, nav: Nav) {
             )
         } else {
             // A fresh pane per exercise, so it opens on that exercise's own default graph.
-            Box(Modifier.weight(1f)) { key(chosen) { ExerciseGraphPane(snap, nav, chosen) } }
+            Box(Modifier.weight(1f)) { key(chosen) { ExerciseGraphPane(snap, nav, chosen, initial = pin?.takeIf { it.exerciseId == chosen }) } }
         }
     }
     if (picking) {

@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
@@ -53,7 +54,10 @@ import androidx.compose.foundation.layout.Spacer
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalysisScreen(snap: Snapshot, nav: Nav) {
-    var tab by rememberSaveable { mutableIntStateOf(TAB_WORKOUTS) }
+    // Opens on the Overview when graphs are pinned there (#55), otherwise on Workouts, as FitNotes does.
+    var tab by rememberSaveable {
+        mutableIntStateOf(if (PinnedGraph.decode(Settings.portable.value.pinnedGraphs).isNotEmpty()) TAB_OVERVIEW else TAB_WORKOUTS)
+    }
     var addingGoal by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
@@ -72,23 +76,24 @@ fun AnalysisScreen(snap: Snapshot, nav: Nav) {
     }
 }
 
-private const val TAB_WORKOUTS = 0
-private const val TAB_BREAKDOWN = 1
-private const val TAB_EXERCISES = 2
-private const val TAB_GOALS = 3
-private const val TAB_RECORDS = 4
+private const val TAB_OVERVIEW = 0
+private const val TAB_WORKOUTS = 1
+private const val TAB_BREAKDOWN = 2
+private const val TAB_EXERCISES = 3
+private const val TAB_GOALS = 4
+private const val TAB_RECORDS = 5
 
 /**
  * The Analysis hub (#90, the #58 hub), with FitNotes's tabs: Workouts (#51), Breakdown (#52), Exercises (#22's graphs
- * for any exercise), Goals (every exercise goal) and Records (#54). The filter is held here so the Breakdown can open
- * a category or exercise in Workouts.
+ * for any exercise), Goals (every exercise goal) and Records (#54), after FitLens's Overview of pinned graphs (#55).
+ * The filter is held here so the Breakdown can open a category or exercise in Workouts.
  */
 @Composable
 fun AnalysisHub(snap: Snapshot, nav: Nav, tab: Int, onTab: (Int) -> Unit, addingGoal: Boolean, onAddingGoalDone: () -> Unit) {
     var filter by remember { mutableStateOf(Analysis.Filter()) }
     Column(Modifier.fillMaxSize()) {
         FitTabRow(
-            titles = listOf("Workouts", "Breakdown", "Exercises", "Goals", "Records"),
+            titles = listOf("Overview", "Workouts", "Breakdown", "Exercises", "Goals", "Records"),
             selected = tab,
             onSelect = onTab
         )
@@ -96,6 +101,11 @@ fun AnalysisHub(snap: Snapshot, nav: Nav, tab: Int, onTab: (Int) -> Unit, adding
             TAB_RECORDS -> RecordsBoard(snap, nav)
             TAB_GOALS -> AnalysisGoalsTab(snap, nav, addingGoal, onAddingGoalDone)
             TAB_EXERCISES -> AnalysisExercisesTab(snap, nav)
+            // A pinned card opens its graph, with its settings, in Exercises.
+            TAB_OVERVIEW -> AnalysisOverviewTab(snap) { pin ->
+                openPinnedGraph(pin)
+                onTab(TAB_EXERCISES)
+            }
             TAB_BREAKDOWN -> BreakdownTab(snap, nav) { f ->
                 filter = f
                 onTab(TAB_WORKOUTS)

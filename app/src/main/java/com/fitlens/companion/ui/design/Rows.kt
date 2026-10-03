@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -120,8 +121,6 @@ fun ListRowWithMenu(
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null
 ) {
-    val up by rememberUpdatedState(onMoveUp)
-    val down by rememberUpdatedState(onMoveDown)
     val tap = onClick
     val moveActions = listOfNotNull(
         onMoveUp?.let { f -> CustomAccessibilityAction("Move up") { f(); true } },
@@ -149,34 +148,44 @@ fun ListRowWithMenu(
             }
         }
         if (menu.isNotEmpty()) OverflowMenu(menu, description = "Options for $title")
-        if (onMoveUp != null || onMoveDown != null) {
-            Box(
-                Modifier
-                    .size(Spacing.touch)
-                    .semantics { contentDescription = "Drag to reorder $title" }
-                    .pointerInput(Unit) {
-                        var total = 0f
-                        detectVerticalDragGestures(
-                            onDragStart = { total = 0f },
-                            onDragEnd = { total = 0f },
-                            onDragCancel = { total = 0f }
-                        ) { change, dragAmount ->
-                            change.consume()
-                            total += dragAmount
-                            val stepPx = Spacing.row.toPx()
-                            if (total <= -stepPx) {
-                                up?.invoke()
-                                total += stepPx
-                            } else if (total >= stepPx) {
-                                down?.invoke()
-                                total -= stepPx
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Menu, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        if (onMoveUp != null || onMoveDown != null) DragHandle(title, Spacing.row, onMoveUp, onMoveDown)
+    }
+}
+
+/**
+ * A 48dp drag handle for reordering a list: dragging it by [step] (the height of one item) calls [onMoveUp] or
+ * [onMoveDown]. The caller reorders its list in the callbacks and gives the item TalkBack "Move up" / "Move down"
+ * actions, as [ListRowWithMenu] does.
+ */
+@Composable
+fun DragHandle(title: String, step: Dp, onMoveUp: (() -> Unit)?, onMoveDown: (() -> Unit)?) {
+    val up by rememberUpdatedState(onMoveUp)
+    val down by rememberUpdatedState(onMoveDown)
+    Box(
+        Modifier
+            .size(Spacing.touch)
+            .semantics { contentDescription = "Drag to reorder $title" }
+            .pointerInput(Unit) {
+                var total = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = { total = 0f },
+                    onDragCancel = { total = 0f }
+                ) { change, dragAmount ->
+                    change.consume()
+                    total += dragAmount
+                    val stepPx = step.toPx()
+                    if (total <= -stepPx) {
+                        up?.invoke()
+                        total += stepPx
+                    } else if (total >= stepPx) {
+                        down?.invoke()
+                        total -= stepPx
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Filled.Menu, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
