@@ -82,6 +82,7 @@ fun <T> inRange(items: List<T>, range: Long, dateOf: (T) -> String): List<T> {
  * first, filtered to one measurement or All; Graph shows one measurement, chosen from a dropdown. The pencil opens
  * Measurements and ⋮ reorders. Tapping a measurement opens it to log or edit a value ([BodyMeasurementScreen]).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BodyScreen(snap: Snapshot, nav: Nav) {
     // Every enabled measurement, logged or not, as FitNotes lists them.
