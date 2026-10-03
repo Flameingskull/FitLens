@@ -27,6 +27,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.draw.alpha
+import androidx.compose.material3.TriStateCheckbox
+import androidx.compose.foundation.selection.triStateToggleable
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +56,121 @@ import kotlinx.coroutines.launch
  */
 
 private fun plural(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
+
+/**
+ * FitNotes's Copy Workout dialog (#148): one menu entry, three choices, each with a line of explanation. Every choice
+ * opens its FitLens sheet, which keeps the review step and Undo.
+ */
+@Composable
+fun CopyWorkoutSheet(hasSets: Boolean, hasWorkout: Boolean, onDismiss: () -> Unit, onChoose: (CopyChoice) -> Unit) {
+    FitSheet(title = "Copy workout", onDismiss = onDismiss) {
+        CopyChoiceRow("Copy This Workout", "Copy sets from the current workout to a different day", hasSets) { onChoose(CopyChoice.COPY_THIS) }
+        GoldHairline()
+        CopyChoiceRow("Move This Workout", "Move sets from the current workout to a different day", hasWorkout) { onChoose(CopyChoice.MOVE_THIS) }
+        GoldHairline()
+        CopyChoiceRow("Copy Previous Workout", "Copy sets from a previous workout into the current day", true) { onChoose(CopyChoice.COPY_PREVIOUS) }
+    }
+}
+
+enum class CopyChoice { COPY_THIS, MOVE_THIS, COPY_PREVIOUS }
+
+@Composable
+private fun CopyChoiceRow(title: String, summary: String, enabled: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.row)
+            .clickable(enabled = enabled, onClick = onClick)
+            .alpha(if (enabled) 1f else 0.45f)
+            .padding(vertical = Spacing.sm)
+    ) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * FitNotes's set checklist (#148), shared by Share Workout and Create Workout: Select All, then each exercise as an
+ * uppercase heading with its own checkbox, then its sets with a checkbox each. An exercise's box is part-ticked when
+ * only some of its sets are.
+ */
+@Composable
+internal fun SetChecklist(snap: Snapshot, date: String, ticked: Set<Long>, onTicked: (Set<Long>) -> Unit) {
+    val sets = snap.setsByDate[date].orEmpty()
+    val byExercise = remember(sets) {
+        sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }
+            .map { (exId, own) -> exId to own.sortedBy { it.position } }
+    }
+    val all = remember(sets) { sets.map { it.id }.toSet() }
+    ChecklistHeading("Select All", stateOf(ticked, all), bold = false) {
+        onTicked(if (all.all { it in ticked }) ticked - all else ticked + all)
+    }
+    byExercise.forEach { (exId, own) ->
+        val ids = own.map { it.id }.toSet()
+        ChecklistHeading((snap.exercises[exId]?.name ?: "Exercise").uppercase(), stateOf(ticked, ids), bold = true) {
+            onTicked(if (ids.all { it in ticked }) ticked - ids else ticked + ids)
+        }
+        val fields = setFields(snap, exId, own)
+        own.forEachIndexed { i, s ->
+            val on = s.id in ticked
+            val cells = setCells(snap, fields, s)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = Spacing.touch)
+                    .toggleable(value = on, role = Role.Checkbox, onValueChange = { onTicked(if (it) ticked + s.id else ticked - s.id) })
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "Set ${i + 1}, " + cells.joinToString(", ") { it.spoken } + if (s.isPr) ", personal record" else ""
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(Modifier.weight(0.6f))
+                cells.forEach { c ->
+                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.Bottom) {
+                        Text(c.value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                        if (c.unit.isNotEmpty()) {
+                            Text(" ${c.unit}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
+                    }
+                }
+                Checkbox(checked = on, onCheckedChange = null, modifier = Modifier.padding(start = Spacing.sm))
+            }
+        }
+    }
+}
+
+private fun stateOf(ticked: Set<Long>, ids: Set<Long>): ToggleableState {
+    val n = ids.count { it in ticked }
+    return when {
+        n == 0 -> ToggleableState.Off
+        n == ids.size -> ToggleableState.On
+        else -> ToggleableState.Indeterminate
+    }
+}
+
+@Composable
+private fun ChecklistHeading(title: String, state: ToggleableState, bold: Boolean, onClick: () -> Unit) {
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = Spacing.row)
+                .triStateToggleable(state = state, role = Role.Checkbox, onClick = onClick),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                title,
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            TriStateCheckbox(state = state, onClick = null)
+        }
+        GoldHairline()
+    }
+}
 
 /** Adds, edits or removes the comment on a whole workout. */
 @Composable

@@ -292,8 +292,10 @@ object Routines {
     }
 
     /** A logged date as a workout day's exercises: in the order first logged, each with that date's sets. */
-    fun fromDate(snap: Snapshot, date: String, fill: Int): List<PlannedExercise> =
+    fun fromDate(snap: Snapshot, date: String, fill: Int, only: Set<Long>? = null): List<PlannedExercise> =
         snap.setsByDate[date].orEmpty()
+            // Create Workout's checklist (#148) can leave sets out.
+            .filter { only == null || it.id in only }
             .groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }
             .map { (exId, sets) ->
                 // The logged workout's prescribed rest (#138) comes along when a date is saved as a workout day.

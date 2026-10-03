@@ -124,6 +124,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var saveAsWorkout by remember { mutableStateOf(false) }
     var editTime by remember { mutableStateOf(false) }
     var share by remember { mutableStateOf(false) }
+    var copyChooser by remember { mutableStateOf(false) }
     var restSheet by remember { mutableStateOf(false) }
     val running = WorkoutClock.running(snap, date)
     val importForDay = rememberPhotoImporter(forcedDate = date)
@@ -156,13 +157,12 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 if (date != Dates.today()) MenuAction("Go to today") { go(Dates.today()) } else null,
                 MenuAction("Add workout") { addWorkout = true },
                 MenuAction("Replace this workout", enabled = sets.isNotEmpty()) { replaceWorkout = true },
-                MenuAction("Save as a workout day", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
+                MenuAction("Create workout from this day", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
                 MenuAction(if (running != null) "Stop workout timer" else "Workout time") {
                     if (running != null) WorkoutClock.stop(date, running) else editTime = true
                 },
-                MenuAction("Copy previous workout") { copyPrevious = true },
-                MenuAction("Copy this workout to another day", enabled = sets.isNotEmpty()) { copyToDay = true },
-                MenuAction("Move this workout to another day", enabled = hasWorkout) { moveToDay = true },
+                // FitNotes's single Copy Workout entry (#148) offers copy, move and copy previous.
+                MenuAction("Copy workout") { copyChooser = true },
                 MenuAction("Share workout", enabled = sets.isNotEmpty()) { share = true },
                 MenuAction("Delete this workout", enabled = hasWorkout) { deleteWorkout = true },
                 MenuAction("Add photos to this day") { importForDay() },
@@ -226,13 +226,23 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
 
     if (addMeasurement) AddMeasurementDialog(snap, date) { addMeasurement = false }
     if (editComment) WorkoutCommentSheet(snap, date) { editComment = false }
+    if (copyChooser) {
+        CopyWorkoutSheet(hasSets = sets.isNotEmpty(), hasWorkout = hasWorkout, onDismiss = { copyChooser = false }) { choice ->
+            copyChooser = false
+            when (choice) {
+                CopyChoice.COPY_THIS -> copyToDay = true
+                CopyChoice.MOVE_THIS -> moveToDay = true
+                CopyChoice.COPY_PREVIOUS -> copyPrevious = true
+            }
+        }
+    }
     if (copyPrevious) CopyPreviousWorkoutSheet(snap, date) { copyPrevious = false }
     if (copyToDay) CopyOrMoveWorkoutSheet(snap, date, move = false) { copyToDay = false }
     if (moveToDay) CopyOrMoveWorkoutSheet(snap, date, move = true) { moveToDay = false }
     if (deleteWorkout) DeleteWorkoutSheet(snap, date) { deleteWorkout = false }
     if (addWorkout) AddWorkoutSheet(snap, nav, date, replace = false) { addWorkout = false }
     if (replaceWorkout) AddWorkoutSheet(snap, nav, date, replace = true) { replaceWorkout = false }
-    if (saveAsWorkout) SaveAsWorkoutSheet(snap, date) { saveAsWorkout = false }
+    if (saveAsWorkout) SaveAsWorkoutSheet(snap, nav, date) { saveAsWorkout = false }
     if (editTime) WorkoutTimeSheet(snap, date) { editTime = false }
     if (share) ShareWorkoutSheet(snap, date) { share = false }
     if (restSheet) RestTimerSheet { restSheet = false }

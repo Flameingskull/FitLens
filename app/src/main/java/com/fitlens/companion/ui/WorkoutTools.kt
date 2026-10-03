@@ -31,6 +31,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.fitlens.companion.ui.design.SectionLabel
+import com.fitlens.companion.ui.design.OptionsMenu
+import com.fitlens.companion.ui.design.MenuAction
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.semantics.Role
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
@@ -97,8 +106,9 @@ fun rememberElapsed(start: String): Long {
 }
 
 /**
- * The workout's start and finish (#84): set either with a time picker, start the timer now, or stop it. The duration
- * shows live. A day with more than one imported time range is replaced by the single range saved here.
+ * Workout Time, as FitNotes's (#84, #148): the date with a ⋮ menu, Start Time and End Time fields (each opens a time
+ * picker), Start Timer (or Stop Timer while one runs), then Close and Save. FitLens adds the live duration. A day with
+ * more than one imported time range is replaced by the single range saved here.
  */
 @Composable
 fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
@@ -106,7 +116,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val first = times.firstOrNull()
     var start by remember { mutableStateOf(first?.start?.takeIf { it.isNotBlank() }) }
     var end by remember { mutableStateOf(first?.end?.takeIf { it.isNotBlank() }) }
-    var picking by remember { mutableStateOf<Boolean?>(null) } // true: start, false: finish
+    var picking by remember { mutableStateOf<Boolean?>(null) } // true: start, false: end
     val isToday = date == Dates.today()
     val s = start
     val e = end
@@ -128,34 +138,42 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     FitSheet(
         title = "Workout time",
         onDismiss = onDismiss,
-        confirmLabel = "Save time",
+        dismissLabel = "Close",
+        confirmLabel = "Save",
         confirmEnabled = s != null && (e == null || e >= s),
         onConfirm = { save(s, e) }
     ) {
-        Text(Dates.long(date).uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            if (secs > 0) fmtDuration(secs.toInt()) else "—",
-            style = MaterialTheme.typography.displaySmall,
-            color = Brand.Gold
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            GlassOutlinedButton(onClick = { picking = true }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) {
-                Text("Start ${s?.drop(11)?.take(5) ?: "--:--"}")
-            }
-            GlassOutlinedButton(onClick = { picking = false }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch), enabled = s != null) {
-                Text("Finish ${e?.drop(11)?.take(5) ?: "--:--"}")
-            }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(Dates.long(date), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            OptionsMenu(
+                options = emptyList(),
+                description = "Workout time options",
+                actions = listOf(
+                    MenuAction("Clear the time", enabled = times.isNotEmpty() || s != null) { save(null, null) },
+                    MenuAction("End time now", enabled = s != null && isToday) { end = WorkoutClock.now() }
+                )
+            )
+        }
+        GoldHairline()
+        TimeField("Start Time", s) { picking = true }
+        TimeField("End Time", e, enabled = s != null) { picking = false }
+        if (secs > 0) {
+            Text(
+                "Duration ${fmtDuration(secs.toInt())}",
+                style = MaterialTheme.typography.titleMedium,
+                color = Brand.Gold
+            )
         }
         if (isToday) {
             when {
                 s == null || e != null -> GoldButton(
                     onClick = { askNotify(); save(WorkoutClock.now(), null); UiEvents.show("Workout timer started") },
                     modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
-                ) { Text("Start timer now") }
+                ) { Text("Start Timer") }
                 else -> GoldButton(
                     onClick = { onDismiss(); WorkoutClock.stop(date, s) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
-                ) { Text("Stop timer") }
+                ) { Text("Stop Timer") }
             }
         }
         if (times.size > 1) {
@@ -165,11 +183,6 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        if (s != null) {
-            TextButton(onClick = { save(null, null) }, modifier = Modifier.heightIn(min = Spacing.touch)) {
-                Text("Clear the time", color = MaterialTheme.colorScheme.error)
-            }
-        }
     }
 
     picking?.let { isStart ->
@@ -177,7 +190,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         val state = rememberTimePickerState(current.hour, current.minute, is24Hour = true)
         AlertDialog(
             onDismissRequest = { picking = null },
-            title = { Text(if (isStart) "Start time" else "Finish time") },
+            title = { Text(if (isStart) "Start time" else "End time") },
             text = { TimePicker(state = state, colors = fitTimePickerColors()) },
             confirmButton = {
                 TextButton(onClick = {
@@ -191,11 +204,36 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     }
 }
 
+/** One of Workout Time's fields: its label in bold, then the time over an underline, as FitNotes's text field. */
+@Composable
+private fun TimeField(label: String, stamp: String?, enabled: Boolean = true, onClick: () -> Unit) {
+    val time = stamp?.drop(11)?.take(5)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.row)
+            .clickable(enabled = enabled, onClickLabel = "Set $label") { onClick() }
+            .alpha(if (enabled) 1f else 0.45f)
+            .semantics(mergeDescendants = true) { stateDescription = time ?: "Not set" }
+            .padding(vertical = Spacing.xs)
+    ) {
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(
+            time ?: "",
+            Modifier.fillMaxWidth().padding(top = Spacing.xs, start = Spacing.xs),
+            style = MaterialTheme.typography.titleLarge,
+            color = Brand.Gold
+        )
+        GoldHairline()
+    }
+}
+
 /**
  * Shares the workout on [date] through Android's share sheet (#11, #84), as plain text or as a branded image (black
  * and gold, drawn by [ShareImages]). A checklist of exercises and their sets, all ticked, picks what's shared;
  * options cover the date, duration, comment and PR marks. The image includes one of the day's progress photos only
- * when it's chosen. Body values are never included.
+ * when it's chosen. Body values are never included. Laid out as FitNotes's (#148): the set checklist, with the
+ * options behind Options.
  */
 @Composable
 fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
@@ -260,11 +298,16 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         )
     }
 
+    // FitNotes's Share Workout (#148): the set checklist, then Cancel, Options and Share. FitLens's extras (text or
+    // image, what to include, a progress photo) live behind Options.
+    var options by remember { mutableStateOf(false) }
     FitSheet(
         title = "Share workout",
         onDismiss = onDismiss,
-        confirmLabel = if (asImage) "Share image" else "Share",
+        confirmLabel = "Share",
         confirmEnabled = ticked.isNotEmpty(),
+        secondaryLabel = "Options",
+        onSecondary = { options = true },
         onConfirm = {
             if (asImage) {
                 val c = card()
@@ -290,70 +333,30 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             }
         }
     ) {
-        SegmentedSwitch(options = listOf("Text", "Image"), selected = if (asImage) 1 else 0, onSelect = { asImage = it == 1 })
-        Text("INCLUDE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
-        ) {
-            FilterChip(selected = withDate, onClick = { withDate = !withDate }, label = { Text("Date") })
-            FilterChip(selected = withDuration, onClick = { withDuration = !withDuration }, label = { Text("Duration") })
-            FilterChip(selected = withComment, onClick = { withComment = !withComment }, label = { Text("Comment") })
-            FilterChip(selected = withPrs, onClick = { withPrs = !withPrs }, label = { Text("PR marks") })
-        }
-        // A progress photo goes on the image only when one is chosen here (#11).
-        if (asImage && photos.isNotEmpty()) {
-            Text("PROGRESS PHOTO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            DropdownPill(
-                "Progress photo",
-                listOf("No photo") + photos.mapIndexed { i, p -> "Photo ${i + 1}" + if (p.pose.isNotBlank()) " · ${p.pose}" else "" },
-                photoIdx + 1
-            ) { i -> photoIdx = i - 1 }
-        }
-        Text("EXERCISES AND SETS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        exercises.forEach { exId ->
-            val own = setsOf(exId)
-            val count = own.count { it.id in ticked }
-            val state = when (count) {
-                0 -> ToggleableState.Off
-                own.size -> ToggleableState.On
-                else -> ToggleableState.Indeterminate
-            }
+        SetChecklist(snap, date, ticked) { ticked = it }
+    }
+    if (options) {
+        FitSheet(title = "Share options", onDismiss = { options = false }, dismissLabel = "Done") {
+            SectionLabel("Share as")
+            SegmentedSwitch(options = listOf("Text", "Image"), selected = if (asImage) 1 else 0, onSelect = { asImage = it == 1 })
+            SectionLabel("Include")
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = Spacing.row)
-                    .triStateToggleable(state = state, role = Role.Checkbox, onClick = {
-                        val ids = own.map { it.id }.toSet()
-                        ticked = if (state == ToggleableState.On) ticked - ids else ticked + ids
-                    }),
-                verticalAlignment = Alignment.CenterVertically
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                TriStateCheckbox(state = state, onClick = null)
-                Text(
-                    "${snap.exercises[exId]?.name ?: "Exercise"} · $count of ${own.size} sets",
-                    Modifier.padding(start = Spacing.sm)
-                )
+                FilterChip(selected = withDate, onClick = { withDate = !withDate }, label = { Text("Date") })
+                FilterChip(selected = withDuration, onClick = { withDuration = !withDuration }, label = { Text("Duration") })
+                FilterChip(selected = withComment, onClick = { withComment = !withComment }, label = { Text("Comment") })
+                FilterChip(selected = withPrs, onClick = { withPrs = !withPrs }, label = { Text("PR marks") })
             }
-            own.forEachIndexed { i, s ->
-                val on = s.id in ticked
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = Spacing.touch)
-                        .padding(start = Spacing.xl)
-                        .toggleable(value = on, role = Role.Checkbox, onValueChange = { ticked = if (it) ticked + s.id else ticked - s.id }),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(checked = on, onCheckedChange = null)
-                    Text(
-                        "${i + 1}. ${describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId)}" +
-                            if (s.isPr) "  · PR" else "",
-                        Modifier.padding(start = Spacing.sm),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+            // A progress photo goes on the image only when one is chosen here (#11).
+            if (asImage && photos.isNotEmpty()) {
+                SectionLabel("Progress photo")
+                DropdownPill(
+                    "Progress photo",
+                    listOf("No photo") + photos.mapIndexed { i, p -> "Photo ${i + 1}" + if (p.pose.isNotBlank()) " · ${p.pose}" else "" },
+                    photoIdx + 1
+                ) { i -> photoIdx = i - 1 }
             }
         }
     }

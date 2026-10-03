@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.fitlens.companion.ui.design.SectionLabel
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import com.fitlens.companion.data.Dates
@@ -340,14 +341,16 @@ private fun ReviewWorkoutSheet(
 // ---------------------------------------------------------------------------------------------------------
 
 /**
- * Saves the workout logged on [date] as a workout day (#100, #106): a new workout, a new day of an existing one, or
- * in place of an existing day's exercises. Each exercise keeps these sets as predefined sets or copies the previous
- * time. Everything can be undone.
+ * FitNotes's Create Workout (#100, #106, #148): the logged sets as a checklist (Select All, each exercise, each set),
+ * then where they go: a new workout, a new day of an existing one, or in place of an existing day's exercises. Each
+ * exercise keeps the ticked sets as predefined sets or copies the previous time. Save keeps it; Edit saves it and opens
+ * the workout editor. Everything can be undone.
  */
 @Composable
-fun SaveAsWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
+fun SaveAsWorkoutSheet(snap: Snapshot, nav: Nav, date: String, onDismiss: () -> Unit) {
     val weekday = weekdayOf(date)
-    val exercises = remember(snap, date) { Routines.fromDate(snap, date, Routines.FILL_PLANNED) }
+    var ticked by remember(date) { mutableStateOf(snap.setsByDate[date].orEmpty().map { it.id }.toSet()) }
+    val exercises = remember(snap, date, ticked) { Routines.fromDate(snap, date, Routines.FILL_PLANNED, ticked) }
     var fill by remember { mutableStateOf(Routines.FILL_PLANNED) }
     // 0 saves a new workout; otherwise the workout the day joins, as a new day (dayId 0) or in place of a day.
     var routineId by remember { mutableStateOf(0L) }
@@ -356,48 +359,53 @@ fun SaveAsWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     var dayName by remember { mutableStateOf(weekday) }
     val target = snap.routinesById[routineId]
 
-    FitSheet(
-        title = "Save as a workout day",
-        onDismiss = onDismiss,
-        confirmLabel = when {
-            target == null -> "Save workout"
-            dayId > 0L -> "Replace day"
-            else -> "Add day"
-        },
-        confirmEnabled = exercises.isNotEmpty() && (target != null || name.isNotBlank()),
-        onConfirm = {
-            val planned = exercises.map { it.copy(fill = fill) }
-            val into = target
-            val intoDay = into?.days?.firstOrNull { it.id == dayId }
-            val newName = name
-            val newDayName = dayName
-            onDismiss()
-            AppScope.scope.launch {
-                try {
-                    when {
-                        into == null -> {
-                            val id = Routines.save(Routine(0L, newName, days = listOf(RoutineDay(0L, newDayName, planned))))
-                            UiEvents.show("Saved ${newName.trim()}", "Undo") { AppScope.scope.launch { Routines.delete(id) } }
-                        }
-                        intoDay != null -> {
-                            Routines.setDayExercises(intoDay.id, planned)
-                            UiEvents.show("Replaced ${intoDay.name} in ${into.name}", "Undo") {
-                                AppScope.scope.launch { Routines.setDayExercises(intoDay.id, intoDay.exercises) }
-                            }
-                        }
-                        else -> {
-                            val added = Routines.addDay(into.id, newDayName, planned)
-                            UiEvents.show("Added $newDayName to ${into.name}", "Undo") { AppScope.scope.launch { Routines.deleteDay(added) } }
-                        }
+    fun save(edit: Boolean) {
+        val planned = exercises.map { it.copy(fill = fill) }
+        val into = target
+        val intoDay = into?.days?.firstOrNull { it.id == dayId }
+        val newName = name
+        val newDayName = dayName
+        onDismiss()
+        AppScope.scope.launch {
+            try {
+                val routineSaved = when {
+                    into == null -> {
+                        val id = Routines.save(Routine(0L, newName, days = listOf(RoutineDay(0L, newDayName, planned))))
+                        UiEvents.show("Saved ${newName.trim()}", "Undo") { AppScope.scope.launch { Routines.delete(id) } }
+                        id
                     }
-                } catch (e: WorkoutDataException) {
-                    UiEvents.show(e.message ?: "That workout couldn't be saved.")
+                    intoDay != null -> {
+                        Routines.setDayExercises(intoDay.id, planned)
+                        UiEvents.show("Replaced ${intoDay.name} in ${into.name}", "Undo") {
+                            AppScope.scope.launch { Routines.setDayExercises(intoDay.id, intoDay.exercises) }
+                        }
+                        into.id
+                    }
+                    else -> {
+                        val added = Routines.addDay(into.id, newDayName, planned)
+                        UiEvents.show("Added $newDayName to ${into.name}", "Undo") { AppScope.scope.launch { Routines.deleteDay(added) } }
+                        into.id
+                    }
                 }
+                if (edit) nav.push(Screen.WorkoutEditor(routineSaved))
+            } catch (e: WorkoutDataException) {
+                UiEvents.show(e.message ?: "That workout couldn't be saved.")
             }
         }
+    }
+
+    FitSheet(
+        title = "Create workout",
+        onDismiss = onDismiss,
+        confirmLabel = "Save",
+        confirmEnabled = exercises.isNotEmpty() && (target != null || name.isNotBlank()),
+        onConfirm = { save(edit = false) },
+        secondaryLabel = "Edit",
+        onSecondary = { save(edit = true) }
     ) {
+        SetChecklist(snap, date, ticked) { ticked = it }
+        SectionLabel("Save to")
         if (snap.routines.isNotEmpty()) {
-            Text("SAVE TO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             ChoiceChips(listOf(0L to "New workout") + snap.routines.map { it.id to it.name }, routineId) { routineId = it; dayId = 0L }
             if (target != null) {
                 ChoiceChips(listOf(0L to "As a new day") + target.days.map { it.id to "Instead of ${it.name}" }, dayId) { dayId = it }
@@ -415,17 +423,11 @@ fun SaveAsWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
         }
-        Text("NEXT TIME, EACH EXERCISE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        SectionLabel("Next time, each exercise")
         SegmentedSwitch(
             options = listOf("Uses these sets", "Copies previous"),
             selected = if (fill == Routines.FILL_PLANNED) 0 else 1,
             onSelect = { fill = if (it == 0) Routines.FILL_PLANNED else Routines.FILL_LAST }
         )
-        exercises.forEach { p ->
-            Column(Modifier.fillMaxWidth().padding(vertical = Spacing.xs)) {
-                Text(snap.exercises[p.exerciseId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
-                Text(Routines.describe(snap, p.sets, p.exerciseId), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
     }
 }
