@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -31,6 +34,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
+import com.fitlens.companion.data.Store
+import com.fitlens.companion.data.WriteTimings
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.SettingsActionRow
@@ -315,6 +320,7 @@ fun AboutPage() {
     }
     SettingsActionRow("What's new", "This update's release notes") { whatsNew = true }
     SettingsActionRow("Open-source licences", "FitLens, the Manrope font and the libraries it's built with") { licences = true }
+    SaveSpeed()
     SettingsGroup("Privacy")
     SettingsNote(
         "FitLens is a workout log that pairs your training with progress photos. It works entirely on this phone: " +
@@ -327,6 +333,35 @@ fun AboutPage() {
     SettingsActionRow("All releases", "Every update and its notes") { openInBrowser(ctx, "$REPO_URL/releases") }
     if (whatsNew) WhatsNewSheet { whatsNew = false }
     if (licences) LicencesSheet { licences = false }
+}
+
+/**
+ * How long saving takes on this phone (#60), from [WriteTimings]: the last set save split into the database write and
+ * updating the screens, the median of the recent set saves, and the history size it was measured against. Comparing it
+ * as history grows is the check that saving a set stays fast. Only this session's saves; nothing is stored.
+ */
+@Composable
+private fun SaveSpeed() {
+    val timings by WriteTimings.recent.collectAsState()
+    val snap by Store.snapshot.collectAsState()
+    SettingsGroup(stringResource(R.string.speed_title))
+    val sets = timings.filter { it.kind == WriteTimings.SET }
+    val last = sets.lastOrNull()
+    if (last == null) {
+        SettingsNote(stringResource(R.string.speed_none))
+    } else {
+        val median = WriteTimings.median(sets.map { it.totalMs }) ?: last.totalMs
+        val setCount = snap?.sets?.size ?: last.sets
+        val photoCount = snap?.photos?.size ?: 0
+        SettingsNote(
+            listOf(
+                stringResource(R.string.speed_last, last.totalMs, last.dbMs, last.refreshMs),
+                pluralStringResource(R.plurals.speed_median, sets.size, median, sets.size),
+                pluralStringResource(R.plurals.speed_history_sets, setCount, setCount) + " · " +
+                    pluralStringResource(R.plurals.speed_history_photos, photoCount, photoCount)
+            ).joinToString("\n")
+        )
+    }
 }
 
 /** The licences FitLens ships under and with (#33). The Manrope licence is the full text bundled in the APK. */

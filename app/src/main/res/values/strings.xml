@@ -121,4 +121,21 @@
     <string name="workout_day_rest_body">Replaces the rest set on each exercise and set of this day. Default uses each exercise\'s usual rest.</string>
     <string name="workout_day_rest_copy_body">Each exercise copies the rest from its most recent workout</string>
     <string name="workout_day_rest_set_body">One rest for every exercise of this day</string>
+
+    <!-- Settings › About: how long saving takes on this phone (#60). -->
+    <string name="speed_title">Save speed</string>
+    <string name="speed_none">Save a set, then come back here to see how long saving takes on this phone.</string>
+    <string name="speed_last">Last set saved in %1$d ms: %2$d ms writing it, %3$d ms updating the screens.</string>
+    <plurals name="speed_median">
+        <item quantity="one">Typical: %1$d ms, from %2$d set save so far.</item>
+        <item quantity="other">Typical: %1$d ms, the median of the last %2$d set saves.</item>
+    </plurals>
+    <plurals name="speed_history_sets">
+        <item quantity="one">Measured with %1$d set in your history</item>
+        <item quantity="other">Measured with %1$d sets in your history</item>
+    </plurals>
+    <plurals name="speed_history_photos">
+        <item quantity="one">%1$d photo</item>
+        <item quantity="other">%1$d photos</item>
+    </plurals>
 </resources>

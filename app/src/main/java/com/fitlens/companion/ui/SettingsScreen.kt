@@ -102,6 +102,7 @@ private val CATALOGUE = listOf(
     SettingEntry("PDF photos per day", SettingsSection.Media, "report daily log"),
     SettingEntry("Guides", SettingsSection.Help, "how to help instructions logging photos backups import"),
     SettingEntry("Version", SettingsSection.About, "build number copy bug report"),
+    SettingEntry("Save speed", SettingsSection.About, "performance slow fast timing set save"),
     SettingEntry("Open-source licences", SettingsSection.About, "licence license font libraries")
 )
 

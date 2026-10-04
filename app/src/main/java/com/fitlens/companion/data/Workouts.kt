@@ -89,6 +89,7 @@ object Workouts {
      */
     private suspend fun <T> write(areas: Set<Area> = Area.WORKOUT, block: (SQLiteDatabase) -> T): T =
         withContext(Dispatchers.IO) {
+            val start = System.nanoTime()
             val w = Store.db.writableDatabase
             w.beginTransaction()
             val result = try {
@@ -96,7 +97,9 @@ object Workouts {
             } finally {
                 w.endTransaction()
             }
+            val written = System.nanoTime()
             Store.refresh(*areas.toTypedArray())
+            WriteTimings.record(WriteTimings.OTHER, start, written, System.nanoTime(), Store.snapshot.value?.sets?.size ?: 0)
             result
         }
 
@@ -119,6 +122,7 @@ object Workouts {
      * [block] names in its [SetScope] are re-read, so saving one set doesn't reload the whole database.
      */
     private suspend fun <T> writeSets(block: (SQLiteDatabase, SetScope) -> T): T = withContext(Dispatchers.IO) {
+        val start = System.nanoTime()
         val w = Store.db.writableDatabase
         val scope = SetScope()
         w.beginTransaction()
@@ -127,7 +131,10 @@ object Workouts {
         } finally {
             w.endTransaction()
         }
+        val written = System.nanoTime()
         Store.refreshSets(scope.exercises, scope.dates)
+        // How long a set save takes on this phone, shown in Settings › About (#60).
+        WriteTimings.record(WriteTimings.SET, start, written, System.nanoTime(), Store.snapshot.value?.sets?.size ?: 0)
         result
     }
 
