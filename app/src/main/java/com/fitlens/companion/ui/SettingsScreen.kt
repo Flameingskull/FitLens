@@ -2,6 +2,7 @@ package com.fitlens.companion.ui
 
 import com.fitlens.companion.ui.design.SearchFieldIcon
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,9 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,10 +23,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.R
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.DistanceUnits
 import com.fitlens.companion.data.WeightUnits
@@ -43,72 +43,77 @@ import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.ConfirmSheet
-import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.SettingsActionRow
 import com.fitlens.companion.ui.design.SettingsChoiceRow
 import com.fitlens.companion.ui.design.SettingsGroup
 import com.fitlens.companion.ui.design.SettingsNote
 import com.fitlens.companion.ui.design.SettingsSwitchRow
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 /**
  * The pages Settings still opens (#38, #86), where FitNotes opens a page or dialog too (#147): backups, the FitNotes
  * import, the data tools, Home Screen Settings and the rest timer. Every other setting sits on the main list. Each reads
  * and writes only through [Settings], so no screen knows whether a value lives on this phone or travels in backups.
+ * The text of the main list and these pages is in `res/values/strings.xml` (#94).
  */
-enum class SettingsSection(val title: String) {
-    Backups("Backup and restore"),
+enum class SettingsSection(@StringRes val title: Int) {
+    Backups(R.string.settings_page_backups),
     // FitNotes imports lived on the Sync tab until #35 moved them here.
-    Import("Import from FitNotes"),
-    DataTools("Export and delete history"),
-    Home("Home screen settings"),
+    Import(R.string.settings_page_import),
+    DataTools(R.string.settings_page_data_tools),
+    Home(R.string.settings_page_home),
     // The rest timer's options lived only in its sheet until #86 gave them a page.
-    Rest("Rest timer"),
+    Rest(R.string.settings_page_rest),
     // Defaults for photos, the slideshow and video, and the PDF report (#46).
-    Media("Progress photos and media"),
+    Media(R.string.settings_page_media),
     // In-app help and About (#33).
-    Help("Help"),
-    About("About FitLens")
+    Help(R.string.settings_page_help),
+    About(R.string.settings_page_about)
 }
 
 /** One searchable setting on a page (#86): what it's called, other words people might search for, and the page. */
-private data class SettingEntry(val title: String, val section: SettingsSection, val keywords: String = "")
+private data class SettingEntry(@StringRes val title: Int, val section: SettingsSection, @StringRes val keywords: Int)
 
 /** Every setting on a page, for search. A row added to a page belongs here too; main-list rows search themselves. */
 private val CATALOGUE = listOf(
-    SettingEntry("Save, share or restore a backup", SettingsSection.Backups, "fitlens file export"),
-    SettingEntry("Automatic backups", SettingsSection.Backups, "schedule daily weekly folder"),
-    SettingEntry("Date and time in backup names", SettingsSection.Backups, "timestamp file name"),
-    SettingEntry("Keep the newest automatic backups", SettingsSection.Backups, "how many old delete"),
-    SettingEntry("Back up after changes", SettingsSection.Backups, "automatic leave hour"),
-    SettingEntry("Safety copy", SettingsSection.Backups, "undo restore"),
-    SettingEntry("PDF progress report", SettingsSection.Backups, "report print"),
-    SettingEntry("Import a FitNotes backup", SettingsSection.Import, "fitnotes merge"),
-    SettingEntry("FitNotes backup folder sync", SettingsSection.Import, "auto sync folder"),
-    SettingEntry("Sync the FitNotes folder automatically", SettingsSection.Import, "auto sync open start"),
-    SettingEntry("Export to CSV", SettingsSection.DataTools, "spreadsheet excel"),
-    SettingEntry("Delete workout history", SettingsSection.DataTools, "erase remove clear"),
-    SettingEntry("Reset settings to defaults", SettingsSection.DataTools, "default factory restore preferences undo"),
-    SettingEntry("Show categories", SettingsSection.Home, "colour day log home"),
-    SettingEntry("Sets shown per exercise", SettingsSection.Home, "day log home cards"),
-    SettingEntry("Rest length", SettingsSection.Rest, "seconds break between sets"),
-    SettingEntry("Start the rest timer after saving a set", SettingsSection.Rest, "auto start"),
-    SettingEntry("Vibrate when rest is over", SettingsSection.Rest, "vibration haptic"),
-    SettingEntry("Rest-over sound and volume", SettingsSection.Rest, "ringtone alarm notification"),
-    SettingEntry("Pose for new photos", SettingsSection.Media, "front side back import default"),
-    SettingEntry("Group photos by", SettingsSection.Media, "day week month year pose gallery"),
-    SettingEntry("Remember slideshow and video options", SettingsSection.Media, "video slideshow overlay format"),
-    SettingEntry("Reset slideshow and video options", SettingsSection.Media, "video slideshow defaults"),
-    SettingEntry("PDF report pages", SettingsSection.Media, "dark light print style"),
-    SettingEntry("PDF photos per day", SettingsSection.Media, "report daily log"),
-    SettingEntry("Guides", SettingsSection.Help, "how to help instructions logging photos backups import"),
-    SettingEntry("Version", SettingsSection.About, "build number copy bug report"),
-    SettingEntry("Save speed", SettingsSection.About, "performance slow fast timing set save"),
-    SettingEntry("Open-source licences", SettingsSection.About, "licence license font libraries")
+    SettingEntry(R.string.search_backup_file, SettingsSection.Backups, R.string.search_backup_file_kw),
+    SettingEntry(R.string.search_auto_backups, SettingsSection.Backups, R.string.search_auto_backups_kw),
+    SettingEntry(R.string.search_backup_names, SettingsSection.Backups, R.string.search_backup_names_kw),
+    SettingEntry(R.string.search_backup_keep, SettingsSection.Backups, R.string.search_backup_keep_kw),
+    SettingEntry(R.string.search_backup_after, SettingsSection.Backups, R.string.search_backup_after_kw),
+    SettingEntry(R.string.search_safety_copy, SettingsSection.Backups, R.string.search_safety_copy_kw),
+    SettingEntry(R.string.search_pdf_report, SettingsSection.Backups, R.string.search_pdf_report_kw),
+    SettingEntry(R.string.search_import_fitnotes, SettingsSection.Import, R.string.search_import_fitnotes_kw),
+    SettingEntry(R.string.search_fitnotes_sync, SettingsSection.Import, R.string.search_fitnotes_sync_kw),
+    SettingEntry(R.string.search_fitnotes_auto, SettingsSection.Import, R.string.search_fitnotes_auto_kw),
+    SettingEntry(R.string.search_csv, SettingsSection.DataTools, R.string.search_csv_kw),
+    SettingEntry(R.string.search_delete_history, SettingsSection.DataTools, R.string.search_delete_history_kw),
+    SettingEntry(R.string.reset_row, SettingsSection.DataTools, R.string.search_reset_kw),
+    SettingEntry(R.string.home_show_categories, SettingsSection.Home, R.string.search_home_categories_kw),
+    SettingEntry(R.string.home_sets_shown, SettingsSection.Home, R.string.search_home_sets_kw),
+    SettingEntry(R.string.search_rest_length, SettingsSection.Rest, R.string.search_rest_length_kw),
+    SettingEntry(R.string.search_rest_auto, SettingsSection.Rest, R.string.search_rest_auto_kw),
+    SettingEntry(R.string.search_rest_vibrate, SettingsSection.Rest, R.string.search_rest_vibrate_kw),
+    SettingEntry(R.string.search_rest_sound, SettingsSection.Rest, R.string.search_rest_sound_kw),
+    SettingEntry(R.string.media_pose, SettingsSection.Media, R.string.search_media_pose_kw),
+    SettingEntry(R.string.media_group, SettingsSection.Media, R.string.search_media_group_kw),
+    SettingEntry(R.string.media_remember, SettingsSection.Media, R.string.search_media_remember_kw),
+    SettingEntry(R.string.media_reset, SettingsSection.Media, R.string.search_media_reset_kw),
+    SettingEntry(R.string.media_pdf_pages, SettingsSection.Media, R.string.search_media_pdf_pages_kw),
+    SettingEntry(R.string.media_pdf_photos, SettingsSection.Media, R.string.search_media_pdf_photos_kw),
+    SettingEntry(R.string.search_guides, SettingsSection.Help, R.string.search_guides_kw),
+    SettingEntry(R.string.search_version, SettingsSection.About, R.string.search_version_kw),
+    SettingEntry(R.string.speed_title, SettingsSection.About, R.string.search_speed_kw),
+    SettingEntry(R.string.search_licences, SettingsSection.About, R.string.search_licences_kw)
 )
 
 /** FitNotes's three headings, in its order (#147). */
-private enum class SettingsHeading(val title: String) { SETTINGS("Settings"), DATA("Data"), OTHER("Other") }
+private enum class SettingsHeading(@StringRes val title: Int) {
+    SETTINGS(R.string.settings_heading_settings), DATA(R.string.settings_heading_data), OTHER(R.string.settings_heading_other)
+}
 
 /** One row of the main list: its heading, words to search by, and the row itself. */
 private class MainRow(
@@ -118,6 +123,22 @@ private class MainRow(
     val content: @Composable () -> Unit
 )
 
+/** A main-list row whose title and search words are string resources; [content] gets the title. */
+@Composable
+private fun mainRow(
+    heading: SettingsHeading,
+    @StringRes title: Int,
+    @StringRes keywords: Int,
+    content: @Composable (String) -> Unit
+): MainRow {
+    val text = stringResource(title)
+    return MainRow(heading, text, stringResource(keywords)) { content(text) }
+}
+
+/** The days the week can start on (#7), named in the phone's language. Stored as ISO day numbers. */
+private val WEEK_STARTS = listOf(DayOfWeek.MONDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)
+
+private fun dayName(day: DayOfWeek) = day.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
 /**
  * The main Settings screen (#147): FitNotes's single list, under its SETTINGS, DATA and OTHER headings, in its order
@@ -129,12 +150,18 @@ private class MainRow(
 fun SettingsScreen(snap: Snapshot, nav: Nav) {
     var query by rememberSaveable { mutableStateOf("") }
     val rows = mainRows(snap, nav)
+    val headings = SettingsHeading.entries.associateWith { stringResource(it.title) }
+    val pages = SettingsSection.entries.associateWith { stringResource(it.title) }
+    // The pages' settings as text for search: the entry, its title, then its search words and page.
+    val catalogue = CATALOGUE.map { e ->
+        Triple(e, stringResource(e.title), "${stringResource(e.keywords)} ${pages.getValue(e.section)}")
+    }
     Column(Modifier.fillMaxSize()) {
-        BackTopBar("Settings", onBack = { nav.pop() })
+        BackTopBar(stringResource(R.string.settings_title), onBack = { nav.pop() })
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
-            label = { Text("Search settings") },
+            label = { Text(stringResource(R.string.settings_search)) },
             leadingIcon = { SearchFieldIcon() },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm)
@@ -142,20 +169,22 @@ fun SettingsScreen(snap: Snapshot, nav: Nav) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             val words = query.trim().lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
             fun matches(text: String) = words.all { it in text.lowercase() }
-            val shown = if (words.isEmpty()) rows else rows.filter { matches("${it.title} ${it.keywords} ${it.heading.title}") }
-            val onPages = if (words.isEmpty()) emptyList() else
-                CATALOGUE.filter { matches("${it.title} ${it.keywords} ${it.section.title}") }
+            val shown = if (words.isEmpty()) rows else
+                rows.filter { matches("${it.title} ${it.keywords} ${headings.getValue(it.heading)}") }
+            val onPages = if (words.isEmpty()) emptyList() else catalogue.filter { (_, title, more) -> matches("$title $more") }
             if (words.isNotEmpty() && shown.isEmpty() && onPages.isEmpty()) {
-                SettingsNote("No setting matches \"${query.trim()}\".")
+                SettingsNote(stringResource(R.string.settings_search_none, query.trim()))
             }
             shown.groupBy { it.heading }.forEach { (heading, inGroup) ->
-                SettingsGroup(heading.title)
+                SettingsGroup(headings.getValue(heading))
                 inGroup.forEach { it.content() }
             }
             if (onPages.isNotEmpty()) {
-                SettingsGroup("On other pages")
-                onPages.forEach { e ->
-                    SettingsActionRow(e.title, "In ${e.section.title}") { nav.push(Screen.SettingsPage(e.section)) }
+                SettingsGroup(stringResource(R.string.settings_on_other_pages))
+                onPages.forEach { (e, title, _) ->
+                    SettingsActionRow(title, stringResource(R.string.settings_in_page, pages.getValue(e.section))) {
+                        nav.push(Screen.SettingsPage(e.section))
+                    }
                 }
             }
         }
@@ -180,250 +209,215 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
     val s = SettingsHeading.SETTINGS
     val d = SettingsHeading.DATA
     val o = SettingsHeading.OTHER
+    val themeMessage = stringResource(R.string.settings_theme_message)
     return listOf(
-        MainRow(s, "Theme", "dark colour colours look black gold") {
-            SettingsActionRow("Theme", value = "Black and gold") {
-                UiEvents.show("FitLens has one look: luxury black and gold.")
-            }
+        mainRow(s, R.string.settings_theme, R.string.settings_theme_kw) { title ->
+            SettingsActionRow(title, value = stringResource(R.string.settings_theme_value)) { UiEvents.show(themeMessage) }
         },
-        MainRow(s, "Unit System", "metric imperial kg lbs km miles cm inches") { UnitSystemRow(prefs) },
-        MainRow(s, "Weight Unit", "kg kilograms lbs pounds") {
+        mainRow(s, R.string.settings_unit_system, R.string.settings_unit_system_kw) { title -> UnitSystemRow(title, prefs) },
+        mainRow(s, R.string.settings_weight_unit, R.string.settings_weight_unit_kw) { title ->
             SettingsChoiceRow(
-                "Weight Unit",
-                listOf("Kilograms (kg)", "Pounds (lbs)"),
+                title,
+                listOf(stringResource(R.string.unit_kilograms), stringResource(R.string.unit_pounds)),
                 if (prefs.weightUnit == "lbs") 1 else 0,
-                summary = "Weights are stored exactly, so switching only changes how they're shown and entered."
+                summary = stringResource(R.string.settings_weight_unit_summary)
             ) { i ->
                 // Choosing by hand is remembered, so a later FitNotes import doesn't switch it back.
                 Settings.updatePortable { it.copy(weightUnit = if (i == 1) "lbs" else "kg", weightUnitManual = true) }
             }
         },
-        MainRow(s, "Distance Unit", "km kilometres miles metres cardio running") {
+        mainRow(s, R.string.settings_distance_unit, R.string.settings_distance_unit_kw) { title ->
             SettingsChoiceRow(
-                "Distance Unit",
+                title,
                 DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
                 DistanceUnits.ALL.indexOf(prefs.distanceUnit).coerceAtLeast(0),
-                summary = "An exercise can have its own. Logged distances aren't converted."
+                summary = stringResource(R.string.settings_distance_unit_summary)
             ) { i -> Settings.updatePortable { it.copy(distanceUnit = DistanceUnits.ALL[i]) } }
         },
-        MainRow(s, "Length Unit", "cm centimetres inches body measurements waist") {
+        mainRow(s, R.string.settings_length_unit, R.string.settings_length_unit_kw) { title ->
             SettingsChoiceRow(
-                "Length Unit",
-                listOf("Centimetres (cm)", "Inches (in)"),
+                title,
+                listOf(stringResource(R.string.unit_centimetres), stringResource(R.string.unit_inches)),
                 if (prefs.lengthUnit == LengthUnits.IN) 1 else 0,
-                summary = "How body measurements are shown and entered. Your logged values aren't changed."
+                summary = stringResource(R.string.settings_length_unit_summary)
             ) { i -> Settings.updatePortable { it.copy(lengthUnit = if (i == 1) LengthUnits.IN else LengthUnits.CM) } }
         },
-        MainRow(s, "Sex (Body Fat)", "profile sex male female body fat navy formula calculate") {
+        mainRow(s, R.string.settings_sex, R.string.settings_sex_kw) { title ->
             SettingsChoiceRow(
-                "Sex (Body Fat)",
+                title,
                 com.fitlens.companion.data.BodyFat.Sex.entries.map { it.label },
                 com.fitlens.companion.data.BodyFat.Sex.of(prefs.profileSex)?.ordinal ?: -1,
-                summary = "Used only to calculate body fat from your measurements (US Navy formula)."
+                summary = stringResource(R.string.settings_sex_summary)
             ) { i -> Settings.updatePortable { it.copy(profileSex = com.fitlens.companion.data.BodyFat.Sex.entries[i].key) } }
         },
-        MainRow(s, "Calendar Week Start", "monday sunday saturday week starts") {
-            val days = listOf(1 to "Monday", 6 to "Saturday", 7 to "Sunday")
+        mainRow(s, R.string.settings_week_start, R.string.settings_week_start_kw) { title ->
             SettingsChoiceRow(
-                "Calendar Week Start",
-                days.map { it.second },
-                days.indexOfFirst { it.first == prefs.weekStart }.coerceAtLeast(0)
-            ) { i -> Settings.updatePortable { it.copy(weekStart = days[i].first) } }
+                title,
+                WEEK_STARTS.map(::dayName),
+                WEEK_STARTS.indexOfFirst { it.value == prefs.weekStart }.coerceAtLeast(0)
+            ) { i -> Settings.updatePortable { it.copy(weekStart = WEEK_STARTS[i].value) } }
         },
-        MainRow(s, "Default Weight Increment", "weight step plus minus stepper") {
-            WeightStepRow(prefs.weightUnit, prefs.weightIncrementKg)
+        mainRow(s, R.string.settings_weight_step, R.string.settings_weight_step_kw) { title ->
+            WeightStepRow(title, prefs.weightUnit, prefs.weightIncrementKg)
         },
-        MainRow(s, "Home Screen Settings", "day log categories sets shown cards") {
-            SettingsActionRow("Home Screen Settings", "Configure your preferred behaviour and appearance of the home screen") {
-                open(SettingsSection.Home)
+        mainRow(s, R.string.settings_home, R.string.settings_home_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_home_summary)) { open(SettingsSection.Home) }
+        },
+        mainRow(s, R.string.settings_prs, R.string.settings_prs_kw) { title ->
+            SettingsSwitchRow(title, prefs.celebratePrs, summary = stringResource(R.string.settings_prs_summary)) { on ->
+                Settings.updatePortable { it.copy(celebratePrs = on) }
             }
         },
-        MainRow(s, "Track Personal Records", "pr celebrate vibration notify") {
-            SettingsSwitchRow(
-                "Track Personal Records", prefs.celebratePrs,
-                summary = "Notify new PRs as you save them. Record sets are always marked in your training history."
-            ) { on -> Settings.updatePortable { it.copy(celebratePrs = on) } }
+        mainRow(s, R.string.settings_mark_complete, R.string.settings_mark_complete_kw) { title ->
+            SettingsSwitchRow(title, prefs.markComplete, summary = stringResource(R.string.settings_mark_complete_summary)) { on ->
+                Settings.updatePortable { it.copy(markComplete = on) }
+            }
         },
-        MainRow(s, "Mark Sets Complete", "done checkbox tick progress") {
-            SettingsSwitchRow(
-                "Mark Sets Complete", prefs.markComplete,
-                summary = "Display a checkbox next to each set to indicate that it is complete"
-            ) { on -> Settings.updatePortable { it.copy(markComplete = on) } }
+        mainRow(s, R.string.settings_auto_next, R.string.settings_auto_next_kw) { title ->
+            SettingsSwitchRow(title, prefs.autoSelectNext, summary = stringResource(R.string.settings_auto_next_summary)) { on ->
+                Settings.updatePortable { it.copy(autoSelectNext = on) }
+            }
         },
-        MainRow(s, "Auto-Select Next Set", "auto select update") {
-            SettingsSwitchRow(
-                "Auto-Select Next Set", prefs.autoSelectNext,
-                summary = "Automatically highlight the next set to be updated when using a workout or copying a workout"
-            ) { on -> Settings.updatePortable { it.copy(autoSelectNext = on) } }
-        },
-        MainRow(s, "Keep Screen On", "sleep awake display") {
-            SettingsSwitchRow(
-                "Keep Screen On", prefs.keepScreenOn,
-                summary = "Prevent the device from sleeping while the training screen is open"
-            ) { on -> Settings.updatePortable { it.copy(keepScreenOn = on) } }
+        mainRow(s, R.string.settings_screen_on, R.string.settings_screen_on_kw) { title ->
+            SettingsSwitchRow(title, prefs.keepScreenOn, summary = stringResource(R.string.settings_screen_on_summary)) { on ->
+                Settings.updatePortable { it.copy(keepScreenOn = on) }
+            }
         },
         // FitLens's own settings follow FitNotes's.
-        MainRow(s, "Fill New Sets From", "autofill last workout empty") {
+        mainRow(s, R.string.settings_fill, R.string.settings_fill_kw) { title ->
             SettingsChoiceRow(
-                "Fill New Sets From",
-                listOf("Last workout", "Leave empty"),
+                title,
+                listOf(stringResource(R.string.settings_fill_last), stringResource(R.string.settings_fill_empty)),
                 if (prefs.autofillSource == PortableSettings.AUTOFILL_EMPTY) 1 else 0,
                 descriptions = listOf(
-                    "Your latest set today, or the first set of the last time you did the exercise.",
-                    "Every new set starts blank."
+                    stringResource(R.string.settings_fill_last_detail),
+                    stringResource(R.string.settings_fill_empty_detail)
                 )
             ) { i ->
                 val source = if (i == 1) PortableSettings.AUTOFILL_EMPTY else PortableSettings.AUTOFILL_LAST
                 Settings.updatePortable { it.copy(autofillSource = source) }
             }
         },
-        MainRow(s, "Effort Per Set", "rpe rir reps in reserve") {
+        mainRow(s, R.string.settings_effort, R.string.settings_effort_kw) { title ->
             SettingsChoiceRow(
-                "Effort Per Set",
-                listOf("Off", "RPE", "RIR"),
+                title,
+                listOf(stringResource(R.string.settings_effort_off), "RPE", "RIR"),
                 when (prefs.effortMode) { Effort.RPE -> 1; Effort.RIR -> 2; else -> 0 },
-                summary = "Effort is stored once, so switching between RPE and RIR, or turning it off, never changes it.",
+                summary = stringResource(R.string.settings_effort_summary),
                 descriptions = listOf(
-                    "No effort field.",
-                    "Rate of perceived exertion: 10 means no reps left.",
-                    "Reps in reserve: how many more reps you had left."
+                    stringResource(R.string.settings_effort_off_detail),
+                    stringResource(R.string.settings_effort_rpe_detail),
+                    stringResource(R.string.settings_effort_rir_detail)
                 )
             ) { i ->
                 val mode = when (i) { 1 -> Effort.RPE; 2 -> Effort.RIR; else -> Effort.OFF }
                 Settings.updatePortable { it.copy(effortMode = mode) }
             }
         },
-        MainRow(s, "Show Set Types", "warm-up drop failure badge") {
-            SettingsSwitchRow(
-                "Show Set Types", prefs.showSetType,
-                summary = "Warm-up, drop and failure sets carry a small W, D or F. Choose a set's type as you log it."
-            ) { on -> Settings.updatePortable { it.copy(showSetType = on) } }
+        mainRow(s, R.string.settings_set_types, R.string.settings_set_types_kw) { title ->
+            SettingsSwitchRow(title, prefs.showSetType, summary = stringResource(R.string.settings_set_types_summary)) { on ->
+                Settings.updatePortable { it.copy(showSetType = on) }
+            }
         },
-        MainRow(s, "Count Warm-up Sets", "warmup records stats") {
-            SettingsSwitchRow(
-                "Count Warm-up Sets", prefs.warmupsCount,
-                summary = "Include warm-ups in records, estimated maxes, volume, graphs, analysis and the PDF report. " +
-                    "They always show in your history."
-            ) { on ->
+        mainRow(s, R.string.settings_warmups, R.string.settings_warmups_kw) { title ->
+            val busy = stringResource(R.string.settings_prs_updating)
+            SettingsSwitchRow(title, prefs.warmupsCount, summary = stringResource(R.string.settings_warmups_summary)) { on ->
                 Settings.updatePortable { it.copy(warmupsCount = on) }
                 // PR marks follow the setting straight away (#43).
-                runBusy("Updating personal records…") {
+                runBusy(busy) {
                     val n = Workouts.recalculatePrs()
-                    if (n == 0) null else ImportSummary("Personal records updated: $n ${if (n == 1) "set" else "sets"} changed.", ok = true)
+                    if (n == 0) null
+                    else ImportSummary(ctx.resources.getQuantityString(R.plurals.settings_prs_updated, n, n), ok = true)
                 }
             }
         },
-        MainRow(s, "Start Workout Timer Automatically", "duration clock first set") {
-            SettingsSwitchRow(
-                "Start Workout Timer Automatically", prefs.workoutTimerAuto,
-                summary = "Start timing today's workout when you save its first set"
-            ) { on -> Settings.updatePortable { it.copy(workoutTimerAuto = on) } }
+        mainRow(s, R.string.settings_timer_auto, R.string.settings_timer_auto_kw) { title ->
+            SettingsSwitchRow(title, prefs.workoutTimerAuto, summary = stringResource(R.string.settings_timer_auto_summary)) { on ->
+                Settings.updatePortable { it.copy(workoutTimerAuto = on) }
+            }
         },
-        MainRow(s, "Rest Timer", "rest length vibrate sound auto start") {
-            SettingsActionRow(
-                "Rest Timer",
-                "Rest length, starting after a set, vibration and sound",
-                value = fmtDuration(prefs.restSeconds)
-            ) { open(SettingsSection.Rest) }
+        mainRow(s, R.string.settings_page_rest, R.string.settings_rest_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_rest_summary), value = fmtDuration(prefs.restSeconds)) {
+                open(SettingsSection.Rest)
+            }
         },
-        MainRow(s, "Estimated 1RM Formula", "epley brzycki mayhew wathan one rep max") {
-            FormulaChoice(snap, Records.Formula.of(prefs.e1rmFormula))
+        mainRow(s, R.string.settings_formula, R.string.settings_formula_kw) { title ->
+            FormulaChoice(title, snap, Records.Formula.of(prefs.e1rmFormula))
         },
-        MainRow(s, "Estimated 1RM Settings", "max reps limit one rep max accuracy") {
+        mainRow(s, R.string.settings_e1rm, R.string.settings_e1rm_kw) { title ->
             val limit = Records.maxRepsFor(Records.Formula.of(prefs.e1rmFormula))
             SettingsActionRow(
-                "Estimated 1RM Settings",
-                "The most reps a set can have to be included in the 1-rep-max calculation",
-                value = "Up to $limit reps"
+                title,
+                stringResource(R.string.settings_e1rm_summary),
+                value = pluralStringResource(R.plurals.settings_e1rm_value, limit, limit)
             ) { e1rmLimit = true }
         },
         // FitLens's own: photos, the slideshow and video, and the PDF report (#46).
-        MainRow(s, "Progress Photos & Media", "photos pose slideshow video pdf report group") {
+        mainRow(s, R.string.settings_media, R.string.settings_media_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_media_summary)) { open(SettingsSection.Media) }
+        },
+        mainRow(d, R.string.settings_backup, R.string.settings_backup_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_backup_summary)) { open(SettingsSection.Backups) }
+        },
+        mainRow(d, R.string.settings_restore, R.string.settings_restore_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_restore_summary)) { open(SettingsSection.Backups) }
+        },
+        mainRow(d, R.string.settings_auto_backup, R.string.settings_auto_backup_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_auto_backup_summary)) { open(SettingsSection.Backups) }
+        },
+        mainRow(d, R.string.settings_csv, R.string.settings_csv_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_csv_summary)) { open(SettingsSection.DataTools) }
+        },
+        mainRow(d, R.string.settings_recalc, R.string.settings_recalc_kw) { title ->
             SettingsActionRow(
-                "Progress Photos & Media",
-                "The pose for new photos, how the gallery is grouped, and the slideshow, video and PDF defaults"
-            ) { open(SettingsSection.Media) }
-        },
-        MainRow(d, "Backup", "save share fitlens file") {
-            SettingsActionRow("Backup", "Back up your data to a file, then keep it off your phone or share it with an app you choose") {
-                open(SettingsSection.Backups)
-            }
-        },
-        MainRow(d, "Restore", "restore backup file") {
-            SettingsActionRow("Restore", "Restore your data from a previously created backup") { open(SettingsSection.Backups) }
-        },
-        MainRow(d, "Automatic Backup", "schedule daily weekly folder") {
-            SettingsActionRow("Automatic Backup", "Automatically back up your data to a folder you choose") {
-                open(SettingsSection.Backups)
-            }
-        },
-        MainRow(d, "Spreadsheet Export", "csv excel export") {
-            SettingsActionRow(
-                "Spreadsheet Export",
-                "Export your training logs as a .csv file to view in your preferred spreadsheet application"
-            ) { open(SettingsSection.DataTools) }
-        },
-        MainRow(d, "Calculate Personal Records", "recalculate pr marks rebuild") {
-            SettingsActionRow(
-                "Calculate Personal Records",
-                "Re-calculate your personal records if you think they might be incorrect",
+                title,
+                stringResource(R.string.settings_recalc_summary),
                 enabled = snap.sets.isNotEmpty(),
-                disabledReason = "Log a set first: there are no records to calculate yet"
+                disabledReason = stringResource(R.string.settings_recalc_disabled)
             ) { confirmRecalc = true }
         },
-        MainRow(d, "Delete Workout History", "erase remove clear") {
-            SettingsActionRow("Delete Workout History", "Delete selected workouts while keeping the rest of your data intact") {
-                open(SettingsSection.DataTools)
-            }
+        mainRow(d, R.string.settings_delete_history, R.string.settings_delete_history_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_delete_history_summary)) { open(SettingsSection.DataTools) }
         },
-        MainRow(d, "Reset Settings to Defaults", "default factory restore preferences undo") {
-            SettingsActionRow(
-                "Reset Settings to Defaults",
-                "Put units, the rest timer, logging and display options back as they were when FitLens was new"
-            ) { confirmReset = true }
+        mainRow(d, R.string.settings_reset, R.string.search_reset_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_reset_summary)) { confirmReset = true }
         },
-        MainRow(d, "Import From FitNotes", "fitnotes backup merge sync folder") {
-            SettingsActionRow("Import From FitNotes", "Merge a FitNotes backup into FitLens, or sync its backup folder") {
-                open(SettingsSection.Import)
-            }
+        mainRow(d, R.string.settings_import, R.string.settings_import_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_import_summary)) { open(SettingsSection.Import) }
         },
-        MainRow(o, "Help", "guide instructions readme how to") {
-            SettingsActionRow("Help", "Short guides to each feature, and the full FitLens guide") { open(SettingsSection.Help) }
+        mainRow(o, R.string.settings_help, R.string.settings_help_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_help_summary)) { open(SettingsSection.Help) }
         },
-        MainRow(o, "Feedback", "bug report feature request issue") {
-            SettingsActionRow("Feedback", "Report a problem or suggest a feature on GitHub") { browse("$REPO_URL/issues/new/choose") }
+        mainRow(o, R.string.settings_feedback, R.string.settings_feedback_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_feedback_summary)) { browse("$REPO_URL/issues/new/choose") }
         },
-        MainRow(o, "Change Log", "releases updates what's new") {
-            SettingsActionRow("Change Log", "What's new in this update; every earlier update is on GitHub") { whatsNew = true }
+        mainRow(o, R.string.settings_change_log, R.string.settings_change_log_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_change_log_summary)) { whatsNew = true }
         },
-        MainRow(o, "Show Setup Again", "tutorials first run welcome") {
-            SettingsActionRow("Show Setup Again", "Units, automatic backups, FitNotes import, photos and the starter library") {
-                nav.push(Screen.Setup)
-            }
+        mainRow(o, R.string.settings_setup, R.string.settings_setup_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_setup_summary)) { nav.push(Screen.Setup) }
         },
-        MainRow(o, "Privacy Policy", "privacy data local offline") {
-            SettingsActionRow("Privacy Policy", "FitLens keeps everything on this phone: no account, cloud or internet") {
-                open(SettingsSection.About)
-            }
+        mainRow(o, R.string.settings_privacy, R.string.settings_privacy_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_privacy_summary)) { open(SettingsSection.About) }
         },
-        MainRow(o, "About", "version privacy local licences") {
-            SettingsActionRow("About", "Version, privacy, open-source licences and links") { open(SettingsSection.About) }
+        mainRow(o, R.string.settings_about, R.string.settings_about_kw) { title ->
+            SettingsActionRow(title, stringResource(R.string.settings_about_summary)) { open(SettingsSection.About) }
         }
     )
 }
 
 /** FitNotes's Unit System (#147): metric or imperial in one go. A mix chosen below shows as Custom. */
 @Composable
-private fun UnitSystemRow(prefs: PortableSettings) {
+private fun UnitSystemRow(title: String, prefs: PortableSettings) {
     val metric = prefs.weightUnit == "kg" && prefs.distanceUnit == DistanceUnits.KM && prefs.lengthUnit == LengthUnits.CM
     val imperial = prefs.weightUnit == "lbs" && prefs.distanceUnit == DistanceUnits.MI && prefs.lengthUnit == LengthUnits.IN
     SettingsChoiceRow(
-        "Unit System",
-        listOf("Metric", "Imperial"),
+        title,
+        listOf(stringResource(R.string.settings_metric), stringResource(R.string.settings_imperial)),
         when { metric -> 0; imperial -> 1; else -> -1 },
         summary = if (metric || imperial) null else
-            "Custom: ${prefs.weightUnit}, ${prefs.distanceUnit} and ${prefs.lengthUnit}, set below",
-        descriptions = listOf("Kilograms, kilometres and centimetres", "Pounds, miles and inches")
+            stringResource(R.string.settings_units_custom, prefs.weightUnit, prefs.distanceUnit, prefs.lengthUnit),
+        descriptions = listOf(stringResource(R.string.settings_metric_detail), stringResource(R.string.settings_imperial_detail))
     ) { i ->
         Settings.updatePortable {
             if (i == 1) it.copy(weightUnit = "lbs", weightUnitManual = true, distanceUnit = DistanceUnits.MI, lengthUnit = LengthUnits.IN)
@@ -435,18 +429,19 @@ private fun UnitSystemRow(prefs: PortableSettings) {
 /** Data → Calculate Personal Records: confirms, then rebuilds every PR mark. */
 @Composable
 private fun RecalculateRecordsSheet(onDismiss: () -> Unit) {
+    val ctx = LocalContext.current
+    val busy = stringResource(R.string.recalc_busy)
+    val unchanged = stringResource(R.string.recalc_unchanged)
     ConfirmSheet(
-        title = "Calculate personal records?",
-        message = "Every weight-and-reps set gets a PR mark only if it beat all earlier sets of at least as " +
-            "many reps. PR marks that came from FitNotes are replaced. Timed and cardio sets keep theirs.",
-        confirmLabel = "Calculate",
+        title = stringResource(R.string.recalc_title),
+        message = stringResource(R.string.recalc_body),
+        confirmLabel = stringResource(R.string.recalc_confirm),
         onDismiss = onDismiss,
         onConfirm = {
-            runBusy("Calculating records…") {
+            runBusy(busy) {
                 val n = Workouts.recalculatePrs()
                 ImportSummary(
-                    if (n == 0) "Personal records checked. Nothing needed changing."
-                    else "Personal records recalculated. $n ${if (n == 1) "set" else "sets"} updated.",
+                    if (n == 0) unchanged else ctx.resources.getQuantityString(R.plurals.recalc_done, n, n),
                     ok = true
                 )
             }
@@ -459,7 +454,7 @@ private fun RecalculateRecordsSheet(onDismiss: () -> Unit) {
 @Composable
 fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
     Column(Modifier.fillMaxSize()) {
-        BackTopBar(section.title, onBack = { nav.pop() })
+        BackTopBar(stringResource(section.title), onBack = { nav.pop() })
         when (section) {
             SettingsSection.Import -> FitNotesImportHost()
             else -> {}
@@ -484,18 +479,20 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
 @Composable
 private fun HomePage() {
     val prefs by Settings.portable.collectAsState()
-    SettingsGroup("Day log")
-    SettingsSwitchRow("Show categories", prefs.homeShowCategories, summary = "Each exercise card shows its category colour.") { on ->
-        Settings.updatePortable { it.copy(homeShowCategories = on) }
-    }
+    SettingsGroup(stringResource(R.string.home_group))
+    SettingsSwitchRow(
+        stringResource(R.string.home_show_categories), prefs.homeShowCategories,
+        summary = stringResource(R.string.home_show_categories_summary)
+    ) { on -> Settings.updatePortable { it.copy(homeShowCategories = on) } }
     val counts = listOf(0) + (1..10)
+    val all = stringResource(R.string.home_sets_all)
     SettingsChoiceRow(
-        "Sets shown per exercise",
-        counts.map { if (it == 0) "All" else "$it" },
+        stringResource(R.string.home_sets_shown),
+        counts.map { if (it == 0) all else "$it" },
         counts.indexOf(prefs.homeSetsShown).coerceAtLeast(0),
-        summary = "A card with more sets ends with \"+N more sets\"; tap it to see them all."
+        summary = stringResource(R.string.home_sets_shown_summary)
     ) { i -> Settings.updatePortable { it.copy(homeSetsShown = counts[i]) } }
-    SettingsNote("These preferences travel with your .fitlens backups.")
+    SettingsNote(stringResource(R.string.settings_travel_note))
 }
 
 /**
@@ -505,65 +502,68 @@ private fun HomePage() {
 @Composable
 private fun MediaPage() {
     val prefs by Settings.portable.collectAsState()
-    SettingsGroup("Photos")
+    SettingsGroup(stringResource(R.string.media_group_photos))
     // Ask each time, then None, then the poses: null, Poses.NONE and the pose names as stored.
     val poses: List<String?> = listOf(null, com.fitlens.companion.data.Poses.NONE) + com.fitlens.companion.data.Poses.all
+    val none = stringResource(R.string.media_none)
     SettingsChoiceRow(
-        "Pose for new photos",
-        listOf("Ask each time", "None") + com.fitlens.companion.data.Poses.all,
+        stringResource(R.string.media_pose),
+        listOf(stringResource(R.string.media_pose_ask), none) + com.fitlens.companion.data.Poses.all,
         poses.indexOf(prefs.photoDefaultPose).coerceAtLeast(0),
-        summary = "Used for every photo you import, one or many. Ask each time shows the pose question before an import."
+        summary = stringResource(R.string.media_pose_summary)
     ) { i -> Settings.updatePortable { it.copy(photoDefaultPose = poses[i]) } }
     val groups = com.fitlens.companion.data.MediaPrefs.GROUPS
     SettingsChoiceRow(
-        "Group photos by",
+        stringResource(R.string.media_group),
         groups.map { com.fitlens.companion.data.MediaPrefs.groupLabel(it) },
         groups.indexOf(prefs.photoGroupBy).coerceAtLeast(0),
-        summary = "How the Photos screen sections your photos. Changing it on the Photos screen changes it here too."
+        summary = stringResource(R.string.media_group_summary)
     ) { i -> Settings.updatePortable { it.copy(photoGroupBy = groups[i]) } }
 
-    SettingsGroup("Slideshow and video")
+    SettingsGroup(stringResource(R.string.media_group_video))
     SettingsSwitchRow(
-        "Remember slideshow and video options", prefs.rememberVideoOpts,
-        summary = "Open the slideshow with the pose, timing, overlays, title and video size you used last. The dates always start at all photos."
+        stringResource(R.string.media_remember), prefs.rememberVideoOpts,
+        summary = stringResource(R.string.media_remember_summary)
     ) { on -> Settings.updatePortable { it.copy(rememberVideoOpts = on) } }
+    val resetDone = stringResource(R.string.media_reset_done)
     SettingsActionRow(
-        "Reset slideshow and video options",
-        if (prefs.videoOpts == null) "Already at the defaults" else "Go back to the default options next time",
-        enabled = prefs.videoOpts != null
+        stringResource(R.string.media_reset),
+        stringResource(R.string.media_reset_summary),
+        enabled = prefs.videoOpts != null,
+        disabledReason = stringResource(R.string.media_reset_disabled)
     ) {
         Settings.updatePortable { it.copy(videoOpts = null) }
-        UiEvents.show("Slideshow and video options reset")
+        UiEvents.show(resetDone)
     }
 
-    SettingsGroup("PDF report")
+    SettingsGroup(stringResource(R.string.media_group_pdf))
     SettingsChoiceRow(
-        "PDF report pages",
-        listOf("Dark (matches the app)", "Light (better for printing)"),
+        stringResource(R.string.media_pdf_pages),
+        listOf(stringResource(R.string.media_pdf_dark), stringResource(R.string.media_pdf_light)),
         if (prefs.pdfDark) 0 else 1
     ) { i -> Settings.updatePortable { it.copy(pdfDark = i == 0) } }
     SettingsChoiceRow(
-        "PDF photos per day",
-        (0..4).map { if (it == 0) "None" else "$it" },
+        stringResource(R.string.media_pdf_photos),
+        (0..4).map { if (it == 0) none else "$it" },
         prefs.pdfPhotosPerDay.coerceIn(0, 4),
-        summary = "How many photos each day of the report's daily log shows. You can still change it for one report."
+        summary = stringResource(R.string.media_pdf_photos_summary)
     ) { i -> Settings.updatePortable { it.copy(pdfPhotosPerDay = i) } }
-    SettingsNote("These preferences travel with your .fitlens backups.")
+    SettingsNote(stringResource(R.string.settings_travel_note))
 }
 
 /** The + and − step for weights (#7). Stored in kg; the choices follow the display unit. */
 @Composable
-private fun WeightStepRow(unit: String, currentKg: Double?) {
+private fun WeightStepRow(title: String, unit: String, currentKg: Double?) {
     val lbs = unit == "lbs"
     val choices = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
     fun toKg(v: Double) = if (lbs) v * WeightUnits.KG_PER_LB else v
     val selected = if (currentKg == null) 0 else
         choices.indexOfFirst { kotlin.math.abs(toKg(it) - currentKg) < 0.001 }.let { if (it < 0) 0 else it + 1 }
     SettingsChoiceRow(
-        "Default Weight Increment",
-        listOf("Default (2.5)") + choices.map { "${fmtNum(it, 2)} $unit" },
+        title,
+        listOf(stringResource(R.string.settings_weight_step_default)) + choices.map { "${fmtNum(it, 2)} $unit" },
         selected,
-        summary = "How much the + and − buttons change the weight when you log a set. An exercise can have its own."
+        summary = stringResource(R.string.settings_weight_step_summary)
     ) { i ->
         val kg = if (i == 0) null else toKg(choices[i - 1])
         Settings.updatePortable { it.copy(weightIncrementKg = kg) }
@@ -573,15 +573,15 @@ private fun WeightStepRow(unit: String, currentKg: Double?) {
 /** The distance and length units (#7), as first-run setup asks them. */
 @Composable
 internal fun DistanceAndLengthSetting(distanceUnit: String, lengthUnit: String) {
-    SectionTitle("Distances")
+    SectionTitle(stringResource(R.string.setup_distances))
     com.fitlens.companion.ui.design.SegmentedSwitch(
         options = DistanceUnits.ALL.map { DistanceUnits.label(it) },
         selected = DistanceUnits.ALL.indexOf(distanceUnit).coerceAtLeast(0),
         onSelect = { i -> Settings.updatePortable { it.copy(distanceUnit = DistanceUnits.ALL[i]) } }
     )
-    SectionTitle("Body measurements")
+    SectionTitle(stringResource(R.string.setup_body_measurements))
     com.fitlens.companion.ui.design.SegmentedSwitch(
-        options = listOf("Centimetres", "Inches"),
+        options = listOf(stringResource(R.string.setup_centimetres), stringResource(R.string.setup_inches)),
         selected = if (lengthUnit == LengthUnits.IN) 1 else 0,
         onSelect = { i -> Settings.updatePortable { it.copy(lengthUnit = if (i == 1) LengthUnits.IN else LengthUnits.CM) } }
     )
@@ -590,12 +590,11 @@ internal fun DistanceAndLengthSetting(distanceUnit: String, lengthUnit: String) 
 /** The first day of the week for the calendar and weekly analysis (#7), as first-run setup asks it. */
 @Composable
 internal fun WeekStartSetting(weekStart: Int) {
-    val days = listOf(1 to "Monday", 6 to "Saturday", 7 to "Sunday")
-    SectionTitle("Week starts on")
+    SectionTitle(stringResource(R.string.setup_week_starts))
     com.fitlens.companion.ui.design.SegmentedSwitch(
-        options = days.map { it.second },
-        selected = days.indexOfFirst { it.first == weekStart }.coerceAtLeast(0),
-        onSelect = { i -> Settings.updatePortable { it.copy(weekStart = days[i].first) } }
+        options = WEEK_STARTS.map(::dayName),
+        selected = WEEK_STARTS.indexOfFirst { it.value == weekStart }.coerceAtLeast(0),
+        onSelect = { i -> Settings.updatePortable { it.copy(weekStart = WEEK_STARTS[i].value) } }
     )
 }
 
@@ -618,19 +617,16 @@ private fun RestPage() {
     DisposableEffect(Unit) {
         onDispose { if (latest != saved) Settings.updatePortable { it.copy(restSeconds = latest) } }
     }
-    SettingsGroup("Rest length")
+    SettingsGroup(stringResource(R.string.rest_group_length))
     Column(Modifier.padding(horizontal = Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         RestLengthStepper(seconds = chosen, onChange = { chosen = it })
     }
-    SettingsNote(
-        "Every exercise rests ${fmtDuration(chosen)} unless it has its own length, set from its rest timer or its " +
-            "details in the library."
-    )
-    SettingsGroup("When rest is over")
+    SettingsNote(stringResource(R.string.rest_length_note, fmtDuration(chosen)))
+    SettingsGroup(stringResource(R.string.rest_group_over))
     Column {
         RestAlertOptions()
     }
-    SettingsNote("The timer keeps running as you move between exercises, and with the screen off.")
+    SettingsNote(stringResource(R.string.rest_keeps_running))
 }
 
 /**
@@ -638,7 +634,7 @@ private fun RestPage() {
  * set, so the difference shows before choosing. Stored sets never change; estimates follow at once.
  */
 @Composable
-private fun FormulaChoice(snap: Snapshot, chosen: Records.Formula) {
+private fun FormulaChoice(title: String, snap: Snapshot, chosen: Records.Formula) {
     // The best recent set to show the formulas on: the last 90 days, 2 to 10 reps, highest automatic estimate.
     val example = remember(snap) {
         val from = java.time.LocalDate.now().minusDays(90).format(Dates.ISO)
@@ -647,17 +643,21 @@ private fun FormulaChoice(snap: Snapshot, chosen: Records.Formula) {
             .maxByOrNull { Records.oneRepMax(it.weightKg, it.reps, Records.Formula.AUTO) }
     }
     val formulas = Records.Formula.entries
+    val notEstimated = stringResource(R.string.formula_not_estimated)
     SettingsChoiceRow(
-        "Estimated 1RM Formula",
+        title,
         formulas.map { it.label },
         formulas.indexOf(chosen).coerceAtLeast(0),
-        summary = "Used for estimated 1RM, rep maxes, graphs, records, goals, the calculators and the PDF report. " +
-            "Automatic picks the most accurate formula for each rep range. Your logged sets never change.",
+        summary = stringResource(R.string.formula_summary),
         descriptions = formulas.map { f ->
-            if (example == null) "Up to ${f.maxReps} reps" else {
+            val upTo = pluralStringResource(R.plurals.formula_up_to, f.maxReps, f.maxReps)
+            if (example == null) pluralStringResource(R.plurals.settings_e1rm_value, f.maxReps, f.maxReps) else {
                 val est = Records.oneRepMax(example.weightKg, example.reps, f)
-                "${snap.fmtWeight(example.weightKg)} ${snap.weightUnit} × ${example.reps} → " +
-                    (if (est > 0) "${snap.fmtWeight(est)} ${snap.weightUnit}" else "not estimated") + "  ·  up to ${f.maxReps} reps"
+                val result = if (est > 0) "${snap.fmtWeight(est)} ${snap.weightUnit}" else notEstimated
+                stringResource(
+                    R.string.formula_example,
+                    "${snap.fmtWeight(example.weightKg)} ${snap.weightUnit}", example.reps, result, upTo
+                )
             }
         }
     ) { i -> Settings.updatePortable { it.copy(e1rmFormula = formulas[i].key) } }

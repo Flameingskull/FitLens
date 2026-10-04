@@ -2,10 +2,6 @@ package com.fitlens.companion.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,17 +12,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
@@ -47,15 +41,15 @@ import com.fitlens.companion.ui.design.SettingsGroup
 import com.fitlens.companion.ui.design.SettingsNote
 import com.fitlens.companion.ui.design.RangePreset
 import com.fitlens.companion.ui.design.SearchablePicker
-import com.fitlens.companion.ui.design.SegmentedSwitch
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Settings → Data tools: CSV export (#31) and deleting workout history (#32). Both work on a date range picked with
- * a [RangeRow]; a preset or a custom range resolves to inclusive ISO dates, null meaning open-ended.
+ * Settings → Data tools: CSV export (#31), deleting workout history (#32) and resetting the settings (#41). The first
+ * two work on a date range picked with a [RangeRow]; a preset or a custom range resolves to inclusive ISO dates, null
+ * meaning open-ended. The page's text is in `res/values/strings.xml` (#94).
  */
 @Composable
 fun DataToolsPage(snap: Snapshot) {
@@ -107,18 +101,18 @@ private class RangeState {
             return if (p != null) p.startDate() else custom?.first
         }
     val to: String? get() = if (preset == null) custom?.second else null
+}
 
-    val label: String
-        get() {
-            val p = preset
-            val c = custom
-            return when {
-                p == RangePreset.All -> "all dates"
-                p != null -> p.label.lowercase()
-                c != null -> "${Dates.medium(c.first)} to ${Dates.medium(c.second)}"
-                else -> "all dates"
-            }
-        }
+/** The range as it reads in a sentence: "all dates", "last 30 days" or "1 Jan 2026 to 31 Mar 2026". */
+@Composable
+private fun RangeState.label(): String {
+    val p = preset
+    val c = custom
+    return when {
+        p != null && p != RangePreset.All -> p.label.lowercase()
+        p == null && c != null -> stringResource(R.string.data_range_to, Dates.medium(c.first), Dates.medium(c.second))
+        else -> stringResource(R.string.data_all_dates)
+    }
 }
 
 /** The date range as a settings choice row (#86): the presets, then "Custom dates…", which opens a date-range picker. */
@@ -128,10 +122,10 @@ private fun RangeRow(state: RangeState) {
     val presets = RangePreset.entries
     val custom = state.custom
     val customLabel = if (state.preset == null && custom != null) {
-        "${Dates.medium(custom.first)} – ${Dates.medium(custom.second)}"
-    } else "Custom dates…"
+        stringResource(R.string.data_range_between, Dates.medium(custom.first), Dates.medium(custom.second))
+    } else stringResource(R.string.data_range_custom)
     SettingsChoiceRow(
-        "Date range",
+        stringResource(R.string.data_range),
         presets.map { it.label } + customLabel,
         state.preset?.ordinal ?: presets.size
     ) { i -> if (i < presets.size) state.preset = presets[i] else picking = true }
@@ -148,8 +142,6 @@ private fun RangeRow(state: RangeState) {
     }
 }
 
-private fun plural(n: Int, one: String, many: String) = "$n ${if (n == 1) one else many}"
-
 // ---------- CSV export (#31) ----------
 
 @Composable
@@ -161,6 +153,9 @@ private fun CsvExportSection(snap: Snapshot) {
     val from = range.from
     val to = range.to
     val kind = if (body) "body" else "workouts"
+    val exporting = stringResource(R.string.data_exporting)
+    val writeFailed = stringResource(R.string.data_csv_write_failed)
+    val saved = stringResource(R.string.data_csv_saved)
 
     // Builds the file's text from the newest data, off the main thread.
     suspend fun csv(): String = withContext(Dispatchers.Default) {
@@ -169,18 +164,18 @@ private fun CsvExportSection(snap: Snapshot) {
     }
 
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(CsvExport.MIME)) { uri ->
-        if (uri != null) runBusy("Exporting…") {
+        if (uri != null) runBusy(exporting) {
             val text = csv()
             withContext(Dispatchers.IO) {
                 ctx.contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
-            } ?: return@runBusy ImportSummary("Couldn't write the CSV file.", false)
-            ImportSummary("CSV saved.", true)
+            } ?: return@runBusy ImportSummary(writeFailed, false)
+            ImportSummary(saved, true)
         }
     }
 
     fun share() {
         AppScope.scope.launch {
-            UiEvents.busy.value = "Exporting…"
+            UiEvents.busy.value = exporting
             val file = try {
                 val text = csv()
                 withContext(Dispatchers.IO) {
@@ -190,7 +185,7 @@ private fun CsvExportSection(snap: Snapshot) {
                     File(dir, CsvExport.fileName(kind, from, to)).apply { writeText(text, Charsets.UTF_8) }
                 }
             } catch (e: Exception) {
-                UiEvents.show("Couldn't create the CSV file: ${e.message}", ResultLevel.Failure)
+                UiEvents.show(ctx.getString(R.string.data_csv_create_failed, e.message.orEmpty()), ResultLevel.Failure)
                 null
             } finally {
                 UiEvents.busy.value = null
@@ -202,27 +197,49 @@ private fun CsvExportSection(snap: Snapshot) {
     val count = remember(snap, body, from, to) {
         if (body) CsvExport.countBody(snap, from, to) to 0 else CsvExport.countWorkouts(snap, from, to)
     }
-    val preview = if (body) plural(count.first, "body value", "body values")
-    else "${plural(count.first, "set", "sets")} from ${plural(count.second, "workout", "workouts")}"
+    val preview = if (body) pluralStringResource(R.plurals.data_body_values, count.first, count.first)
+    else stringResource(
+        R.string.data_sets_from,
+        pluralStringResource(R.plurals.data_sets, count.first, count.first),
+        pluralStringResource(R.plurals.data_workouts, count.second, count.second)
+    )
+    val rangeLabel = range.label()
 
-    SettingsGroup("Export as CSV")
-    SettingsNote("For spreadsheets such as Excel or Google Sheets. FitLens can't restore from a CSV file: use a backup for that.")
-    SettingsChoiceRow("Data", listOf("Workouts", "Body data"), if (body) 1 else 0) { body = it == 1 }
+    SettingsGroup(stringResource(R.string.data_csv_group))
+    SettingsNote(stringResource(R.string.data_csv_note))
+    SettingsChoiceRow(
+        stringResource(R.string.data_kind),
+        listOf(stringResource(R.string.data_kind_workouts), stringResource(R.string.data_kind_body)),
+        if (body) 1 else 0
+    ) { body = it == 1 }
     RangeRow(range)
     if (!body) {
-        SettingsChoiceRow("Weights in", listOf("Kilograms (kg)", "Pounds (lbs)"), if (unit == "lbs") 1 else 0) {
-            unit = if (it == 1) "lbs" else "kg"
-        }
+        SettingsChoiceRow(
+            stringResource(R.string.data_weights_in),
+            listOf(stringResource(R.string.unit_kilograms), stringResource(R.string.unit_pounds)),
+            if (unit == "lbs") 1 else 0
+        ) { unit = if (it == 1) "lbs" else "kg" }
     }
     val ready = count.first > 0
-    SettingsActionRow("Save CSV", "$preview, ${range.label}.", enabled = ready) { save.launch(CsvExport.fileName(kind, from, to)) }
-    SettingsActionRow("Share CSV", "Send it with an app you already use.", enabled = ready) { share() }
+    val nothing = stringResource(R.string.data_csv_nothing, rangeLabel)
+    SettingsActionRow(
+        stringResource(R.string.data_save_csv),
+        stringResource(R.string.data_count_range, preview, rangeLabel),
+        enabled = ready,
+        disabledReason = nothing
+    ) { save.launch(CsvExport.fileName(kind, from, to)) }
+    SettingsActionRow(
+        stringResource(R.string.data_share_csv),
+        stringResource(R.string.data_share_csv_summary),
+        enabled = ready,
+        disabledReason = nothing
+    ) { share() }
     val columns = if (body) {
-        CsvExport.BODY_COLUMNS.joinToString(", ") + ". One row per value."
+        stringResource(R.string.data_columns_body, CsvExport.BODY_COLUMNS.joinToString(", "))
     } else {
-        CsvExport.WORKOUT_COLUMNS + ". One row per set, numbered from 1 for each exercise on each day. Time is in seconds."
+        stringResource(R.string.data_columns_workouts, CsvExport.WORKOUT_COLUMNS)
     }
-    SettingsNote("Columns: $columns Dates are written year-month-day.")
+    SettingsNote(stringResource(R.string.data_columns, columns))
 }
 
 // ---------- Delete workout history (#32) ----------
@@ -247,23 +264,29 @@ private fun DeleteHistorySection(snap: Snapshot) {
     val days = remember(matching) { matching.map { it.date.take(10) }.distinct().size }
     val imported = remember(matching) { matching.count { it.imported } }
     val exerciseLabel = when (exerciseIds.size) {
-        0 -> "every exercise"
-        1 -> snap.exercises[exerciseIds.first()]?.name ?: "1 exercise"
-        else -> "${exerciseIds.size} exercises"
+        0 -> stringResource(R.string.data_every_exercise)
+        1 -> snap.exercises[exerciseIds.first()]?.name ?: pluralStringResource(R.plurals.data_exercise_count, 1, 1)
+        else -> pluralStringResource(R.plurals.data_exercise_count, exerciseIds.size, exerciseIds.size)
     }
-    val summary = "${plural(matching.size, "set", "sets")} from ${plural(days, "workout", "workouts")}"
-
-    SettingsGroup("Delete workout history")
-    SettingsNote(
-        "Removes logged sets by date range, exercise or both. Your exercises, categories, workout comments and " +
-            "times, photos and body data are kept."
+    val setsText = pluralStringResource(R.plurals.data_sets, matching.size, matching.size)
+    val summary = stringResource(
+        R.string.data_sets_from, setsText, pluralStringResource(R.plurals.data_workouts, days, days)
     )
+    val rangeLabel = range.label()
+
+    SettingsGroup(stringResource(R.string.data_delete_group))
+    SettingsNote(stringResource(R.string.data_delete_note))
     RangeRow(range)
-    SettingsActionRow("Exercises", "Tap to choose which exercises to delete from.", value = exerciseLabel.replaceFirstChar { it.uppercase() }) {
-        picking = true
-    }
-    if (exerciseIds.isNotEmpty()) SettingsActionRow("Use every exercise") { exerciseIds = emptySet() }
-    SettingsNote(if (matching.isEmpty()) "Nothing to delete for ${range.label}." else "$summary, ${range.label}.")
+    SettingsActionRow(
+        stringResource(R.string.data_exercises),
+        stringResource(R.string.data_exercises_summary),
+        value = exerciseLabel.replaceFirstChar { it.uppercase() }
+    ) { picking = true }
+    if (exerciseIds.isNotEmpty()) SettingsActionRow(stringResource(R.string.data_use_every)) { exerciseIds = emptySet() }
+    SettingsNote(
+        if (matching.isEmpty()) stringResource(R.string.data_delete_nothing, rangeLabel)
+        else stringResource(R.string.data_count_range, summary, rangeLabel)
+    )
     Button(
         onClick = { confirming = true },
         enabled = matching.isNotEmpty(),
@@ -275,7 +298,7 @@ private fun DeleteHistorySection(snap: Snapshot) {
     ) {
         Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text("Delete workout history")
+        Text(stringResource(R.string.data_delete_group))
     }
 
     if (picking) {
@@ -285,7 +308,7 @@ private fun DeleteHistorySection(snap: Snapshot) {
                 .map { e -> PickerItem(e.id, e.name, section = snap.categories[e.categoryId]?.name) }
         }
         SearchablePicker(
-            title = "Exercises to delete from",
+            title = stringResource(R.string.data_pick_title),
             items = items,
             onDismiss = { picking = false },
             onPick = { ids ->
@@ -293,29 +316,26 @@ private fun DeleteHistorySection(snap: Snapshot) {
                 picking = false
             },
             multiSelect = true,
-            searchLabel = "Search exercises"
+            searchLabel = stringResource(R.string.data_pick_search)
         )
     }
     if (confirming) {
-        val fitNotesNote = if (imported > 0) {
-            " ${plural(imported, "set", "sets")} came from FitNotes, and will stay deleted when you next import a " +
-                "FitNotes backup."
-        } else ""
+        val fitNotesNote = if (imported > 0) " " + pluralStringResource(R.plurals.data_delete_fitnotes, imported, imported) else ""
+        val busy = stringResource(R.string.data_deleting)
+        val reason = stringResource(R.string.data_safety_reason)
         ConfirmSheet(
-            title = "Delete ${plural(matching.size, "set", "sets")}?",
-            message = "This deletes $summary for $exerciseLabel, ${range.label}.$fitNotesNote Personal records are " +
-                "worked out again afterwards. A safety copy is taken first, so you can undo this from " +
-                "Settings → Backup for ${Backups.UNDO_DAYS} days.",
-            confirmLabel = "Delete ${plural(matching.size, "set", "sets")}",
+            title = pluralStringResource(R.plurals.data_delete_title, matching.size, matching.size),
+            message = stringResource(R.string.data_delete_body, summary, exerciseLabel, rangeLabel, fitNotesNote, Backups.UNDO_DAYS),
+            confirmLabel = pluralStringResource(R.plurals.data_delete_confirm, matching.size, matching.size),
             onDismiss = { confirming = false },
             onConfirm = {
                 val ids = exerciseIds
-                runBusy("Deleting workout history…") {
+                runBusy(busy) {
                     // The way back (#47). If it can't be made, nothing is deleted.
-                    val safety = Backups.safetyCopy(ctx, "Before deleting workout history")
+                    val safety = Backups.safetyCopy(ctx, reason)
                     if (!safety.ok) return@runBusy safety
                     val n = Workouts.deleteHistory(from, to, ids)
-                    ImportSummary("Deleted ${plural(n, "set", "sets")}. Undo is in Settings → Backup.", ok = true)
+                    ImportSummary(ctx.resources.getQuantityString(R.plurals.data_deleted, n, n), ok = true)
                 }
             }
         )
