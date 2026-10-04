@@ -1,7 +1,9 @@
 package com.fitlens.companion.data
 
 import android.content.ContentValues
+import android.content.res.Resources
 import android.database.sqlite.SQLiteDatabase
+import com.fitlens.companion.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -343,13 +345,13 @@ object Routines {
 
     private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType, restSeconds, metric)
 
-    /** How the sets read in lists, for example "3 sets · 100 kg · 5 reps". */
-    fun describe(snap: Snapshot, sets: List<PlannedSet>, exerciseId: Long? = null): String {
-        if (sets.isEmpty()) return "No sets"
+    /** How the sets read in lists, for example "3 sets · 100 kg · 5 reps", in the words of `strings.xml` (#94). */
+    fun describe(res: Resources, snap: Snapshot, sets: List<PlannedSet>, exerciseId: Long? = null): String {
+        if (sets.isEmpty()) return res.getString(R.string.plan_no_sets)
         val first = sets.first()
         val parts = ArrayList<String>()
         if (first.weightKg != 0.0) parts.add("${snap.fmtWeight(first.weightKg, exerciseId)} ${snap.weightUnitOf(exerciseId)}")
-        if (first.reps > 0) parts.add("${first.reps} reps")
+        if (first.reps > 0) parts.add(res.getQuantityString(R.plurals.plan_reps, first.reps, first.reps))
         if (first.distance > 0) parts.add("${fmtNum(first.distance)} ${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit}")
         if (first.durationSec > 0) parts.add(fmtDuration(first.durationSec))
         first.metric?.let { m ->
@@ -357,15 +359,8 @@ object Routines {
             parts.add(fmtNum(m) + unit?.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty())
         }
         val same = sets.all { it == first }
-        val head = "${sets.size} set${if (sets.size == 1) "" else "s"}"
+        val head = res.getQuantityString(R.plurals.plan_sets, sets.size, sets.size)
         return if (parts.isEmpty()) head else "$head · ${parts.joinToString(" · ")}${if (same) "" else " …"}"
-    }
-
-    /** How an exercise's sets are filled, in the words the editor uses. */
-    fun fillLabel(fill: Int): String = when (fill) {
-        FILL_PLANNED -> "Predefined sets"
-        FILL_NONE -> "No sets"
-        else -> "Copy previous sets"
     }
 
     /**

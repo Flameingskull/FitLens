@@ -413,14 +413,14 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
                         ) {
                             Text(snap.exercises[p.exerciseId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                planSummary(snap, p),
+                                planSummary(LocalContext.current.resources, snap, p),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             // Its prescribed rest (#138), "Rest 90 s · then 2 min".
-                            restSummary(p)?.let { rest ->
+                            restSummary(LocalContext.current.resources, p)?.let { rest ->
                                 Text(rest, style = MaterialTheme.typography.bodySmall, color = Brand.Gold, maxLines = 1)
                             }
                         }

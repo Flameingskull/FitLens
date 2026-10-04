@@ -4,6 +4,7 @@ package com.fitlens.companion.ui
 
 import com.fitlens.companion.ui.design.OverflowMenu
 import com.fitlens.companion.ui.design.StepperField
+import android.content.res.Resources
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.RadioButton
 import androidx.compose.ui.semantics.Role
@@ -417,10 +418,10 @@ private fun DayCard(
             fun withPlanned(at: Int, p: PlannedExercise) = slots.toMutableList().also { it[at] = slots[at].copy(planned = p) }
             ListRowWithMenu(
                 title = snap.exercises[slot.planned.exerciseId]?.name ?: stringResource(R.string.workout_exercise_title),
-                subtitle = planSummary(snap, slot.planned) +
+                subtitle = planSummary(LocalContext.current.resources, snap, slot.planned) +
                     (if (slot.planned.superset > 0) "  ·  " + stringResource(R.string.workout_superset, ('A' + groups.indexOf(slot.planned.superset)).toString()) else "") +
                     // Its prescribed rest on a line of its own, "Rest 90 s · then 2 min" (#138).
-                    (restSummary(slot.planned)?.let { "\n$it" } ?: ""),
+                    (restSummary(LocalContext.current.resources, slot.planned)?.let { "\n$it" } ?: ""),
                 leading = { Dot(categoryColour(snap.categoryOf(slot.planned.exerciseId)?.colour ?: 0), Spacing.md) },
                 onClick = { onSets(slot.key) },
                 menu = listOf(
@@ -451,40 +452,44 @@ private fun DayCard(
     }
 }
 
-/** How an exercise's sets read in the editor and on the library's day cards. Its rest is [restSummary] (#138). */
-fun planSummary(snap: Snapshot, p: PlannedExercise): String {
+/**
+ * How an exercise's sets read in the editor and on the library's day cards. Its rest is [restSummary] (#138). These
+ * summaries take their words from `strings.xml` (#94), so callers pass `LocalContext.current.resources`.
+ */
+fun planSummary(res: Resources, snap: Snapshot, p: PlannedExercise): String {
     return when (p.fill) {
-        Routines.FILL_NONE -> "No sets: log them as you go"
-        Routines.FILL_PLANNED -> Routines.describe(snap, p.sets.filter { !it.isEmpty }, p.exerciseId)
+        Routines.FILL_NONE -> res.getString(R.string.plan_log_as_you_go)
+        Routines.FILL_PLANNED -> Routines.describe(res, snap, p.sets.filter { !it.isEmpty }, p.exerciseId)
         else -> {
             val last = Routines.resolve(snap, p, "9999-12-31")
-            if (last.isEmpty()) "Copy previous sets · not logged yet" else "Copy previous sets · ${Routines.describe(snap, last, p.exerciseId)}"
+            if (last.isEmpty()) res.getString(R.string.plan_copy_none)
+            else res.getString(R.string.plan_copy, Routines.describe(res, snap, last, p.exerciseId))
         }
     }
 }
 
 /** A rest length as the editor shows it: "90 s", "2 min", "2 min 30 s" (#138). */
-fun restLabel(seconds: Int): String = when {
-    seconds < 60 -> "$seconds s"
-    seconds % 60 == 0 -> "${seconds / 60} min"
-    else -> "${seconds / 60} min ${seconds % 60} s"
+fun restLabel(res: Resources, seconds: Int): String = when {
+    seconds < 60 -> res.getString(R.string.rest_label_seconds, seconds)
+    seconds % 60 == 0 -> res.getString(R.string.rest_label_minutes, seconds / 60)
+    else -> res.getString(R.string.rest_label_min_sec, seconds / 60, seconds % 60)
 }
 
 /**
  * An exercise's prescribed rest in one line (#138), "Rest 90 s · then 2 min": the rest between its sets (one length,
  * or "varies" when its sets each have their own), then the rest before the next exercise. Null when none is set.
  */
-fun restSummary(p: PlannedExercise): String? {
+fun restSummary(res: Resources, p: PlannedExercise): String? {
     // "Copy previous rest" (#151) is one choice for the whole exercise.
-    if (Routines.copiesRest(p)) return "Copy previous rest"
+    if (Routines.copiesRest(p)) return res.getString(R.string.rest_summary_copy)
     val setRests = if (p.fill == Routines.FILL_PLANNED) p.sets.mapNotNull { it.restSeconds }.distinct() else emptyList()
     val between = when {
-        setRests.size > 1 -> "Rest varies"
-        setRests.size == 1 -> "Rest ${restLabel(setRests[0])}"
-        p.restSeconds != null -> "Rest ${restLabel(p.restSeconds)}"
+        setRests.size > 1 -> res.getString(R.string.rest_summary_varies)
+        setRests.size == 1 -> res.getString(R.string.rest_summary_between, restLabel(res, setRests[0]))
+        p.restSeconds != null -> res.getString(R.string.rest_summary_between, restLabel(res, p.restSeconds))
         else -> null
     }
-    val after = p.restAfterSeconds?.let { "then ${restLabel(it)}" }
+    val after = p.restAfterSeconds?.let { res.getString(R.string.rest_summary_then, restLabel(res, it)) }
     return listOfNotNull(between, after).joinToString(" · ").ifEmpty { null }
 }
 
@@ -566,10 +571,12 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
     val fallbackRest = ex?.restSeconds ?: Settings.currentPortable().restSeconds
     val perSet = fill == Routines.FILL_PLANNED && !sameRest && !copyRest
     // What "Copy previous rest" would copy today, in the same words as the exercise row.
+    val res = LocalContext.current.resources
     val previousRest = remember(snap, planned.exerciseId) {
         val copying = planned.copy(fill = Routines.FILL_LAST, restSeconds = Routines.REST_PREVIOUS, restAfterSeconds = Routines.REST_PREVIOUS)
         val r = Routines.resolveRest(snap, copying, "9999-12-31")
         restSummary(
+            res,
             PlannedExercise(
                 planned.exerciseId, Routines.FILL_PLANNED, Routines.resolve(snap, copying, "9999-12-31"),
                 restSeconds = r.restSeconds, restAfterSeconds = r.restAfterSeconds
@@ -608,7 +615,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
         FillChoice(
             stringResource(R.string.workout_fill_last),
             if (last.isEmpty()) stringResource(R.string.workout_fill_last_none)
-            else stringResource(R.string.workout_fill_last_body, Routines.describe(snap, last, planned.exerciseId)),
+            else stringResource(R.string.workout_fill_last_body, Routines.describe(res, snap, last, planned.exerciseId)),
             fill == Routines.FILL_LAST
         ) { fill = Routines.FILL_LAST }
         FillChoice(stringResource(R.string.workout_fill_planned), stringResource(R.string.workout_fill_planned_body), fill == Routines.FILL_PLANNED) {
@@ -685,7 +692,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
         FillChoice(
             stringResource(R.string.workout_rest_copy),
             previousRest?.let { stringResource(R.string.workout_rest_copy_body, it.replaceFirstChar { c -> c.lowercase() }) }
-                ?: stringResource(R.string.workout_rest_copy_none, restLabel(fallbackRest)),
+                ?: stringResource(R.string.workout_rest_copy_none, restLabel(res, fallbackRest)),
             copyRest
         ) { copyRest = true }
         FillChoice(stringResource(R.string.workout_rest_set), stringResource(R.string.workout_rest_set_body), !copyRest) { copyRest = false }
@@ -698,7 +705,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
             }
             if (perSet) {
                 Text(
-                    stringResource(R.string.workout_rest_per_set_hint, restLabel(fallbackRest)),
+                    stringResource(R.string.workout_rest_per_set_hint, restLabel(res, fallbackRest)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

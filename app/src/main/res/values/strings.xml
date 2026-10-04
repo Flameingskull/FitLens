@@ -475,4 +475,26 @@
         <item quantity="one">Deleted %1$d set. Undo is in Settings → Backup.</item>
         <item quantity="other">Deleted %1$d sets. Undo is in Settings → Backup.</item>
     </plurals>
+
+    <!-- How a workout day's exercises read in the library and the workout editor (#94, #138). -->
+    <string name="plan_no_sets">No sets</string>
+    <string name="plan_log_as_you_go">No sets: log them as you go</string>
+    <string name="plan_copy_none">Copy previous sets · not logged yet</string>
+    <string name="plan_copy">Copy previous sets · %1$s</string>
+    <string name="plan_none_to_add">No sets to add: it opens for you to log</string>
+    <string name="rest_label_seconds">%1$d s</string>
+    <string name="rest_label_minutes">%1$d min</string>
+    <string name="rest_label_min_sec">%1$d min %2$d s</string>
+    <string name="rest_summary_copy">Copy previous rest</string>
+    <string name="rest_summary_varies">Rest varies</string>
+    <string name="rest_summary_between">Rest %1$s</string>
+    <string name="rest_summary_then">then %1$s</string>
+    <plurals name="plan_sets">
+        <item quantity="one">%1$d set</item>
+        <item quantity="other">%1$d sets</item>
+    </plurals>
+    <plurals name="plan_reps">
+        <item quantity="one">%1$d rep</item>
+        <item quantity="other">%1$d reps</item>
+    </plurals>
 </resources>

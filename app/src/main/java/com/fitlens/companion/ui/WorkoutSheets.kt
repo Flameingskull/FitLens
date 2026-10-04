@@ -3,6 +3,9 @@
 package com.fitlens.companion.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -298,9 +301,10 @@ private fun ReviewWorkoutSheet(
             ) {
                 Checkbox(checked = on, onCheckedChange = null)
                 Column(Modifier.weight(1f).padding(start = Spacing.sm)) {
-                    Text(snap.exercises[p.exerciseId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
+                    Text(snap.exercises[p.exerciseId]?.name ?: stringResource(R.string.workout_exercise_title), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        if (sets.isEmpty()) "No sets to add: it opens for you to log" else Routines.describe(snap, sets, p.exerciseId),
+                        if (sets.isEmpty()) stringResource(R.string.plan_none_to_add)
+                        else Routines.describe(LocalContext.current.resources, snap, sets, p.exerciseId),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
