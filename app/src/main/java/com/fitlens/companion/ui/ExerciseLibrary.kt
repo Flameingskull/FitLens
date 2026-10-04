@@ -6,6 +6,7 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.material3.HorizontalDivider
 import com.fitlens.companion.ui.design.SectionLabel
 import androidx.compose.ui.unit.TextUnit
@@ -160,8 +161,6 @@ private const val FAVOURITES = -1L
 
 private val LinkPattern = Regex("https?://\\S+")
 
-private fun countOf(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
-
 // ---------------------------------------------------------------------------------------------------------
 // Library screen
 // ---------------------------------------------------------------------------------------------------------
@@ -174,6 +173,7 @@ private fun countOf(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
 @Composable
 fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
     val date = forDate ?: Dates.today()
+    val res = LocalContext.current.resources
     var category by rememberSaveable { mutableStateOf<Long?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -220,10 +220,10 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
     val routineMode = routine != null && atTop
     val title = when {
         routineMode && routine != null -> routine.name
-        picked.isNotEmpty() -> "${picked.size} selected"
-        category == FAVOURITES -> "Favourites"
-        category == Workouts.UNCATEGORISED -> "Uncategorised"
-        else -> category?.let { snap.categories[it]?.name } ?: "All exercises"
+        picked.isNotEmpty() -> stringResource(R.string.lib_selected, picked.size)
+        category == FAVOURITES -> stringResource(R.string.lib_favourites)
+        category == Workouts.UNCATEGORISED -> stringResource(R.string.lib_uncategorised)
+        else -> category?.let { snap.categories[it]?.name } ?: stringResource(R.string.lib_all_exercises)
     }
 
     // On wide screens (unfolded, landscape, tablets) the categories and their exercises sit side by side (#83).
@@ -234,7 +234,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
             exercises = listed,
             grouped = searching && q.isNotEmpty(),
             picked = picked,
-            emptyText = if (searching && q.isNotEmpty()) "No exercise matches “$q”." else "No exercises here yet. Tap + to create one.",
+            emptyText = if (searching && q.isNotEmpty()) stringResource(R.string.lib_no_match, q) else stringResource(R.string.lib_category_empty),
             onOpen = { ex -> if (picked.isNotEmpty()) toggle(picked, ex.id) else open(listOf(ex.id)) },
             onPick = { ex -> toggle(picked, ex.id) },
             onEdit = { editing = it },
@@ -247,22 +247,22 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
             title = title,
-            subtitle = if (picked.isEmpty()) "For ${relativeDayLabel(date)}" else "Tap more, or add them below",
+            subtitle = if (picked.isEmpty()) stringResource(R.string.lib_for_day, relativeDayLabel(date)) else stringResource(R.string.lib_tap_more),
             onBack = { back() },
-            backLabel = if (picked.isNotEmpty()) "Clear selection" else "Back",
+            backLabel = stringResource(if (picked.isNotEmpty()) R.string.lib_clear_selection else R.string.lib_back),
             titleMenu = if (!atTop) emptyList() else buildList {
-                add(MenuAction("All exercises") { Settings.updatePortable { it.copy(lastRoutineId = 0L) } })
+                add(MenuAction(res.getString(R.string.lib_all_exercises)) { Settings.updatePortable { it.copy(lastRoutineId = 0L) } })
                 snap.routines.forEach { r -> add(MenuAction(r.name) { Settings.updatePortable { it.copy(lastRoutineId = r.id) } }) }
-                add(MenuAction("Create new workout") { nav.push(Screen.WorkoutEditor(0L)) })
+                add(MenuAction(res.getString(R.string.lib_create_workout)) { nav.push(Screen.WorkoutEditor(0L)) })
             },
             actions = if (routineMode && routine != null) listOf(
-                TopBarAction(Icons.Filled.Edit, "Edit workout") { nav.push(Screen.WorkoutEditor(routine.id)) }
+                TopBarAction(Icons.Filled.Edit, stringResource(R.string.lib_edit_workout)) { nav.push(Screen.WorkoutEditor(routine.id)) }
             ) else if (picked.isNotEmpty()) emptyList() else listOf(
-                TopBarAction(Icons.Filled.Add, "New exercise") { creating = true }
+                TopBarAction(Icons.Filled.Add, stringResource(R.string.lib_new_exercise)) { creating = true }
             ),
             overflow = if (picked.isNotEmpty() || routineMode) emptyList() else listOf(
-                MenuAction("Manage categories") { showCategories = true },
-                MenuAction("Add starter library") { seeding = true }
+                MenuAction(stringResource(R.string.lib_manage_categories)) { showCategories = true },
+                MenuAction(stringResource(R.string.lib_add_starter)) { seeding = true }
             )
         )
         // As in FitNotes (#123): the search field is always there above the list; typing searches every exercise.
@@ -271,7 +271,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                 value = query,
                 onValueChange = { query = it; searching = it.isNotBlank() },
                 singleLine = true,
-                label = { Text("Search every exercise") },
+                label = { Text(stringResource(R.string.lib_search_every)) },
                 leadingIcon = { SearchFieldIcon() },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.xs)
             )
@@ -280,12 +280,12 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
         Box(Modifier.weight(1f)) {
             when {
                 snap.exercises.isEmpty() -> EmptyState(
-                    "Your library is empty",
-                    "Create your own exercises, start from FitLens's starter library, or import a FitNotes backup from Settings → Import From FitNotes."
+                    stringResource(R.string.lib_empty_title),
+                    stringResource(R.string.lib_empty_body)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        GoldButton(onClick = { seeding = true }) { Text("Add starter library") }
-                        GlassOutlinedButton(onClick = { creating = true }) { Text("Create an exercise") }
+                        GoldButton(onClick = { seeding = true }) { Text(stringResource(R.string.lib_add_starter)) }
+                        GlassOutlinedButton(onClick = { creating = true }) { Text(stringResource(R.string.lib_create_exercise)) }
                     }
                 }
                 routineMode && routine != null -> RoutineDayList(
@@ -306,7 +306,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                             exerciseList()
                         } else {
                             Text(
-                                "Choose a category, or search every exercise.",
+                                stringResource(R.string.lib_choose_category),
                                 Modifier.padding(Spacing.lg),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -325,8 +325,8 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = { picked.clear() }) { Text("Clear") }
-                GoldButton(onClick = { open(picked.toList()) }) { Text("Add ${countOf(picked.size, "exercise")}") }
+                TextButton(onClick = { picked.clear() }) { Text(stringResource(R.string.lib_clear)) }
+                GoldButton(onClick = { open(picked.toList()) }) { Text(pluralStringResource(R.plurals.lib_add_n, picked.size, picked.size)) }
             }
         }
     }
@@ -366,7 +366,7 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
         if (routine.days.all { it.exercises.isEmpty() }) {
             item(key = "empty") {
                 Text(
-                    "This workout has no exercises yet. Tap the pencil to add them.",
+                    stringResource(R.string.lib_routine_empty),
                     Modifier.padding(Spacing.lg),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -385,7 +385,7 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
                 ) {
                     Row(Modifier.fillMaxWidth().padding(start = Spacing.lg, end = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            d.name + if (isNext) "  ·  Next" else "",
+                            if (isNext) stringResource(R.string.lib_day_next, d.name) else d.name,
                             style = MaterialTheme.typography.titleMedium,
                             color = if (isNext) Brand.Gold else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -396,22 +396,23 @@ private fun RoutineDayList(snap: Snapshot, routine: Routine, onOpen: (Long) -> U
                             onClick = { onLogAll(d) },
                             enabled = d.exercises.isNotEmpty(),
                             modifier = Modifier.heightIn(min = Spacing.touch)
-                        ) { Text("LOG ALL", style = MaterialTheme.typography.labelMedium) }
+                        ) { Text(stringResource(R.string.lib_log_all), style = MaterialTheme.typography.labelMedium) }
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
                     if (d.exercises.isEmpty()) {
-                        Text("No exercises yet", Modifier.padding(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.lib_day_empty), Modifier.padding(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     d.exercises.forEachIndexed { i, p ->
                         if (i > 0) HorizontalDivider(color = Brand.Hairline)
+                        val openLabel = stringResource(R.string.lib_open)
                         Column(
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = Spacing.row)
-                                .clickable(onClickLabel = "Open") { onOpen(p.exerciseId) }
+                                .clickable(onClickLabel = openLabel) { onOpen(p.exerciseId) }
                                 .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
                         ) {
-                            Text(snap.exercises[p.exerciseId]?.name ?: "Exercise", style = MaterialTheme.typography.bodyLarge)
+                            Text(snap.exercises[p.exerciseId]?.name ?: stringResource(R.string.ex_fallback), style = MaterialTheme.typography.bodyLarge)
                             Text(
                                 planSummary(LocalContext.current.resources, snap, p),
                                 style = MaterialTheme.typography.bodySmall,
@@ -446,18 +447,18 @@ private fun CategoryList(snap: Snapshot, selectedId: Long?, modifier: Modifier =
     LazyColumn(modifier, contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         if (snap.favouriteExercises.isNotEmpty()) {
             item(key = "fav") {
-                CategoryRow("Favourites", snap.favouriteExercises.size, selectedId == FAVOURITES, emptyList()) { onOpen(FAVOURITES) }
+                CategoryRow(stringResource(R.string.lib_favourites), snap.favouriteExercises.size, selectedId == FAVOURITES, emptyList()) { onOpen(FAVOURITES) }
             }
         }
         snap.categoriesSorted.forEach { c ->
             item(key = "c${c.id}") {
-                CategoryRow(c.name, counts[c.id] ?: 0, selectedId == c.id, listOf(MenuAction("Edit category") { editing = c })) { onOpen(c.id) }
+                CategoryRow(c.name, counts[c.id] ?: 0, selectedId == c.id, listOf(MenuAction(stringResource(R.string.lib_edit_category)) { editing = c })) { onOpen(c.id) }
             }
         }
         val loose = counts[Workouts.UNCATEGORISED] ?: 0
         if (loose > 0) {
             item(key = "none") {
-                CategoryRow("Uncategorised", loose, selectedId == Workouts.UNCATEGORISED, emptyList()) {
+                CategoryRow(stringResource(R.string.lib_uncategorised), loose, selectedId == Workouts.UNCATEGORISED, emptyList()) {
                     onOpen(Workouts.UNCATEGORISED)
                 }
             }
@@ -469,21 +470,23 @@ private fun CategoryList(snap: Snapshot, selectedId: Long?, modifier: Modifier =
 /** A category as FitNotes lists it (#143, its screenshots 25 and 32): the name and a ⋮, a fine rule under each. */
 @Composable
 private fun CategoryRow(name: String, count: Int, selected: Boolean, menu: List<MenuAction>, onClick: () -> Unit) {
+    val showLabel = stringResource(R.string.lib_show_category, name)
+    val spoken = stringResource(R.string.lib_category_spoken, name, pluralStringResource(R.plurals.lib_exercises, count, count))
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
             .background(if (selected) Brand.Gold.copy(alpha = 0.12f) else Color.Transparent)
-            .clickable(onClickLabel = "Show $name exercises", onClick = onClick)
+            .clickable(onClickLabel = showLabel, onClick = onClick)
             .semantics(mergeDescendants = true) {
-                contentDescription = "$name, ${countOf(count, "exercise")}"
+                contentDescription = spoken
                 this.selected = selected
             }
             .padding(start = Spacing.lg, end = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        if (menu.isNotEmpty()) OverflowMenu(menu, description = "Options for $name") else Spacer(Modifier.size(Spacing.touch))
+        if (menu.isNotEmpty()) OverflowMenu(menu, description = stringResource(R.string.lib_options_for, name)) else Spacer(Modifier.size(Spacing.touch))
     }
     HorizontalDivider(color = Brand.Hairline)
 }
@@ -522,7 +525,7 @@ private fun ExerciseList(
                     Row(Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.md, bottom = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                         Dot(categoryColour(cat?.colour ?: 0), 10.dp)
                         Spacer(Modifier.width(Spacing.sm))
-                        SectionLabel(cat?.name ?: "Uncategorised", Modifier.weight(1f))
+                        SectionLabel(cat?.name ?: stringResource(R.string.lib_uncategorised), Modifier.weight(1f))
                     }
                 }
             }
@@ -537,13 +540,13 @@ private fun ExerciseList(
                         onPick = { onPick(ex) },
                         menu = listOf(
                             // FitNotes's row has no star (#143); favourites are set from the menu.
-                            MenuAction(if (ex.favourite) "Remove from favourites" else "Add to favourites") {
+                            MenuAction(stringResource(if (ex.favourite) R.string.lib_unfavourite else R.string.lib_favourite)) {
                                 AppScope.scope.launch { Workouts.setFavourite(ex.id, !ex.favourite) }
                             },
-                            MenuAction("Edit") { onEdit(ex) },
-                            MenuAction("Records and goals", enabled = (snap.workoutsByExercise[ex.id] ?: 0) > 0) { onDetails(ex) },
-                            MenuAction("Merge into…") { onMerge(ex) },
-                            MenuAction("Delete") { onDelete(ex) }
+                            MenuAction(stringResource(R.string.lib_edit)) { onEdit(ex) },
+                            MenuAction(stringResource(R.string.lib_records_goals), enabled = (snap.workoutsByExercise[ex.id] ?: 0) > 0) { onDetails(ex) },
+                            MenuAction(stringResource(R.string.lib_merge_into)) { onMerge(ex) },
+                            MenuAction(stringResource(R.string.lib_delete)) { onDelete(ex) }
                         )
                     )
                 }
@@ -566,14 +569,16 @@ private fun ExerciseRow(
     onPick: () -> Unit,
     menu: List<MenuAction>
 ) {
+    val clickLabel = if (choosing) stringResource(R.string.lib_choose_toggle) else stringResource(R.string.lib_log_exercise, ex.name)
+    val longClickLabel = stringResource(R.string.lib_choose_several)
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
             .background(if (order != null) Brand.Gold.copy(alpha = 0.12f) else Color.Transparent)
             .combinedClickable(
-                onClickLabel = if (choosing) "Choose or unchoose" else "Log ${ex.name}",
-                onLongClickLabel = "Choose several exercises",
+                onClickLabel = clickLabel,
+                onLongClickLabel = longClickLabel,
                 onLongClick = onPick,
                 onClick = onOpen
             )
@@ -590,13 +595,13 @@ private fun ExerciseRow(
         Row(Modifier.weight(1f).padding(vertical = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
             Text(ex.name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
             if (ex.favourite) {
-                Icon(Icons.Filled.Star, contentDescription = "Favourite", tint = Brand.Gold, modifier = Modifier.padding(start = Spacing.xs).size(16.dp))
+                Icon(Icons.Filled.Star, contentDescription = stringResource(R.string.lib_favourite_mark), tint = Brand.Gold, modifier = Modifier.padding(start = Spacing.xs).size(16.dp))
             }
             if (order != null) {
                 Text("  ${ordinal(order)}", style = MaterialTheme.typography.bodySmall, color = Brand.Gold)
             }
         }
-        OverflowMenu(menu, description = "Options for ${ex.name}")
+        OverflowMenu(menu, description = stringResource(R.string.lib_options_for, ex.name))
     }
     HorizontalDivider(color = Brand.Hairline)
 }
@@ -615,7 +620,7 @@ fun FavouriteButton(ex: Exercise) {
     IconButton(onClick = { AppScope.scope.launch { Workouts.setFavourite(ex.id, !ex.favourite) } }) {
         Icon(
             Icons.Filled.Star,
-            contentDescription = if (ex.favourite) "Remove ${ex.name} from favourites" else "Make ${ex.name} a favourite",
+            contentDescription = stringResource(if (ex.favourite) R.string.lib_unfavourite_named else R.string.lib_favourite_named, ex.name),
             tint = if (ex.favourite) Brand.Gold else MaterialTheme.colorScheme.outline
         )
     }
@@ -637,7 +642,7 @@ fun ExerciseNotes(notes: String, modifier: Modifier = Modifier) {
                         try {
                             ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                         } catch (e: Exception) {
-                            UiEvents.show("Nothing on this phone can open that link.")
+                            UiEvents.show(ctx.getString(R.string.lib_no_link_app))
                         }
                     }) {
                         Text(
@@ -676,14 +681,14 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
     FitSheet(
         title = ex.name,
         onDismiss = onDismiss,
-        dismissLabel = "Close",
-        confirmLabel = "Edit",
+        dismissLabel = stringResource(R.string.close),
+        confirmLabel = stringResource(R.string.lib_edit),
         onConfirm = { onDismiss(); onEdit() }
     ) {
         val notes = ex.notes
         if (notes.isNullOrBlank()) {
             Text(
-                "You haven't saved any notes for this exercise",
+                stringResource(R.string.lib_info_no_notes),
                 Modifier.fillMaxWidth().padding(vertical = Spacing.md),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
@@ -692,10 +697,18 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
             ExerciseNotes(notes)
         }
         GoldHairline()
-        if (ExerciseTypes.usesWeight(ex.type)) InfoRow("Weight Increment", "${fmtNum(weightStepShown, 2)} ${snap.weightUnitOf(ex.id)}")
-        InfoRow("Rest Time", ex.restSeconds?.let { fmtDuration(it) } ?: "Not set (uses ${fmtDuration(prefs.restSeconds)})")
-        InfoRow("Default Graph", graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0) ?: "None")
-        InfoRow("Type", ExerciseTypes.label(ex.type))
+        if (ExerciseTypes.usesWeight(ex.type)) {
+            InfoRow(stringResource(R.string.lib_info_increment), "${fmtNum(weightStepShown, 2)} ${snap.weightUnitOf(ex.id)}")
+        }
+        InfoRow(
+            stringResource(R.string.lib_info_rest),
+            ex.restSeconds?.let { fmtDuration(it) } ?: stringResource(R.string.lib_info_rest_default, fmtDuration(prefs.restSeconds))
+        )
+        InfoRow(
+            stringResource(R.string.lib_info_graph),
+            graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0) ?: stringResource(R.string.ex_none)
+        )
+        InfoRow(stringResource(R.string.lib_info_type), ExerciseTypes.label(ex.type))
     }
 }
 
@@ -731,11 +744,12 @@ fun ExerciseEditorSheet(
     var distUnit by remember { mutableStateOf(existing?.distanceUnit) }
     // Its own weight unit (#7), or null for the global one.
     var weightUnit by remember { mutableStateOf(existing?.weightUnit) }
+    val res = LocalContext.current.resources
 
     fun save(keepOpen: Boolean) {
         val n = name.trim()
         if (n.isEmpty()) {
-            UiEvents.show("Enter a name for the exercise.")
+            UiEvents.show(res.getString(R.string.lib_enter_name))
             return
         }
         val c = categoryId
@@ -765,12 +779,12 @@ fun ExerciseEditorSheet(
                     // exercise and close the sheet (#71).
                     name = ""
                     notes = ""
-                    UiEvents.show("Saved $n")
+                    UiEvents.show(res.getString(R.string.lib_saved, n))
                 } else if (existing == null) {
                     onSaved(id)
                 }
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: "That exercise couldn't be saved.")
+                UiEvents.show(e.message ?: res.getString(R.string.lib_save_failed))
             }
         }
     }
@@ -782,12 +796,12 @@ fun ExerciseEditorSheet(
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = Brand.Ivory) {
             Column(Modifier.fillMaxSize().imePadding()) {
                 FitTopBar(
-                    title = if (existing == null) "New exercise" else "Edit exercise",
+                    title = stringResource(if (existing == null) R.string.lib_new_exercise else R.string.lib_edit_exercise),
                     onBack = onDismiss,
-                    backLabel = "Close without saving",
+                    backLabel = stringResource(R.string.lib_close_unsaved),
                     actions = listOfNotNull(
-                        TopBarAction(Icons.Filled.Check, "Save", enabled = name.isNotBlank()) { save(keepOpen = false) },
-                        if (existing == null) TopBarAction(FitIcons.CheckPlus, "Save and add another", enabled = name.isNotBlank()) {
+                        TopBarAction(Icons.Filled.Check, stringResource(R.string.lib_save), enabled = name.isNotBlank()) { save(keepOpen = false) },
+                        if (existing == null) TopBarAction(FitIcons.CheckPlus, stringResource(R.string.lib_save_another), enabled = name.isNotBlank()) {
                             save(keepOpen = true)
                         } else null
                     )
@@ -796,18 +810,18 @@ fun ExerciseEditorSheet(
                     Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    SectionLabel("Name")
+                    SectionLabel(stringResource(R.string.lib_name))
                     OutlinedTextField(
                         value = name, onValueChange = { name = it },
                         singleLine = true, modifier = Modifier.fillMaxWidth()
                     )
-                    SectionLabel("Notes (optional)")
+                    SectionLabel(stringResource(R.string.lib_notes))
                     OutlinedTextField(
                         value = notes, onValueChange = { notes = it },
-                        placeholder = { Text("Form cues, machine settings, links") },
+                        placeholder = { Text(stringResource(R.string.lib_notes_hint)) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp)
                     )
-                    SectionLabel("Category")
+                    SectionLabel(stringResource(R.string.lib_category))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         snap.categoriesSorted.forEach { c ->
                             FilterChip(
@@ -820,25 +834,25 @@ fun ExerciseEditorSheet(
                         FilterChip(
                             selected = categoryId == Workouts.UNCATEGORISED,
                             onClick = { categoryId = Workouts.UNCATEGORISED },
-                            label = { Text("Uncategorised") }
+                            label = { Text(stringResource(R.string.lib_uncategorised)) }
                         )
                         // FitNotes's + beside CATEGORY.
                         FilterChip(
                             selected = false,
                             onClick = { newCategory = true },
-                            label = { Text("New category") },
+                            label = { Text(stringResource(R.string.lib_new_category)) },
                             leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) }
                         )
                     }
                     // The type decides what each set records (#14): the two main types first, as in FitNotes, then the rest.
-                    SectionLabel("Type")
+                    SectionLabel(stringResource(R.string.lib_info_type))
                     val main = listOf(ExerciseTypes.WEIGHT_REPS, ExerciseTypes.DISTANCE_TIME)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         main.forEach { t ->
                             FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
                         }
                     }
-                    FieldLabel("More types")
+                    FieldLabel(stringResource(R.string.lib_more_types))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         ExerciseTypes.all.filter { it !in main }.forEach { t ->
                             FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
@@ -867,31 +881,35 @@ fun ExerciseEditorSheet(
                         }
                     }
                     Text(
-                        "For example: ${ExerciseTypes.example(type)}",
+                        stringResource(R.string.lib_type_example, ExerciseTypes.example(type)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (existing != null && type != existing.type && (snap.workoutsByExercise[existing.id] ?: 0) > 0) {
                         Text(
-                            "Sets already logged keep every value. Any value the new type doesn't record still shows in its own column.",
+                            stringResource(R.string.lib_type_change_note),
                             style = MaterialTheme.typography.bodySmall,
                             color = Brand.GoldLight
                         )
                     }
                     if (ExerciseTypes.usesWeight(type)) {
                         // Its own weight unit (#7): weights are stored in kg, so a change only converts how they're shown.
-                        SectionLabel("Weight unit")
+                        SectionLabel(stringResource(R.string.lib_weight_unit))
                         DropdownPill(
-                            "Weight unit",
-                            listOf("As in Settings (${snap.weightUnit})", "Kilograms (kg)", "Pounds (lbs)"),
+                            stringResource(R.string.lib_weight_unit),
+                            listOf(
+                                stringResource(R.string.lib_as_settings_unit, snap.weightUnit),
+                                stringResource(R.string.lib_kilograms),
+                                stringResource(R.string.lib_pounds)
+                            ),
                             when (weightUnit) { "kg" -> 1; "lbs" -> 2; else -> 0 }
                         ) { i -> weightUnit = when (i) { 1 -> "kg"; 2 -> "lbs"; else -> null } }
                         val shownUnit = weightUnit ?: snap.weightUnit
                         val lbs = shownUnit == "lbs"
                         val steps = if (lbs) listOf(1.0, 2.5, 5.0, 10.0) else listOf(0.5, 1.0, 1.25, 2.5, 5.0)
-                        FieldLabel("Weight step")
+                        FieldLabel(stringResource(R.string.lib_weight_step))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(selected = stepKg == null, onClick = { stepKg = null }, label = { Text("As in Settings") })
+                            FilterChip(selected = stepKg == null, onClick = { stepKg = null }, label = { Text(stringResource(R.string.lib_as_settings)) })
                             steps.forEach { v ->
                                 val kg = WeightUnits.convert(v, shownUnit, "kg")
                                 FilterChip(
@@ -905,15 +923,15 @@ fun ExerciseEditorSheet(
                     // Its own distance unit (#7): distances are kept as typed, so a change relabels them without converting.
                     if (ExerciseTypes.usesDistance(type) || (existing != null && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 })) {
                         val global = Settings.portable.collectAsState().value.distanceUnit
-                        FieldLabel("Distance unit")
+                        FieldLabel(stringResource(R.string.lib_distance_unit))
                         DropdownPill(
-                            "Distance unit",
-                            listOf("As in Settings ($global)") + DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
+                            stringResource(R.string.lib_distance_unit),
+                            listOf(stringResource(R.string.lib_as_settings_unit, global)) + DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
                             distUnit?.let { DistanceUnits.ALL.indexOf(it) + 1 } ?: 0
                         ) { i -> distUnit = if (i == 0) null else DistanceUnits.ALL[i - 1] }
                         if (existing != null && distUnit != existing.distanceUnit && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 }) {
                             Text(
-                                "Distances already logged keep their numbers and are shown in the new unit.",
+                                stringResource(R.string.lib_distance_change_note),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Brand.GoldLight
                             )
@@ -921,7 +939,7 @@ fun ExerciseEditorSheet(
                     }
                     // Its own rest length (#15), any exact length (#105): the rest timer uses it after this exercise's sets.
                     // Default follows the rest timer's own length.
-                    FieldLabel("Rest time")
+                    FieldLabel(stringResource(R.string.lib_rest_time))
                     val defaultRest = Settings.portable.collectAsState().value.restSeconds
                     RestLengthStepper(
                         seconds = restSec ?: defaultRest,
@@ -929,7 +947,7 @@ fun ExerciseEditorSheet(
                         isDefault = restSec == null,
                         onDefault = { restSec = null }
                     )
-                    FieldLabel("Opens on graph")
+                    FieldLabel(stringResource(R.string.lib_opens_graph))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         graphLabels(type, timeBased = ExerciseTypes.timeBased(type, anyWeightOrReps = false)).forEachIndexed { i, label ->
                             FilterChip(
@@ -941,8 +959,7 @@ fun ExerciseEditorSheet(
                     }
                     if (existing?.imported == true) {
                         Text(
-                            "This exercise came from FitNotes. Editing it makes it FitLens's own; its history is kept and a " +
-                                "later import follows the change.",
+                            stringResource(R.string.lib_from_fitnotes),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -983,20 +1000,24 @@ private fun FieldLabel(text: String) {
 private fun DeleteExerciseSheet(snap: Snapshot, ex: Exercise, onDismiss: () -> Unit) {
     val sets = snap.setsByExercise[ex.id]?.size ?: 0
     val days = snap.workoutsByExercise[ex.id] ?: 0
+    val res = LocalContext.current.resources
     ConfirmSheet(
-        title = "Delete ${ex.name}?",
+        title = stringResource(R.string.lib_delete_title, ex.name),
         message = if (sets == 0) {
-            "Nothing has been logged for it, so nothing else is lost."
+            stringResource(R.string.lib_delete_unused)
         } else {
-            "${countOf(sets, "set")} across ${countOf(days, "workout")} will be deleted with it. This can't be undone, " +
-                "and a later FitNotes import won't bring them back."
+            stringResource(
+                R.string.lib_delete_body,
+                pluralStringResource(R.plurals.sets_count, sets, sets),
+                pluralStringResource(R.plurals.lib_workouts, days, days)
+            )
         },
-        confirmLabel = "Delete exercise",
+        confirmLabel = stringResource(R.string.lib_delete_exercise),
         onDismiss = onDismiss,
         onConfirm = {
             AppScope.scope.launch {
                 Workouts.deleteExercise(ex.id)
-                UiEvents.show("Deleted ${ex.name}")
+                UiEvents.show(res.getString(R.string.lib_deleted, ex.name))
             }
         }
     )
@@ -1010,6 +1031,7 @@ private fun DeleteExerciseSheet(snap: Snapshot, ex: Exercise, onDismiss: () -> U
 @Composable
 private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
+    val res = ctx.resources
     var into by remember { mutableStateOf<Exercise?>(null) }
     val target = into
     if (target == null) {
@@ -1019,42 +1041,43 @@ private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Uni
             PickerItem(
                 id = other.id,
                 title = other.name,
-                subtitle = countOf(snap.setsByExercise[other.id]?.size ?: 0, "set"),
-                section = cat?.name ?: "Uncategorised",
+                subtitle = (snap.setsByExercise[other.id]?.size ?: 0).let { n -> res.getQuantityString(R.plurals.sets_count, n, n) },
+                section = cat?.name ?: stringResource(R.string.lib_uncategorised),
                 color = categoryColour(cat?.colour ?: 0)
             )
         }
         SearchablePicker(
-            title = "Merge ${ex.name} into",
+            title = stringResource(R.string.lib_merge_title, ex.name),
             items = items,
             onDismiss = onDismiss,
             onPick = { ids -> into = ids.firstOrNull()?.let { snap.exercises[it] } },
-            searchLabel = "Search exercises",
-            emptyText = "No other exercise of the same type matches."
+            searchLabel = stringResource(R.string.ex_search_exercises),
+            emptyText = stringResource(R.string.lib_merge_none)
         )
         return
     }
     val sets = snap.setsByExercise[ex.id]?.size ?: 0
     val days = snap.workoutsByExercise[ex.id] ?: 0
     ConfirmSheet(
-        title = "Merge into ${target.name}?",
-        message = "${ex.name} becomes part of ${target.name}: ${countOf(sets, "set")} across ${countOf(days, "workout")}, " +
-            "its goals and its places in saved workouts all move across, and ${ex.name} is removed. ${target.name} keeps " +
-            "its name, category and settings. Personal records are worked out again, and later FitNotes imports add " +
-            "${ex.name}'s history to ${target.name}. A safety copy is taken first, so you can undo this from " +
-            "Settings → Backup for ${Backups.UNDO_DAYS} days.",
-        confirmLabel = "Merge",
+        title = stringResource(R.string.lib_merge_confirm_title, target.name),
+        message = stringResource(
+            R.string.lib_merge_body, ex.name, target.name,
+            pluralStringResource(R.plurals.sets_count, sets, sets),
+            pluralStringResource(R.plurals.lib_workouts, days, days),
+            Backups.UNDO_DAYS
+        ),
+        confirmLabel = stringResource(R.string.lib_merge),
         onDismiss = onDismiss,
         onConfirm = {
-            runBusy("Merging exercises…") {
+            runBusy(res.getString(R.string.lib_merging)) {
                 // The way back (#47). If it can't be made, nothing is merged.
-                val safety = Backups.safetyCopy(ctx, "Before merging ${ex.name} into ${target.name}")
+                val safety = Backups.safetyCopy(ctx, res.getString(R.string.lib_merge_safety, ex.name, target.name))
                 if (!safety.ok) return@runBusy safety
                 try {
                     val n = Workouts.mergeExercises(ex.id, target.id)
-                    ImportSummary("Merged ${ex.name} into ${target.name} (${countOf(n, "set")}). Undo is in Settings → Backup.", ok = true)
+                    ImportSummary(res.getString(R.string.lib_merged, ex.name, target.name, res.getQuantityString(R.plurals.sets_count, n, n)), ok = true)
                 } catch (e: WorkoutDataException) {
-                    ImportSummary(e.message ?: "Couldn't merge those exercises.", ok = false)
+                    ImportSummary(e.message ?: res.getString(R.string.lib_merge_failed), ok = false)
                 }
             }
         }
@@ -1097,16 +1120,17 @@ fun CategoryManagerSheet(snap: Snapshot, onDismiss: () -> Unit) {
         moved = true
     }
 
+    val res = LocalContext.current.resources
     FitSheet(
-        title = "Categories",
+        title = stringResource(R.string.lib_categories),
         onDismiss = onDismiss,
-        dismissLabel = "Done",
-        confirmLabel = "New category",
+        dismissLabel = stringResource(R.string.ex_done),
+        confirmLabel = stringResource(R.string.lib_new_category),
         onConfirm = { creating = true },
         destructive = false
     ) {
         if (snap.categoriesSorted.isEmpty()) {
-            Text("No categories yet.", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.lib_categories_none), style = MaterialTheme.typography.bodyMedium)
         }
         order.forEachIndexed { i, id ->
             val c = snap.categories[id] ?: return@forEachIndexed
@@ -1115,12 +1139,12 @@ fun CategoryManagerSheet(snap: Snapshot, onDismiss: () -> Unit) {
             key(id) {
                 ListRowWithMenu(
                     title = c.name,
-                    subtitle = countOf(count, "exercise"),
+                    subtitle = pluralStringResource(R.plurals.lib_exercises, count, count),
                     leading = { Dot(categoryColour(c.colour), 12.dp) },
                     onClick = { editing = c },
                     menu = listOf(
-                        MenuAction("Edit") { editing = c },
-                        MenuAction("Delete") { deleting = c }
+                        MenuAction(stringResource(R.string.lib_edit)) { editing = c },
+                        MenuAction(stringResource(R.string.lib_delete)) { deleting = c }
                     ),
                     onMoveUp = if (i > 0) ({ move(i, i - 1) }) else null,
                     onMoveDown = if (i < order.lastIndex) ({ move(i, i + 1) }) else null
@@ -1135,15 +1159,15 @@ fun CategoryManagerSheet(snap: Snapshot, onDismiss: () -> Unit) {
     deleting?.let { c ->
         val count = snap.exercisesSorted.count { it.categoryId == c.id }
         ConfirmSheet(
-            title = "Delete ${c.name}?",
-            message = if (count == 0) "The category is empty." else
-                "Its ${countOf(count, "exercise")} and all their logged history are kept. They become uncategorised.",
-            confirmLabel = "Delete category",
+            title = stringResource(R.string.lib_delete_title, c.name),
+            message = if (count == 0) stringResource(R.string.lib_category_is_empty) else
+                stringResource(R.string.lib_category_delete_body, pluralStringResource(R.plurals.lib_exercises, count, count)),
+            confirmLabel = stringResource(R.string.lib_delete_category),
             onDismiss = { deleting = null },
             onConfirm = {
                 AppScope.scope.launch {
                     Workouts.deleteCategory(c.id)
-                    UiEvents.show("Deleted ${c.name}")
+                    UiEvents.show(res.getString(R.string.lib_deleted, c.name))
                 }
             }
         )
@@ -1160,11 +1184,12 @@ fun CategoryEditorSheet(
 ) {
     var name by remember { mutableStateOf(existing?.name ?: "") }
     var colour by remember { mutableStateOf(existing?.colour?.takeIf { it != 0 } ?: CategoryPaletteArgb.first()) }
+    val res = LocalContext.current.resources
 
     FitSheet(
-        title = if (existing == null) "New category" else "Edit category",
+        title = stringResource(if (existing == null) R.string.lib_new_category else R.string.lib_edit_category),
         onDismiss = onDismiss,
-        confirmLabel = "Save category",
+        confirmLabel = stringResource(R.string.lib_save_category),
         confirmEnabled = name.isNotBlank(),
         onConfirm = {
             val n = name.trim()
@@ -1180,24 +1205,26 @@ fun CategoryEditorSheet(
                     }
                     onSaved(id)
                 } catch (e: WorkoutDataException) {
-                    UiEvents.show(e.message ?: "That category couldn't be saved.")
+                    UiEvents.show(e.message ?: res.getString(R.string.lib_category_save_failed))
                 }
             }
         }
     ) {
         OutlinedTextField(
-            value = name, onValueChange = { name = it }, label = { Text("Name") },
+            value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.lib_name)) },
             singleLine = true, modifier = Modifier.fillMaxWidth()
         )
-        FieldLabel("Colour")
+        FieldLabel(stringResource(R.string.lib_colour))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             CategoryPaletteArgb.forEachIndexed { i, argb ->
+                val useLabel = stringResource(R.string.lib_use_colour, i + 1)
+                val colourName = stringResource(R.string.lib_colour_n, i + 1)
                 Box(
                     Modifier
                         .size(Spacing.touch)
                         .clip(CircleShape)
-                        .clickable(onClickLabel = "Use colour ${i + 1}") { colour = argb }
-                        .semantics { selected = colour == argb; contentDescription = "Colour ${i + 1}" },
+                        .clickable(onClickLabel = useLabel) { colour = argb }
+                        .semantics { selected = colour == argb; contentDescription = colourName },
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -1211,7 +1238,7 @@ fun CategoryEditorSheet(
         }
         if (snap.categoriesSorted.isEmpty()) {
             Text(
-                "Categories group your exercises and colour them through the app.",
+                stringResource(R.string.lib_categories_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1226,33 +1253,36 @@ fun CategoryEditorSheet(
 /** Asks before adding the starter library. It is never seeded without this. */
 @Composable
 fun StarterLibraryDialog(onDismiss: () -> Unit) {
+    val res = LocalContext.current.resources
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add the starter library?") },
+        title = { Text(stringResource(R.string.lib_starter_title)) },
         text = {
             Text(
-                "This adds ${StarterLibrary.exerciseCount} common exercises in ${StarterLibrary.categories.size} " +
-                    "categories (${StarterLibrary.categories.joinToString(", ") { it.name }}).\n\n" +
-                    "Anything already in your library keeps its name, category and history — nothing is replaced or " +
-                    "deleted. You can edit or delete any of them afterwards."
+                stringResource(
+                    R.string.lib_starter_body,
+                    StarterLibrary.exerciseCount,
+                    StarterLibrary.categories.size,
+                    StarterLibrary.categories.joinToString(", ") { it.name }
+                )
             )
         },
         confirmButton = {
             TextButton(onClick = {
                 onDismiss()
                 AppScope.scope.launch {
-                    UiEvents.busy.value = "Adding the starter library…"
+                    UiEvents.busy.value = res.getString(R.string.lib_starter_adding)
                     try {
                         UiEvents.show(Workouts.seedStarterLibrary(CategoryPaletteArgb).message)
                     } catch (e: Exception) {
-                        UiEvents.show("The starter library couldn't be added: ${e.message}")
+                        UiEvents.show(res.getString(R.string.lib_starter_failed, e.message.orEmpty()))
                     } finally {
                         UiEvents.busy.value = null
                     }
                 }
-            }) { Text("Add them") }
+            }) { Text(stringResource(R.string.lib_starter_add)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }
 
@@ -1260,6 +1290,6 @@ fun StarterLibraryDialog(onDismiss: () -> Unit) {
 @Composable
 fun LibraryAction(nav: Nav) {
     IconButton(onClick = { nav.push(Screen.Library()) }) {
-        Icon(Icons.Filled.List, contentDescription = "Exercise library")
+        Icon(Icons.Filled.List, contentDescription = stringResource(R.string.lib_title))
     }
 }
