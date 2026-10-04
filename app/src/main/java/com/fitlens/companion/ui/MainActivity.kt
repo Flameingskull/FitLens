@@ -67,7 +67,9 @@ import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -374,9 +376,18 @@ fun AppRoot(nav: Nav) {
     // First run (#29): a phone with no data yet gets the guided setup once. Anyone updating with data already here
     // never sees it unasked; it's still in Settings.
     val loaded = snap != null
+    // "What's new" (#33): shown once after each update. A new phone starting setup skips it.
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val versionCode = remember { appVersion(ctx).second }
+    var whatsNew by remember { mutableStateOf(false) }
     LaunchedEffect(loaded) {
         val s = snap ?: return@LaunchedEffect
         Settings.awaitLoaded()
+        val fresh = !Settings.current().setupDone && s.allDates.isEmpty() && s.exercises.isEmpty()
+        if (Settings.current().whatsNewSeen < versionCode) {
+            val notes = withContext(Dispatchers.IO) { ReleaseNotes.load(ctx) }
+            if (fresh || notes == null) Settings.updateDevice { it.copy(whatsNewSeen = versionCode) } else whatsNew = true
+        }
         if (Settings.current().setupDone) return@LaunchedEffect
         if (s.allDates.isEmpty() && s.exercises.isEmpty()) {
             if (nav.atHome) nav.push(Screen.Setup)
@@ -447,6 +458,12 @@ fun AppRoot(nav: Nav) {
                 }
             }
             PhotoImportHost()
+            if (whatsNew) {
+                WhatsNewSheet {
+                    whatsNew = false
+                    Settings.updateDevice { it.copy(whatsNewSeen = versionCode) }
+                }
+            }
             toAcknowledge?.let { m -> ResultDialog(m) { toAcknowledge = null } }
         }
     }

@@ -65,7 +65,10 @@ enum class SettingsSection(val title: String) {
     // The rest timer's options lived only in its sheet until #86 gave them a page.
     Rest("Rest timer"),
     // Defaults for photos, the slideshow and video, and the PDF report (#46).
-    Media("Progress photos and media")
+    Media("Progress photos and media"),
+    // In-app help and About (#33).
+    Help("Help"),
+    About("About FitLens")
 }
 
 /** One searchable setting on a page (#86): what it's called, other words people might search for, and the page. */
@@ -96,7 +99,10 @@ private val CATALOGUE = listOf(
     SettingEntry("Remember slideshow and video options", SettingsSection.Media, "video slideshow overlay format"),
     SettingEntry("Reset slideshow and video options", SettingsSection.Media, "video slideshow defaults"),
     SettingEntry("PDF report pages", SettingsSection.Media, "dark light print style"),
-    SettingEntry("PDF photos per day", SettingsSection.Media, "report daily log")
+    SettingEntry("PDF photos per day", SettingsSection.Media, "report daily log"),
+    SettingEntry("Guides", SettingsSection.Help, "how to help instructions logging photos backups import"),
+    SettingEntry("Version", SettingsSection.About, "build number copy bug report"),
+    SettingEntry("Open-source licences", SettingsSection.About, "licence license font libraries")
 )
 
 /** FitNotes's three headings, in its order (#147). */
@@ -110,7 +116,6 @@ private class MainRow(
     val content: @Composable () -> Unit
 )
 
-private const val REPO = "https://github.com/Flameingskull/FitLens"
 
 /**
  * The main Settings screen (#147): FitNotes's single list, under its SETTINGS, DATA and OTHER headings, in its order
@@ -161,18 +166,12 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
     val prefs by Settings.portable.collectAsState()
     val ctx = LocalContext.current
     var confirmRecalc by remember { mutableStateOf(false) }
-    var about by remember { mutableStateOf(false) }
+    var whatsNew by remember { mutableStateOf(false) }
     var e1rmLimit by remember { mutableStateOf(false) }
     fun open(section: SettingsSection) = nav.push(Screen.SettingsPage(section))
-    fun browse(url: String) {
-        try {
-            ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)))
-        } catch (e: android.content.ActivityNotFoundException) {
-            UiEvents.show("There's no browser on this phone to open $url")
-        }
-    }
+    fun browse(url: String) = openInBrowser(ctx, url)
     if (confirmRecalc) RecalculateRecordsSheet { confirmRecalc = false }
-    if (about) AboutSheet { about = false }
+    if (whatsNew) WhatsNewSheet { whatsNew = false }
     if (e1rmLimit) EstimatedOneRmSettingsSheet { e1rmLimit = false }
     val s = SettingsHeading.SETTINGS
     val d = SettingsHeading.DATA
@@ -377,14 +376,14 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
                 open(SettingsSection.Import)
             }
         },
-        MainRow(o, "Help", "guide instructions readme") {
-            SettingsActionRow("Help", "View the FitLens guide on GitHub, with instructions for each feature") { browse("$REPO#readme") }
+        MainRow(o, "Help", "guide instructions readme how to") {
+            SettingsActionRow("Help", "Short guides to each feature, and the full FitLens guide") { open(SettingsSection.Help) }
         },
         MainRow(o, "Feedback", "bug report feature request issue") {
-            SettingsActionRow("Feedback", "Report a problem or suggest a feature on GitHub") { browse("$REPO/issues/new/choose") }
+            SettingsActionRow("Feedback", "Report a problem or suggest a feature on GitHub") { browse("$REPO_URL/issues/new/choose") }
         },
         MainRow(o, "Change Log", "releases updates what's new") {
-            SettingsActionRow("Change Log", "View a list of the changes included in previous updates") { browse("$REPO/releases") }
+            SettingsActionRow("Change Log", "What's new in this update; every earlier update is on GitHub") { whatsNew = true }
         },
         MainRow(o, "Show Setup Again", "tutorials first run welcome") {
             SettingsActionRow("Show Setup Again", "Units, automatic backups, FitNotes import, photos and the starter library") {
@@ -392,10 +391,12 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
             }
         },
         MainRow(o, "Privacy Policy", "privacy data local offline") {
-            SettingsActionRow("Privacy Policy", "FitLens keeps everything on this phone: no account, cloud or internet") { about = true }
+            SettingsActionRow("Privacy Policy", "FitLens keeps everything on this phone: no account, cloud or internet") {
+                open(SettingsSection.About)
+            }
         },
-        MainRow(o, "About", "version privacy local") {
-            SettingsActionRow("About", "Version and privacy information") { about = true }
+        MainRow(o, "About", "version privacy local licences") {
+            SettingsActionRow("About", "Version, privacy, open-source licences and links") { open(SettingsSection.About) }
         }
     )
 }
@@ -443,29 +444,6 @@ private fun RecalculateRecordsSheet(onDismiss: () -> Unit) {
     )
 }
 
-/** Other → About: the version and how FitLens treats your data. */
-@Composable
-private fun AboutSheet(onDismiss: () -> Unit) {
-    val ctx = LocalContext.current
-    val version = remember {
-        try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName } catch (e: Exception) { null } ?: "?"
-    }
-    FitSheet(title = "About FitLens", onDismiss = onDismiss, dismissLabel = "Close") {
-        Text("Version $version", style = MaterialTheme.typography.titleMedium, color = Brand.Gold)
-        Text(
-            "FitLens is a workout log that pairs your training with progress photos. It works entirely on this phone: " +
-                "no account, no cloud service and no internet permission. Your data leaves the phone only in backups " +
-                "you save or share yourself.",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            "Workout logging follows FitNotes, and FitNotes backups can be imported at any time.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
 /** One Settings sub-screen. Back returns to Settings, then to wherever Settings was opened from. */
 @Composable
 fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
@@ -484,6 +462,8 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
                 SettingsSection.Home -> HomePage()
                 SettingsSection.Rest -> RestPage()
                 SettingsSection.Media -> MediaPage()
+                SettingsSection.Help -> HelpPage()
+                SettingsSection.About -> AboutPage()
             }
         }
     }

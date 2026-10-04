@@ -106,3 +106,31 @@ dependencies {
     testImplementation("io.github.takahirom.roborazzi:roborazzi:1.40.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+// "What's new" (#33): the build's RELEASE_NOTES.md goes into the APK's assets, so the app can show it offline after
+// each update. Added through the variant API, so Gradle knows which tasks need it.
+abstract class ReleaseNotesAsset : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val notes: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile
+        out.mkdirs()
+        notes.get().asFile.copyTo(File(out, "release_notes.md"), overwrite = true)
+    }
+}
+
+val releaseNotesAsset = tasks.register<ReleaseNotesAsset>("releaseNotesAsset") {
+    notes.set(rootProject.layout.projectDirectory.file("RELEASE_NOTES.md"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(releaseNotesAsset, ReleaseNotesAsset::outputDir)
+    }
+}

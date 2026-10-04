@@ -55,7 +55,9 @@ data class DeviceSettings(
     /** The calendar's filter (#9), as `CalendarFilter.encode` wrote it, or null for none. */
     val calendarFilter: String? = null,
     /** The guided setup (#29) has been finished or skipped on this phone, or wasn't needed because data was here. */
-    val setupDone: Boolean = false
+    val setupDone: Boolean = false,
+    /** The app version (`versionCode`) whose "What's new" was last shown or skipped on this phone (#33). */
+    val whatsNewSeen: Long = 0
 )
 
 /**
@@ -330,6 +332,7 @@ object Settings {
     private const val D_REST_SOUND_URI = "rest_sound_uri"
     private const val D_CALENDAR_FILTER = "calendar_filter"
     private const val D_SETUP_DONE = "setup_done"
+    private const val D_WHATS_NEW_SEEN = "whats_new_seen"
 
     /** Every phone-only key, as it was named in `meta` before 1.0.21. */
     internal val DEVICE_KEYS = listOf(
@@ -401,7 +404,8 @@ object Settings {
         chartExpandSeen = bool(get(D_CHART_EXPAND)),
         restSoundUri = get(D_REST_SOUND_URI),
         calendarFilter = get(D_CALENDAR_FILTER),
-        setupDone = bool(get(D_SETUP_DONE))
+        setupDone = bool(get(D_SETUP_DONE)),
+        whatsNewSeen = get(D_WHATS_NEW_SEEN)?.toLongOrNull() ?: 0
     )
 
     private fun DeviceSettings.toMap(): Map<String, String?> = mapOf(
@@ -424,7 +428,8 @@ object Settings {
         D_CHART_EXPAND to if (chartExpandSeen) "1" else null,
         D_REST_SOUND_URI to restSoundUri,
         D_CALENDAR_FILTER to calendarFilter,
-        D_SETUP_DONE to if (setupDone) "1" else null
+        D_SETUP_DONE to if (setupDone) "1" else null,
+        D_WHATS_NEW_SEEN to whatsNewSeen.takeIf { it > 0 }?.toString()
     )
 
     private fun portableFrom(get: (String) -> String?) = PortableSettings(
