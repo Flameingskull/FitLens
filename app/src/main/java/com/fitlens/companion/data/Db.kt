@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 19
+        const val VERSION = 20
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -297,6 +297,11 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // step replays safely (#77).
             db.execSQL(CREATE_EXERCISE_TYPE.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
             if (hasTable(db, "workout_set")) addColumn(db, "workout_set", "metric", "REAL")
+        }
+        if (oldVersion < 20) {
+            // ---- 1.0.100: a custom type's metric in predefined sets (#155) ------------------------------------------
+            // One nullable column, so every predefined set keeps its values and has no metric. Replays safely (#77).
+            if (hasTable(db, "routine_day_set")) addColumn(db, "routine_day_set", "metric", "REAL")
         }
     }
 

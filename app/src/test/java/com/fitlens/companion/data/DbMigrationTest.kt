@@ -331,4 +331,33 @@ class DbMigrationTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM exercise_type WHERE uses_weight=0 AND uses_reps=1"))
         }
     }
+
+    @Test
+    fun v19PredefinedSetsGainAMetricAndKeepTheirValues() {
+        // A workout day's predefined sets as v17 to v19 created them, before the metric column (#155).
+        oldDatabase(
+            19,
+            v12Schema + listOf(
+                "CREATE TABLE routine_day_exercise(id INTEGER PRIMARY KEY AUTOINCREMENT, day_id INTEGER NOT NULL, " +
+                    "exercise_id INTEGER NOT NULL, sort_order INTEGER NOT NULL DEFAULT 0, fill INTEGER NOT NULL DEFAULT 0, " +
+                    "superset INTEGER NOT NULL DEFAULT 0, rest_seconds INTEGER, rest_after_seconds INTEGER)",
+                "CREATE TABLE routine_day_set(id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, " +
+                    "sort_order INTEGER NOT NULL DEFAULT 0, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, " +
+                    "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0, " +
+                    "rest_seconds INTEGER)"
+            )
+        ) { db ->
+            db.row("exercise", "id" to 1L, "name" to "Bench Press")
+            val r = db.row("routine", "name" to "Upper", "sort_order" to 0)
+            val d = db.row("routine_day", "routine_id" to r, "name" to "Push Day", "sort_order" to 0)
+            val item = db.row("routine_day_exercise", "day_id" to d, "exercise_id" to 1L, "sort_order" to 0, "fill" to 1)
+            db.row("routine_day_set", "item_id" to item, "sort_order" to 0, "weight" to 80.0, "reps" to 8, "rest_seconds" to 90)
+        }
+        Db(app).writableDatabase.use { db ->
+            assertEquals(Db.VERSION, db.version)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM routine_day_set WHERE weight=80.0 AND reps=8 AND rest_seconds=90 AND metric IS NULL"))
+            db.row("routine_day_set", "item_id" to 1L, "sort_order" to 1, "metric" to 0.0)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM routine_day_set WHERE metric=0.0"))
+        }
+    }
 }

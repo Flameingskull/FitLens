@@ -495,7 +495,9 @@ private data class SetDraft(
     val time: String = "",
     val type: Int = SetTypes.WORKING,
     /** The rest after this set in seconds, or m:ss; blank for none of its own (#138). */
-    val rest: String = ""
+    val rest: String = "",
+    /** The custom type's metric (#155); blank copies it from last time. */
+    val metric: String = ""
 )
 
 private fun num(s: String): Double = s.trim().replace(',', '.').toDoubleOrNull() ?: 0.0
@@ -524,6 +526,8 @@ private fun seconds(s: String): Int {
 private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss: () -> Unit, onDone: (PlannedExercise) -> Unit) {
     val ex = snap.exercises[planned.exerciseId]
     val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
+    // A user-defined type's own metric (#14), predefined like the other values (#155).
+    val metricDef = ExerciseTypes.metricOf(type)
     val last = remember(snap, planned.exerciseId) {
         Routines.resolve(snap, planned.copy(fill = Routines.FILL_LAST), "9999-12-31")
     }
@@ -539,7 +543,8 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                         distance = s.distance.takeIf { it > 0 }?.let { fmtNum(it, 2) } ?: "",
                         time = s.durationSec.takeIf { it > 0 }?.let { fmtDuration(it) } ?: "",
                         type = s.setType,
-                        rest = s.restSeconds?.toString() ?: ""
+                        rest = s.restSeconds?.toString() ?: "",
+                        metric = s.metric?.let { fmtNum(it, 2) } ?: ""
                     )
                 )
             }
@@ -576,7 +581,9 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
             val sets = rows.map {
                 PlannedSet(
                     snap.toKg(num(it.weight), planned.exerciseId), it.reps.trim().toIntOrNull() ?: 0, num(it.distance), seconds(it.time), it.type,
-                    restSeconds = if (perSet) seconds(it.rest).takeIf { r -> r in REST_MIN..REST_MAX } else null
+                    restSeconds = if (perSet) seconds(it.rest).takeIf { r -> r in REST_MIN..REST_MAX } else null,
+                    // Blank is no value; 0 is a real one for a custom metric (#155).
+                    metric = if (metricDef != null) it.metric.trim().replace(',', '.').toDoubleOrNull() else null
                 )
             }.filter { !it.isEmpty }
             onDone(
@@ -641,6 +648,13 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                         val next = kotlin.math.max(0, seconds(rows[i].time) + d * 15)
                         rows[i] = rows[i].copy(time = if (next == 0) "" else fmtDuration(next))
                     }, keyboard = KeyboardType.Text)
+                }
+                if (metricDef != null) {
+                    // As on the Track tab: the metric's name and unit, stepping by 1.
+                    val metricUnit = metricDef.metricUnit?.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
+                    StepperField(metricDef.metricName.orEmpty() + metricUnit, r.metric, { rows[i] = rows[i].copy(metric = it) }, { d ->
+                        rows[i] = rows[i].copy(metric = fmtNum(kotlin.math.max(0.0, num(rows[i].metric) + d), 2))
+                    })
                 }
                 if (perSet) {
                     StepperField("Rest (seconds)", r.rest, { t -> rows[i] = rows[i].copy(rest = t.filter { c -> c.isDigit() }) }, { d ->

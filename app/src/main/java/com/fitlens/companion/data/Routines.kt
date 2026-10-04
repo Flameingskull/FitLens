@@ -22,9 +22,11 @@ data class PlannedSet(
     val durationSec: Int = 0,
     val setType: Int = SetTypes.WORKING,
     /** The rest after this set (#138); null uses the exercise's prescribed rest, then its own, then the global one. */
-    val restSeconds: Int? = null
+    val restSeconds: Int? = null,
+    /** The value of its exercise's custom metric (#14, #155), or null when none is set. 0 is a real value. */
+    val metric: Double? = null
 ) {
-    val isEmpty: Boolean get() = weightKg == 0.0 && reps == 0 && distance == 0.0 && durationSec == 0
+    val isEmpty: Boolean get() = weightKg == 0.0 && reps == 0 && distance == 0.0 && durationSec == 0 && metric == null
 }
 
 /**
@@ -112,18 +114,20 @@ object Routines {
         "CREATE TABLE routine_day_set(id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER NOT NULL, " +
             "sort_order INTEGER NOT NULL DEFAULT 0, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, " +
             "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0, " +
-            "rest_seconds INTEGER)"
+            "rest_seconds INTEGER, metric REAL)"
 
     private fun android.database.Cursor.intOrNull(i: Int): Int? = if (isNull(i)) null else getInt(i)
+    private fun android.database.Cursor.dblOrNull(i: Int): Double? = if (isNull(i)) null else getDouble(i)
 
     fun load(r: SQLiteDatabase): List<Routine> {
         val sets = HashMap<Long, MutableList<PlannedSet>>()
         r.rawQuery(
-            "SELECT item_id, weight, reps, distance, duration, set_type, rest_seconds FROM routine_day_set ORDER BY item_id, sort_order, id",
+            "SELECT item_id, weight, reps, distance, duration, set_type, rest_seconds, metric FROM routine_day_set " +
+                "ORDER BY item_id, sort_order, id",
             null
         ).use { c ->
             while (c.moveToNext()) {
-                sets.getOrPut(c.lng(0)) { ArrayList() }.add(PlannedSet(c.dbl(1), c.int(2), c.dbl(3), c.int(4), c.int(5), c.intOrNull(6)))
+                sets.getOrPut(c.lng(0)) { ArrayList() }.add(PlannedSet(c.dbl(1), c.int(2), c.dbl(3), c.int(4), c.int(5), c.intOrNull(6), c.dblOrNull(7)))
             }
         }
         val items = HashMap<Long, MutableList<PlannedExercise>>()
@@ -263,6 +267,7 @@ object Routines {
                     put("item_id", itemId); put("sort_order", j); put("weight", s.weightKg); put("reps", s.reps)
                     put("distance", s.distance); put("duration", s.durationSec); put("set_type", s.setType)
                     if (s.restSeconds == null) putNull("rest_seconds") else put("rest_seconds", s.restSeconds)
+                    if (s.metric == null) putNull("metric") else put("metric", s.metric)
                 })
             }
         }
@@ -298,10 +303,10 @@ object Routines {
     }
 
     /**
-     * The sets [p] adds on [date]. Predefined sets are used as they are, except that a blank weight or reps copies
-     * that value from the same set the previous time (as in FitNotes). "Copy previous sets" repeats every set from the
-     * last day before [date] the exercise was logged. Empty for "Don't populate any sets", and when there's nothing to
-     * go on (a new exercise set to copy the previous time).
+     * The sets [p] adds on [date]. Predefined sets are used as they are, except that a blank weight, reps or custom
+     * metric (#155) copies that value from the same set the previous time (as in FitNotes). "Copy previous sets"
+     * repeats every set from the last day before [date] the exercise was logged. Empty for "Don't populate any sets",
+     * and when there's nothing to go on (a new exercise set to copy the previous time).
      */
     fun resolve(snap: Snapshot, p: PlannedExercise, date: String): List<PlannedSet> {
         if (p.fill == FILL_NONE) return emptyList()
@@ -318,6 +323,7 @@ object Routines {
             if (before == null) s.copy(restSeconds = rest) else s.copy(
                 weightKg = if (s.weightKg == 0.0) before.weightKg else s.weightKg,
                 reps = if (s.reps == 0) before.reps else s.reps,
+                metric = s.metric ?: before.metric,
                 restSeconds = rest
             )
         }.filter { !it.isEmpty }
@@ -335,7 +341,7 @@ object Routines {
                 PlannedExercise(exId, fill, sets.map { it.toPlanned() }, sets.maxOf { it.superset }, rest?.restSeconds, rest?.restAfterSeconds)
             }
 
-    private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType, restSeconds)
+    private fun SetRow.toPlanned() = PlannedSet(weightKg, reps, distance, durationSec, setType, restSeconds, metric)
 
     /** How the sets read in lists, for example "3 sets · 100 kg · 5 reps". */
     fun describe(snap: Snapshot, sets: List<PlannedSet>, exerciseId: Long? = null): String {
@@ -346,6 +352,10 @@ object Routines {
         if (first.reps > 0) parts.add("${first.reps} reps")
         if (first.distance > 0) parts.add("${fmtNum(first.distance)} ${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit}")
         if (first.durationSec > 0) parts.add(fmtDuration(first.durationSec))
+        first.metric?.let { m ->
+            val unit = exerciseId?.let { snap.exercises[it] }?.let { ExerciseTypes.metricOf(it.type) }?.metricUnit
+            parts.add(fmtNum(m) + unit?.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty())
+        }
         val same = sets.all { it == first }
         val head = "${sets.size} set${if (sets.size == 1) "" else "s"}"
         return if (parts.isEmpty()) head else "$head · ${parts.joinToString(" · ")}${if (same) "" else " …"}"

@@ -209,7 +209,7 @@ object Workouts {
             w.insertOrThrow("workout_set", null, ContentValues().apply {
                 put("exercise_id", exId); put("date", d); put("weight", s.weightKg); put("reps", s.reps)
                 put("distance", s.distance); put("duration", s.durationSec); put("is_pr", 0)
-                put("source", Sources.FITLENS); put("set_type", s.setType); putNull("rpe")
+                put("source", Sources.FITLENS); put("set_type", s.setType); putNull("rpe"); putMetric(s.metric)
                 val g = groups[exId] ?: 0
                 if (g > 0) put("superset", g + offset)
                 if (s.restSeconds != null) put("rest_seconds", s.restSeconds)
