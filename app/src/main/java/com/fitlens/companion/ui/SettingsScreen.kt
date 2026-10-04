@@ -36,6 +36,7 @@ import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.LengthUnits
 import com.fitlens.companion.data.PortableSettings
+import com.fitlens.companion.data.PreferenceGroup
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
@@ -43,6 +44,8 @@ import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.ConfirmSheet
+import com.fitlens.companion.ui.design.MenuAction
+import com.fitlens.companion.ui.design.OverflowMenu
 import com.fitlens.companion.ui.design.SettingsActionRow
 import com.fitlens.companion.ui.design.SettingsChoiceRow
 import com.fitlens.companion.ui.design.SettingsGroup
@@ -59,16 +62,17 @@ import kotlinx.coroutines.delay
  * and writes only through [Settings], so no screen knows whether a value lives on this phone or travels in backups.
  * The text of the main list and these pages is in `res/values/strings.xml` (#94).
  */
-enum class SettingsSection(@StringRes val title: Int) {
+enum class SettingsSection(@StringRes val title: Int, val group: PreferenceGroup? = null) {
     Backups(R.string.settings_page_backups),
     // FitNotes imports lived on the Sync tab until #35 moved them here.
     Import(R.string.settings_page_import),
     DataTools(R.string.settings_page_data_tools),
-    Home(R.string.settings_page_home),
+    // A page with a group has ⋮ › Reset this section (#41).
+    Home(R.string.settings_page_home, PreferenceGroup.HOME),
     // The rest timer's options lived only in its sheet until #86 gave them a page.
-    Rest(R.string.settings_page_rest),
+    Rest(R.string.settings_page_rest, PreferenceGroup.REST),
     // Defaults for photos, the slideshow and video, and the PDF report (#46).
-    Media(R.string.settings_page_media),
+    Media(R.string.settings_page_media, PreferenceGroup.MEDIA),
     // In-app help and About (#33).
     Help(R.string.settings_page_help),
     About(R.string.settings_page_about)
@@ -453,8 +457,25 @@ private fun RecalculateRecordsSheet(onDismiss: () -> Unit) {
 /** One Settings sub-screen. Back returns to Settings, then to wherever Settings was opened from. */
 @Composable
 fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
+    val group = section.group
+    var confirmReset by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
-        BackTopBar(stringResource(section.title), onBack = { nav.pop() })
+        BackTopBar(stringResource(section.title), onBack = { nav.pop() }) {
+            if (group != null) {
+                val portable by Settings.portable.collectAsState()
+                val device by Settings.device.collectAsState()
+                OverflowMenu(
+                    listOf(
+                        MenuAction(
+                            stringResource(R.string.reset_section),
+                            enabled = Settings.isGroupChanged(group, portable, device)
+                        ) { confirmReset = true }
+                    ),
+                    description = stringResource(R.string.reset_section_menu)
+                )
+            }
+        }
+        if (group != null && confirmReset) ResetSectionSheet(section, group) { confirmReset = false }
         when (section) {
             SettingsSection.Import -> FitNotesImportHost()
             else -> {}
@@ -473,6 +494,35 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
             }
         }
     }
+}
+
+/**
+ * Confirms a page's Reset this section (#41), then resets only that page's preferences ([Settings.resetGroup]) and
+ * offers Undo. The rest of Settings and all data stay as they are.
+ */
+@Composable
+private fun ResetSectionSheet(section: SettingsSection, group: PreferenceGroup, onDismiss: () -> Unit) {
+    val page = stringResource(section.title)
+    val done = stringResource(R.string.reset_section_done, page)
+    val undo = stringResource(R.string.undo)
+    ConfirmSheet(
+        title = stringResource(R.string.reset_section_title, page),
+        message = stringResource(
+            when (group) {
+                PreferenceGroup.HOME -> R.string.reset_section_body_home
+                PreferenceGroup.REST -> R.string.reset_section_body_rest
+                PreferenceGroup.MEDIA -> R.string.reset_section_body_media
+            }
+        ),
+        confirmLabel = stringResource(R.string.reset_section_confirm),
+        dismissLabel = stringResource(R.string.reset_section_keep),
+        onDismiss = onDismiss,
+        onConfirm = {
+            val before = Settings.resetGroup(group)
+            UiEvents.show(done, undo) { Settings.restoreGroup(group, before) }
+        },
+        destructive = false
+    )
 }
 
 /** Home Screen Settings (#147): how the day log shows each exercise (#8). */

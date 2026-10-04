@@ -257,6 +257,27 @@ object Settings {
     }
 
     /**
+     * A Settings page's ⋮ › Reset this section (#41): only [group]'s preferences go back to their defaults. Returns
+     * what was there before, for Undo ([restoreGroup]).
+     */
+    fun resetGroup(group: PreferenceGroup): Pair<PortableSettings, DeviceSettings> {
+        val before = currentPortable() to current()
+        updatePortable { it.withGroupFrom(group, PortableSettings()) }
+        updateDevice { it.withGroupFrom(group, DeviceSettings()) }
+        return before
+    }
+
+    /** Undoes [resetGroup]: only [group]'s values are put back, so a change made since on another page stays. */
+    fun restoreGroup(group: PreferenceGroup, before: Pair<PortableSettings, DeviceSettings>) {
+        updatePortable { it.withGroupFrom(group, before.first) }
+        updateDevice { it.withGroupFrom(group, before.second) }
+    }
+
+    /** True when [group] has a value that isn't its default, so Reset this section would change something. */
+    fun isGroupChanged(group: PreferenceGroup, portable: PortableSettings, device: DeviceSettings): Boolean =
+        portable.withGroupFrom(group, PortableSettings()) != portable || device.withGroupFrom(group, DeviceSettings()) != device
+
+    /**
      * Re-reads the preferences from the database. Called from `Store.reload()`, so a restore or an import that set
      * the weight unit is picked up with the rest of the data.
      */
@@ -538,6 +559,36 @@ internal fun DeviceSettings.resetToDefaults(): DeviceSettings = withPreferencesF
 /** These settings with [other]'s preferences, the values [resetToDefaults] changes. */
 internal fun DeviceSettings.withPreferencesFrom(other: DeviceSettings): DeviceSettings =
     copy(restSoundUri = other.restSoundUri, calendarFilter = other.calendarFilter)
+
+/** The preferences one Settings page holds, which its Reset this section resets together (#41). */
+enum class PreferenceGroup {
+    /** Home Screen Settings: categories and sets shown on the day log (#8). */
+    HOME,
+    /** The rest timer: length, auto-start, vibrate, sound, volume and the phone's rest-over sound (#20). */
+    REST,
+    /** Progress photos and media: default pose, grouping, slideshow and video options, the PDF report (#46). */
+    MEDIA
+}
+
+/** These preferences with [group]'s values taken from [other]: defaults to reset, the old values for Undo. */
+internal fun PortableSettings.withGroupFrom(group: PreferenceGroup, other: PortableSettings): PortableSettings = when (group) {
+    PreferenceGroup.HOME -> copy(homeShowCategories = other.homeShowCategories, homeSetsShown = other.homeSetsShown)
+    PreferenceGroup.REST -> copy(
+        restSeconds = other.restSeconds, restAutoStart = other.restAutoStart, restVibrate = other.restVibrate,
+        restSound = other.restSound, restVolume = other.restVolume
+    )
+    PreferenceGroup.MEDIA -> copy(
+        photoDefaultPose = other.photoDefaultPose, photoGroupBy = other.photoGroupBy,
+        rememberVideoOpts = other.rememberVideoOpts, videoOpts = other.videoOpts,
+        pdfDark = other.pdfDark, pdfPhotosPerDay = other.pdfPhotosPerDay
+    )
+}
+
+/** This phone's settings with [group]'s values taken from [other]. Only the rest timer keeps one here, its sound. */
+internal fun DeviceSettings.withGroupFrom(group: PreferenceGroup, other: DeviceSettings): DeviceSettings = when (group) {
+    PreferenceGroup.REST -> copy(restSoundUri = other.restSoundUri)
+    PreferenceGroup.HOME, PreferenceGroup.MEDIA -> this
+}
 
 /**
  * Switching between kg and lbs converts the plate calculator's plate list (#117), the only weight setting stored in

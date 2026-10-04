@@ -155,6 +155,15 @@
     <string name="reset_confirm">Reset settings</string>
     <string name="reset_keep">Keep my settings</string>
     <string name="reset_done">Settings reset</string>
+    <string name="reset_section">Reset this section</string>
+    <string name="reset_section_menu">More options for this page</string>
+    <string name="reset_section_title">Reset %1$s?</string>
+    <string name="reset_section_body_home">Category colours and the sets shown on each exercise go back to their defaults. The rest of Settings and your data aren't affected.</string>
+    <string name="reset_section_body_rest">The rest length, auto-start, vibration, sound and volume go back to their defaults, and the rest-over sound goes back to the phone's notification sound. The rest of Settings and your data aren't affected.</string>
+    <string name="reset_section_body_media">The default pose, photo grouping, slideshow and video options and the PDF report options go back to their defaults. The rest of Settings and your photos aren't affected.</string>
+    <string name="reset_section_confirm">Reset section</string>
+    <string name="reset_section_keep">Keep these settings</string>
+    <string name="reset_section_done">%1$s reset</string>
     <string name="undo">Undo</string>
 
     <!-- Settings: the main list, its pages and search (#94, #147). -->

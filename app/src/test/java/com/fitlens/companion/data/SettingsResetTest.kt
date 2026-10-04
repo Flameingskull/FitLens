@@ -38,4 +38,25 @@ class SettingsResetTest {
         assertEquals(phone.copy(restSoundUri = null, calendarFilter = null), reset)
         assertEquals(phone, reset.withPreferencesFrom(phone))
     }
+
+    @Test
+    fun sectionResetTouchesOnlyItsGroup() {
+        val prefs = custom.copy(homeSetsShown = 3, restVolume = 40, photoGroupBy = MediaPrefs.GROUP_YEAR)
+        val rest = prefs.withGroupFrom(PreferenceGroup.REST, PortableSettings())
+        assertEquals(prefs.copy(restSeconds = 90, restSound = true, restVolume = 80), rest)
+        val home = prefs.withGroupFrom(PreferenceGroup.HOME, PortableSettings())
+        assertEquals(prefs.copy(homeSetsShown = 0), home)
+        val media = prefs.withGroupFrom(PreferenceGroup.MEDIA, PortableSettings())
+        assertEquals(prefs.copy(photoGroupBy = MediaPrefs.GROUP_MONTH, videoOpts = null, pdfPhotosPerDay = 2), media)
+        // Undo puts the group back without undoing a change made since to another group.
+        val later = rest.copy(homeSetsShown = 5)
+        assertEquals(prefs.copy(homeSetsShown = 5), later.withGroupFrom(PreferenceGroup.REST, prefs))
+    }
+
+    @Test
+    fun sectionResetOnThePhone() {
+        val phone = DeviceSettings(restSoundUri = "content://sound", calendarFilter = "f", setupDone = true)
+        assertEquals(phone.copy(restSoundUri = null), phone.withGroupFrom(PreferenceGroup.REST, DeviceSettings()))
+        assertEquals(phone, phone.withGroupFrom(PreferenceGroup.HOME, DeviceSettings()))
+    }
 }
