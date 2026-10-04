@@ -337,6 +337,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
     // A body measurement drawn over the graph on a second axis (#56), kept while the screen is open.
     var overlayName by rememberSaveable(exId) { mutableStateOf<String?>(null) }
     var pickOverlay by remember { mutableStateOf(false) }
+    // The first of two points whose nearest photos open in Compare (#56), waiting for the second tap.
+    var photoFrom by rememberSaveable(exId) { mutableStateOf<String?>(null) }
     // Set by the ⋮ menu's "Share graph as image" (#22); the graph item below draws and shares what it shows.
     var shareRequested by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
@@ -525,7 +527,16 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     kind = kind,
                     photoDays = photoDays,
                     selected = sel,
-                    onSelect = { sel = it; ChartHints.tapped() },
+                    onSelect = { pick ->
+                        val from = photoFrom
+                        val to = series.getOrNull(pick.series)?.points?.getOrNull(pick.index)?.date
+                        sel = pick
+                        ChartHints.tapped()
+                        if (from != null && to != null) {
+                            photoFrom = null
+                            comparePhotosOn(snap, nav, from, to)
+                        }
+                    },
                     unit = unit,
                     showTrend = showTrend,
                     trendUnit = trendUnit,
@@ -589,9 +600,26 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(p.date)) }.padding(16.dp),
                     style = MaterialTheme.typography.titleMedium
                 )
-                // What the user looked like then (#56).
+                // What the user looked like then (#56), and Compare with the photos near a second point.
                 NearestPhotoThumb(snap, nav, p.date, Modifier.padding(horizontal = 16.dp))
-            } else if (summary.isNotEmpty()) {
+                if (photoFrom == null && nearestPhoto(snap, p.date, GRAPH_PHOTO_DAYS) != null) {
+                    TextButton(onClick = { photoFrom = p.date }, Modifier.padding(horizontal = 8.dp)) {
+                        Text("Compare with another point's photo")
+                    }
+                }
+            }
+            photoFrom?.let { from ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Tap a second point to compare its photo with ${Dates.medium(from)}'s.",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    TextButton(onClick = { photoFrom = null }) { Text("Cancel") }
+                }
+            }
+            if (p == null && summary.isNotEmpty()) {
                 Text(
                     summary,
                     Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge
@@ -626,6 +654,24 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 searchLabel = "Search exercises"
             )
         }
+    }
+}
+
+/**
+ * Two graph points' nearest progress photos (#56), each within [GRAPH_PHOTO_DAYS], side by side in Compare, the
+ * earlier one first. Says why when a point has no photo near it, or both points share the same one.
+ */
+private fun comparePhotosOn(snap: Snapshot, nav: Nav, a: String, b: String) {
+    val (first, second) = if (a <= b) a to b else b to a
+    val pa = nearestPhoto(snap, first, GRAPH_PHOTO_DAYS)
+    val pb = nearestPhoto(snap, second, GRAPH_PHOTO_DAYS)
+    when {
+        pa == null || pb == null -> {
+            val missing = if (pa == null) first else second
+            UiEvents.show("No progress photo within $GRAPH_PHOTO_DAYS days of ${Dates.medium(missing)}")
+        }
+        pa.id == pb.id -> UiEvents.show("Both points are nearest the same photo: pick points further apart")
+        else -> nav.push(Screen.Compare(pa.id, pb.id))
     }
 }
 
