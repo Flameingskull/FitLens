@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.103.
+Last updated: 1.0.104.
 
 ## How data flows
 
@@ -171,8 +171,8 @@ Last updated: 1.0.103.
   only) wins over the global unit in `MeasureUnits.display`. The plate list is converted on a unit
   change (`withPlatesConverted`).
 - **Text (#94):** new screens take their text from `res/values/strings.xml` through `stringResource` and counts through
-  `pluralStringResource` (`CustomTypeSheet`, `WorkoutEditorScreen` and `SettingsScreen` are the models; every Settings page, Backups, FitNotes import, Help (its `GUIDES` are resource ids) and About included, and since 1.0.103 the day log, workout drawer, calendar and set entry's Track tab, whose shared keys are `day_*`, `drawer_*`, `cal_*` and `set_*`, #94); messages shown from callbacks use `LocalContext.current.resources`.
-  Plain helpers that build text (`planSummary`, `restSummary`, `restLabel`, `Routines.describe`) take a `Resources` first.
+  `pluralStringResource` (`CustomTypeSheet`, `WorkoutEditorScreen` and `SettingsScreen` are the models; every Settings page, Backups, FitNotes import, Help (its `GUIDES` are resource ids) and About included, since 1.0.103 the day log, workout drawer, calendar and set entry's Track tab, whose shared keys are `day_*`, `drawer_*`, `cal_*` and `set_*`, and since 1.0.104 the exercise screen's History, Graph and Records (`ex_*`), the library, exercise editor and category sheets (`lib_*`) and the workout sheets and tools in `WorkoutSheets.kt`, `WorkoutTools.kt` and `WorkoutEditing.kt` (`wk_*`); shared counts are the `reps_count` and `sets_count` plurals, #94); messages shown from callbacks use `LocalContext.current.resources`.
+  Plain helpers that build text (`planSummary`, `restSummary`, `restLabel`, `Routines.describe`, `describeSet`, `exerciseLine`, `logWorkoutDay`, `WorkoutClock.stop`, `PdfReport.create`) take a `Resources` first. Graph names (`GRAPH_*`) stay English constants: they're stored as keys in pinned graphs and chart-type choices.
   Older screens move over as they're touched.
 - **Comments** explain why and cite the issue (`// … (#69)`), like the code around them.
 - **Toolchain:** Kotlin 2.0.21, AGP 8.9.1, Compose with Material 3, `compileSdk` and `targetSdk` 36 (#61), `minSdk` 29. There's no local Android SDK,

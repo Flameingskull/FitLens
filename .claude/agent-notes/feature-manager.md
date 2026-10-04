@@ -128,3 +128,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   group's values, so a change made meanwhile on another page survives. Haptics go through `ui/design/Haptics.kt`
   (`confirm` for saves and ticks, `record` for PRs), never a raw `performHapticFeedback`. Moving many literals to
   strings.xml is quickest with a Python script written to a file (the shell mangles backslashes in heredocs).
+- 1.0.104 (#94): exercise screen tabs, library and workout sheets moved to strings.xml. Source files mix CRLF and LF
+  in the working tree: a replacement script must read with `newline=""`, match on LF and write back the original
+  ending, or every line shows as changed. `GRAPH_*` labels and `metricGraphLabels` are stored keys (pinned graphs,
+  chart kinds), so translate them only through a separate display mapping, never by changing the constants.
