@@ -719,6 +719,8 @@ fun ExerciseEditorSheet(
     var type by remember { mutableStateOf(existing?.type ?: ExerciseTypes.WEIGHT_REPS) }
     var notes by remember { mutableStateOf(existing?.notes ?: "") }
     var newCategory by remember { mutableStateOf(false) }
+    // The custom type being created ([TYPE_SHEET_NEW]) or edited (its id), or null (#14).
+    var typeSheet by remember { mutableStateOf<Int?>(null) }
     // This exercise's defaults (#15): weight step in kg (null = the global step) and the graph it opens on.
     var stepKg by remember { mutableStateOf(existing?.weightStepKg) }
     var defaultGraph by remember { mutableStateOf(existing?.defaultGraph ?: -1) }
@@ -840,6 +842,28 @@ fun ExerciseEditorSheet(
                             FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
                         }
                     }
+                    // The user's own types (#14); the library is in the key so a new or edited type shows at once.
+                    FieldLabel("Your types")
+                    val customTypes = remember(snap.library) { ExerciseTypes.custom.values.sortedBy { it.name.lowercase() } }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        customTypes.forEach { t ->
+                            FilterChip(selected = type == t.id, onClick = { type = t.id }, label = { Text(t.name) })
+                        }
+                        FilterChip(
+                            selected = false,
+                            onClick = { typeSheet = TYPE_SHEET_NEW },
+                            label = { Text("New type") },
+                            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                        )
+                        if (ExerciseTypes.custom.containsKey(type)) {
+                            FilterChip(
+                                selected = false,
+                                onClick = { typeSheet = type },
+                                label = { Text("Edit ${ExerciseTypes.label(type)}") },
+                                leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                            )
+                        }
+                    }
                     Text(
                         "For example: ${ExerciseTypes.example(type)}",
                         style = MaterialTheme.typography.bodySmall,
@@ -927,8 +951,21 @@ fun ExerciseEditorSheet(
         if (newCategory) {
             CategoryEditorSheet(snap, existing = null, onDismiss = { newCategory = false }) { id -> categoryId = id }
         }
+        typeSheet?.let { t ->
+            val editing = ExerciseTypes.custom[t]
+            CustomTypeSheet(editing, onDismiss = {
+                typeSheet = null
+                // A deleted type can't stay chosen.
+                if (ExerciseTypes.isCustom(type) && !ExerciseTypes.custom.containsKey(type)) type = existing?.type?.takeIf {
+                    !ExerciseTypes.isCustom(it) || ExerciseTypes.custom.containsKey(it)
+                } ?: ExerciseTypes.WEIGHT_REPS
+            }) { id -> type = id }
+        }
     }
 }
+
+/** [ExerciseEditorSheet]'s marker for "creating a new type" (#14); a real type id is never negative. */
+private const val TYPE_SHEET_NEW = -1
 
 @Composable
 private fun FieldLabel(text: String) {

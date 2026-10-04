@@ -22,7 +22,8 @@ data class Category(val id: Long, val name: String, val colour: Int, val sortOrd
  *
  * 0–3 are FitNotes's own type ids and are stored as FitNotes stores them, so imports and backups keep working. 4 and
  * up are FitLens's extra built-in types, such as weight and time for a loaded hold or carry. FitNotes never sends
- * them. User-defined types are still to come (#14).
+ * them. [CUSTOM_BASE] and up are the user's own types ([CustomType], table `exercise_type`, #14), held in [custom]
+ * by `Store` whenever the library is read, so every `uses*` check below answers for them too.
  */
 object ExerciseTypes {
     const val WEIGHT_REPS = 0
@@ -36,6 +37,15 @@ object ExerciseTypes {
     const val REPS_ONLY = 8
     const val DISTANCE_ONLY = 9
 
+    /** The first id of a user-defined type (#14). Built-in ids stay below it, so the two can never collide. */
+    const val CUSTOM_BASE = 100
+
+    /** The user's own types by id, replaced by `Store` each time the library is read (#14). */
+    @Volatile
+    var custom: Map<Int, CustomType> = emptyMap()
+
+    fun isCustom(type: Int): Boolean = type >= CUSTOM_BASE
+
     /** Every built-in type, in the order the type picker lists them: the two main types first. */
     val all = listOf(
         WEIGHT_REPS, DISTANCE_TIME, WEIGHT_TIME, WEIGHT_DISTANCE, REPS_TIME, REPS_DISTANCE,
@@ -43,6 +53,7 @@ object ExerciseTypes {
     )
 
     fun label(type: Int): String = when (type) {
+        in custom -> custom.getValue(type).name
         DISTANCE_TIME -> "Distance & time"
         WEIGHT_DISTANCE -> "Weight & distance"
         TIME -> "Time"
@@ -57,6 +68,7 @@ object ExerciseTypes {
 
     /** A short example of the kind of exercise each type suits, for the type picker. */
     fun example(type: Int): String = when (type) {
+        in custom -> custom.getValue(type).describe()
         DISTANCE_TIME -> "Running, cycling, rowing"
         WEIGHT_DISTANCE -> "Sled push, farmer's walk for distance"
         TIME -> "Plank, stretching"
@@ -74,10 +86,13 @@ object ExerciseTypes {
     private val distanceTypes = setOf(DISTANCE_TIME, WEIGHT_DISTANCE, REPS_DISTANCE, DISTANCE_ONLY)
     private val timeTypes = setOf(DISTANCE_TIME, TIME, WEIGHT_TIME, REPS_TIME)
 
-    fun usesWeight(type: Int): Boolean = type in weightTypes
-    fun usesReps(type: Int): Boolean = type in repTypes
-    fun usesDistance(type: Int): Boolean = type in distanceTypes
-    fun usesDuration(type: Int): Boolean = type in timeTypes
+    fun usesWeight(type: Int): Boolean = custom[type]?.weight ?: (type in weightTypes)
+    fun usesReps(type: Int): Boolean = custom[type]?.reps ?: (type in repTypes)
+    fun usesDistance(type: Int): Boolean = custom[type]?.distance ?: (type in distanceTypes)
+    fun usesDuration(type: Int): Boolean = custom[type]?.time ?: (type in timeTypes)
+
+    /** The user's own metric a custom type records (#14), or null when it records none (every built-in type). */
+    fun metricOf(type: Int): CustomType? = custom[type]?.takeIf { it.metricName != null }
 
     /**
      * Whether an exercise's graphs and records are about time and distance rather than weight and reps. FitNotes's
@@ -86,9 +101,44 @@ object ExerciseTypes {
      */
     fun timeBased(type: Int, anyWeightOrReps: Boolean): Boolean = when {
         type <= TIME -> type != WEIGHT_REPS && !anyWeightOrReps
+        // A custom type has rep maxes only when it records both weight and reps (#14).
+        isCustom(type) -> !(usesWeight(type) && usesReps(type))
         else -> !(usesWeight(type) && usesReps(type)) && (usesDuration(type) || usesDistance(type))
     }
 }
+
+/**
+ * A user-defined exercise type (#14): a name, which of weight, reps, distance and time a set records, and optionally
+ * one metric of the user's own with its unit ("Height", "cm"), stored in `workout_set.metric`. 1 to [MAX_VALUES]
+ * values in all.
+ */
+data class CustomType(
+    val id: Int,
+    val name: String,
+    val weight: Boolean,
+    val reps: Boolean,
+    val distance: Boolean,
+    val time: Boolean,
+    val metricName: String? = null,
+    val metricUnit: String? = null
+) {
+    val valueCount: Int get() = listOf(weight, reps, distance, time, metricName != null).count { it }
+
+    /** "Weight, reps and height (cm)", for the type picker. */
+    fun describe(): String {
+        val parts = listOfNotNull(
+            "weight".takeIf { weight }, "reps".takeIf { reps }, "distance".takeIf { distance }, "time".takeIf { time },
+            metricName?.let { n -> n.lowercase(Locale.getDefault()) + (metricUnit?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") }
+        )
+        val list = if (parts.size < 2) parts.joinToString("") else parts.dropLast(1).joinToString(", ") + " and " + parts.last()
+        return list.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    }
+
+    companion object {
+        const val MAX_VALUES = 3
+    }
+}
+
 /** An exercise in the library. [type] is one of [ExerciseTypes]. */
 data class Exercise(
     val id: Long,
@@ -135,7 +185,9 @@ data class SetRow(
     /** Ticked off in "mark sets complete" mode (#19). */
     val done: Boolean = false,
     /** The rest prescribed after this set by the workout it was logged from (#138), or null for none. */
-    val restSeconds: Int? = null
+    val restSeconds: Int? = null,
+    /** The value of its exercise's custom metric (#14), or null when it has none. */
+    val metric: Double? = null
 ) {
     val imported: Boolean get() = source == Sources.FITNOTES
     val isWarmup: Boolean get() = setType == SetTypes.WARMUP

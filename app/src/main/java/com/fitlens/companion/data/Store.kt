@@ -378,6 +378,15 @@ object Store {
                     if (c.isNull(9)) null else c.getInt(9), DistanceUnits.of(c.str(10)), WeightUnits.of(c.str(11))
                 )
         }
+        // The user's own exercise types (#14), published to ExerciseTypes so every type check answers for them.
+        val types = HashMap<Int, CustomType>()
+        r.rawQuery("SELECT id, name, uses_weight, uses_reps, uses_distance, uses_time, metric_name, metric_unit FROM exercise_type", null).use { c ->
+            while (c.moveToNext()) types[c.int(0)] = CustomType(
+                c.int(0), c.strOr(1), c.int(2) != 0, c.int(3) != 0, c.int(4) != 0, c.int(5) != 0,
+                c.str(6)?.takeIf { it.isNotBlank() }, c.str(7)?.takeIf { it.isNotBlank() }
+            )
+        }
+        ExerciseTypes.custom = types
         val goals = ArrayList<ExerciseGoal>()
         r.rawQuery("SELECT id, exercise_id, kind, target, sort_order FROM exercise_goal ORDER BY exercise_id, sort_order, id", null).use { c ->
             while (c.moveToNext()) goals.add(ExerciseGoal(c.lng(0), c.lng(1), c.int(2), c.dbl(3), c.int(4)))
@@ -389,7 +398,7 @@ object Store {
     private fun loadSets(r: SQLiteDatabase, where: String?, args: Array<String>): List<SetRow> {
         val sets = ArrayList<SetRow>()
         r.rawQuery(
-            "SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done, rest_seconds " +
+            "SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done, rest_seconds, metric " +
                 "FROM workout_set " + (if (where != null) "WHERE $where " else "") + "ORDER BY date, position, id",
             args
         ).use { c ->
@@ -397,7 +406,7 @@ object Store {
                 SetRow(
                     c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8),
                     c.strOr(9, Sources.FITLENS), c.int(10), if (c.isNull(11)) null else c.getDouble(11), c.lng(12), c.int(13), c.int(14) != 0,
-                    if (c.isNull(15)) null else c.getInt(15)
+                    if (c.isNull(15)) null else c.getInt(15), if (c.isNull(16)) null else c.getDouble(16)
                 )
             )
         }

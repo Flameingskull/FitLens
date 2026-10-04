@@ -12,7 +12,8 @@ object CsvExport {
     const val MIME = "text/csv"
 
     fun workoutColumns(unit: String) =
-        listOf("Date", "Exercise", "Category", "Set", "Weight ($unit)", "Reps", "Distance", "Time (seconds)", "PR", "Comment", "set_type", "RPE", "Exercise comment", "Distance unit")
+        listOf("Date", "Exercise", "Category", "Set", "Weight ($unit)", "Reps", "Distance", "Time (seconds)", "PR", "Comment", "set_type", "RPE", "Exercise comment", "Distance unit",
+            "Custom metric", "Custom metric value", "Custom metric unit")
 
     val BODY_COLUMNS = listOf("Date", "Time", "Measurement", "Value", "Unit", "Comment")
 
@@ -34,6 +35,7 @@ object CsvExport {
                 val n = counters.merge(date to s.exerciseId, 1) { a, b -> a + b } ?: 1
                 val ex = snap.exercises[s.exerciseId]
                 val category = ex?.let { snap.categories[it.categoryId]?.name }
+                val metric = ex?.let { ExerciseTypes.metricOf(it.type) }
                 val weight = if (unit == "lbs") s.weightKg * KG_TO_LB else s.weightKg
                 row(
                     sb, listOf(
@@ -52,7 +54,11 @@ object CsvExport {
                         // The exercise's comment in that day's workout (#107), on every set row of the exercise.
                         snap.exerciseComments[date]?.get(s.exerciseId) ?: "",
                         // Added last (#7) so spreadsheets built on older exports keep their columns.
-                        if (s.distance > 0) snap.distanceUnit(s.exerciseId) else ""
+                        if (s.distance > 0) snap.distanceUnit(s.exerciseId) else "",
+                        // A user-defined type's own metric (#14), also added last.
+                        if (s.metric != null) metric?.metricName.orEmpty() else "",
+                        s.metric?.let { fmtNum(it, 3) } ?: "",
+                        if (s.metric != null) metric?.metricUnit.orEmpty() else ""
                     )
                 )
             }

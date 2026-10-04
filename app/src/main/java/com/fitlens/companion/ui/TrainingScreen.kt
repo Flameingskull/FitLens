@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.data.CustomType
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.MeasureUnits
 import com.fitlens.companion.data.Records
@@ -83,7 +84,8 @@ internal fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolea
  * are FitNotes's (#22): "Estimated 1RM", "Workout volume", "Workout reps".
  */
 fun graphLabels(type: Int, timeBased: Boolean): List<String> =
-    if (timeBased) {
+    if (ExerciseTypes.isCustom(type)) customGraphLabels(type)
+    else if (timeBased) {
         listOf(GRAPH_LONGEST, GRAPH_TOTAL_TIME, GRAPH_DISTANCE) +
             (if (type > ExerciseTypes.TIME && ExerciseTypes.usesWeight(type)) listOf(GRAPH_MAX_WEIGHT) else emptyList()) +
             (if (type > ExerciseTypes.TIME && ExerciseTypes.usesReps(type)) listOf(GRAPH_WORKOUT_REPS) else emptyList()) +
@@ -96,6 +98,40 @@ fun graphLabels(type: Int, timeBased: Boolean): List<String> =
             GRAPH_MAX_VOLUME, GRAPH_WEIGHT_FOR_REPS, GRAPH_RECORDS, GRAPH_RELATIVE_STRENGTH
         )
     }
+
+/**
+ * A user-defined type's graphs (#14), from what it records: the weight-and-reps list when it has both, otherwise the
+ * graphs for each value it has, then its own metric's best and total.
+ */
+private fun customGraphLabels(type: Int): List<String> {
+    val w = ExerciseTypes.usesWeight(type)
+    val r = ExerciseTypes.usesReps(type)
+    val d = ExerciseTypes.usesDistance(type)
+    val t = ExerciseTypes.usesDuration(type)
+    return buildList {
+        if (w && r) {
+            addAll(listOf(
+                GRAPH_E1RM, GRAPH_MAX_WEIGHT, GRAPH_WORKOUT_VOLUME, GRAPH_WORKOUT_REPS, GRAPH_MAX_REPS,
+                GRAPH_MAX_VOLUME, GRAPH_WEIGHT_FOR_REPS, GRAPH_RECORDS, GRAPH_RELATIVE_STRENGTH
+            ))
+        } else {
+            if (w) add(GRAPH_MAX_WEIGHT)
+            if (r) { add(GRAPH_WORKOUT_REPS); add(GRAPH_MAX_REPS) }
+        }
+        if (t) { add(GRAPH_LONGEST); add(GRAPH_TOTAL_TIME) }
+        if (d) { add(GRAPH_DISTANCE); add(GRAPH_MAX_DISTANCE) }
+        if (d && t) { add(GRAPH_MAX_SPEED); add(GRAPH_MAX_PACE) }
+        ExerciseTypes.metricOf(type)?.let { addAll(metricGraphLabels(it)) }
+    }
+}
+
+/** A custom metric's graphs (#14): "Best Height" (the day's best set) and "Total Height" (the day's sum). */
+internal fun metricGraphLabels(m: CustomType): List<String> =
+    m.metricName?.let { listOf("Best $it", "Total $it") }.orEmpty()
+
+/** The custom metric of exercise [exId]'s type, if it has one (#14). */
+private fun metricFor(snap: Snapshot, exId: Long): CustomType? =
+    snap.exercises[exId]?.let { ExerciseTypes.metricOf(it.type) }
 
 internal const val GRAPH_E1RM = "Estimated 1RM"
 internal const val GRAPH_MAX_WEIGHT = "Max Weight"
@@ -191,7 +227,7 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long, initialTab: Int =
 }
 
 /** Every exercise graph by name (#22), for [ExerciseGraphPane], comparisons (#53) and pinned cards (#55). */
-private fun graphTypes(repsFor: Int, distUnit: String): Map<String, GraphType> = listOf(
+private fun graphTypes(repsFor: Int, distUnit: String, metric: CustomType? = null): Map<String, GraphType> = (listOf(
     GraphType(GRAPH_LONGEST, { l -> l.maxOf { it.durationSec }.toDouble() }, false, true),
     GraphType(GRAPH_TOTAL_TIME, { l -> l.sumOf { it.durationSec }.toDouble() }, false, true),
     GraphType(GRAPH_DISTANCE, { l -> l.sumOf { it.distance } }, false),
@@ -214,7 +250,14 @@ private fun graphTypes(repsFor: Int, distUnit: String): Map<String, GraphType> =
         { l -> l.map { paceSecondsOf(it, distUnit) }.filter { it > 0 }.minOrNull() ?: 0.0 },
         false, isTime = true, lowerIsBetter = true
     )
-).associateBy { it.label }
+) + (metric?.let { m ->
+    // A custom type's own metric (#14). Sets without a value are left out rather than counted as 0.
+    val (best, total) = metricGraphLabels(m)
+    listOf(
+        GraphType(best, { l -> l.mapNotNull { it.metric }.maxOrNull() ?: 0.0 }, false),
+        GraphType(total, { l -> l.sumOf { it.metric ?: 0.0 } }, false)
+    )
+} ?: emptyList())).associateBy { it.label }
 
 /**
  * Exercise [exId]'s points on graph [label], one per day, with weights in exercise [unitOf]'s unit (its own, or the
@@ -223,7 +266,7 @@ private fun graphTypes(repsFor: Int, distUnit: String): Map<String, GraphType> =
  */
 internal fun exerciseGraphPoints(snap: Snapshot, exId: Long, label: String, repsFor: Int, unitOf: Long = exId): List<ChartPoint> {
     if (label == GRAPH_RELATIVE_STRENGTH) return relativeStrength(snap, exId).points
-    val g = graphTypes(repsFor, snap.distanceUnit(exId))[label] ?: return emptyList()
+    val g = graphTypes(repsFor, snap.distanceUnit(exId), metricFor(snap, exId))[label] ?: return emptyList()
     val byDate = snap.statSetsByExercise[exId].orEmpty().groupBy { it.date }.toSortedMap()
     val raw = g.series?.invoke(byDate) ?: byDate.entries.map { (d, l) -> d to g.fn(l) }
     return raw.map { (d, v) ->
@@ -286,8 +329,10 @@ internal fun comparedSeries(
 /** Graph [label]'s unit for exercise [exId]: its weight or distance unit, minutes, speed or pace. */
 internal fun graphUnit(snap: Snapshot, exId: Long, label: String): String {
     val distUnit = snap.distanceUnit(exId)
-    val g = graphTypes(5, distUnit)[label] ?: return ""
+    val metric = metricFor(snap, exId)
+    val g = graphTypes(5, distUnit, metric)[label] ?: return ""
     return when {
+        metric != null && label in metricGraphLabels(metric) -> metric.metricUnit.orEmpty()
         label == GRAPH_RELATIVE_STRENGTH -> "× bodyweight"
         g.isWeight -> snap.weightUnitOf(exId)
         label == GRAPH_MAX_PACE -> if (distUnit == DistanceUnits.M) "/100 m" else "/$distUnit"
@@ -319,7 +364,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
     val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
     var repsFor by remember(exId) { mutableIntStateOf(RepsForGraph.get(exId)) }
     val distUnit = snap.distanceUnit(exId)
-    val labels = remember(timeBased, type) { graphLabels(type, timeBased) }
+    // A custom type's graphs follow its definition (#14), so an edit to the type is in the key.
+    val labels = remember(timeBased, type, ExerciseTypes.custom[type]) { graphLabels(type, timeBased) }
     // Opens on the pinned graph, or on the exercise's default graph when one is set (#15).
     var gIdx by rememberSaveable {
         mutableIntStateOf(
@@ -343,7 +389,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
     var shareRequested by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
     val label = labels[gIdx.coerceIn(0, labels.lastIndex)]
-    val g = remember(label, repsFor, distUnit) { graphTypes(repsFor, distUnit).getValue(label) }
+    val metric = metricFor(snap, exId)
+    val g = remember(label, repsFor, distUnit, metric) { graphTypes(repsFor, distUnit, metric).getValue(label) }
     val others = comparable(snap, exId, label, compare)
     val isRelative = relative && others.isNotEmpty()
     var sel by remember(gIdx, rangeIdx, others, isRelative) { mutableStateOf<ChartSelection?>(null) }
@@ -883,11 +930,24 @@ private data class RecordLine(val label: String, val value: String, val unit: St
  */
 private fun recordLines(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean, estimated: Boolean): List<RecordLine> {
     val exId = sets.firstOrNull()?.exerciseId
+    // A custom type's own metric (#14): its best set is a record, whatever else the type records.
+    val metric = exId?.let { metricFor(snap, it) }
+    val metricLine = metric?.let { m ->
+        sets.filter { it.metric != null }.maxByOrNull { it.metric!! }?.let { best ->
+            RecordLine("Best ${m.metricName?.lowercase()}", fmtNum(best.metric!!, 2), m.metricUnit.orEmpty(), Dates.medium(best.date), superseded = false)
+        }
+    }
     if (timeBased) {
-        // Timed exercises have no rep maxes: the longest set is their record.
-        return listOfNotNull(sets.maxByOrNull { it.durationSec }?.takeIf { it.durationSec > 0 }?.let { longest ->
-            RecordLine("Longest", fmtDuration(longest.durationSec), "", Dates.medium(longest.date), superseded = false)
-        })
+        // Timed exercises have no rep maxes: the longest set is their record, with the farthest for distance types.
+        val longest = sets.maxByOrNull { it.durationSec }?.takeIf { it.durationSec > 0 }?.let { l ->
+            RecordLine("Longest", fmtDuration(l.durationSec), "", Dates.medium(l.date), superseded = false)
+        }
+        val farthest = if (exId != null && ExerciseTypes.isCustom(snap.exercises[exId]?.type ?: 0)) {
+            sets.maxByOrNull { it.distance }?.takeIf { it.distance > 0 }?.let { f ->
+                RecordLine("Farthest", fmtNum(f.distance, 2), snap.distanceUnit(f.exerciseId), Dates.medium(f.date), superseded = false)
+            }
+        } else null
+        return listOfNotNull(longest, farthest, metricLine)
     }
     val unit = snap.weightUnitOf(exId)
     if (estimated) {
@@ -902,7 +962,7 @@ private fun recordLines(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean, 
     }
     // As FitNotes lists them: each rep count with its record and date. A record held by a heavier or equal set of more
     // reps is greyed, since that set is the one to beat.
-    return (1..Records.MAX_REPS).mapNotNull { r ->
+    return listOfNotNull(metricLine) + (1..Records.MAX_REPS).mapNotNull { r ->
         Records.repMax(sets, r)?.let { actual ->
             RecordLine(
                 "${r}RM",

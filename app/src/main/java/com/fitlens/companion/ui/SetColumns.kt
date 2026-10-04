@@ -9,13 +9,18 @@ import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.SetCell
 
 /** One value a set can record, shown as its own labelled column (#101). */
-enum class SetField(val label: String) { WEIGHT("Weight"), REPS("Reps"), DISTANCE("Distance"), TIME("Time") }
+enum class SetField(val label: String) {
+    WEIGHT("Weight"), REPS("Reps"), DISTANCE("Distance"), TIME("Time"),
+    /** A user-defined type's own metric (#14), named by the type. */
+    METRIC("Metric")
+}
 
 private fun SetField.recorded(s: SetRow): Boolean = when (this) {
     SetField.WEIGHT -> s.weightKg != 0.0
     SetField.REPS -> s.reps > 0
     SetField.DISTANCE -> s.distance > 0
     SetField.TIME -> s.durationSec > 0
+    SetField.METRIC -> s.metric != null
 }
 
 /**
@@ -29,6 +34,7 @@ fun setFields(type: Int, sets: List<SetRow>): List<SetField> = SetField.entries.
         SetField.REPS -> ExerciseTypes.usesReps(type)
         SetField.DISTANCE -> ExerciseTypes.usesDistance(type)
         SetField.TIME -> ExerciseTypes.usesDuration(type)
+        SetField.METRIC -> ExerciseTypes.metricOf(type) != null
     }
     byType || sets.any { f.recorded(it) }
 }
@@ -78,5 +84,14 @@ fun setCells(snap: Snapshot, fields: List<SetField>, s: SetRow): List<SetCell> =
         SetField.TIME ->
             if (s.durationSec > 0) SetCell(fmtDuration(s.durationSec), spoken = spokenDuration(s.durationSec), unitSlot = false)
             else SetCell("—", spoken = "no time", unitSlot = false)
+        SetField.METRIC -> {
+            // The type's own metric (#14), with its unit; it keeps its column even if the type later drops it.
+            val type = snap.exercises[s.exerciseId]?.type ?: ExerciseTypes.WEIGHT_REPS
+            val metric = ExerciseTypes.metricOf(type)
+            val name = metric?.metricName ?: "value"
+            val unit = metric?.metricUnit.orEmpty()
+            s.metric?.let { v -> fmtNum(v, 2).let { SetCell(it, unit, "$it $unit $name".replace("  ", " ")) } }
+                ?: SetCell("—", spoken = "no $name")
+        }
     }
 }

@@ -242,12 +242,15 @@ fun SetEntryScreen(
     val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
 
     // Which fields to show. The exercise type decides, but anything already logged for this exercise is always
-    // editable, so an imported exercise with an unexpected type can still be corrected. Full type handling is #14.
+    // editable, so an imported exercise with an unexpected type can still be corrected.
+    // A user-defined type's own metric (#14), such as jump height in cm.
+    val metricDef = ExerciseTypes.metricOf(type)
+    val showMetric = metricDef != null || allSets.any { it.metric != null }
     val showDistance = ExerciseTypes.usesDistance(type) || allSets.any { it.distance > 0 }
     val showDuration = ExerciseTypes.usesDuration(type) || allSets.any { it.durationSec > 0 }
     val showReps = ExerciseTypes.usesReps(type) || allSets.any { it.reps > 0 }
     val showWeight = ExerciseTypes.usesWeight(type) || allSets.any { it.weightKg != 0.0 } ||
-        (!showDistance && !showDuration && !showReps)
+        (!showDistance && !showDuration && !showReps && !showMetric)
 
     val prefs by Settings.portable.collectAsState()
 
@@ -267,6 +270,7 @@ fun SetEntryScreen(
     var reps by remember(date, exerciseId) { mutableStateOf("") }
     var distance by remember(date, exerciseId) { mutableStateOf("") }
     var duration by remember(date, exerciseId) { mutableStateOf("") }
+    var metric by remember(date, exerciseId) { mutableStateOf("") }
     // Set type (#43): new sets start as working sets; editing a set shows its own type.
     var setType by remember(date, exerciseId) { mutableIntStateOf(SetTypes.WORKING) }
     // Effort (#44), always held as RPE; null means not recorded.
@@ -313,6 +317,7 @@ fun SetEntryScreen(
             reps = source?.reps?.takeIf { it > 0 }?.toString() ?: ""
             distance = source?.distance?.takeIf { it > 0 }?.let { fmtNum(it, 2) } ?: ""
             duration = source?.durationSec?.takeIf { it > 0 }?.let { fmtDuration(it) } ?: ""
+            metric = source?.metric?.let { fmtNum(it, 2) } ?: ""
             setType = chosen?.setType ?: SetTypes.WORKING
             rpe = chosen?.rpe
         }
@@ -329,7 +334,9 @@ fun SetEntryScreen(
         val r = reps.trim().toIntOrNull() ?: 0
         val dist = num(distance)
         val dur = parseDuration(duration)
-        if (kg == 0.0 && r == 0 && dist == 0.0 && dur == 0) {
+        // Blank means not recorded; 0 is a real value for a custom metric (#14).
+        val met = if (showMetric) metric.trim().replace(',', '.').toDoubleOrNull() else null
+        if (kg == 0.0 && r == 0 && dist == 0.0 && dur == 0 && met == null) {
             UiEvents.show("Enter something to save.")
             return
         }
@@ -338,7 +345,7 @@ fun SetEntryScreen(
             try {
                 if (chosen == null) {
                     val firstOfDay = Store.snapshot.value?.setsByDate?.get(date).isNullOrEmpty()
-                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, null, setType = setType, rpe = rpe)
+                    val id = Workouts.addSet(exerciseId, date, kg, r, dist, dur, null, setType = setType, rpe = rpe, metric = met)
                     // In a superset, saving a set moves on to the next exercise of the group, round-robin, as FitNotes
                     // does (#18). The rest timer then starts only after the round's last exercise (#20).
                     val members = supersetMembers(snap, date, supersetOf(snap, date, exerciseId))
@@ -363,7 +370,7 @@ fun SetEntryScreen(
                     }
                 } else {
                     Workouts.updateSet(
-                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, setType = setType, rpe = rpe)
+                        chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, setType = setType, rpe = rpe, metric = met)
                     )
                     // With auto-select next on, the following set of the day is selected, ready to adjust (#97).
                     val next = if (Settings.currentPortable().autoSelectNext) {
@@ -384,7 +391,7 @@ fun SetEntryScreen(
 
     fun clear() {
         selected = null
-        weight = ""; reps = ""; distance = ""; duration = ""
+        weight = ""; reps = ""; distance = ""; duration = ""; metric = ""
         loadedWeightText = ""; loadedWeightKg = null
         setType = SetTypes.WORKING; rpe = null
     }
@@ -524,6 +531,19 @@ fun SetEntryScreen(
                             keyboard = KeyboardType.Text
                         )
                     }
+                    if (showMetric) {
+                        // The type's own metric (#14), stepping by 1.
+                        val unit = metricDef?.metricUnit?.let { " ($it)" }.orEmpty()
+                        StepperField(
+                            label = (metricDef?.metricName ?: "Value") + unit,
+                            value = metric,
+                            onValue = { metric = it },
+                            onStep = { dir ->
+                                val now = metric.trim().replace(',', '.').toDoubleOrNull() ?: 0.0
+                                metric = fmtNum(max(0.0, now + dir), 2)
+                            }
+                        )
+                    }
                     // Set type (#43) and optional effort (#44) as two dropdowns on one row (#129), so the sets below
                     // get the screen. Warm-ups stay out of records unless Settings counts them.
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -621,7 +641,7 @@ fun SetEntryScreen(
                     val marks = setMarks(s, prefs)
                     SetRowView(
                         index = i + 1,
-                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
+                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
                         cells = setCells(snap, fields, s),
                         comment = s.comment,
                         isPr = s.isPr,
@@ -684,7 +704,7 @@ fun SetEntryScreen(
     deleting?.let { s ->
         ConfirmDialog(
             title = "Delete this set?",
-            text = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
+            text = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
             onDismiss = { deleting = null }
         ) {
             selected = null
@@ -731,7 +751,7 @@ fun SetEntryScreen(
     commenting?.let { s ->
         val number = sets.indexOfFirst { it.id == s.id } + 1
         SetCommentSheet(
-            describe = "Set $number · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
+            describe = "Set $number · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
             initial = s.comment,
             onSave = { text ->
                 AppScope.scope.launch {

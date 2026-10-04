@@ -11,7 +11,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
 
     companion object {
         const val NAME = "fitlens.db"
-        const val VERSION = 18
+        const val VERSION = 19
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -44,6 +44,16 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
         const val CREATE_WORKOUT_REST =
             "CREATE TABLE workout_rest(date TEXT NOT NULL, exercise_id INTEGER NOT NULL, rest_seconds INTEGER, " +
                 "rest_after_seconds INTEGER, PRIMARY KEY(date, exercise_id))"
+
+        /**
+         * User-defined exercise types (#14). Ids start at [ExerciseTypes.CUSTOM_BASE], so `exercise.type` tells them
+         * from the built-in ones. Each flag says whether a set records that value; `metric_name` and `metric_unit`
+         * describe the type's own metric, kept in `workout_set.metric`. FitLens's own; FitNotes imports never write it.
+         */
+        const val CREATE_EXERCISE_TYPE =
+            "CREATE TABLE exercise_type(id INTEGER PRIMARY KEY, name TEXT NOT NULL, uses_weight INTEGER NOT NULL DEFAULT 0, " +
+                "uses_reps INTEGER NOT NULL DEFAULT 0, uses_distance INTEGER NOT NULL DEFAULT 0, uses_time INTEGER NOT NULL DEFAULT 0, " +
+                "metric_name TEXT, metric_unit TEXT)"
 
         private const val CREATE_COMMENT =
             "CREATE TABLE workout_comment(id INTEGER PRIMARY KEY, date TEXT NOT NULL, comment TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'fitlens')"
@@ -97,7 +107,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
                 "weight_step REAL, default_graph INTEGER NOT NULL DEFAULT -1, rest_seconds INTEGER, distance_unit TEXT, weight_unit TEXT)",
             "CREATE TABLE workout_set(id INTEGER PRIMARY KEY, exercise_id INTEGER NOT NULL, date TEXT NOT NULL, weight REAL NOT NULL DEFAULT 0, reps INTEGER NOT NULL DEFAULT 0, distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, is_pr INTEGER NOT NULL DEFAULT 0, comment TEXT, " +
                 "source TEXT NOT NULL DEFAULT 'fitlens', fitnotes_id INTEGER, set_type INTEGER NOT NULL DEFAULT 0, rpe REAL, " +
-                "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, rest_seconds INTEGER)",
+                "position INTEGER NOT NULL DEFAULT 0, superset INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, rest_seconds INTEGER, metric REAL)",
             CREATE_POSITION_TRIGGER,
             CREATE_SUPERSET_TRIGGER,
             "CREATE INDEX idx_set_date ON workout_set(date)",
@@ -112,6 +122,7 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             CREATE_TIME,
             CREATE_IMPORT_RULE,
             CREATE_GOAL,
+            CREATE_EXERCISE_TYPE,
             CREATE_LEGACY_SAVED_WORKOUT,
             CREATE_LEGACY_SAVED_EXERCISE,
             CREATE_LEGACY_SAVED_SET,
@@ -279,6 +290,13 @@ class Db(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSION) {
             // Two rows, added only when no measurement or logged value already has the name (ignoring capitals), so
             // FitNotes's "Body Fat" isn't doubled. Nothing existing changes, and the step replays safely (#77).
             if (hasTable(db, "measurement")) addDefaultMeasurements(db)
+        }
+        if (oldVersion < 19) {
+            // ---- 1.0.98: user-defined exercise types (#14) ---------------------------------------------------------
+            // A new table and one nullable column, so every exercise keeps its type and every set its values. The
+            // step replays safely (#77).
+            db.execSQL(CREATE_EXERCISE_TYPE.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
+            if (hasTable(db, "workout_set")) addColumn(db, "workout_set", "metric", "REAL")
         }
     }
 

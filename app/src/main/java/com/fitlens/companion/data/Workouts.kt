@@ -398,6 +398,52 @@ object Workouts {
         }, "id=?", arrayOf(id.toString()))
     }
 
+    // ---------- Exercise types (#14) ----------
+
+    /**
+     * Saves a user-defined exercise type: a new one when [CustomType.id] is 0, given the next free id from
+     * [ExerciseTypes.CUSTOM_BASE] up. It must record 1 to [CustomType.MAX_VALUES] values and have a name no other
+     * type has. Returns its id. Exercises of an edited type follow the change; their sets keep every value.
+     */
+    suspend fun saveExerciseType(t: CustomType): Int = write(LIBRARY) { w ->
+        val n = cleanName(t.name, "type")
+        val metric = t.metricName?.trim()?.takeIf { it.isNotEmpty() }
+        val count = t.copy(metricName = metric).valueCount
+        if (count == 0) throw WorkoutDataException("Choose at least one value for $n to record.")
+        if (count > CustomType.MAX_VALUES) throw WorkoutDataException("A type records at most ${CustomType.MAX_VALUES} values.")
+        // Its graphs are named after it ("Best Height"), so it can't share a name with a value FitLens already records.
+        if (metric != null && nameKey(metric) in setOf("weight", "reps", "distance", "time")) {
+            throw WorkoutDataException("$metric is already a value you can choose. Tick it instead.")
+        }
+        val clash = (ExerciseTypes.all.map { ExerciseTypes.label(it) } +
+            w.rawQuery("SELECT name FROM exercise_type WHERE id<>?", arrayOf(t.id.toString())).use { c ->
+                buildList { while (c.moveToNext()) add(c.strOr(0)) }
+            }).any { nameKey(it) == nameKey(n) }
+        if (clash) throw WorkoutDataException("There's already a type called $n.")
+        val id = if (t.id >= ExerciseTypes.CUSTOM_BASE) t.id else
+            ((w.longOrNull("SELECT MAX(id) FROM exercise_type")?.toInt() ?: 0) + 1).coerceAtLeast(ExerciseTypes.CUSTOM_BASE)
+        w.insertWithOnConflict("exercise_type", null, ContentValues().apply {
+            put("id", id); put("name", n)
+            put("uses_weight", if (t.weight) 1 else 0); put("uses_reps", if (t.reps) 1 else 0)
+            put("uses_distance", if (t.distance) 1 else 0); put("uses_time", if (t.time) 1 else 0)
+            if (metric == null) putNull("metric_name") else put("metric_name", metric)
+            val unit = t.metricUnit?.trim()?.takeIf { it.isNotEmpty() && metric != null }
+            if (unit == null) putNull("metric_unit") else put("metric_unit", unit)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+        id
+    }
+
+    /** Deletes a user-defined type. One still used by an exercise can't go, so no exercise is left without a type. */
+    suspend fun deleteExerciseType(id: Int): Unit = write(LIBRARY) { w ->
+        val users = w.longOrNull("SELECT COUNT(*) FROM exercise WHERE type=?", id.toString()) ?: 0L
+        if (users > 0) {
+            throw WorkoutDataException(
+                "$users exercise${if (users == 1L) " uses" else "s use"} this type. Give ${if (users == 1L) "it" else "them"} another type first."
+            )
+        }
+        w.delete("exercise_type", "id=?", arrayOf(id.toString()))
+    }
+
     /** Deletes an exercise and every set logged for it. */
     suspend fun deleteExercise(id: Long): Unit = write { w ->
         val row = w.rawQuery("SELECT name, fitnotes_id FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
@@ -527,7 +573,9 @@ object Workouts {
          */
         isPr: Boolean? = null,
         setType: Int = SetTypes.WORKING,
-        rpe: Double? = null
+        rpe: Double? = null,
+        /** The exercise type's own metric (#14), or null when it has none. */
+        metric: Double? = null
     ): Long = writeSets { w, scope ->
         val d = checkDate(date)
         w.longOrNull("SELECT id FROM exercise WHERE id=?", exerciseId.toString())
@@ -548,12 +596,16 @@ object Workouts {
             put("exercise_id", exerciseId); put("date", d); put("weight", weightKg); put("reps", reps)
             put("distance", distance); put("duration", durationSec); put("is_pr", if (pr) 1 else 0)
             put("comment", comment?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
-            put("set_type", setType); putRpe(rpe)
+            put("set_type", setType); putRpe(rpe); putMetric(metric)
         })
     }
 
     private fun ContentValues.putRpe(rpe: Double?) {
         if (rpe == null) putNull("rpe") else put("rpe", rpe)
+    }
+
+    private fun ContentValues.putMetric(metric: Double?) {
+        if (metric == null) putNull("metric") else put("metric", metric)
     }
 
     /** Saves changes to a set (matched by [SetRow.id]). An edited imported set becomes FitLens's own. */
@@ -575,7 +627,7 @@ object Workouts {
             put("exercise_id", set.exerciseId); put("date", d); put("weight", set.weightKg); put("reps", set.reps)
             put("distance", set.distance); put("duration", set.durationSec); put("is_pr", if (set.isPr) 1 else 0)
             put("comment", set.comment?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
-            put("set_type", set.setType); putRpe(set.rpe)
+            put("set_type", set.setType); putRpe(set.rpe); putMetric(set.metric)
         }, "id=?", arrayOf(set.id.toString()))
     }
 
@@ -663,7 +715,7 @@ object Workouts {
                 put("exercise_id", s.exerciseId); put("date", s.date.take(10)); put("weight", s.weightKg)
                 put("reps", s.reps); put("distance", s.distance); put("duration", s.durationSec)
                 put("is_pr", if (s.isPr) 1 else 0); put("comment", s.comment?.takeIf { it.isNotBlank() })
-                put("source", Sources.FITLENS); put("set_type", s.setType); putRpe(s.rpe)
+                put("source", Sources.FITLENS); put("set_type", s.setType); putRpe(s.rpe); putMetric(s.metric)
                 // Back in its old place (#70), group (#18) and tick (#19); 0 lets the triggers decide.
                 put("position", s.position); put("superset", s.superset); put("done", if (s.done) 1 else 0)
                 if (s.restSeconds != null) put("rest_seconds", s.restSeconds)
@@ -822,7 +874,7 @@ object Workouts {
         // Supersets come across as new groups on the target day, after any it already has (#18).
         val offset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", t) ?: 0L).toInt()
         w.rawQuery(
-            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe, superset, rest_seconds FROM workout_set WHERE $where ORDER BY position, id",
+            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe, superset, rest_seconds, metric FROM workout_set WHERE $where ORDER BY position, id",
             arrayOf(f)
         ).use { c ->
             while (c.moveToNext()) {
@@ -833,6 +885,7 @@ object Workouts {
                     put("set_type", c.int(6)); if (c.isNull(7)) putNull("rpe") else put("rpe", c.getDouble(7))
                     if (c.int(8) > 0) put("superset", c.int(8) + offset)
                     if (!c.isNull(9)) put("rest_seconds", c.getInt(9))
+                    if (!c.isNull(10)) put("metric", c.getDouble(10))
                 })
             }
         }

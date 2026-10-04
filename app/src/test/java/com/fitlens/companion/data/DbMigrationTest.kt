@@ -126,7 +126,7 @@ class DbMigrationTest {
             assertEquals(Db.VERSION, db.version)
             listOf(
                 "workout_set", "exercise", "routine", "routine_day", "routine_day_exercise", "routine_day_set",
-                "workout_origin", "exercise_comment", "saved_workout", "workout_rest"
+                "workout_origin", "exercise_comment", "saved_workout", "workout_rest", "exercise_type"
             ).forEach { assertTrue("missing table $it", db.hasTable(it)) }
         }
     }
@@ -312,6 +312,23 @@ class DbMigrationTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Body Fat' AND value=18.5"))
             assertEquals(0, db.count("SELECT COUNT(*) FROM measurement WHERE lower(name)='body fat'"))
             assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Height' AND unit='cm' AND enabled=1 AND custom=1 AND sort_order=4"))
+        }
+    }
+
+    @Test
+    fun v18GainsCustomExerciseTypesAndKeepsSets() {
+        // Exercises and sets as v18 left them, before user-defined types (#14).
+        oldDatabase(18, v12Schema + listOf("ALTER TABLE exercise ADD COLUMN type INTEGER NOT NULL DEFAULT 0")) { db ->
+            db.row("exercise", "id" to 1L, "name" to "Plank", "type" to 3)
+            db.row("workout_set", "exercise_id" to 1L, "date" to "2026-10-03", "weight" to 0.0, "reps" to 0)
+        }
+        Db(app).writableDatabase.use { db ->
+            assertEquals(Db.VERSION, db.version)
+            assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE name='Plank' AND type=3"))
+            assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=1 AND metric IS NULL"))
+            assertTrue(db.hasTable("exercise_type"))
+            db.row("exercise_type", "id" to 100, "name" to "Jumps", "uses_reps" to 1, "metric_name" to "Height", "metric_unit" to "cm")
+            assertEquals(1, db.count("SELECT COUNT(*) FROM exercise_type WHERE uses_weight=0 AND uses_reps=1"))
         }
     }
 }

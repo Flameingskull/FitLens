@@ -71,6 +71,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.MRecord
 import com.fitlens.companion.data.Photo
 import com.fitlens.companion.data.Settings
@@ -716,7 +717,11 @@ private fun ExerciseOnDay(
 fun defOrder(snap: Snapshot, name: String): Int =
     snap.measurementDefs.firstOrNull { it.name == name }?.sortOrder ?: 999
 
-fun describeSet(snap: Snapshot, weightKg: Double, reps: Int, distance: Double, duration: Int, exerciseId: Long? = null): String {
+fun describeSet(
+    snap: Snapshot, weightKg: Double, reps: Int, distance: Double, duration: Int, exerciseId: Long? = null,
+    /** A custom type's metric (#14), shown with its unit. */
+    metric: Double? = null
+): String {
     val parts = ArrayList<String>()
     // A bodyweight set has no weight to show; "0 kg x 10 reps" read as though the weight had been lost (#74).
     if (weightKg != 0.0) parts.add("${snap.fmtWeight(weightKg, exerciseId)} ${snap.weightUnitOf(exerciseId)}")
@@ -724,6 +729,10 @@ fun describeSet(snap: Snapshot, weightKg: Double, reps: Int, distance: Double, d
     // Distances carry their exercise's unit, or the global one when the exercise isn't known (#7).
     if (distance > 0) parts.add("${fmtNum(distance)} ${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit}")
     if (duration > 0) parts.add(fmtDuration(duration))
+    if (metric != null) {
+        val m = exerciseId?.let { snap.exercises[it] }?.let { ExerciseTypes.metricOf(it.type) }
+        parts.add(listOfNotNull(fmtNum(metric, 2), m?.metricUnit, m?.metricName?.lowercase()).joinToString(" "))
+    }
     return parts.joinToString(" · ").ifBlank { "—" }
 }
 
