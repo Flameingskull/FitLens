@@ -49,7 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
@@ -58,6 +58,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.fitlens.companion.R
 import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.Dates
@@ -253,14 +254,22 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        setContent { FitLensTheme { AppRoot(nav) } }
+        setContent { FitLensTheme { AppRoot(nav, onRetry = { startUp(null) }) } }
+        startUp(if (savedInstanceState == null) intent else null)
+    }
+
+    /**
+     * Loads the data, then the start-up chores and [opening] (the file or photos FitLens was opened with). If the data
+     * can't be read, the error screen's Try again comes back here (#93).
+     */
+    private fun startUp(opening: Intent?) {
         lifecycleScope.launch {
-            Store.reload()
+            if (!Store.open()) return@launch
             // A result the user hadn't read when the app was closed stays readable in Settings → Backup (#62).
             UiEvents.loadLastResult()
             // Safety copies (#47) are kept for a limited time only.
             Backups.pruneSafety(applicationContext)
-            if (savedInstanceState == null) handleIntent(intent)
+            opening?.let { handleIntent(it) }
         }
     }
 
@@ -350,8 +359,9 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AppRoot(nav: Nav) {
+fun AppRoot(nav: Nav, onRetry: () -> Unit) {
     val snap by Store.snapshot.collectAsState()
+    val openError by Store.openError.collectAsState()
     val busy by UiEvents.busy.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val a11y = androidx.compose.ui.platform.LocalContext.current
@@ -421,16 +431,19 @@ fun AppRoot(nav: Nav) {
             // The full-body character, faint, behind every screen (owner's branding, 2026-10-01).
             CharacterBackdrop()
             val back = remember(nav) { { nav.pop() } }
+            // With the system's "Remove animations" on, screens change at once (#93).
+            val motion = animationsEnabled()
             CompositionLocalProvider(LocalNavBack provides back) {
                 // Screens slide in when opened and back out when closed (#86, #93). Navigation handles Back: a
-                // pushed screen pops, and at the root Back leaves the app as it does in FitNotes.
+                // pushed screen pops, and at the root Back leaves the app as it does in FitNotes. On Android 14+ the
+                // back gesture previews the screen underneath (predictive back, enabled in the manifest).
                 NavHost(
                     navController = controller,
                     startDestination = start,
-                    enterTransition = { slideIn(if (nav.goingBack) -1 else 1) },
-                    exitTransition = { slideOut(if (nav.goingBack) -1 else 1) },
-                    popEnterTransition = { slideIn(-1) },
-                    popExitTransition = { slideOut(-1) }
+                    enterTransition = { if (motion) slideIn(if (nav.goingBack) -1 else 1) else EnterTransition.None },
+                    exitTransition = { if (motion) slideOut(if (nav.goingBack) -1 else 1) else ExitTransition.None },
+                    popEnterTransition = { if (motion) slideIn(-1) else EnterTransition.None },
+                    popExitTransition = { if (motion) slideOut(-1) else ExitTransition.None }
                 ) {
                     composable<Route> { entry ->
                         // Replacing a screen with one of its own kind updates this entry's saved state in place.
@@ -439,8 +452,16 @@ fun AppRoot(nav: Nav) {
                         }.collectAsState()
                         val screen = remember(text) { Nav.decode(text) }
                         val s = snap
-                        if (s == null) {
-                            Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
+                        val failed = openError
+                        if (s == null && failed != null) {
+                            ErrorState(
+                                title = stringResource(R.string.app_open_failed_title),
+                                body = stringResource(R.string.app_open_failed_body, failed),
+                                actionLabel = stringResource(R.string.app_open_retry),
+                                onAction = onRetry
+                            )
+                        } else if (s == null) {
+                            LoadingState(stringResource(R.string.app_opening_title), stringResource(R.string.app_opening_body))
                         } else {
                             ScreenContent(s, nav, screen)
                         }
@@ -449,7 +470,7 @@ fun AppRoot(nav: Nav) {
             }
             if (busy != null) {
                 Box(
-                    Modifier.fillMaxSize().background(Color(0x99000000))
+                    Modifier.fillMaxSize().background(Brand.Scrim)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
                     contentAlignment = Alignment.Center
                 ) {

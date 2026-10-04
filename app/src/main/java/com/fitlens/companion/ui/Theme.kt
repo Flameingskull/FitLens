@@ -17,7 +17,9 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -45,6 +47,8 @@ object Brand {
     val Muted = Color(0xFFBDB6A8)
     /** Decorative rules and chart grids only: too quiet to carry meaning on its own. */
     val Hairline = Color(0xFF38342B)
+    /** Dims the screen behind a blocking progress card. */
+    val Scrim = Color(0x99050505)
     /**
      * Borders that define a control (switches, outlined fields and buttons, chips, checkboxes).
      * A warm grey kept in the gold family, about 4.3:1 on [Black] and 3.3:1 on [SurfaceHighest], so every outlined
@@ -251,6 +255,18 @@ object Motion {
     const val REPEAT_DELAY_MS = 400L
     /** The gap between repeats while a stepper button stays held. */
     const val REPEAT_INTERVAL_MS = 70L
+}
+
+/**
+ * False when the system's "Remove animations" accessibility setting (animator duration scale 0) is on, so screen
+ * transitions can be skipped rather than merely sped up (#93). Read when the screen is first composed.
+ */
+@Composable
+fun animationsEnabled(): Boolean {
+    val resolver = LocalContext.current.contentResolver
+    return remember(resolver) {
+        android.provider.Settings.Global.getFloat(resolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+    }
 }
 
 /** The category colour bar when a category has no colour of its own. Matches [categoryColour]'s fallback. */

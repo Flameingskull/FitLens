@@ -747,4 +747,10 @@
     <string name="licences_libraries_text">Apache License 2.0: AndroidX (Core, Activity, Lifecycle, Navigation, Compose, Material 3, WorkManager, DataStore, ExifInterface), Kotlin, kotlinx.coroutines, kotlinx.serialization and Coil.</string>
     <string name="licences_manrope">Manrope font</string>
     <string name="licences_ofl">SIL Open Font License 1.1.</string>
+    <!-- App shell: start-up and busy states (#93) -->
+    <string name="app_opening_title">Opening FitLens</string>
+    <string name="app_opening_body">Loading your workouts, measurements and photos.</string>
+    <string name="app_open_failed_title">Your data couldn't be opened</string>
+    <string name="app_open_failed_body">Nothing has been changed or deleted. Try again, and if this keeps happening, restart your phone. Details: %1$s</string>
+    <string name="app_open_retry">Try again</string>
 </resources>

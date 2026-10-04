@@ -3,6 +3,7 @@ package com.fitlens.companion.data
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -298,12 +299,32 @@ object Store {
         private set
     private val _snapshot = MutableStateFlow<Snapshot?>(null)
     val snapshot: StateFlow<Snapshot?> = _snapshot
+    private val _openError = MutableStateFlow<String?>(null)
+    /** Why opening the data at start-up failed, or null. The app shows it with Try again instead of closing (#93). */
+    val openError: StateFlow<String?> = _openError
     /** One snapshot update at a time, so two writes finishing together can't drop each other's change (#60). */
     private val lock = Mutex()
 
     fun init(context: Context) {
         db = Db(context.applicationContext)
         photoDir = File(context.filesDir, "photos").apply { mkdirs() }
+    }
+
+    /**
+     * The start-up load: [reload], with a failure kept in [openError] rather than thrown, so a database that can't
+     * be opened shows an error screen instead of closing the app (#93). Returns whether the data loaded.
+     */
+    suspend fun open(): Boolean {
+        _openError.value = null
+        return try {
+            reload()
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _openError.value = e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+            false
+        }
     }
 
     /** Re-reads everything, preferences included. For start-up, imports and restores. */
