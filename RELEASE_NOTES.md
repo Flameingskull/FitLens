@@ -1,47 +1,45 @@
 ## Overview
 
-This update builds on what makes FitLens different: it holds your training, your body measurements and your
-progress photos in one place, and now its graphs bring them together. A new **Relative Strength** graph weighs your
-lifts against your bodyweight, any body measurement can be drawn over an exercise graph, and two points on a graph
-can open their progress photos side by side.
+This update lets you shape FitLens around how you train. You can now make your **own exercise types**: choose
+what each set records, and add a measure of your own with its unit, such as jump height in centimetres or a band's
+resistance level. Set entry, history, graphs, records and CSV export all follow the type you build.
 
-FitLens also gains its own **What's new**, **Help** and **About** pages. These notes are now built into the app, so
-after each update you'll see what changed, even offline.
+Analysis → Workouts can now draw a **body measurement's average** over your training totals, so you can see your
+bodyweight next to your weekly volume. Body values also stay private by default: a shared graph includes them only
+when you choose.
 
-There's no database change. Everything you've logged is kept. Install it over the current app as usual.
+This update adds to the database. Everything you've logged is kept, and backups from earlier versions restore as
+usual. Install it over the current app as normal.
 
 ## What's new
 
-- **Relative Strength graph.** On every weight-and-reps exercise, the Graph tab's list now ends with Relative
-  Strength: each day's best estimated 1RM divided by the bodyweight you logged nearest that day, within 14 days.
-  A 1.50 means you lifted an estimated one and a half times your bodyweight. Days with no bodyweight that close
-  aren't guessed: they're left out and marked with a small ring on the time axis. It can be compared with other
-  exercises and pinned to the Analysis overview like any other graph.
-- **Body measurement overlay.** From an exercise graph's ⋮ menu, **Overlay a body measurement…** draws bodyweight,
-  body fat or any of your measurements over the graph, on its own scale on a second axis at the right. Tapping a
-  point shows the measurement's value nearest that date. The legend hides or shows it, and **None** removes it.
-  Shared graph images leave it out.
-- **Compare two points' photos.** Tap a point that has a progress photo near it, choose **Compare with another
-  point's photo**, then tap a second point: Compare opens with the photos nearest both dates, earlier first.
-- **What's new after each update.** The first time you open FitLens after an update, these notes appear. They're
-  also in Settings → **Change Log**, with a link to every earlier release. A new phone going through setup isn't
-  shown them.
-- **Settings → Help** now opens short guides inside the app: logging a workout, workouts and routines, comments,
-  the body tracker, progress photos, the PDF report, backups, importing from FitNotes, and analysis. Links to the
-  full guide, the bug report and feature request forms, and the releases follow.
-- **Settings → About** is now a page: the version and build (long-press to copy them with your phone's model and
-  Android version, ready for a bug report), What's new, the privacy summary, open-source licences (FitLens, the
-  Manrope font and the libraries it's built with), and links to the source code, bug reports and releases.
-  **Privacy Policy** opens it too.
+- **Your own exercise types.** In the exercise form, under Type, **Your types** lists the types you've made, and
+  **New type** creates one. Give it a name, then tick what each set records: weight, reps, distance, time, or **a
+  metric of your own** with its name and unit. A type records one to three values. A selected type of your own can
+  be edited from the same row, and deleted once no exercise uses it.
+- **Set entry follows the type.** Only the fields the type records are shown, and a custom metric gets its own
+  field with − and + buttons. Your sets show it in its own column with its unit, in the day log, History and
+  everywhere else sets are listed.
+- **Graphs and records for your metric.** An exercise of your own type offers **Best** and **Total** graphs for its
+  metric, alongside the graphs for the other values it records. The Records tab shows the best value you've
+  logged and when, and the farthest distance for distance types.
+- **Body measurement over Workouts totals.** In Analysis → Workouts, the ⋮ menu's **Overlay a body measurement…**
+  draws a measurement's weekly, monthly or yearly average on its own scale at the right, matching the graph's
+  period. Tapping a period shows that period's average under the graph.
 
 ## Improved
 
-- Links from Help and About open in your browser. FitLens itself still has no internet permission.
+- **Body values are shared only by choice.** Sharing an exercise graph with a body overlay now asks whether to
+  include it. If you do, its first and last values in the range are written under the graph. Sharing the Relative
+  Strength graph asks first too, since it reveals your bodyweight.
+- **CSV export** adds three columns at the end: the custom metric's name, value and unit. Spreadsheets built on
+  earlier exports keep their columns.
+- The new exercise type form is the first screen whose text comes from the app's text resources, the groundwork for
+  translations.
 
 ## Known limitations
 
-- The body overlay is chosen for each exercise while its screen is open. It isn't remembered for next time, and it
-  isn't part of pinned graphs.
-- Relative Strength uses the measurement named Bodyweight (or Body Weight). It's only on weight-and-reps exercises.
-- Still to come in linking graphs with your body and photos (#56): weekly measurement averages over Analysis →
-  Workouts totals, and a choice to include body values when sharing.
+- A custom metric isn't yet part of a workout's predefined sets, so logging a workout day leaves it blank. Enter it
+  when you log each set.
+- Changing an exercise's type can change which graph it opens on. Choose it again under Opens on graph if needed.
+- The rest of the app's text will move into text resources screen by screen.

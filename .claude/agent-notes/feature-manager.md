@@ -118,3 +118,4 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   options saves a moment after the last change and on leaving, and only once something changed, so opening it never
   turns defaults into saved values. Inside `Modifier.semantics { }`, a local named `selected` shadows the semantics
   property: write `this.selected = …`. Icons missing from icons-core are added to `FitIcons` from the Material paths.
+- 1.0.98 (#14): user-defined exercise types live in `ExerciseTypes.custom` (refreshed by `Store.loadLibrary`), so type checks need no snapshot. A custom metric's graph labels are "Best X" / "Total X"; metric names can't be weight, reps, distance or time, so labels never collide with built-in graphs.
