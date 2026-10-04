@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtDuration
@@ -273,6 +274,9 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     var showDays by remember { mutableStateOf(false) }
     // Duration as the period's total, or as the average length of its timed workouts (#12).
     var durationAvg by rememberSaveable { mutableStateOf(opened?.first?.average ?: false) }
+    // A body measurement's average per period over the totals (#56), on its own axis; kept while the screen is open.
+    var overlayName by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickOverlay by remember { mutableStateOf(false) }
     val period = Analysis.Period.entries[periodIdx]
     val metric = Analysis.Metric.entries[metricIdx]
     val from = rangeFrom(rangeIdx)
@@ -303,6 +307,21 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
         totals.orEmpty().map { ChartPoint(it.start.toEpochDay(), shown(valueOf(it)), it.start.format(Dates.ISO)) }
     }
     val series = remember(points, metric) { listOf(LineSeries(metric.label, points)) }
+    val overlayDef = overlayName?.let { n -> snap.allMeasurements.firstOrNull { it.name == n } }
+    val overlay = overlayDef?.let { d ->
+        remember(snap.bodyKey, d.name, period, from) {
+            val avgs = Analysis.periodAverages(snap.dailySeries(d.name), period, from)
+            LineSeries(
+                "${d.name} (${period.label.lowercase()} average)",
+                avgs.map { (start, v) -> ChartPoint(start.toEpochDay(), v, start.format(Dates.ISO)) }
+            )
+        }
+    }
+    val overlayUnit = overlayDef?.unit.orEmpty()
+    /** The overlay's average in the period starting [start], when it has one. */
+    fun overlayIn(start: String): String? = overlay?.let { o ->
+        o.points.firstOrNull { it.date == start }?.let { q -> "${o.label}: ${fmtNum(q.y, 1)} $overlayUnit".trimEnd() }
+    }
     val partial = totals?.lastOrNull()?.current == true
     // Line, bar, area or step, remembered for each measure (#137).
     val (kind, setKind) = rememberChartKind("analysis:${metric.name}")
@@ -328,6 +347,9 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             extra = if (metric == Analysis.Metric.Duration) {
                 listOf(ToggleOption("Average per workout", durationAvg) { durationAvg = !durationAvg })
             } else emptyList(),
+            actions = listOf(
+                MenuAction(if (overlayName == null) "Overlay a body measurement…" else "Change body overlay…") { pickOverlay = true }
+            ),
             trailing = {
                 PinGraphButton(pinned) {
                     if (pinned) {
@@ -361,7 +383,9 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                     showTrend = showTrend,
                     trendSkipLast = partial,
                     yFromZero = true,
-                    onExpand = { ChartHints.expanded(); fullScreen = true }
+                    onExpand = { ChartHints.expanded(); fullScreen = true },
+                    overlay = overlay,
+                    overlayUnit = overlayUnit
                 )
                 ChartHint(Modifier.padding(horizontal = 16.dp))
                 if (partial) AnalysisNote("The last point is this ${period.name.lowercase()}, still in progress.")
@@ -384,6 +408,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                     } ?: ""
                     val delta = prev?.let { shown(valueOf(t)) - shown(valueOf(it)) } ?: 0.0
                     AnalysisNote(withUnit(shown(valueOf(t))) + change, deltaColour(delta, MaterialTheme.colorScheme.onSurfaceVariant))
+                    if (overlay != null) AnalysisNote(overlayIn(t.start.format(Dates.ISO)) ?: "No ${overlayName} values in this ${period.name.lowercase()}.")
                     if (t.days.isNotEmpty()) {
                         TextButton(onClick = { showDays = !showDays }, modifier = Modifier.padding(horizontal = 4.dp)) {
                             Text(if (showDays) "Hide workouts" else "Open ${t.days.size} ${if (t.days.size == 1) "workout" else "workouts"}")
@@ -453,9 +478,14 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 trendSkipLast = partial,
                 yFromZero = true,
                 viewport = vp,
-                onExpand = resetZoom
+                onExpand = resetZoom,
+                overlay = overlay,
+                overlayUnit = overlayUnit
             )
         }
+    }
+    if (pickOverlay) {
+        BodyOverlaySheet(snap, overlayName, onPick = { overlayName = it; pickOverlay = false }) { pickOverlay = false }
     }
 }
 

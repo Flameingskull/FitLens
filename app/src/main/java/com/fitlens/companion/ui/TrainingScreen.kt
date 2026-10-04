@@ -387,6 +387,9 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
     var photoFrom by rememberSaveable(exId) { mutableStateOf<String?>(null) }
     // Set by the ⋮ menu's "Share graph as image" (#22); the graph item below draws and shares what it shows.
     var shareRequested by remember { mutableStateOf(false) }
+    // Body values leave this screen only when chosen for that share (#56): asked whenever the graph carries them.
+    var askShareBody by remember { mutableStateOf(false) }
+    var shareBody by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
     val label = labels[gIdx.coerceIn(0, labels.lastIndex)]
     val metric = metricFor(snap, exId)
@@ -425,7 +428,10 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     if (goalTarget != null) ToggleOption("Goal line", showGoal) { showGoal = !showGoal } else null,
                     if (others.isNotEmpty()) ToggleOption("Relative (% of first value)", relative) { relative = !relative } else null
                 ),
-                onShare = { shareRequested = true },
+                onShare = {
+                    if (overlayName != null || g.label == GRAPH_RELATIVE_STRENGTH) askShareBody = true
+                    else { shareBody = false; shareRequested = true }
+                },
                 actions = listOf(
                     MenuAction("Compare exercises…") { comparing = "sheet" },
                     MenuAction(if (overlayName == null) "Overlay a body measurement…" else "Change body overlay…") { pickOverlay = true }
@@ -552,7 +558,15 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     range = rangeName(RANGES[rangeIdx].first),
                     points = shown,
                     format = { v -> show(v) },
-                    summary = line(series[0], g.label).orEmpty(),
+                    // The body overlay goes in as a line of figures only when chosen for this share (#56).
+                    summary = line(series[0], g.label).orEmpty() + (overlay?.takeIf { shareBody }?.let { o ->
+                        val lo = shown.minOf { it.x }
+                        val hi = shown.maxOf { it.x }
+                        val inRange = o.points.filter { q -> q.x in lo..hi }
+                        if (inRange.isEmpty()) null
+                        else "
+${o.label}: ${fmtNum(inRange.first().y, 1)} → ${fmtNum(inRange.last().y, 1)} $overlayUnit".trimEnd()
+                    } ?: ""),
                     trend = trend,
                     trendNote = trend?.let { "Trend " + trendText(it, { v -> fmtNum(v, 1) }, trendUnit) },
                     goal = goalLine,
@@ -674,6 +688,25 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             }
         }
     }
+    if (askShareBody) {
+        // Relative strength is worked out from bodyweight, so sharing it at all shares a body value.
+        val ratio = g.label == GRAPH_RELATIVE_STRENGTH
+        FitSheet(
+            title = if (ratio) "Share relative strength?" else "Include body values?",
+            onDismiss = { askShareBody = false },
+            confirmLabel = if (ratio) "Share it" else "Include ${overlayName ?: "them"}",
+            onConfirm = { askShareBody = false; shareBody = true; shareRequested = true },
+            secondaryLabel = if (ratio) null else "Leave them out",
+            onSecondary = if (ratio) null else ({ askShareBody = false; shareBody = false; shareRequested = true })
+        ) {
+            Text(
+                if (ratio) "This graph divides your strength by your bodyweight, so the image lets others work out your bodyweight."
+                else "Body values stay on your phone unless you choose to share them. Include ${overlayName ?: "the overlay"}'s " +
+                    "first and last values in the range under the graph?",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
     if (pickOverlay) {
         BodyOverlaySheet(snap, overlayName, onPick = { overlayName = it; pickOverlay = false }) { pickOverlay = false }
     }
@@ -727,7 +760,7 @@ private fun comparePhotosOn(snap: Snapshot, nav: Nav, a: String, b: String) {
  * with values are offered. The overlay stays on this screen: shared graph images leave body values out.
  */
 @Composable
-private fun BodyOverlaySheet(snap: Snapshot, current: String?, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
+internal fun BodyOverlaySheet(snap: Snapshot, current: String?, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
     val names = snap.usedMeasurements.map { it.name }.filter { snap.recordsByName[it].orEmpty().isNotEmpty() }
     FitSheet(
         title = "Body overlay",
@@ -757,7 +790,7 @@ private fun BodyOverlaySheet(snap: Snapshot, current: String?, onPick: (String?)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
         Text(
-            "It's drawn on its own scale at the right. Shared graph images leave it out.",
+            "It's drawn on its own scale at the right. A shared graph image includes it only when you choose to.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

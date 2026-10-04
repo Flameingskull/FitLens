@@ -51,6 +51,17 @@ object Analysis {
         Period.Year -> d.withDayOfYear(1)
     }
 
+    /**
+     * A measurement's average per period (#56), keyed by each period's first day and in date order: the overlay on
+     * Workouts totals. Values before [from] (an ISO date, null for all) are left out; periods with none are absent,
+     * never filled in.
+     */
+    fun periodAverages(values: List<MRecord>, period: Period, from: String?): List<Pair<LocalDate, Double>> =
+        values.filter { from == null || it.date.take(10) >= from }
+            .groupBy { periodStart(LocalDate.parse(it.date.take(10)), period) }
+            .map { (start, l) -> start to l.sumOf { it.value } / l.size }
+            .sortedBy { it.first }
+
     fun periodEnd(start: LocalDate, p: Period): LocalDate = when (p) {
         Period.Week -> start.plusDays(6)
         Period.Month -> start.plusMonths(1).minusDays(1)
