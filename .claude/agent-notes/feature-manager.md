@@ -123,3 +123,8 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   row that can't be used stays visible with `disabledReason` rather than being hidden. A "reset" of preferences keeps
   what the user built (pins, comparisons, profile) and phone state (folders, schedules); Undo re-applies the old
   `PortableSettings` whole, which `withPlatesConverted` leaves alone because the plate list differs.
+- 1.0.102 (#41, #94, #93): a Settings page whose preferences should reset together gets a `PreferenceGroup` and the
+  section's `group`; add new fields of that page to `withGroupFrom` or they won't reset. Undo re-applies only the
+  group's values, so a change made meanwhile on another page survives. Haptics go through `ui/design/Haptics.kt`
+  (`confirm` for saves and ticks, `record` for PRs), never a raw `performHapticFeedback`. Moving many literals to
+  strings.xml is quickest with a Python script written to a file (the shell mangles backslashes in heredocs).
