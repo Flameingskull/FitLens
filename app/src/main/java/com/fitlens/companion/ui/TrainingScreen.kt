@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.MeasureUnits
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.SetRow
@@ -92,7 +93,7 @@ fun graphLabels(type: Int, timeBased: Boolean): List<String> =
     } else {
         listOf(
             GRAPH_E1RM, GRAPH_MAX_WEIGHT, GRAPH_WORKOUT_VOLUME, GRAPH_WORKOUT_REPS, GRAPH_MAX_REPS,
-            GRAPH_MAX_VOLUME, GRAPH_WEIGHT_FOR_REPS, GRAPH_RECORDS
+            GRAPH_MAX_VOLUME, GRAPH_WEIGHT_FOR_REPS, GRAPH_RECORDS, GRAPH_RELATIVE_STRENGTH
         )
     }
 
@@ -104,6 +105,8 @@ internal const val GRAPH_MAX_REPS = "Max Reps"
 internal const val GRAPH_MAX_VOLUME = "Max Volume"
 internal const val GRAPH_WEIGHT_FOR_REPS = "Max Weight for Reps"
 internal const val GRAPH_RECORDS = "Personal Records"
+/** Estimated 1RM divided by the nearest bodyweight (#56). Appended, so saved default graphs hold. */
+internal const val GRAPH_RELATIVE_STRENGTH = "Relative Strength"
 /** FitNotes's name for the longest single set (#22); "Longest set" before 1.0.66. */
 internal const val GRAPH_LONGEST = "Max Time"
 internal const val GRAPH_TOTAL_TIME = "Total Time"
@@ -201,6 +204,8 @@ private fun graphTypes(repsFor: Int, distUnit: String): Map<String, GraphType> =
     GraphType(GRAPH_MAX_VOLUME, { l -> l.maxOf { it.weightKg * it.reps } }, true),
     GraphType(GRAPH_WEIGHT_FOR_REPS, { l -> Records.maxWeightForReps(l, repsFor) }, true),
     GraphType(GRAPH_RECORDS, { 0.0 }, true, series = { byDate -> Records.recordProgress(byDate) }),
+    // Needs body values as well as sets, so [exerciseGraphPoints] works it out with [relativeStrength] (#56).
+    GraphType(GRAPH_RELATIVE_STRENGTH, { 0.0 }, false),
     // Cardio (#22): the farthest set, the fastest set as speed, and the fastest set as pace.
     GraphType(GRAPH_MAX_DISTANCE, { l -> l.maxOf { it.distance } }, false),
     GraphType(GRAPH_MAX_SPEED, { l -> l.maxOf { speedOf(it, distUnit) } }, false),
@@ -217,12 +222,40 @@ private fun graphTypes(repsFor: Int, distUnit: String): Map<String, GraphType> =
  * exercise's whole history, so screens call it off the main thread through [rememberDerived] (#60).
  */
 internal fun exerciseGraphPoints(snap: Snapshot, exId: Long, label: String, repsFor: Int, unitOf: Long = exId): List<ChartPoint> {
+    if (label == GRAPH_RELATIVE_STRENGTH) return relativeStrength(snap, exId).points
     val g = graphTypes(repsFor, snap.distanceUnit(exId))[label] ?: return emptyList()
     val byDate = snap.statSetsByExercise[exId].orEmpty().groupBy { it.date }.toSortedMap()
     val raw = g.series?.invoke(byDate) ?: byDate.entries.map { (d, l) -> d to g.fn(l) }
     return raw.map { (d, v) ->
         ChartPoint(Dates.epochDay(d), if (g.isWeight) snap.weight(v, unitOf) else if (g.isTime) v / 60.0 else v, d)
     }.filter { it.y > 0 }
+}
+
+/** How far from a training day a bodyweight may be and still count for its relative strength (#56). */
+internal const val BODYWEIGHT_DAYS = 14
+
+/**
+ * An exercise's relative strength (#56): each day's best estimated 1RM divided by the bodyweight logged nearest that
+ * day, within [BODYWEIGHT_DAYS]. Days with no bodyweight that close are listed in [missing] (ISO dates), never given
+ * a guessed value.
+ */
+internal class RelativeStrength(val points: List<ChartPoint>, val missing: List<String>)
+
+internal fun relativeStrength(snap: Snapshot, exId: Long): RelativeStrength {
+    val byDate = snap.statSetsByExercise[exId].orEmpty().groupBy { it.date }.toSortedMap()
+    val bw = snap.bodyweightName
+    val points = ArrayList<ChartPoint>()
+    val missing = ArrayList<String>()
+    for ((d, l) in byDate) {
+        val best = l.maxOf { e1rm(it) }
+        if (best <= 0) continue
+        // Body values are held in the unit they're shown in; the ratio needs both in kilograms.
+        val kg = bw?.let { snap.valueNear(it, d, BODYWEIGHT_DAYS) }?.first
+            ?.let { r -> MeasureUnits.convert(r.value, r.unit, "kg") }
+        if (kg == null || kg <= 0) missing += d
+        else points += ChartPoint(Dates.epochDay(d), best / kg, d)
+    }
+    return RelativeStrength(points, missing)
 }
 
 /** The exercises in [compare] (#53) that can share exercise [exId]'s graph [label]: they exist and offer that graph. */
@@ -255,6 +288,7 @@ internal fun graphUnit(snap: Snapshot, exId: Long, label: String): String {
     val distUnit = snap.distanceUnit(exId)
     val g = graphTypes(5, distUnit)[label] ?: return ""
     return when {
+        label == GRAPH_RELATIVE_STRENGTH -> "× bodyweight"
         g.isWeight -> snap.weightUnitOf(exId)
         label == GRAPH_MAX_PACE -> if (distUnit == DistanceUnits.M) "/100 m" else "/$distUnit"
         g.isTime -> "min"
@@ -267,6 +301,7 @@ internal fun graphUnit(snap: Snapshot, exId: Long, label: String): String {
 /** A graph value with its unit; pace reads as minutes and seconds, "5:12 /km" (#22). Percentages read "104.5%". */
 internal fun graphValueText(label: String, v: Double, unit: String): String = when {
     unit == "%" -> "${fmtNum(v, 1)}%"
+    label == GRAPH_RELATIVE_STRENGTH -> "${fmtNum(v, 2)} $unit"
     label == GRAPH_MAX_PACE -> "${fmtDuration((v * 60).roundToInt())} $unit"
     else -> "${fmtNum(v, 1)} $unit".trim()
 }
@@ -299,6 +334,9 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
     val (compare, setCompare) = rememberCompare(exId)
     var relative by rememberSaveable { mutableStateOf(initial?.relative ?: false) }
     var comparing by remember { mutableStateOf<String?>(null) }
+    // A body measurement drawn over the graph on a second axis (#56), kept while the screen is open.
+    var overlayName by rememberSaveable(exId) { mutableStateOf<String?>(null) }
+    var pickOverlay by remember { mutableStateOf(false) }
     // Set by the ⋮ menu's "Share graph as image" (#22); the graph item below draws and shares what it shows.
     var shareRequested by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
@@ -339,7 +377,10 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     if (others.isNotEmpty()) ToggleOption("Relative (% of first value)", relative) { relative = !relative } else null
                 ),
                 onShare = { shareRequested = true },
-                actions = listOf(MenuAction("Compare exercises…") { comparing = "sheet" }),
+                actions = listOf(
+                    MenuAction("Compare exercises…") { comparing = "sheet" },
+                    MenuAction(if (overlayName == null) "Overlay a body measurement…" else "Change body overlay…") { pickOverlay = true }
+                ),
                 kind = kind, onKind = setKind,
                 leading = {
                     DropdownPill("Graph", labels, gIdx.coerceIn(0, labels.lastIndex)) { gIdx = it }
@@ -364,6 +405,16 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     ExpandGraphButton { fullScreen = true }
                 }
             )
+            if (g.label == GRAPH_RELATIVE_STRENGTH) {
+                Text(
+                    if (snap.bodyweightName == null) "Relative strength needs your bodyweight: log it in the Body tracker."
+                    else "Each point is the day's best estimated 1RM divided by the bodyweight logged nearest that day, " +
+                        "within $BODYWEIGHT_DAYS days. A ring on the time axis marks a day with no bodyweight that close.",
+                    Modifier.padding(horizontal = 16.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (g.label == GRAPH_RECORDS) {
                 Text(
                     "Each point is a day you set a personal record, at the best estimated 1RM of your records so far.",
@@ -386,12 +437,35 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             // Worked out off the main thread and cached across screens (#50, #60). The 1RM formula is in the key, so
             // a Settings change isn't hidden by the cache.
             val formula = Records.chosen()
+            val isBodyRatio = g.label == GRAPH_RELATIVE_STRENGTH
+            // Relative strength also depends on body values (#56); other graphs ignore body writes.
+            val bodyKey = if (isBodyRatio) snap.bodyKey else null
             val loaded = rememberDerived(
-                "exerciseGraph", snap.trainingKey, exId, g.label, repsFor, others, rangeIdx, isRelative,
+                "exerciseGraph", snap.trainingKey, bodyKey, exId, g.label, repsFor, others, rangeIdx, isRelative,
                 formula, Records.maxRepsFor(formula)
             ) { comparedSeries(snap, exId, g.label, others, rangeIdx, isRelative, repsFor) }
             val series = loaded ?: listOf(LineSeries(g.label, emptyList()))
             val shown = series.first().points
+            // Training days with no bodyweight close enough: marked, never guessed (#56).
+            val gapDays: Set<Long> = if (!isBodyRatio) emptySet() else rememberDerived(
+                "relativeGaps", snap.trainingKey, snap.bodyKey, exId, formula, Records.maxRepsFor(formula)
+            ) { relativeStrength(snap, exId).missing.map { Dates.epochDay(it) }.toSet() } ?: emptySet()
+            val yFormat: (Double) -> String = if (isBodyRatio && !isRelative) { v -> fmtNum(v, 2) } else { v -> fmtNum(v, 1) }
+            // The body overlay (#56): the chosen measurement's daily values, in the unit it's shown in.
+            val overlayDef = overlayName?.let { n -> snap.allMeasurements.firstOrNull { it.name == n } }
+            val overlay = overlayDef?.let { d ->
+                remember(snap.bodyKey, d.name) {
+                    LineSeries(d.name, snap.dailySeries(d.name).map { ChartPoint(Dates.epochDay(it.date), it.value, it.date) })
+                }
+            }
+            val overlayUnit = overlayDef?.unit.orEmpty()
+            /** The overlay's value on or nearest [date], with its date when it isn't the same day. */
+            fun overlayAt(date: String): String? {
+                val o = overlay ?: return null
+                val x = Dates.epochDay(date)
+                val q = o.points.minByOrNull { kotlin.math.abs(it.x - x) } ?: return null
+                return "${o.label} ${fmtNum(q.y, 1)} $overlayUnit".trim() + if (q.x != x) " (${Dates.medium(q.date)})" else ""
+            }
             val photoDays = remember(snap.photosByDate) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
             val unit = if (isRelative) "%" else graphUnit(snap, exId, g.label)
             // Pace is graphed in minutes per distance, so its trend reads "min /km" (#152).
@@ -407,13 +481,14 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             val summary = if (series.size == 1) line(series[0], g.label).orEmpty()
             else series.mapNotNull { line(it, it.label) }.joinToString("\n")
             // Tapping a date shows every series' value on or nearest that date (#53).
-            fun valuesAt(p: ChartPoint): String =
+            fun valuesOnly(p: ChartPoint): String =
                 if (series.size == 1) show(p.y)
                 else series.mapNotNull { s ->
                     s.points.minByOrNull { kotlin.math.abs(it.x - p.x) }?.let { q ->
                         "${s.label} ${show(q.y)}" + if (q.x != p.x) " (${Dates.medium(q.date)})" else ""
                     }
                 }.joinToString("\n")
+            fun valuesAt(p: ChartPoint): String = valuesOnly(p) + (overlayAt(p.date)?.let { "\n$it" } ?: "")
             val p = sel?.let { series.getOrNull(it.series)?.points?.getOrNull(it.index) }
             LaunchedEffect(shareRequested) {
                 if (!shareRequested) return@LaunchedEffect
@@ -456,7 +531,11 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     trendUnit = trendUnit,
                     yFromZero = fromZero,
                     goal = goalLine,
-                    onExpand = { ChartHints.expanded(); fullScreen = true }
+                    onExpand = { ChartHints.expanded(); fullScreen = true },
+                    yFormat = yFormat,
+                    gapDays = gapDays,
+                    overlay = overlay,
+                    overlayUnit = overlayUnit
                 )
             }
             ChartHint()
@@ -496,7 +575,11 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                         yFromZero = fromZero,
                         goal = goalLine,
                         viewport = vp,
-                        onExpand = resetZoom
+                        onExpand = resetZoom,
+                        yFormat = yFormat,
+                        gapDays = gapDays,
+                        overlay = overlay,
+                        overlayUnit = overlayUnit
                     )
                 }
             }
@@ -515,6 +598,9 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 )
             }
         }
+    }
+    if (pickOverlay) {
+        BodyOverlaySheet(snap, overlayName, onPick = { overlayName = it; pickOverlay = false }) { pickOverlay = false }
     }
     when (comparing) {
         "sheet" -> CompareSheet(
@@ -540,6 +626,48 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 searchLabel = "Search exercises"
             )
         }
+    }
+}
+
+/**
+ * Overlay (#56): which body measurement to draw over a training graph on its second axis, or none. Only measurements
+ * with values are offered. The overlay stays on this screen: shared graph images leave body values out.
+ */
+@Composable
+private fun BodyOverlaySheet(snap: Snapshot, current: String?, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
+    val names = snap.usedMeasurements.map { it.name }.filter { snap.recordsByName[it].orEmpty().isNotEmpty() }
+    FitSheet(
+        title = "Body overlay",
+        onDismiss = onDismiss,
+        secondaryLabel = if (current != null) "None" else null,
+        onSecondary = if (current != null) ({ onPick(null) }) else null
+    ) {
+        if (names.isEmpty()) {
+            Text(
+                "No body values yet. Log one in the Body tracker and it can be drawn over this graph.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        names.forEach { n ->
+            Row(
+                Modifier.fillMaxWidth().clickable { onPick(n) }.padding(vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    n, Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (n == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                )
+                if (n == current) Text("Shown", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+        Text(
+            "It's drawn on its own scale at the right. Shared graph images leave it out.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

@@ -268,6 +268,10 @@ fun graphHeight(): Dp = (LocalConfiguration.current.screenHeightDp * 0.45f).dp.c
  * - Days with progress photos get a tick on the time axis and a ring on their point.
  * - Style (1.0.71): value and time grid lines behind a red line, with a translucent gold fill under the first series.
  * - [viewport] shows part of the time range (full screen zoom).
+ * - [gapDays] are marked with a small ring on the time axis: days the graph has no value for, such as training days
+ *   with no bodyweight near them on Relative strength (#56), shown rather than guessed.
+ * - [overlay] draws one more line against its own scale on a second y axis at the right, in [overlayUnit] (a body
+ *   measurement over a training graph, #56). It's in the legend and can be hidden there, but isn't selectable.
  */
 @Composable
 fun FitChart(
@@ -292,9 +296,14 @@ fun FitChart(
     trendSkipLast: Boolean = false,
     yFromZero: Boolean = false,
     viewport: ChartViewport = ChartViewport(),
-    onExpand: (() -> Unit)? = null
+    onExpand: (() -> Unit)? = null,
+    gapDays: Set<Long> = emptySet(),
+    overlay: LineSeries? = null,
+    overlayUnit: String = ""
 ) {
     var hidden by remember(series.size) { mutableStateOf(emptySet<Int>()) }
+    // The overlay's legend entry follows the series, so its index is series.size.
+    val overlayShown = overlay?.takeIf { it.points.isNotEmpty() && series.size !in hidden }
     val visible = series.indices.filter { it !in hidden && series[it].points.isNotEmpty() }
     val all = visible.flatMap { series[it].points }
     val plotHeight = when {
@@ -314,10 +323,15 @@ fun FitChart(
         if (all.isEmpty()) {
             ChartEmpty(Modifier, plotHeight)
         } else {
-            LinePlot(series, visible, kind, plotHeight, photoDays, goal, selected, onSelect, yFormat, unit, trends, yFromZero, viewport, onExpand)
+            LinePlot(
+                series, visible, kind, plotHeight, photoDays, goal, selected, onSelect, yFormat, unit, trends, yFromZero,
+                viewport, onExpand, gapDays, overlayShown, overlayUnit
+            )
         }
-        if (series.size > 1 || showTrend) {
-            ChartLegend(series.map { it.label }, hidden, showTrend) { i ->
+        if (series.size > 1 || showTrend || overlay != null) {
+            val labels = series.map { it.label } +
+                listOfNotNull(overlay?.let { o -> "${o.label}${if (overlayUnit.isBlank()) "" else " ($overlayUnit)"}, right axis" })
+            ChartLegend(labels, hidden, showTrend) { i ->
                 hidden = if (i in hidden) hidden - i else hidden + i
             }
         }
@@ -400,7 +414,10 @@ private fun LinePlot(
     trends: Map<Int, TrendLine>,
     yFromZero: Boolean,
     viewport: ChartViewport,
-    onExpand: (() -> Unit)?
+    onExpand: (() -> Unit)?,
+    gapDays: Set<Long>,
+    overlayIn: LineSeries?,
+    overlayUnit: String
 ) {
     val colors = LocalChartColors.current
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -428,6 +445,16 @@ private fun LinePlot(
     val lo = if (valuesZoomed) fitLo + viewport.yFrom * (fitHi - fitLo) else fitLo
     val hi = if (valuesZoomed) fitLo + viewport.yTo * (fitHi - fitLo) else fitHi
     val step = if (valuesZoomed) niceStep(hi - lo) else fitStep
+    // The overlay (#56) has its own nice range from its values in view, labelled on a second axis at the right.
+    val overlayInView = overlayIn?.points?.filter { it.x >= xMin && it.x <= xMax }.orEmpty()
+    val overlay = overlayIn?.takeIf { overlayInView.isNotEmpty() }
+    var oMin = overlayInView.minOfOrNull { it.y } ?: 0.0
+    var oMax = overlayInView.maxOfOrNull { it.y } ?: 1.0
+    if (oMax - oMin < 1e-9) { oMin -= 1; oMax += 1 }
+    val oStep = niceStep(oMax - oMin)
+    val oLo = floor(oMin / oStep) * oStep
+    val oHi = ceil(oMax / oStep) * oStep
+    val rightPad = if (overlay != null) 48.dp else 12.dp
     val xFmt = if (xMax - xMin < 150) DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())
     else DateTimeFormatter.ofPattern("MMM yy", Locale.getDefault())
 
@@ -444,6 +471,11 @@ private fun LinePlot(
         "${series[i].label}: ${Dates.medium(pts.first().date)} to ${Dates.medium(pts.last().date)}, " +
             "lowest ${yFormat(pts.minOf { it.y })}$u, highest ${yFormat(pts.maxOf { it.y })}$u, latest ${yFormat(pts.last().y)}$u"
     }
+    val overlayText = overlay?.let { o ->
+        val ou = if (overlayUnit.isBlank()) "" else " $overlayUnit"
+        ". ${o.label}, on the right axis: lowest ${fmtNum(overlayInView.minOf { it.y }, 1)}$ou, " +
+            "highest ${fmtNum(overlayInView.maxOf { it.y }, 1)}$ou"
+    }.orEmpty()
     val selectedPoint = selected?.let { s -> series.getOrNull(s.series)?.points?.getOrNull(s.index)?.let { s to it } }
     val selectedText = selectedPoint?.let { (s, p) -> "${series[s.series].label}, ${Dates.long(p.date)}: ${yFormat(p.y)}$u" }
 
@@ -452,17 +484,17 @@ private fun LinePlot(
             .fillMaxWidth()
             .height(height)
             .semantics {
-                contentDescription = "Graph. $description"
+                contentDescription = "Graph. $description$overlayText"
                 if (selectedText != null) stateDescription = selectedText
                 liveRegion = LiveRegionMode.Polite
             }
-            .pointerInput(series, visible, viewport, lo, hi, kind) {
+            .pointerInput(series, visible, viewport, lo, hi, kind, rightPad) {
                 detectTapGestures(
                     onDoubleTap = if (onExpand != null) { _ -> onExpand() } else null,
                     onTap = { off ->
-                        val inset = barWidth(size.width - 56.dp.toPx(), 28.dp.toPx()) / 2f
+                        val inset = barWidth(size.width - 44.dp.toPx() - rightPad.toPx(), 28.dp.toPx()) / 2f
                         val left = 44.dp.toPx() + inset
-                        val right = size.width - 12.dp.toPx() - inset
+                        val right = size.width - rightPad.toPx() - inset
                         val top = 8.dp.toPx()
                         val bottom = size.height - 22.dp.toPx()
                         var best: ChartSelection? = null
@@ -483,7 +515,7 @@ private fun LinePlot(
             }
     ) {
         val left = 44.dp.toPx()
-        val right = size.width - 12.dp.toPx()
+        val right = size.width - rightPad.toPx()
         val top = 8.dp.toPx()
         val bottom = size.height - 22.dp.toPx()
         val barW = barWidth(right - left, 28.dp.toPx())
@@ -514,6 +546,17 @@ private fun LinePlot(
             val layout = measurer.measure(yFormat(t), labelStyle)
             drawText(layout, topLeft = Offset(left - layout.size.width - 6.dp.toPx(), y - layout.size.height / 2f))
             t += step
+        }
+        // The overlay's axis (#56): its own values at its own steps, written just right of the plot.
+        if (overlay != null) {
+            var ot = oLo
+            var oGuard = 0
+            while (ot <= oHi + oStep / 2 && oGuard++ < 20) {
+                val y = bottom - ((ot - oLo) / (oHi - oLo)).toFloat() * (bottom - top)
+                val layout = measurer.measure(fmtNum(ot, 1), labelStyle)
+                drawText(layout, topLeft = Offset(right + 6.dp.toPx(), y - layout.size.height / 2f))
+                ot += oStep
+            }
         }
         // Time grid: four even columns, and a fine gold baseline along the time axis.
         for (k in 1..3) {
@@ -546,6 +589,27 @@ private fun LinePlot(
                 if (d >= xMin && d <= xMax) {
                     val x = px(d)
                     drawLine(colors.accent, Offset(x, bottom - 7.dp.toPx()), Offset(x, bottom), strokeWidth = 2.dp.toPx())
+                }
+            }
+            // Days with no value to show (#56): a small ring on the time axis, so a gap is never hidden or guessed.
+            gapDays.forEach { d ->
+                if (d >= xMin && d <= xMax) {
+                    drawCircle(textColor, radius = 3.dp.toPx(), center = Offset(px(d), bottom - 4.dp.toPx()), style = Stroke(width = 1.5.dp.toPx()))
+                }
+            }
+            // The overlay (#56) behind the series, against its own scale; drawn past the edges so the clip ends it cleanly.
+            overlay?.let { o ->
+                val oi = series.size
+                val oColor = colors.seriesColor(oi)
+                fun opy(v: Double) = bottom - ((v - oLo) / (oHi - oLo)).toFloat() * (bottom - top)
+                val near = o.points.filter { it.x >= xMin - (xMax - xMin) && it.x <= xMax + (xMax - xMin) }
+                val path = Path()
+                near.forEachIndexed { i, p -> if (i == 0) path.moveTo(px(p.x), opy(p.y)) else path.lineTo(px(p.x), opy(p.y)) }
+                drawPath(path, oColor.copy(alpha = 0.85f), style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                if (overlayInView.size <= 60) overlayInView.forEach { p ->
+                    val c = Offset(px(p.x), opy(p.y))
+                    marker(oi, c, 3.5.dp.toPx(), surface)
+                    marker(oi, c, 2.5.dp.toPx(), oColor)
                 }
             }
             // A soft gold fill under the first visible series only, so several lines never muddy each other. Bars carry

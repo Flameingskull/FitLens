@@ -213,7 +213,8 @@ private fun PinnedGraphCard(
     else "${snap.exercises[pin.exerciseId]?.name ?: "Exercise"} · ${pin.graph}"
     val formula = Records.chosen()
     val series = rememberDerived(
-        "pinnedGraph", snap.trainingKey, pin, formula, Records.maxRepsFor(formula)
+        "pinnedGraph", snap.trainingKey, if (pin.graph == GRAPH_RELATIVE_STRENGTH) snap.bodyKey else null, pin, formula,
+        Records.maxRepsFor(formula)
     ) {
         if (totals != null) {
             val pts = totalsPoints(snap, totals.first, totals.second, pin.totalsFilter, rangeFrom(pin.range), avgDuration)

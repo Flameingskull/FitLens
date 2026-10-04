@@ -146,6 +146,9 @@ class Snapshot internal constructor(
      */
     val trainingKey: List<Any> get() = listOf(library, setPart, notes, weightUnit, weekStart, globalDistanceUnit)
 
+    /** What body calculations depend on (#56): the measurements and their values, in the units shown. */
+    val bodyKey: Any get() = body
+
     /** Body lengths are shown in this unit (#7). */
     val lengthUnit: String get() = body.lengthUnit
 
