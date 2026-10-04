@@ -49,6 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.PlannedExercise
 import com.fitlens.companion.data.PlannedSet
@@ -90,7 +93,9 @@ private data class DayDraft(val key: Long, val id: Long, val name: String, val s
 
 @Composable
 fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
-    val original = remember(id) { snap.routinesById[id] ?: Routine(0L, "", days = listOf(RoutineDay(0L, "Day 1"))) }
+    val context = LocalContext.current
+    fun dayN(n: Int): String = context.getString(R.string.workout_day_n, n)
+    val original = remember(id) { snap.routinesById[id] ?: Routine(0L, "", days = listOf(RoutineDay(0L, dayN(1)))) }
     var name by remember(id) { mutableStateOf(original.name) }
     var notes by remember(id) { mutableStateOf(original.notes.orEmpty()) }
     // Stable keys for days and rows; a plain counter, since handing one out needn't recompose anything.
@@ -113,7 +118,7 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
 
     val draft = Routine(
         original.id, name, notes, original.sortOrder,
-        days.mapIndexed { i, d -> RoutineDay(d.id, d.name.ifBlank { "Day ${i + 1}" }, d.slots.map { it.planned }) }
+        days.mapIndexed { i, d -> RoutineDay(d.id, d.name.ifBlank { dayN(i + 1) }, d.slots.map { it.planned }) }
     )
     val dirty = draft.name != original.name || draft.notes.orEmpty() != original.notes.orEmpty() || draft.days != original.days
 
@@ -127,7 +132,7 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
     fun save() {
         val r = draft
         if (r.name.isBlank()) {
-            UiEvents.show("Enter a name for the workout.")
+            UiEvents.show(context.getString(R.string.workout_name_needed))
             return
         }
         nav.pop()
@@ -136,9 +141,9 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                 val saved = Routines.save(r)
                 // A new workout becomes the one the library shows (#21).
                 if (r.id == 0L) Settings.updatePortable { it.copy(lastRoutineId = saved) }
-                UiEvents.show("Saved ${r.name.trim()}")
+                UiEvents.show(context.getString(R.string.workout_saved, r.name.trim()))
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: "That workout couldn't be saved.")
+                UiEvents.show(e.message ?: context.getString(R.string.workout_save_failed))
             }
         }
     }
@@ -146,28 +151,28 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = if (id == 0L) "New workout" else "Edit workout",
+            title = stringResource(if (id == 0L) R.string.workout_new_title else R.string.workout_edit_title),
             onBack = { if (dirty) confirmLeave = true else nav.pop() },
-            actions = listOf(TopBarAction(Icons.Filled.Check, "Save workout", enabled = name.isNotBlank()) { save() }),
+            actions = listOf(TopBarAction(Icons.Filled.Check, stringResource(R.string.workout_save), enabled = name.isNotBlank()) { save() }),
             overflow = if (original.id == 0L) emptyList() else listOf(
-                MenuAction("Duplicate workout") {
+                MenuAction(stringResource(R.string.workout_duplicate)) {
                     AppScope.scope.launch {
-                        Routines.copy(original, "${original.name} (copy)")
-                        UiEvents.show("Duplicated ${original.name}")
+                        Routines.copy(original, context.getString(R.string.workout_copy_name, original.name))
+                        UiEvents.show(context.getString(R.string.workout_duplicated, original.name))
                     }
                 },
-                MenuAction("Delete workout") { confirmDelete = true }
+                MenuAction(stringResource(R.string.workout_delete)) { confirmDelete = true }
             )
         )
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = Spacing.xxl)) {
             item(key = "fields") {
                 Column(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     OutlinedTextField(
-                        value = name, onValueChange = { name = it }, label = { Text("Name, for example Push Pull Legs") },
+                        value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.workout_name_label)) },
                         singleLine = true, modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = notes, onValueChange = { notes = it }, label = { Text("Notes (optional)") },
+                        value = notes, onValueChange = { notes = it }, label = { Text(stringResource(R.string.workout_notes_label)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -177,12 +182,12 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                     DayCard(
                         snap = snap,
                         day = day,
-                        label = day.name.ifBlank { "Day ${di + 1}" },
+                        label = day.name.ifBlank { dayN(di + 1) },
                         canCopy = snap.routines.any { it.id != original.id },
                         onAdd = { adding = day.key },
                         onRename = { renaming = day.key },
                         onDuplicate = {
-                            days.add(di + 1, day.copy(key = key(), id = 0L, name = "${day.name} (copy)", slots = day.slots.map { Slot(key(), it.planned) }))
+                            days.add(di + 1, day.copy(key = key(), id = 0L, name = context.getString(R.string.workout_copy_name, day.name), slots = day.slots.map { Slot(key(), it.planned) }))
                         },
                         onMoveUp = if (di > 0) ({ days.add(di - 1, days.removeAt(di)) }) else null,
                         onMoveDown = if (di < days.lastIndex) ({ days.add(di + 1, days.removeAt(di)) }) else null,
@@ -198,12 +203,12 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             item(key = "add-day") {
                 // FitNotes's "TAP TO CREATE A NEW DAY" bar under the day cards (#143, its screenshots 26 and 27).
                 Text(
-                    "TAP TO CREATE A NEW DAY",
+                    stringResource(R.string.workout_new_day).uppercase(),
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
                         .raisedGlass(FitShapes.row, elevation = 2.dp, inset = 6.dp)
-                        .clickable(onClickLabel = "Create a new day") { days.add(DayDraft(key(), 0L, "Day ${days.size + 1}", emptyList())) }
+                        .clickable(onClickLabel = stringResource(R.string.workout_new_day_action)) { days.add(DayDraft(key(), 0L, dayN(days.size + 1), emptyList())) }
                         .padding(horizontal = Spacing.lg, vertical = Spacing.md),
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -214,15 +219,15 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             onClick = { save() },
             enabled = name.isNotBlank(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md).heightIn(min = Spacing.row)
-        ) { Text("Save workout") }
+        ) { Text(stringResource(R.string.workout_save)) }
     }
 
     adding?.let { dayKey ->
         SearchablePicker(
-            title = "Add exercise",
+            title = stringResource(R.string.workout_add_exercise),
             items = exercisePickerItems(snap),
             multiSelect = true,
-            searchLabel = "Search exercises",
+            searchLabel = stringResource(R.string.workout_search_exercises),
             onDismiss = { adding = null },
             onPick = { ids ->
                 adding = null
@@ -241,7 +246,7 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
         val (dayKey, slotKey) = swapAt
         val current: Slot = swapSlot
         SearchablePicker(
-            title = "Swap ${snap.exercises[current.planned.exerciseId]?.name ?: "exercise"} for",
+            title = stringResource(R.string.workout_swap_title, snap.exercises[current.planned.exerciseId]?.name ?: stringResource(R.string.workout_exercise)),
             items = exercisePickerItems(snap).filter { it.id != current.planned.exerciseId },
             onDismiss = { swapping = null },
             onPick = { ids ->
@@ -263,9 +268,9 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
         val day = days.firstOrNull { it.key == dayKey }
         var dayName by remember(dayKey) { mutableStateOf(day?.name.orEmpty()) }
         FitSheet(
-            title = "Rename day",
+            title = stringResource(R.string.workout_rename_day),
             onDismiss = { renaming = null },
-            confirmLabel = "Rename day",
+            confirmLabel = stringResource(R.string.workout_rename_day),
             confirmEnabled = dayName.isNotBlank(),
             onConfirm = {
                 updateDay(dayKey) { it.copy(name = dayName.trim()) }
@@ -273,7 +278,7 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
             }
         ) {
             OutlinedTextField(
-                value = dayName, onValueChange = { dayName = it }, label = { Text("Day name, for example Monday or Push Day") },
+                value = dayName, onValueChange = { dayName = it }, label = { Text(stringResource(R.string.workout_day_name_label)) },
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
         }
@@ -281,7 +286,7 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
     val restDay = restingDay?.let { dayKey -> days.firstOrNull { it.key == dayKey } }
     if (restDay != null) {
         val day: DayDraft = restDay
-        DayRestSheet(day.name.ifBlank { "this day" }, onDismiss = { restingDay = null }) { rest, after ->
+        DayRestSheet(day.name.ifBlank { stringResource(R.string.workout_this_day) }, onDismiss = { restingDay = null }) { rest, after ->
             // One rest for every exercise of the day (#138): it replaces each exercise's and each set's own.
             updateDay(day.key) { d ->
                 d.copy(slots = d.slots.map { s ->
@@ -294,18 +299,18 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
     val copyDay = copying?.let { dayKey -> days.firstOrNull { it.key == dayKey } }
     if (copyDay != null) {
         val day: DayDraft = copyDay
-        FitSheet(title = "Copy ${day.name} to", onDismiss = { copying = null }) {
+        FitSheet(title = stringResource(R.string.workout_copy_day_title, day.name), onDismiss = { copying = null }) {
             snap.routines.filter { it.id != original.id }.forEach { r ->
                 Text(
                     r.name,
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = Spacing.row)
-                        .clickable(onClickLabel = "Copy to ${r.name}") {
+                        .clickable(onClickLabel = stringResource(R.string.workout_copy_to, r.name)) {
                             copying = null
                             AppScope.scope.launch {
                                 val added = Routines.addDay(r.id, day.name, day.slots.map { it.planned })
-                                UiEvents.show("Copied ${day.name} to ${r.name}", "Undo") {
+                                UiEvents.show(context.getString(R.string.workout_copied_day, day.name, r.name), context.getString(R.string.workout_undo)) {
                                     AppScope.scope.launch { Routines.deleteDay(added) }
                                 }
                             }
@@ -318,24 +323,24 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
     }
     if (confirmLeave) {
         ConfirmSheet(
-            title = "Discard your changes?",
-            message = "This workout has changes that haven't been saved.",
-            confirmLabel = "Discard changes",
+            title = stringResource(R.string.workout_discard_title),
+            message = stringResource(R.string.workout_discard_body),
+            confirmLabel = stringResource(R.string.workout_discard),
             onDismiss = { confirmLeave = false },
             onConfirm = { nav.pop() }
         )
     }
     if (confirmDelete) {
         ConfirmSheet(
-            title = "Delete ${original.name}?",
-            message = "The workout and its days go. Every day you've already logged keeps its sets.",
-            confirmLabel = "Delete workout",
+            title = stringResource(R.string.workout_delete_title, original.name),
+            message = stringResource(R.string.workout_delete_body),
+            confirmLabel = stringResource(R.string.workout_delete),
             onDismiss = { confirmDelete = false },
             onConfirm = {
                 nav.pop()
                 AppScope.scope.launch {
                     Routines.delete(original.id)
-                    UiEvents.show("Deleted ${original.name}", "Undo") {
+                    UiEvents.show(context.getString(R.string.workout_deleted, original.name), context.getString(R.string.workout_undo)) {
                         AppScope.scope.launch { Routines.copy(original, original.name) }
                     }
                 }
@@ -381,18 +386,18 @@ private fun DayCard(
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, contentDescription = "Add exercise to $label") }
+            IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.workout_add_exercise_to, label)) }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More for $label") }
+                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.workout_more_for, label)) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     listOfNotNull(
-                        MenuAction("Rename day", onClick = onRename),
-                        MenuAction("Duplicate day", onClick = onDuplicate),
-                        onMoveUp?.let { MenuAction("Move up", onClick = it) },
-                        onMoveDown?.let { MenuAction("Move down", onClick = it) },
-                        if (canCopy && slots.isNotEmpty()) MenuAction("Copy to another workout", onClick = onCopy) else null,
-                        if (slots.isNotEmpty()) MenuAction("Set rest for every exercise", onClick = onRest) else null,
-                        MenuAction("Delete day", onClick = onDelete)
+                        MenuAction(stringResource(R.string.workout_rename_day), onClick = onRename),
+                        MenuAction(stringResource(R.string.workout_duplicate_day), onClick = onDuplicate),
+                        onMoveUp?.let { MenuAction(stringResource(R.string.workout_move_up), onClick = it) },
+                        onMoveDown?.let { MenuAction(stringResource(R.string.workout_move_down), onClick = it) },
+                        if (canCopy && slots.isNotEmpty()) MenuAction(stringResource(R.string.workout_copy_to_another), onClick = onCopy) else null,
+                        if (slots.isNotEmpty()) MenuAction(stringResource(R.string.workout_rest_every_exercise), onClick = onRest) else null,
+                        MenuAction(stringResource(R.string.workout_delete_day), onClick = onDelete)
                     ).forEach { a ->
                         DropdownMenuItem(text = { Text(a.label) }, onClick = { menu = false; a.onClick() })
                     }
@@ -402,7 +407,7 @@ private fun DayCard(
         Box(Modifier.fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
         if (slots.isEmpty()) {
             Text(
-                "You haven't added any exercises yet",
+                stringResource(R.string.workout_day_empty),
                 Modifier.padding(Spacing.lg),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -411,22 +416,22 @@ private fun DayCard(
         slots.forEachIndexed { i, slot ->
             fun withPlanned(at: Int, p: PlannedExercise) = slots.toMutableList().also { it[at] = slots[at].copy(planned = p) }
             ListRowWithMenu(
-                title = snap.exercises[slot.planned.exerciseId]?.name ?: "Exercise",
+                title = snap.exercises[slot.planned.exerciseId]?.name ?: stringResource(R.string.workout_exercise_title),
                 subtitle = planSummary(snap, slot.planned) +
-                    (if (slot.planned.superset > 0) "  ·  Superset ${'A' + groups.indexOf(slot.planned.superset)}" else "") +
+                    (if (slot.planned.superset > 0) "  ·  " + stringResource(R.string.workout_superset, ('A' + groups.indexOf(slot.planned.superset)).toString()) else "") +
                     // Its prescribed rest on a line of its own, "Rest 90 s · then 2 min" (#138).
                     (restSummary(slot.planned)?.let { "\n$it" } ?: ""),
                 leading = { Dot(categoryColour(snap.categoryOf(slot.planned.exerciseId)?.colour ?: 0), Spacing.md) },
                 onClick = { onSets(slot.key) },
                 menu = listOf(
-                    MenuAction("Sets") { onSets(slot.key) },
-                    MenuAction("Superset with the next exercise", enabled = i < slots.lastIndex) {
+                    MenuAction(stringResource(R.string.workout_sets)) { onSets(slot.key) },
+                    MenuAction(stringResource(R.string.workout_superset_next), enabled = i < slots.lastIndex) {
                         val next = slots[i + 1].planned
                         val g = slot.planned.superset.takeIf { it > 0 } ?: next.superset.takeIf { it > 0 }
                             ?: ((slots.maxOfOrNull { it.planned.superset } ?: 0) + 1)
                         onChange(withPlanned(i, slot.planned.copy(superset = g)).also { it[i + 1] = it[i + 1].copy(planned = next.copy(superset = g)) })
                     },
-                    MenuAction("Remove from superset", enabled = slot.planned.superset > 0) {
+                    MenuAction(stringResource(R.string.workout_superset_remove), enabled = slot.planned.superset > 0) {
                         val g = slot.planned.superset
                         val out = withPlanned(i, slot.planned.copy(superset = 0))
                         // A group left with one exercise dissolves.
@@ -436,8 +441,8 @@ private fun DayCard(
                         }
                         onChange(out)
                     },
-                    MenuAction("Swap exercise") { onSwap(slot.key) },
-                    MenuAction("Remove") { onChange(slots.filter { it.key != slot.key }) }
+                    MenuAction(stringResource(R.string.workout_swap_exercise)) { onSwap(slot.key) },
+                    MenuAction(stringResource(R.string.workout_remove)) { onChange(slots.filter { it.key != slot.key }) }
                 ),
                 onMoveUp = if (i > 0) ({ onChange(slots.toMutableList().also { it.add(i - 1, it.removeAt(i)) }) }) else null,
                 onMoveDown = if (i < slots.lastIndex) ({ onChange(slots.toMutableList().also { it.add(i + 1, it.removeAt(i)) }) }) else null
@@ -573,9 +578,9 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
     }
 
     FitSheet(
-        title = ex?.name ?: "Sets",
+        title = ex?.name ?: stringResource(R.string.workout_sets),
         onDismiss = onDismiss,
-        confirmLabel = "Done",
+        confirmLabel = stringResource(R.string.workout_done),
         onConfirm = {
             // Set type rides along with each row; a row counts when it has any value.
             val sets = rows.map {
@@ -597,24 +602,24 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
         }
     ) {
         Text(
-            "How would you like the sets for this exercise to be populated?",
+            stringResource(R.string.workout_fill_question),
             style = MaterialTheme.typography.bodyLarge
         )
         FillChoice(
-            "Copy previous sets",
-            "Automatically copy sets from the exercise's most recent workout" +
-                if (last.isEmpty()) ". It hasn't been logged yet, so there's nothing to copy yet." else ": ${Routines.describe(snap, last, planned.exerciseId)}.",
+            stringResource(R.string.workout_fill_last),
+            if (last.isEmpty()) stringResource(R.string.workout_fill_last_none)
+            else stringResource(R.string.workout_fill_last_body, Routines.describe(snap, last, planned.exerciseId)),
             fill == Routines.FILL_LAST
         ) { fill = Routines.FILL_LAST }
-        FillChoice("Use predefined sets", "Define exactly how sets should be populated in each workout", fill == Routines.FILL_PLANNED) {
+        FillChoice(stringResource(R.string.workout_fill_planned), stringResource(R.string.workout_fill_planned_body), fill == Routines.FILL_PLANNED) {
             fill = Routines.FILL_PLANNED
         }
-        FillChoice("Don't populate any sets", "Record sets for this exercise on-the-fly during each workout", fill == Routines.FILL_NONE) {
+        FillChoice(stringResource(R.string.workout_fill_none), stringResource(R.string.workout_fill_none_body), fill == Routines.FILL_NONE) {
             fill = Routines.FILL_NONE
         }
         if (fill == Routines.FILL_PLANNED) {
             Text(
-                "Leave a field blank if you want the value of that set to automatically copy between workouts.",
+                stringResource(R.string.workout_fill_blank_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -623,28 +628,28 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
             rows.forEachIndexed { i, r ->
                 // FitNotes's SET N block (its screenshot 20): the set's number and ⋮, then a stepper per field.
                 Row(Modifier.fillMaxWidth().padding(top = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                    Text("SET ${i + 1}", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.workout_set_n, i + 1).uppercase(), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                     OverflowMenu(
                         listOf(
-                            MenuAction("Duplicate set") { rows.add(i + 1, r) },
-                            MenuAction("Remove set", enabled = rows.size > 1) { rows.removeAt(i) }
+                            MenuAction(stringResource(R.string.workout_duplicate_set)) { rows.add(i + 1, r) },
+                            MenuAction(stringResource(R.string.workout_remove_set), enabled = rows.size > 1) { rows.removeAt(i) }
                         ),
-                        description = "Options for set ${i + 1}"
+                        description = stringResource(R.string.workout_set_options, i + 1)
                     )
                 }
                 HorizontalDivider(color = Brand.Hairline)
                 fun step(text: String, by: Double, digits: Int) = fmtNum(kotlin.math.max(0.0, num(text) + by), digits).let { if (it == "0") "" else it }
                 if (ExerciseTypes.usesWeight(type)) {
-                    StepperField("Weight ($unit)", r.weight, { rows[i] = rows[i].copy(weight = it) }, { d -> rows[i] = rows[i].copy(weight = step(rows[i].weight, d * wStep, 2)) })
+                    StepperField(stringResource(R.string.workout_field_weight, unit), r.weight, { rows[i] = rows[i].copy(weight = it) }, { d -> rows[i] = rows[i].copy(weight = step(rows[i].weight, d * wStep, 2)) })
                 }
                 if (ExerciseTypes.usesReps(type)) {
-                    StepperField("Reps", r.reps, { rows[i] = rows[i].copy(reps = it) }, { d -> rows[i] = rows[i].copy(reps = step(rows[i].reps, d.toDouble(), 0)) }, keyboard = KeyboardType.Number)
+                    StepperField(stringResource(R.string.workout_field_reps), r.reps, { rows[i] = rows[i].copy(reps = it) }, { d -> rows[i] = rows[i].copy(reps = step(rows[i].reps, d.toDouble(), 0)) }, keyboard = KeyboardType.Number)
                 }
                 if (ExerciseTypes.usesDistance(type)) {
-                    StepperField("Distance (${snap.distanceUnit(planned.exerciseId)})", r.distance, { rows[i] = rows[i].copy(distance = it) }, { d -> rows[i] = rows[i].copy(distance = step(rows[i].distance, d * 0.5, 2)) })
+                    StepperField(stringResource(R.string.workout_field_distance, snap.distanceUnit(planned.exerciseId)), r.distance, { rows[i] = rows[i].copy(distance = it) }, { d -> rows[i] = rows[i].copy(distance = step(rows[i].distance, d * 0.5, 2)) })
                 }
                 if (ExerciseTypes.usesDuration(type)) {
-                    StepperField("Time (m:ss)", r.time, { rows[i] = rows[i].copy(time = it) }, { d ->
+                    StepperField(stringResource(R.string.workout_field_time), r.time, { rows[i] = rows[i].copy(time = it) }, { d ->
                         val next = kotlin.math.max(0, seconds(rows[i].time) + d * 15)
                         rows[i] = rows[i].copy(time = if (next == 0) "" else fmtDuration(next))
                     }, keyboard = KeyboardType.Text)
@@ -657,7 +662,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                     })
                 }
                 if (perSet) {
-                    StepperField("Rest (seconds)", r.rest, { t -> rows[i] = rows[i].copy(rest = t.filter { c -> c.isDigit() }) }, { d ->
+                    StepperField(stringResource(R.string.workout_field_rest), r.rest, { t -> rows[i] = rows[i].copy(rest = t.filter { c -> c.isDigit() }) }, { d ->
                         rows[i] = rows[i].copy(rest = (kotlin.math.max(0, (rows[i].rest.toIntOrNull() ?: 0) + d * 5)).takeIf { it > 0 }?.toString() ?: "")
                     }, keyboard = KeyboardType.Number)
                 }
@@ -667,34 +672,33 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                 Modifier
                     .fillMaxWidth()
                     .heightIn(min = Spacing.touch)
-                    .clickable(onClickLabel = "Add set") { rows.add(rows.lastOrNull() ?: SetDraft()) }
+                    .clickable(onClickLabel = stringResource(R.string.workout_add_set)) { rows.add(rows.lastOrNull() ?: SetDraft()) }
                     .padding(vertical = Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("ADD SET", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.workout_add_set).uppercase(), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                 Icon(Icons.Filled.Add, contentDescription = null, tint = Brand.Gold)
             }
         }
-        SectionLabel("Rest", Modifier.padding(top = Spacing.md))
+        SectionLabel(stringResource(R.string.workout_rest), Modifier.padding(top = Spacing.md))
         // The same choice as the sets above (#151): copy last time's rest, or set it here.
         FillChoice(
-            "Copy previous rest",
-            "Automatically copy the rest from the exercise's most recent workout" +
-                (previousRest?.let { ": ${it.replaceFirstChar { c -> c.lowercase() }}." }
-                    ?: ". It had no rest of its own, so its usual rest of ${restLabel(fallbackRest)} applies."),
+            stringResource(R.string.workout_rest_copy),
+            previousRest?.let { stringResource(R.string.workout_rest_copy_body, it.replaceFirstChar { c -> c.lowercase() }) }
+                ?: stringResource(R.string.workout_rest_copy_none, restLabel(fallbackRest)),
             copyRest
         ) { copyRest = true }
-        FillChoice("Set the rest", "Choose the rest for this exercise in every workout", !copyRest) { copyRest = false }
+        FillChoice(stringResource(R.string.workout_rest_set), stringResource(R.string.workout_rest_set_body), !copyRest) { copyRest = false }
         if (!copyRest) {
             if (fill == Routines.FILL_PLANNED) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Same rest for every set", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.workout_rest_same), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     Switch(checked = sameRest, onCheckedChange = { sameRest = it })
                 }
             }
             if (perSet) {
                 Text(
-                    "Each set's rest is in the rest column above. A blank one uses ${restLabel(fallbackRest)}, this exercise's usual rest.",
+                    stringResource(R.string.workout_rest_per_set_hint, restLabel(fallbackRest)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -702,7 +706,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
                 RestLengthStepper(
                     seconds = rest ?: fallbackRest,
                     onChange = { rest = it },
-                    label = "Between sets (seconds)",
+                    label = stringResource(R.string.workout_rest_between),
                     isDefault = rest == null,
                     onDefault = { rest = null }
                 )
@@ -710,7 +714,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
             RestLengthStepper(
                 seconds = restAfter ?: rest ?: fallbackRest,
                 onChange = { restAfter = it },
-                label = "Before the next exercise (seconds)",
+                label = stringResource(R.string.workout_rest_after),
                 isDefault = restAfter == null,
                 onDefault = { restAfter = null }
             )
@@ -730,34 +734,30 @@ private fun DayRestSheet(dayName: String, onDismiss: () -> Unit, onDone: (Int?, 
     // "Copy previous rest" (#151) for the whole day: each exercise takes its rest from its own last workout.
     var copyRest by remember { mutableStateOf(false) }
     FitSheet(
-        title = "Rest for $dayName",
+        title = stringResource(R.string.workout_day_rest_title, dayName),
         onDismiss = onDismiss,
-        confirmLabel = "Set for every exercise",
+        confirmLabel = stringResource(R.string.workout_day_rest_confirm),
         onConfirm = { if (copyRest) onDone(Routines.REST_PREVIOUS, Routines.REST_PREVIOUS) else onDone(rest, after) }
     ) {
         Text(
-            "Replaces the rest set on each exercise and set of this day. Default uses each exercise's usual rest.",
+            stringResource(R.string.workout_day_rest_body),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        FillChoice(
-            "Copy previous rest",
-            "Each exercise copies the rest from its most recent workout",
-            copyRest
-        ) { copyRest = true }
-        FillChoice("Set the rest", "One rest for every exercise of this day", !copyRest) { copyRest = false }
+        FillChoice(stringResource(R.string.workout_rest_copy), stringResource(R.string.workout_day_rest_copy_body), copyRest) { copyRest = true }
+        FillChoice(stringResource(R.string.workout_rest_set), stringResource(R.string.workout_day_rest_set_body), !copyRest) { copyRest = false }
         if (!copyRest) {
             RestLengthStepper(
                 seconds = rest ?: fallback,
                 onChange = { rest = it },
-                label = "Between sets (seconds)",
+                label = stringResource(R.string.workout_rest_between),
                 isDefault = rest == null,
                 onDefault = { rest = null }
             )
             RestLengthStepper(
                 seconds = after ?: rest ?: fallback,
                 onChange = { after = it },
-                label = "Before the next exercise (seconds)",
+                label = stringResource(R.string.workout_rest_after),
                 isDefault = after == null,
                 onDefault = { after = null }
             )
