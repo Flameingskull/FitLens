@@ -1,38 +1,43 @@
 ## Overview
 
-This update finishes off exercise types of your own inside workouts. A workout's **predefined sets** can now hold
-your own metric, such as jump height or a band's level, and it carries through Copy previous sets and logging the
-day, just like weight and reps.
+This update is about Settings. You can now put every preference back as it was when FitLens was new with **Reset
+settings to defaults**, and change your mind straight away with **Undo**. Your workouts, photos, measurements and
+backups are never touched.
 
-Settings → About also gains a **Save speed** section, which shows how long saving a set takes on your phone. It's
-there so we can check that logging stays quick as your history grows, and it reports on your own data, not a test
-set.
+Settings also works better with TalkBack and other accessibility tools. Every choice, switch and stepper says what it
+is and what it's set to. A setting that can't be used yet now stays in its place and says why, instead of
+disappearing.
 
-This update adds to the database. Everything you've logged and every workout you've built is kept, and backups
-from earlier versions restore as usual. Install it over the current app as normal.
+There's no database change. Everything you've logged is kept. Install it over the current app as usual.
 
 ## What's new
 
-- **Your metric in predefined sets.** In a workout, choose **Use predefined sets** for an exercise of your own type
-  and each set now has a field for its metric, with its name, unit and − and + buttons. Leave it blank and it copies
-  last time's value, as weight and reps already do.
-- **Copy previous sets carries your metric.** An exercise set to copy its previous sets brings the metric along,
-  and the exercise row's summary shows it with its unit.
-- **Logging a workout day writes it.** Starting a workout day logs each set with its metric, so set entry, History,
-  graphs and records see it straight away.
-- **Save speed.** Settings → About shows your last set save in milliseconds, split into writing it to the database
-  and updating the screens. It also shows the typical time across your recent saves and the size of the history it
-  was measured with. Search Settings for "save speed" to find it.
+- **Reset settings to defaults.** It's in Settings, under Data, and at the end of Export and delete history. It
+  puts units, the rest timer, logging, display, photo and report options back to their defaults. Your workouts,
+  photos, measurements, backups, backup folders and backup schedule stay as they are, along with your pinned graphs
+  and your body fat profile. A message offers **Undo** for a few seconds afterwards. Search Settings for "reset"
+  to find it.
 
 ## Improved
 
-- **Workout editor wording.** Every label, hint, message and menu entry in the workout editor, its day cards, the
-  sets sheet and the day's rest sheet now comes from one place in the app. The wording hasn't changed. This is
-  groundwork for consistent text across the app.
+- **Settings with TalkBack.** Each choice's options are read as one group of radio buttons. A choice with nothing
+  picked reads "Not set". Steppers announce the new value after each step, and error messages are read out as
+  they appear.
+- **Settings that can't be used yet say why.** With the rest-over sound turned off, the sound, volume and Play the
+  sound options stay on the page, dimmed, with a note on how to turn them on. Calculate Personal Records explains
+  that there's nothing to calculate until you log a set, and Save CSV and Share CSV say when the chosen dates have
+  nothing to export.
+- **More time for messages.** With TalkBack on, every message stays on screen long enough to hear it and reach
+  its Undo button.
+- **Week start in your language.** The week start choice names its days in your phone's language.
+- **Rep counts.** Workout summaries now say "1 rep" rather than "1 reps".
+- **Settings wording.** Every Settings page, Export and delete history, and the summaries on workout day cards now
+  take their text from one place in the app. The wording is the same apart from the fixes above.
 
 ## Known limitations
 
-- Save speed covers only the saves made since FitLens was last opened. Nothing is stored, and it doesn't include
-  the moment the phone draws the screen.
-- Text outside the workout editor, the exercise type editor and Save speed is still being moved over, screen by
-  screen.
+- Resetting settings doesn't change FitNotes folder sync or anything you've built, such as workouts, exercise
+  types or measurement goals.
+- Undo is only available while the message is showing. After that, change settings back by hand.
+- Some screens outside Settings and the workout editor still have their wording in the code. It's being moved over
+  screen by screen.

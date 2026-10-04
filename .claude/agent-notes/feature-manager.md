@@ -119,3 +119,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   turns defaults into saved values. Inside `Modifier.semantics { }`, a local named `selected` shadows the semantics
   property: write `this.selected = …`. Icons missing from icons-core are added to `FitIcons` from the Material paths.
 - 1.0.98 (#14): user-defined exercise types live in `ExerciseTypes.custom` (refreshed by `Store.loadLibrary`), so type checks need no snapshot. A custom metric's graph labels are "Best X" / "Total X"; metric names can't be weight, reps, distance or time, so labels never collide with built-in graphs.
+- 1.0.101 (#41, #94): strings.xml needs `\'` and `\"` escaped (a bare apostrophe fails the resource merge). A settings
+  row that can't be used stays visible with `disabledReason` rather than being hidden. A "reset" of preferences keeps
+  what the user built (pins, comparisons, profile) and phone state (folders, schedules); Undo re-applies the old
+  `PortableSettings` whole, which `withPlatesConverted` leaves alone because the plate list differs.
