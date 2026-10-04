@@ -27,6 +27,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
+import com.fitlens.companion.ui.design.SettingsActionRow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Workouts
@@ -64,7 +69,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.fitlens.companion.data.Exercise
 import com.fitlens.companion.data.Settings
-import com.fitlens.companion.ui.design.ListRowWithMenu
+import androidx.compose.ui.draw.alpha
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.ui.design.FitSheet
 import kotlin.math.max
@@ -324,6 +329,7 @@ fun RestLengthStepper(
     )
     Text(
         if (valid) "${fmtDuration(typed ?: seconds)} (m:ss)" else "Enter 1 to 3600 seconds (up to 60 minutes).",
+        modifier = if (valid) Modifier else Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         style = MaterialTheme.typography.bodySmall,
         color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
     )
@@ -369,10 +375,15 @@ internal fun RestAlertOptions() {
         }
         SettingsSwitchRow("Vibrate when rest is over", prefs.restVibrate) { on -> Settings.updatePortable { it.copy(restVibrate = on) } }
         SettingsSwitchRow("Play a sound when rest is over", prefs.restSound) { on -> Settings.updatePortable { it.copy(restSound = on) } }
-        if (prefs.restSound) {
-            ListRowWithMenu(
-                title = "Sound",
-                subtitle = remember(device.restSoundUri) { RestSound.title(ctx, device.restSoundUri) },
+        // With the sound off, its options stay in place, dimmed, and say why (#41).
+        val soundOn = prefs.restSound
+        val soundOff = stringResource(R.string.rest_sound_off_reason)
+        run {
+            SettingsActionRow(
+                title = stringResource(R.string.rest_sound_title),
+                value = remember(device.restSoundUri) { RestSound.title(ctx, device.restSoundUri) },
+                enabled = soundOn,
+                disabledReason = soundOff,
                 onClick = {
                     val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
                         putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION or RingtoneManager.TYPE_ALARM)
@@ -390,11 +401,12 @@ internal fun RestAlertOptions() {
             )
             var volume by remember(prefs.restVolume) { mutableFloatStateOf(prefs.restVolume.toFloat()) }
             // Lined up with the rows above (#86).
-            Column(Modifier.padding(horizontal = Spacing.lg)) {
+            Column(Modifier.padding(horizontal = Spacing.lg).alpha(if (soundOn) 1f else 0.45f)) {
                 Text("VOLUME  ·  ${volume.toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Slider(
                     value = volume,
                     onValueChange = { volume = it },
+                    enabled = soundOn,
                     valueRange = 10f..100f,
                     onValueChangeFinished = {
                         val v = volume.toInt()
@@ -405,6 +417,7 @@ internal fun RestAlertOptions() {
                 )
                 TextButton(
                     onClick = { RestSound.play(ctx, device.restSoundUri, volume.toInt()) },
+                    enabled = soundOn,
                     modifier = Modifier.heightIn(min = Spacing.touch)
                 ) { Text("Play the sound") }
             }

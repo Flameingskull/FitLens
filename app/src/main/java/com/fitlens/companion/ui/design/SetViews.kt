@@ -55,11 +55,13 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -140,7 +142,11 @@ fun StepperField(
                     .weight(1f, fill = false)
                     .widthIn(min = 96.dp, max = 180.dp)
                     .height(Spacing.touch)
-                    .semantics { contentDescription = label }
+                    // A step is announced with its new value (#41).
+                    .semantics {
+                        contentDescription = label
+                        liveRegion = LiveRegionMode.Polite
+                    }
                     .drawBehind {
                         // FitNotes's underline under the value, as a fine rule.
                         val y = size.height - 1.dp.toPx()

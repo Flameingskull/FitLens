@@ -354,6 +354,9 @@ fun AppRoot(nav: Nav) {
     val snap by Store.snapshot.collectAsState()
     val busy by UiEvents.busy.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    val a11y = androidx.compose.ui.platform.LocalContext.current
+        .getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+    fun touchExploring() = a11y?.isTouchExplorationEnabled == true
     // A failure or warning waiting to be acknowledged (#62). Messages queue behind it until it is closed.
     var toAcknowledge by remember { mutableStateOf<UiMessage?>(null) }
     LaunchedEffect(Unit) {
@@ -363,12 +366,13 @@ fun AppRoot(nav: Nav) {
                 snapshotFlow { toAcknowledge }.first { it == null }
                 return@collect
             }
-            // An action (Undo) gets the longer duration, never Indefinite: the collector waits for each message.
+            // An action (Undo) gets the longer duration, never Indefinite: the collector waits for each message. With
+            // TalkBack on, every message does, so there's time to hear it and reach Undo (#41).
             val result = snackbar.showSnackbar(
                 message = m.text,
                 actionLabel = m.actionLabel,
                 withDismissAction = false,
-                duration = if (m.actionLabel == null) SnackbarDuration.Short else SnackbarDuration.Long
+                duration = if (m.actionLabel == null && !touchExploring()) SnackbarDuration.Short else SnackbarDuration.Long
             )
             if (result == SnackbarResult.ActionPerformed) m.onAction?.invoke()
         }

@@ -139,6 +139,13 @@
         <item quantity="other">%1$d photos</item>
     </plurals>
 
+    <!-- The settings rows (#41, #86). -->
+    <string name="settings_not_set">Not set</string>
+    <string name="settings_change">Change %1$s</string>
+    <string name="settings_close">Close</string>
+    <string name="rest_sound_title">Sound</string>
+    <string name="rest_sound_off_reason">Turn on Play a sound when rest is over to choose one</string>
+
     <!-- Data tools › Reset settings to defaults (#41). -->
     <string name="reset_group">Settings</string>
     <string name="reset_row">Reset settings to defaults</string>

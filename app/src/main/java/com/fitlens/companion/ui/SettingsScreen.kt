@@ -367,7 +367,8 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
             SettingsActionRow(
                 "Calculate Personal Records",
                 "Re-calculate your personal records if you think they might be incorrect",
-                enabled = snap.sets.isNotEmpty()
+                enabled = snap.sets.isNotEmpty(),
+                disabledReason = "Log a set first: there are no records to calculate yet"
             ) { confirmRecalc = true }
         },
         MainRow(d, "Delete Workout History", "erase remove clear") {
