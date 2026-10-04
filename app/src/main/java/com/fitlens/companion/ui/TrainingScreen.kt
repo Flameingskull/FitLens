@@ -564,8 +564,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                         val hi = shown.maxOf { it.x }
                         val inRange = o.points.filter { q -> q.x in lo..hi }
                         if (inRange.isEmpty()) null
-                        else "
-${o.label}: ${fmtNum(inRange.first().y, 1)} → ${fmtNum(inRange.last().y, 1)} $overlayUnit".trimEnd()
+                        else "\n${o.label}: ${fmtNum(inRange.first().y, 1)} → ${fmtNum(inRange.last().y, 1)} $overlayUnit".trimEnd()
                     } ?: ""),
                     trend = trend,
                     trendNote = trend?.let { "Trend " + trendText(it, { v -> fmtNum(v, 1) }, trendUnit) },

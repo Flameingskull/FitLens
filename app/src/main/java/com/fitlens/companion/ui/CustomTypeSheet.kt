@@ -23,7 +23,6 @@ import com.fitlens.companion.data.WorkoutDataException
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.SectionLabel
-import com.fitlens.companion.ui.design.Spacing
 import kotlinx.coroutines.launch
 
 /**
