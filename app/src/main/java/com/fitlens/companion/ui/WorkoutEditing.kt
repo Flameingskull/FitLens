@@ -2,6 +2,7 @@
 
 package com.fitlens.companion.ui
 
+import androidx.compose.ui.platform.LocalContext
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -448,9 +449,10 @@ private fun ExerciseSummary(snap: Snapshot, day: String, exId: Long) {
 @Composable
 private fun ExerciseLines(snap: Snapshot, day: String, exId: Long) {
     val exSets = snap.setsByDate[day].orEmpty().filter { it.exerciseId == exId }
+    val res = LocalContext.current.resources
     Text(snap.exercises[exId]?.name ?: "Exercise #$exId", style = MaterialTheme.typography.bodyLarge)
     Text(
-        exSets.joinToString(", ") { describeSet(snap, it.weightKg, it.reps, it.distance, it.durationSec, it.exerciseId) },
+        exSets.joinToString(", ") { describeSet(res, snap, it.weightKg, it.reps, it.distance, it.durationSec, it.exerciseId) },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         maxLines = 2,

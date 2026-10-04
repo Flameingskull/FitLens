@@ -1,5 +1,8 @@
 package com.fitlens.companion.ui
 
+import android.content.res.Resources
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.FitIcons
 import androidx.compose.material.icons.Icons
@@ -207,15 +210,19 @@ fun ExerciseDetailScreen(snap: Snapshot, nav: Nav, exId: Long, initialTab: Int =
     var addGoal by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         // FitNotes's bar follows the tab (#142): the calculator on Records, + on Goals.
-        BackTopBar(ex?.name ?: "Exercise", onBack = { nav.pop() }) {
+        BackTopBar(ex?.name ?: stringResource(R.string.ex_fallback), onBack = { nav.pop() }) {
             if (tab == 0 && !timeBased) {
-                IconButton(onClick = { calculator = true }) { Icon(FitIcons.Calculate, contentDescription = "1RM calculator") }
+                IconButton(onClick = { calculator = true }) { Icon(FitIcons.Calculate, contentDescription = stringResource(R.string.ex_calculator)) }
                 // FitNotes's gear beside it opens the Estimated 1RM Settings (#148).
-                IconButton(onClick = { e1rmSettings = true }) { Icon(Icons.Filled.Settings, contentDescription = "Estimated 1RM settings") }
+                IconButton(onClick = { e1rmSettings = true }) { Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.ex_e1rm_settings)) }
             }
-            if (tab == 2) IconButton(onClick = { addGoal = true }) { Icon(Icons.Filled.Add, contentDescription = "Add a goal") }
+            if (tab == 2) IconButton(onClick = { addGoal = true }) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.ex_add_goal)) }
         }
-        FitTabRow(titles = listOf("Records", "Stats", "Goals"), selected = tab, onSelect = { tab = it })
+        FitTabRow(
+            titles = listOf(stringResource(R.string.ex_tab_records), stringResource(R.string.ex_tab_stats), stringResource(R.string.ex_tab_goals)),
+            selected = tab,
+            onSelect = { tab = it }
+        )
         when (tab) {
             0 -> RecordsTab(snap, statSets, timeBased)
             1 -> ExerciseStatsTab(snap, nav, exId, statSets, timeBased)
@@ -391,6 +398,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
     var askShareBody by remember { mutableStateOf(false) }
     var shareBody by remember { mutableStateOf(false) }
     val ctx = LocalContext.current
+    val res = ctx.resources
     val label = labels[gIdx.coerceIn(0, labels.lastIndex)]
     val metric = metricFor(snap, exId)
     val g = remember(label, repsFor, distUnit, metric) { graphTypes(repsFor, distUnit, metric).getValue(label) }
@@ -414,7 +422,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
     }
 
     if (snap.statSetsByExercise[exId].isNullOrEmpty()) {
-        EmptyState("No graph yet", "Log a set of this exercise and its progress appears here.")
+        EmptyState(stringResource(R.string.ex_graph_empty_title), stringResource(R.string.ex_graph_empty_body))
         return
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -425,23 +433,23 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 showTrend, { showTrend = !showTrend },
                 fromZero, { fromZero = !fromZero },
                 extra = listOfNotNull(
-                    if (goalTarget != null) ToggleOption("Goal line", showGoal) { showGoal = !showGoal } else null,
-                    if (others.isNotEmpty()) ToggleOption("Relative (% of first value)", relative) { relative = !relative } else null
+                    if (goalTarget != null) ToggleOption(stringResource(R.string.ex_goal_line), showGoal) { showGoal = !showGoal } else null,
+                    if (others.isNotEmpty()) ToggleOption(stringResource(R.string.ex_relative), relative) { relative = !relative } else null
                 ),
                 onShare = {
                     if (overlayName != null || g.label == GRAPH_RELATIVE_STRENGTH) askShareBody = true
                     else { shareBody = false; shareRequested = true }
                 },
                 actions = listOf(
-                    MenuAction("Compare exercises…") { comparing = "sheet" },
-                    MenuAction(if (overlayName == null) "Overlay a body measurement…" else "Change body overlay…") { pickOverlay = true }
+                    MenuAction(stringResource(R.string.ex_compare_menu)) { comparing = "sheet" },
+                    MenuAction(stringResource(if (overlayName == null) R.string.ex_overlay_add else R.string.ex_overlay_change)) { pickOverlay = true }
                 ),
                 kind = kind, onKind = setKind,
                 leading = {
-                    DropdownPill("Graph", labels, gIdx.coerceIn(0, labels.lastIndex)) { gIdx = it }
+                    DropdownPill(stringResource(R.string.ex_graph), labels, gIdx.coerceIn(0, labels.lastIndex)) { gIdx = it }
                     // "Max weight for reps" (#22): which rep count, 1 to 15, kept for this exercise while the app is open.
                     if (g.label == GRAPH_WEIGHT_FOR_REPS) {
-                        DropdownPill("Reps", (1..Records.MAX_REPS).map { "$it reps" }, repsFor - 1) { i ->
+                        DropdownPill(stringResource(R.string.ex_reps), (1..Records.MAX_REPS).map { res.getQuantityString(R.plurals.reps_count, it, it) }, repsFor - 1) { i ->
                             repsFor = i + 1
                             RepsForGraph.set(exId, i + 1)
                         }
@@ -451,10 +459,10 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     PinGraphButton(pinned) {
                         if (pinned) {
                             updatePins { list -> list.filterNot { it.sameGraph(pinNow) } }
-                            UiEvents.show("Unpinned from the Analysis overview")
+                            UiEvents.show(res.getString(R.string.ex_unpinned))
                         } else {
                             updatePins { list -> list.filterNot { it.sameGraph(pinNow) } + pinNow }
-                            UiEvents.show("Pinned to the Analysis overview")
+                            UiEvents.show(res.getString(R.string.ex_pinned))
                         }
                     }
                     ExpandGraphButton { fullScreen = true }
@@ -462,9 +470,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             )
             if (g.label == GRAPH_RELATIVE_STRENGTH) {
                 Text(
-                    if (snap.bodyweightName == null) "Relative strength needs your bodyweight: log it in the Body tracker."
-                    else "Each point is the day's best estimated 1RM divided by the bodyweight logged nearest that day, " +
-                        "within $BODYWEIGHT_DAYS days. A ring on the time axis marks a day with no bodyweight that close.",
+                    if (snap.bodyweightName == null) stringResource(R.string.ex_relative_needs_bw)
+                    else stringResource(R.string.ex_relative_explain, BODYWEIGHT_DAYS),
                     Modifier.padding(horizontal = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -472,7 +479,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             }
             if (g.label == GRAPH_RECORDS) {
                 Text(
-                    "Each point is a day you set a personal record, at the best estimated 1RM of your records so far.",
+                    stringResource(R.string.ex_records_explain),
                     Modifier.padding(horizontal = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -481,7 +488,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             val skipped = compare.filter { it != exId && it !in others }.mapNotNull { snap.exercises[it]?.name }
             if (skipped.isNotEmpty()) {
                 Text(
-                    "Not shown: ${skipped.joinToString(", ")}, with no ${g.label} graph.",
+                    stringResource(R.string.ex_not_shown, skipped.joinToString(", "), g.label),
                     Modifier.padding(horizontal = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -531,7 +538,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 val pts = s.points
                 if (pts.isEmpty()) return null
                 val best = if (g.lowerIsBetter) pts.minOf { it.y } else pts.maxOf { it.y }
-                return "$name: ${show(pts.first().y)} → ${show(pts.last().y)} (best ${show(best)})"
+                return res.getString(R.string.ex_series_line, name, show(pts.first().y), show(pts.last().y), show(best))
             }
             val summary = if (series.size == 1) line(series[0], g.label).orEmpty()
             else series.mapNotNull { line(it, it.label) }.joinToString("\n")
@@ -548,8 +555,8 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             LaunchedEffect(shareRequested) {
                 if (!shareRequested) return@LaunchedEffect
                 shareRequested = false
-                if (shown.isEmpty()) { UiEvents.show("Nothing to share in this range"); return@LaunchedEffect }
-                val name = ex?.name ?: "Exercise"
+                if (shown.isEmpty()) { UiEvents.show(res.getString(R.string.ex_share_nothing)); return@LaunchedEffect }
+                val name = ex?.name ?: res.getString(R.string.ex_fallback)
                 // The same fit as the graph on screen shows, over the whole range (#152).
                 val trend = if (showTrend) trendOf(shown) else null
                 val image = ShareImages.GraphImage(
@@ -567,16 +574,16 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                         else "\n${o.label}: ${fmtNum(inRange.first().y, 1)} → ${fmtNum(inRange.last().y, 1)} $overlayUnit".trimEnd()
                     } ?: ""),
                     trend = trend,
-                    trendNote = trend?.let { "Trend " + trendText(it, { v -> fmtNum(v, 1) }, trendUnit) },
+                    trendNote = trend?.let { res.getString(R.string.ex_trend, trendText(it, { v -> fmtNum(v, 1) }, trendUnit)) },
                     goal = goalLine,
                     kind = kind
                 )
-                ShareImages.share(ctx, "Creating graph image…", ShareImages.fileName(name, g.label)) { ShareImages.renderGraph(image) }
+                ShareImages.share(ctx, res.getString(R.string.ex_share_creating), ShareImages.fileName(name, g.label)) { ShareImages.renderGraph(image) }
             }
             if (loaded == null) {
                 // A first visit to a long history; later visits come from the cache at once.
                 Text(
-                    "Working it out…",
+                    stringResource(R.string.ex_working),
                     Modifier.fillMaxWidth().heightIn(min = graphHeight()).padding(16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -594,7 +601,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                         ChartHints.tapped()
                         if (from != null && to != null) {
                             photoFrom = null
-                            comparePhotosOn(snap, nav, from, to)
+                            comparePhotosOn(res, snap, nav, from, to)
                         }
                     },
                     unit = unit,
@@ -612,7 +619,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             ChartHint()
             if (fullScreen) {
                 FullScreenChart(
-                    "${ex?.name ?: "Exercise"} · ${g.label}",
+                    "${ex?.name ?: stringResource(R.string.ex_fallback)} · ${g.label}",
                     onDismiss = { fullScreen = false },
                     controls = {
                         GraphOptionChips(
@@ -656,7 +663,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             }
             if (p != null) {
                 Text(
-                    "${Dates.long(p.date)}: ${valuesAt(p)}  ·  open day →",
+                    stringResource(R.string.ex_point_open_day, Dates.long(p.date), valuesAt(p)),
                     Modifier.fillMaxWidth().clickable { nav.push(Screen.Day(p.date)) }.padding(16.dp),
                     style = MaterialTheme.typography.titleMedium
                 )
@@ -664,19 +671,19 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 NearestPhotoThumb(snap, nav, p.date, Modifier.padding(horizontal = 16.dp))
                 if (photoFrom == null && nearestPhoto(snap, p.date, GRAPH_PHOTO_DAYS) != null) {
                     TextButton(onClick = { photoFrom = p.date }, Modifier.padding(horizontal = 8.dp)) {
-                        Text("Compare with another point's photo")
+                        Text(stringResource(R.string.ex_compare_photo))
                     }
                 }
             }
             photoFrom?.let { from ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "Tap a second point to compare its photo with ${Dates.medium(from)}'s.",
+                        stringResource(R.string.ex_tap_second, Dates.medium(from)),
                         Modifier.weight(1f),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    TextButton(onClick = { photoFrom = null }) { Text("Cancel") }
+                    TextButton(onClick = { photoFrom = null }) { Text(stringResource(R.string.cancel)) }
                 }
             }
             if (p == null && summary.isNotEmpty()) {
@@ -691,17 +698,17 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
         // Relative strength is worked out from bodyweight, so sharing it at all shares a body value.
         val ratio = g.label == GRAPH_RELATIVE_STRENGTH
         FitSheet(
-            title = if (ratio) "Share relative strength?" else "Include body values?",
+            title = stringResource(if (ratio) R.string.ex_share_ratio_title else R.string.ex_share_body_title),
             onDismiss = { askShareBody = false },
-            confirmLabel = if (ratio) "Share it" else "Include ${overlayName ?: "them"}",
+            confirmLabel = if (ratio) stringResource(R.string.ex_share_it)
+            else stringResource(R.string.ex_include, overlayName ?: stringResource(R.string.ex_them)),
             onConfirm = { askShareBody = false; shareBody = true; shareRequested = true },
-            secondaryLabel = if (ratio) null else "Leave them out",
+            secondaryLabel = if (ratio) null else stringResource(R.string.ex_leave_out),
             onSecondary = if (ratio) null else ({ askShareBody = false; shareBody = false; shareRequested = true })
         ) {
             Text(
-                if (ratio) "This graph divides your strength by your bodyweight, so the image lets others work out your bodyweight."
-                else "Body values stay on your phone unless you choose to share them. Include ${overlayName ?: "the overlay"}'s " +
-                    "first and last values in the range under the graph?",
+                if (ratio) stringResource(R.string.ex_share_ratio_body)
+                else stringResource(R.string.ex_share_body_body, overlayName ?: stringResource(R.string.ex_the_overlay)),
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -721,16 +728,16 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             val items = exercisePickerItems(snap)
                 .filter { it.id != exId && it.id !in compare && snap.setsByExercise[it.id].orEmpty().isNotEmpty() }
             SearchablePicker(
-                title = "Compare with",
+                title = stringResource(R.string.ex_compare_with),
                 items = items,
                 onDismiss = { comparing = "sheet" },
                 onPick = { ids ->
                     setCompare((compare + ids).distinct().take(GraphCompare.MAX - 1))
-                    if (compare.size + ids.size > GraphCompare.MAX - 1) UiEvents.show("Up to ${GraphCompare.MAX} exercises fit on one graph")
+                    if (compare.size + ids.size > GraphCompare.MAX - 1) UiEvents.show(res.getString(R.string.ex_compare_max, GraphCompare.MAX))
                     comparing = "sheet"
                 },
                 multiSelect = true,
-                searchLabel = "Search exercises"
+                searchLabel = stringResource(R.string.ex_search_exercises)
             )
         }
     }
@@ -740,16 +747,16 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
  * Two graph points' nearest progress photos (#56), each within [GRAPH_PHOTO_DAYS], side by side in Compare, the
  * earlier one first. Says why when a point has no photo near it, or both points share the same one.
  */
-private fun comparePhotosOn(snap: Snapshot, nav: Nav, a: String, b: String) {
+private fun comparePhotosOn(res: Resources, snap: Snapshot, nav: Nav, a: String, b: String) {
     val (first, second) = if (a <= b) a to b else b to a
     val pa = nearestPhoto(snap, first, GRAPH_PHOTO_DAYS)
     val pb = nearestPhoto(snap, second, GRAPH_PHOTO_DAYS)
     when {
         pa == null || pb == null -> {
             val missing = if (pa == null) first else second
-            UiEvents.show("No progress photo within $GRAPH_PHOTO_DAYS days of ${Dates.medium(missing)}")
+            UiEvents.show(res.getString(R.string.ex_no_photo_near, GRAPH_PHOTO_DAYS, Dates.medium(missing)))
         }
-        pa.id == pb.id -> UiEvents.show("Both points are nearest the same photo: pick points further apart")
+        pa.id == pb.id -> UiEvents.show(res.getString(R.string.ex_same_photo))
         else -> nav.push(Screen.Compare(pa.id, pb.id))
     }
 }
@@ -762,14 +769,14 @@ private fun comparePhotosOn(snap: Snapshot, nav: Nav, a: String, b: String) {
 internal fun BodyOverlaySheet(snap: Snapshot, current: String?, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
     val names = snap.usedMeasurements.map { it.name }.filter { snap.recordsByName[it].orEmpty().isNotEmpty() }
     FitSheet(
-        title = "Body overlay",
+        title = stringResource(R.string.ex_overlay_title),
         onDismiss = onDismiss,
-        secondaryLabel = if (current != null) "None" else null,
+        secondaryLabel = if (current != null) stringResource(R.string.ex_none) else null,
         onSecondary = if (current != null) ({ onPick(null) }) else null
     ) {
         if (names.isEmpty()) {
             Text(
-                "No body values yet. Log one in the Body tracker and it can be drawn over this graph.",
+                stringResource(R.string.ex_overlay_empty),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -784,12 +791,12 @@ internal fun BodyOverlaySheet(snap: Snapshot, current: String?, onPick: (String?
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (n == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                 )
-                if (n == current) Text("Shown", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                if (n == current) Text(stringResource(R.string.ex_overlay_shown), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
         Text(
-            "It's drawn on its own scale at the right. A shared graph image includes it only when you choose to.",
+            stringResource(R.string.ex_overlay_note),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -811,39 +818,39 @@ private fun CompareSheet(
     onDismiss: () -> Unit
 ) {
     FitSheet(
-        title = "Compare",
+        title = stringResource(R.string.ex_compare_title),
         onDismiss = onDismiss,
         // Changes apply as they're made, so the sheet only needs closing.
-        dismissLabel = "Done",
-        secondaryLabel = if (compare.isNotEmpty()) "Clear" else null,
+        dismissLabel = stringResource(R.string.ex_done),
+        secondaryLabel = if (compare.isNotEmpty()) stringResource(R.string.ex_clear) else null,
         onSecondary = if (compare.isNotEmpty()) ({ onChange(emptyList()) }) else null
     ) {
         Text(
-            "Up to ${GraphCompare.MAX} exercises on one graph, each with its own colour and marker. For lifts of very different weights, turn on Relative in the graph's ⋮.",
+            stringResource(R.string.ex_compare_intro, GraphCompare.MAX),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         val offered = remember(snap, compare) { compare.associateWith { graphLabelsFor(snap, it) } }
-        Text(snap.exercises[exId]?.name ?: "Exercise", Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.bodyLarge)
+        Text(snap.exercises[exId]?.name ?: stringResource(R.string.ex_fallback), Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.bodyLarge)
         compare.mapNotNull { id -> snap.exercises[id]?.name?.let { id to it } }.forEach { (id, name) ->
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(name, style = MaterialTheme.typography.bodyLarge)
                     if (graph !in offered[id].orEmpty()) {
                         Text(
-                            "No $graph graph, so it isn't shown on this one",
+                            stringResource(R.string.ex_compare_no_graph, graph),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 IconButton(onClick = { onChange(compare - id) }) {
-                    Icon(Icons.Filled.Close, contentDescription = "Remove $name from the comparison")
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.ex_compare_remove, name))
                 }
             }
         }
         if (compare.size < GraphCompare.MAX - 1) {
-            TextButton(onClick = onAdd, modifier = Modifier.heightIn(min = 48.dp)) { Text("Add exercise") }
+            TextButton(onClick = onAdd, modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.ex_add_exercise)) }
         }
     }
 }
@@ -855,8 +862,9 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
     val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
     // The same labelled columns as the day log (#101), fixed for the whole history so days line up.
     val fields = remember(snap, exId, sets) { setFields(snap, exId, sets) }
+    val res = LocalContext.current.resources
     if (sets.isEmpty()) {
-        EmptyState("No history yet", "Every day you log this exercise appears here, newest first.")
+        EmptyState(stringResource(R.string.ex_history_empty_title), stringResource(R.string.ex_history_empty_body))
         return
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -872,7 +880,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                         val marks = setMarks(s)
                         SetRowView(
                             index = i + 1,
-                            summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
+                            summary = describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
                             cells = setCells(snap, fields, s),
                             comment = s.comment,
                             isPr = s.isPr,
@@ -898,14 +906,14 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                     // FitLens's extras under the sets: the day's totals (#22) and Copy to today, with Undo.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            dayTotals(snap, exId, l),
+                            dayTotals(res, snap, exId, l),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
                         )
                         if (d.take(10) != Dates.today()) {
-                            TextButton(onClick = { copyToToday(d, l.map { it.id }) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                                Text("Copy to today")
+                            TextButton(onClick = { copyToToday(res, d, l.map { it.id }) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text(stringResource(R.string.ex_copy_today))
                             }
                         }
                     }
@@ -926,29 +934,29 @@ internal fun historyDay(date: String): String {
 }
 
 /** One day's totals for an exercise's history: sets, then reps and volume, or distance and time (#22). */
-private fun dayTotals(snap: Snapshot, exId: Long, sets: List<SetRow>): String {
-    val parts = mutableListOf("${sets.size} set${if (sets.size == 1) "" else "s"}")
+private fun dayTotals(res: Resources, snap: Snapshot, exId: Long, sets: List<SetRow>): String {
+    val parts = mutableListOf(res.getQuantityString(R.plurals.sets_count, sets.size, sets.size))
     val reps = sets.sumOf { it.reps }
     val volume = sets.sumOf { it.weightKg * it.reps }
     val distance = sets.sumOf { it.distance }
     val time = sets.sumOf { it.durationSec }
-    if (reps > 0) parts += "$reps reps"
-    if (volume > 0) parts += "${fmtNum(snap.weight(volume, exId), 0)} ${snap.weightUnitOf(exId)} volume"
+    if (reps > 0) parts += res.getQuantityString(R.plurals.reps_count, reps, reps)
+    if (volume > 0) parts += res.getString(R.string.ex_volume, fmtNum(snap.weight(volume, exId), 0), snap.weightUnitOf(exId))
     if (distance > 0) parts += "${fmtNum(distance)} ${snap.distanceUnit(exId)}"
     if (time > 0) parts += fmtDuration(time)
     return parts.joinToString("  ·  ")
 }
 
 /** Copies [ids] (one day's sets of an exercise) from [date] to today, and offers Undo (#22). */
-private fun copyToToday(date: String, ids: List<Long>) {
+private fun copyToToday(res: Resources, date: String, ids: List<Long>) {
     AppScope.scope.launch {
         try {
             val copies = Workouts.copyWorkout(date, Dates.today(), ids)
-            UiEvents.show("Copied ${copies.size} set${if (copies.size == 1) "" else "s"} to today", "Undo") {
+            UiEvents.show(res.getQuantityString(R.plurals.ex_copied, copies.size, copies.size), res.getString(R.string.undo)) {
                 AppScope.scope.launch { Workouts.deleteSets(copies) }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: "Couldn't copy those sets.")
+            UiEvents.show(e.message ?: res.getString(R.string.ex_copy_failed))
         }
     }
 }
@@ -960,23 +968,23 @@ private data class RecordLine(val label: String, val value: String, val unit: St
  * The Records tab's rows for one exercise's [sets] (#142): the longest set for a timed exercise, otherwise each rep
  * count's record, actual or [estimated] from the best estimated 1RM.
  */
-private fun recordLines(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean, estimated: Boolean): List<RecordLine> {
+private fun recordLines(res: Resources, snap: Snapshot, sets: List<SetRow>, timeBased: Boolean, estimated: Boolean): List<RecordLine> {
     val exId = sets.firstOrNull()?.exerciseId
     // A custom type's own metric (#14): its best set is a record, whatever else the type records.
     val metric = exId?.let { metricFor(snap, it) }
     val metricLine = metric?.let { m ->
         sets.filter { it.metric != null }.maxByOrNull { it.metric!! }?.let { best ->
-            RecordLine("Best ${m.metricName?.lowercase()}", fmtNum(best.metric!!, 2), m.metricUnit.orEmpty(), Dates.medium(best.date), superseded = false)
+            RecordLine(res.getString(R.string.ex_record_best, m.metricName?.lowercase().orEmpty()), fmtNum(best.metric!!, 2), m.metricUnit.orEmpty(), Dates.medium(best.date), superseded = false)
         }
     }
     if (timeBased) {
         // Timed exercises have no rep maxes: the longest set is their record, with the farthest for distance types.
         val longest = sets.maxByOrNull { it.durationSec }?.takeIf { it.durationSec > 0 }?.let { l ->
-            RecordLine("Longest", fmtDuration(l.durationSec), "", Dates.medium(l.date), superseded = false)
+            RecordLine(res.getString(R.string.ex_record_longest), fmtDuration(l.durationSec), "", Dates.medium(l.date), superseded = false)
         }
         val farthest = if (exId != null && ExerciseTypes.isCustom(snap.exercises[exId]?.type ?: 0)) {
             sets.maxByOrNull { it.distance }?.takeIf { it.distance > 0 }?.let { f ->
-                RecordLine("Farthest", fmtNum(f.distance, 2), snap.distanceUnit(f.exerciseId), Dates.medium(f.date), superseded = false)
+                RecordLine(res.getString(R.string.ex_record_farthest), fmtNum(f.distance, 2), snap.distanceUnit(f.exerciseId), Dates.medium(f.date), superseded = false)
             }
         } else null
         return listOfNotNull(longest, farthest, metricLine)
@@ -989,7 +997,7 @@ private fun recordLines(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean, 
         return (1..Records.MAX_REPS).mapNotNull { r ->
             val est = Records.weightFor(best, r)
             if (est <= 0) null
-            else RecordLine("${r}RM", (if (Records.approximate(r)) "≈ " else "") + fmtNum(snap.weight(est, exId), 1), unit, Dates.medium(bestSet.date), superseded = false)
+            else RecordLine(res.getString(R.string.ex_record_rm, r), (if (Records.approximate(r)) "≈ " else "") + fmtNum(snap.weight(est, exId), 1), unit, Dates.medium(bestSet.date), superseded = false)
         }
     }
     // As FitNotes lists them: each rep count with its record and date. A record held by a heavier or equal set of more
@@ -997,7 +1005,7 @@ private fun recordLines(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean, 
     return listOfNotNull(metricLine) + (1..Records.MAX_REPS).mapNotNull { r ->
         Records.repMax(sets, r)?.let { actual ->
             RecordLine(
-                "${r}RM",
+                res.getString(R.string.ex_record_rm, r),
                 snap.fmtWeight(actual.weightKg, exId) + if (actual.reps > r) " × ${actual.reps}" else "",
                 unit,
                 Dates.medium(actual.date),
@@ -1010,6 +1018,7 @@ private fun recordLines(snap: Snapshot, sets: List<SetRow>, timeBased: Boolean, 
 @Composable
 internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolean) {
     val exId = allSets.firstOrNull()?.exerciseId
+    val res = LocalContext.current.resources
     // FitNotes's TYPE (#142): actual records, or estimated ones from the best estimated 1RM.
     var estimated by rememberSaveable { mutableStateOf(false) }
     // -1 means the Custom range in customFrom..customTo.
@@ -1027,19 +1036,23 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
         val sets = if (period != null) Records.inPeriod(allSets, period)
         else if (from != null && to != null) Records.between(allSets, from, to)
         else allSets
-        recordLines(snap, sets, timeBased, estimated)
+        recordLines(res, snap, sets, timeBased, estimated)
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
             // FitNotes's TYPE and PERIOD rows (#142), as compact dropdowns.
             Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (!timeBased) {
-                    DropdownPill("Type", listOf("Actual personal records", "Estimated personal records"), if (estimated) 1 else 0) {
+                    DropdownPill(
+                        stringResource(R.string.ex_record_type),
+                        listOf(stringResource(R.string.ex_records_actual), stringResource(R.string.ex_records_estimated)),
+                        if (estimated) 1 else 0
+                    ) {
                         estimated = it == 1
                     }
                 }
                 PeriodDropdown(
-                    label = "Period",
+                    label = stringResource(R.string.ex_period),
                     options = Records.Period.entries.map { it.label },
                     selected = period?.ordinal ?: -1,
                     custom = if (from != null && to != null) from to to else null,
@@ -1051,11 +1064,11 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
         }
         when {
             lines == null -> item {
-                Text("Working it out…", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.ex_working), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             lines.isEmpty() -> item {
                 Text(
-                    "No records in this period.", Modifier.padding(16.dp),
+                    stringResource(R.string.ex_records_none), Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

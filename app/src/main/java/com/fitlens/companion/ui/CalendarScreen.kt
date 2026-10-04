@@ -366,7 +366,7 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
                     val marks = setMarks(s)
                     com.fitlens.companion.ui.design.SetRow(
                         index = i + 1,
-                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
+                        summary = describeSet(LocalContext.current.resources, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
                         cells = setCells(snap, fields, s),
                         comment = s.comment,
                         isPr = s.isPr,

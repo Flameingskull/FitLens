@@ -149,7 +149,7 @@ fun BackupsPage(snap: Snapshot) {
         if (uri != null && o != null) runBusy(res.getString(R.string.backup_busy_pdf)) {
             val s = Store.snapshot.value ?: snap
             val pages = ctx.contentResolver.openOutputStream(uri, "wt")?.use { os ->
-                PdfReport.create(s, o, os) { UiEvents.busy.value = it }
+                PdfReport.create(res, s, o, os) { UiEvents.busy.value = it }
             } ?: return@runBusy ImportSummary(res.getString(R.string.backup_pdf_failed), false)
             ImportSummary(res.getQuantityString(R.plurals.backup_pdf_saved, pages, pages), true)
         }

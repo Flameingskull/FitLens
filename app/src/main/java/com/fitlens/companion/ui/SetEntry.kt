@@ -654,7 +654,7 @@ fun SetEntryScreen(
                     val marks = setMarks(s, prefs)
                     SetRowView(
                         index = i + 1,
-                        summary = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
+                        summary = describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
                         cells = setCells(snap, fields, s),
                         comment = s.comment,
                         isPr = s.isPr,
@@ -718,7 +718,7 @@ fun SetEntryScreen(
     deleting?.let { s ->
         ConfirmDialog(
             title = stringResource(R.string.set_delete_title),
-            text = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
+            text = describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
             confirm = stringResource(R.string.day_delete),
             onDismiss = { deleting = null }
         ) {
@@ -766,7 +766,7 @@ fun SetEntryScreen(
     commenting?.let { s ->
         val number = sets.indexOfFirst { it.id == s.id } + 1
         SetCommentSheet(
-            describe = stringResource(R.string.set_number, number) + " · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
+            describe = stringResource(R.string.set_number, number) + " · " + describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
             initial = s.comment,
             onSave = { text ->
                 AppScope.scope.launch {
