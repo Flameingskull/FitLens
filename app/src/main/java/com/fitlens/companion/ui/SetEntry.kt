@@ -5,6 +5,7 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.Haptics
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.layout.Arrangement
@@ -52,9 +53,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -323,7 +322,6 @@ fun SetEntryScreen(
         }
     }
 
-    val haptic = LocalHapticFeedback.current
     val appContext = LocalContext.current.applicationContext
     var restSheet by remember { mutableStateOf(false) }
 
@@ -364,14 +362,18 @@ fun SetEntryScreen(
                     }
                     // The PR mark was decided as the set was saved; the reloaded snapshot carries it (#23).
                     val isPr = Store.snapshot.value?.setsByExercise?.get(exerciseId)?.any { it.id == id && it.isPr } == true
+                    // A saved set confirms with one pulse; a record gets its own pattern (#93).
                     if (isPr && Settings.currentPortable().celebratePrs) {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        Haptics.record(view)
                         UiEvents.show("New personal record: ${snap.fmtWeight(kg, exerciseId)} ${snap.weightUnitOf(exerciseId)} × $r")
+                    } else {
+                        Haptics.confirm(view)
                     }
                 } else {
                     Workouts.updateSet(
                         chosen.copy(weightKg = kg, reps = r, distance = dist, durationSec = dur, setType = setType, rpe = rpe, metric = met)
                     )
+                    Haptics.confirm(view)
                     // With auto-select next on, the following set of the day is selected, ready to adjust (#97).
                     val next = if (Settings.currentPortable().autoSelectNext) {
                         sets.getOrNull(sets.indexOfFirst { it.id == chosen.id } + 1)
@@ -660,6 +662,7 @@ fun SetEntryScreen(
                         // started it. Ticking the last set moves on by itself (#136).
                         done = s.done,
                         onDoneChange = { on ->
+                            if (on) Haptics.confirm(view)
                             if (on) startRestAfterSet(
                                 appContext, snap, date, exerciseId,
                                 setId = s.id, last = sets.all { it.id == s.id || it.done }
