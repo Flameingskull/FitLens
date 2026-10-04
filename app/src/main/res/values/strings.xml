@@ -1,3 +1,39 @@
 <resources>
     <string name="app_name">FitLens</string>
+
+    <!-- User-defined exercise types (#14). The first screen built from string resources (#94). -->
+    <string name="type_new_title">New exercise type</string>
+    <string name="type_edit_title">Edit exercise type</string>
+    <string name="type_save">Save</string>
+    <string name="type_delete">Delete</string>
+    <string name="type_name">Name</string>
+    <string name="type_name_hint">Jumps, Bands, Climbing</string>
+    <string name="type_records">Each set records</string>
+    <string name="type_weight">Weight</string>
+    <string name="type_reps">Reps</string>
+    <string name="type_distance">Distance</string>
+    <string name="type_time">Time</string>
+    <string name="type_own_metric">A metric of your own</string>
+    <string name="type_metric_name">Metric name</string>
+    <string name="type_metric_name_hint">Height</string>
+    <string name="type_metric_unit">Unit</string>
+    <string name="type_metric_unit_hint">cm</string>
+    <string name="type_hint_none">Choose at least one value.</string>
+    <plurals name="type_hint_too_many">
+        <item quantity="one">Choose at most %1$d values (%2$d chosen).</item>
+        <item quantity="other">Choose at most %1$d values (%2$d chosen).</item>
+    </plurals>
+    <string name="type_hint_metric_name">Name your metric, or untick it.</string>
+    <string name="type_hint_ready">Sets will record: %1$s.</string>
+    <string name="type_edit_note">Exercises of this type follow the change. Sets already logged keep every value.</string>
+    <string name="type_created">Type %1$s created</string>
+    <string name="type_saved">Type %1$s saved</string>
+    <string name="type_save_failed">That type couldn\'t be saved.</string>
+    <string name="type_delete_title">Delete %1$s?</string>
+    <string name="type_delete_body">Exercises can\'t use it any more. A type that an exercise still uses can\'t be deleted.</string>
+    <string name="type_deleted">Type %1$s deleted</string>
+    <string name="type_delete_failed">That type couldn\'t be deleted.</string>
+    <string name="types_yours">Your types</string>
+    <string name="types_new">New type</string>
+    <string name="types_edit">Edit %1$s</string>
 </resources>

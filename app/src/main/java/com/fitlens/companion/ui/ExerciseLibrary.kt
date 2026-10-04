@@ -70,6 +70,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.ui.design.FitIcons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.foundation.verticalScroll
@@ -843,7 +845,7 @@ fun ExerciseEditorSheet(
                         }
                     }
                     // The user's own types (#14); the library is in the key so a new or edited type shows at once.
-                    FieldLabel("Your types")
+                    FieldLabel(stringResource(R.string.types_yours))
                     val customTypes = remember(snap.library) { ExerciseTypes.custom.values.sortedBy { it.name.lowercase() } }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         customTypes.forEach { t ->
@@ -852,14 +854,14 @@ fun ExerciseEditorSheet(
                         FilterChip(
                             selected = false,
                             onClick = { typeSheet = TYPE_SHEET_NEW },
-                            label = { Text("New type") },
+                            label = { Text(stringResource(R.string.types_new)) },
                             leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp)) }
                         )
                         if (ExerciseTypes.custom.containsKey(type)) {
                             FilterChip(
                                 selected = false,
                                 onClick = { typeSheet = type },
-                                label = { Text("Edit ${ExerciseTypes.label(type)}") },
+                                label = { Text(stringResource(R.string.types_edit, ExerciseTypes.label(type))) },
                                 leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) }
                             )
                         }

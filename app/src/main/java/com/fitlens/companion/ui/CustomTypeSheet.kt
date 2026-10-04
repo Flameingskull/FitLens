@@ -13,6 +13,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.CustomType
 import com.fitlens.companion.data.WorkoutDataException
@@ -45,86 +49,90 @@ fun CustomTypeSheet(existing: CustomType?, onDismiss: () -> Unit, onSaved: (Int)
         metricName.trim().takeIf { ownMetric && it.isNotEmpty() }, metricUnit.trim().takeIf { ownMetric && it.isNotEmpty() }
     )
     val count = draft.valueCount
+    val res = LocalContext.current.resources
     val ready = name.isNotBlank() && count in 1..CustomType.MAX_VALUES && (!ownMetric || draft.metricName != null)
 
     fun save() {
         AppScope.scope.launch {
             try {
                 val id = Workouts.saveExerciseType(draft)
-                UiEvents.show(if (existing == null) "Type ${draft.name.trim()} created" else "Type ${draft.name.trim()} saved")
+                UiEvents.show(res.getString(if (existing == null) R.string.type_created else R.string.type_saved, draft.name.trim()))
                 onSaved(id)
                 onDismiss()
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: "That type couldn't be saved.")
+                UiEvents.show(e.message ?: res.getString(R.string.type_save_failed))
             }
         }
     }
 
     if (confirmDelete && existing != null) {
         FitSheet(
-            title = "Delete ${existing.name}?",
+            title = stringResource(R.string.type_delete_title, existing.name),
             onDismiss = { confirmDelete = false },
-            confirmLabel = "Delete",
+            confirmLabel = stringResource(R.string.type_delete),
             destructive = true,
             onConfirm = {
                 AppScope.scope.launch {
                     try {
                         Workouts.deleteExerciseType(existing.id)
-                        UiEvents.show("Type ${existing.name} deleted")
+                        UiEvents.show(res.getString(R.string.type_deleted, existing.name))
                         onDismiss()
                     } catch (e: WorkoutDataException) {
-                        UiEvents.show(e.message ?: "That type couldn't be deleted.")
+                        UiEvents.show(e.message ?: res.getString(R.string.type_delete_failed))
                     }
                 }
                 confirmDelete = false
             }
         ) {
-            Text("Exercises can't use it any more. A type that an exercise still uses can't be deleted.")
+            Text(stringResource(R.string.type_delete_body))
         }
         return
     }
 
     FitSheet(
-        title = if (existing == null) "New exercise type" else "Edit exercise type",
+        title = stringResource(if (existing == null) R.string.type_new_title else R.string.type_edit_title),
         onDismiss = onDismiss,
-        confirmLabel = "Save",
+        confirmLabel = stringResource(R.string.type_save),
         onConfirm = { save() },
         confirmEnabled = ready,
-        secondaryLabel = if (existing != null) "Delete" else null,
+        secondaryLabel = if (existing != null) stringResource(R.string.type_delete) else null,
         onSecondary = if (existing != null) ({ confirmDelete = true }) else null
     ) {
-        SectionLabel("Name")
+        SectionLabel(stringResource(R.string.type_name))
         OutlinedTextField(
             value = name, onValueChange = { name = it },
-            placeholder = { Text("Jumps, Bands, Climbing") },
+            placeholder = { Text(stringResource(R.string.type_name_hint)) },
             singleLine = true, modifier = Modifier.fillMaxWidth()
         )
-        SectionLabel("Each set records")
-        ToggleRow("Weight", weight, inset = 0.dp) { weight = it }
-        ToggleRow("Reps", reps, inset = 0.dp) { reps = it }
-        ToggleRow("Distance", distance, inset = 0.dp) { distance = it }
-        ToggleRow("Time", time, inset = 0.dp) { time = it }
-        ToggleRow("A metric of your own", ownMetric, inset = 0.dp) { ownMetric = it }
+        SectionLabel(stringResource(R.string.type_records))
+        ToggleRow(stringResource(R.string.type_weight), weight, inset = 0.dp) { weight = it }
+        ToggleRow(stringResource(R.string.type_reps), reps, inset = 0.dp) { reps = it }
+        ToggleRow(stringResource(R.string.type_distance), distance, inset = 0.dp) { distance = it }
+        ToggleRow(stringResource(R.string.type_time), time, inset = 0.dp) { time = it }
+        ToggleRow(stringResource(R.string.type_own_metric), ownMetric, inset = 0.dp) { ownMetric = it }
         if (ownMetric) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 OutlinedTextField(
                     value = metricName, onValueChange = { metricName = it },
-                    label = { Text("Metric name") }, placeholder = { Text("Height") },
+                    label = { Text(stringResource(R.string.type_metric_name)) },
+                    placeholder = { Text(stringResource(R.string.type_metric_name_hint)) },
                     singleLine = true, modifier = Modifier.weight(2f)
                 )
                 OutlinedTextField(
                     value = metricUnit, onValueChange = { metricUnit = it },
-                    label = { Text("Unit") }, placeholder = { Text("cm") },
+                    label = { Text(stringResource(R.string.type_metric_unit)) },
+                    placeholder = { Text(stringResource(R.string.type_metric_unit_hint)) },
                     singleLine = true, modifier = Modifier.weight(1f)
                 )
             }
         }
         // Says why Save is off, rather than leaving the user to guess.
         val hint = when {
-            count == 0 -> "Choose at least one value."
-            count > CustomType.MAX_VALUES -> "Choose at most ${CustomType.MAX_VALUES} values ($count chosen)."
-            ownMetric && draft.metricName == null -> "Name your metric, or untick it."
-            else -> "Sets will record: ${draft.describe().lowercase()}."
+            count == 0 -> stringResource(R.string.type_hint_none)
+            count > CustomType.MAX_VALUES ->
+                pluralStringResource(R.plurals.type_hint_too_many, CustomType.MAX_VALUES, CustomType.MAX_VALUES, count)
+            ownMetric && draft.metricName == null -> stringResource(R.string.type_hint_metric_name)
+            else -> stringResource(R.string.type_hint_ready, draft.describe().lowercase())
         }
         Text(
             hint,
@@ -134,7 +142,7 @@ fun CustomTypeSheet(existing: CustomType?, onDismiss: () -> Unit, onSaved: (Int)
         )
         if (existing != null) {
             Text(
-                "Exercises of this type follow the change. Sets already logged keep every value.",
+                stringResource(R.string.type_edit_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
