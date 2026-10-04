@@ -153,13 +153,15 @@ fun ConfirmSheet(
     confirmLabel: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
-    destructive: Boolean = true
+    destructive: Boolean = true,
+    dismissLabel: String = "Cancel"
 ) {
     FitSheet(
         title = title,
         onDismiss = onDismiss,
         confirmLabel = confirmLabel,
         onConfirm = { onConfirm(); onDismiss() },
+        dismissLabel = dismissLabel,
         destructive = destructive
     ) {
         Text(message, style = MaterialTheme.typography.bodyMedium)

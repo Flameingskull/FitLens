@@ -88,6 +88,7 @@ private val CATALOGUE = listOf(
     SettingEntry("Sync the FitNotes folder automatically", SettingsSection.Import, "auto sync open start"),
     SettingEntry("Export to CSV", SettingsSection.DataTools, "spreadsheet excel"),
     SettingEntry("Delete workout history", SettingsSection.DataTools, "erase remove clear"),
+    SettingEntry("Reset settings to defaults", SettingsSection.DataTools, "default factory restore preferences undo"),
     SettingEntry("Show categories", SettingsSection.Home, "colour day log home"),
     SettingEntry("Sets shown per exercise", SettingsSection.Home, "day log home cards"),
     SettingEntry("Rest length", SettingsSection.Rest, "seconds break between sets"),
@@ -169,11 +170,13 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
     var confirmRecalc by remember { mutableStateOf(false) }
     var whatsNew by remember { mutableStateOf(false) }
     var e1rmLimit by remember { mutableStateOf(false) }
+    var confirmReset by remember { mutableStateOf(false) }
     fun open(section: SettingsSection) = nav.push(Screen.SettingsPage(section))
     fun browse(url: String) = openInBrowser(ctx, url)
     if (confirmRecalc) RecalculateRecordsSheet { confirmRecalc = false }
     if (whatsNew) WhatsNewSheet { whatsNew = false }
     if (e1rmLimit) EstimatedOneRmSettingsSheet { e1rmLimit = false }
+    if (confirmReset) ResetSettingsSheet { confirmReset = false }
     val s = SettingsHeading.SETTINGS
     val d = SettingsHeading.DATA
     val o = SettingsHeading.OTHER
@@ -371,6 +374,12 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
             SettingsActionRow("Delete Workout History", "Delete selected workouts while keeping the rest of your data intact") {
                 open(SettingsSection.DataTools)
             }
+        },
+        MainRow(d, "Reset Settings to Defaults", "default factory restore preferences undo") {
+            SettingsActionRow(
+                "Reset Settings to Defaults",
+                "Put units, the rest timer, logging and display options back as they were when FitLens was new"
+            ) { confirmReset = true }
         },
         MainRow(d, "Import From FitNotes", "fitnotes backup merge sync folder") {
             SettingsActionRow("Import From FitNotes", "Merge a FitNotes backup into FitLens, or sync its backup folder") {

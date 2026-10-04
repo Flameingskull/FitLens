@@ -27,11 +27,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.fitlens.companion.R
 import com.fitlens.companion.data.Backups
 import com.fitlens.companion.data.CsvExport
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ImportSummary
+import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.Workouts
@@ -58,6 +61,39 @@ import kotlinx.coroutines.withContext
 fun DataToolsPage(snap: Snapshot) {
     CsvExportSection(snap)
     DeleteHistorySection(snap)
+    ResetSettingsSection()
+}
+
+// ---------- Reset settings to defaults (#41) ----------
+
+@Composable
+private fun ResetSettingsSection() {
+    var confirming by remember { mutableStateOf(false) }
+    SettingsGroup(stringResource(R.string.reset_group))
+    SettingsActionRow(stringResource(R.string.reset_row), stringResource(R.string.reset_row_summary)) { confirming = true }
+    if (confirming) ResetSettingsSheet { confirming = false }
+}
+
+/**
+ * Confirms Reset settings to defaults (#41), then resets the preferences only ([Settings.resetPreferences]) and
+ * offers Undo, which puts the values from before back. Also opened from the main Settings list.
+ */
+@Composable
+internal fun ResetSettingsSheet(onDismiss: () -> Unit) {
+    val done = stringResource(R.string.reset_done)
+    val undo = stringResource(R.string.undo)
+    ConfirmSheet(
+        title = stringResource(R.string.reset_title),
+        message = stringResource(R.string.reset_body),
+        confirmLabel = stringResource(R.string.reset_confirm),
+        dismissLabel = stringResource(R.string.reset_keep),
+        onDismiss = onDismiss,
+        onConfirm = {
+            val before = Settings.resetPreferences()
+            UiEvents.show(done, undo) { Settings.restorePreferences(before) }
+        },
+        destructive = false
+    )
 }
 
 /** A preset or custom date range as (from, to) ISO dates. */

@@ -138,4 +138,15 @@
         <item quantity="one">%1$d photo</item>
         <item quantity="other">%1$d photos</item>
     </plurals>
+
+    <!-- Data tools › Reset settings to defaults (#41). -->
+    <string name="reset_group">Settings</string>
+    <string name="reset_row">Reset settings to defaults</string>
+    <string name="reset_row_summary">Units, rest timer, logging and display options go back to their defaults. Your data isn\'t affected.</string>
+    <string name="reset_title">Reset settings to defaults?</string>
+    <string name="reset_body">Units, rest timer, logging and display options go back to their defaults. Your workouts, photos, measurements, backups and backup folders aren\'t affected. Pinned graphs and your body fat profile are kept.</string>
+    <string name="reset_confirm">Reset settings</string>
+    <string name="reset_keep">Keep my settings</string>
+    <string name="reset_done">Settings reset</string>
+    <string name="undo">Undo</string>
 </resources>

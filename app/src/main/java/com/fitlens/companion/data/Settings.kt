@@ -239,6 +239,24 @@ object Settings {
     }
 
     /**
+     * Data tools › Reset settings to defaults (#41): the preferences go back to their defaults ([resetToDefaults]).
+     * Workouts, photos, measurements, backups, folders and the backup schedule are untouched. Returns what was
+     * there before, for Undo ([restorePreferences]).
+     */
+    fun resetPreferences(): Pair<PortableSettings, DeviceSettings> {
+        val before = currentPortable() to current()
+        updatePortable { it.resetToDefaults() }
+        updateDevice { it.resetToDefaults() }
+        return before
+    }
+
+    /** Undoes [resetPreferences]: only the values a reset changes are put back, so nothing newer is lost. */
+    fun restorePreferences(before: Pair<PortableSettings, DeviceSettings>) {
+        updatePortable { before.first }
+        updateDevice { it.withPreferencesFrom(before.second) }
+    }
+
+    /**
      * Re-reads the preferences from the database. Called from `Store.reload()`, so a restore or an import that set
      * the weight unit is picked up with the rest of the data.
      */
@@ -499,6 +517,27 @@ private object MetaToDeviceMigration : DataMigration<Preferences> {
 
     override suspend fun cleanUp() {}
 }
+
+/**
+ * The user's preferences at their defaults (#41). What they made rather than set stays: pinned graphs and their
+ * comparisons, the routine last open, and the sex the body fat formula uses.
+ */
+internal fun PortableSettings.resetToDefaults(): PortableSettings = PortableSettings(
+    pinnedGraphs = pinnedGraphs,
+    graphCompare = graphCompare,
+    lastRoutineId = lastRoutineId,
+    profileSex = profileSex
+)
+
+/**
+ * This phone's preferences at their defaults (#41): the rest-over sound and the calendar filter. Folders and their
+ * permissions, the backup schedule, the last import, the safety copy and the app's own state are kept.
+ */
+internal fun DeviceSettings.resetToDefaults(): DeviceSettings = withPreferencesFrom(DeviceSettings())
+
+/** These settings with [other]'s preferences, the values [resetToDefaults] changes. */
+internal fun DeviceSettings.withPreferencesFrom(other: DeviceSettings): DeviceSettings =
+    copy(restSoundUri = other.restSoundUri, calendarFilter = other.calendarFilter)
 
 /**
  * Switching between kg and lbs converts the plate calculator's plate list (#117), the only weight setting stored in
