@@ -42,6 +42,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Workouts
@@ -183,16 +186,16 @@ fun WorkoutDrawer(
     Column(Modifier.fillMaxHeight().padding(vertical = Spacing.md)) {
         // FitNotes's header (#124): how many exercises, and how to reorder them.
         Text(
-            "${order.size} EXERCISE${if (order.size == 1) "" else "S"}",
+            pluralStringResource(R.plurals.drawer_exercises, order.size, order.size),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = Spacing.lg)
         )
         Text(
             listOfNotNull(
-                "Drag a handle to reorder",
+                stringResource(R.string.drawer_reorder_hint),
                 relativeLabel(date),
-                "${sets.size} set${if (sets.size == 1) "" else "s"}",
+                pluralStringResource(R.plurals.day_sets, sets.size, sets.size),
                 if (secs > 0) fmtDuration(secs.toInt()) else null
             ).joinToString("  ·  "),
             style = MaterialTheme.typography.bodySmall,
@@ -203,24 +206,30 @@ fun WorkoutDrawer(
         LazyColumn(Modifier.weight(1f)) {
             itemsIndexed(order, key = { _, id -> id }) { i, exId ->
                 if (i > 0) HorizontalDivider(color = Brand.Hairline)
-                val name = snap.exercises[exId]?.name ?: "Exercise"
+                val name = snap.exercises[exId]?.name ?: stringResource(R.string.drawer_exercise_fallback)
                 val count = sets.count { it.exerciseId == exId }
                 val isCurrent = exId == current
                 val hasSets = count > 0
                 val canUp = hasSets && i > 0
                 val canDown = hasSets && i < logged.lastIndex
+                val upLabel = stringResource(R.string.day_move_up)
+                val downLabel = stringResource(R.string.day_move_down)
                 val actions = listOfNotNull(
-                    if (canUp) CustomAccessibilityAction("Move up") { moveExercise(snap, date, exId, -1); true } else null,
-                    if (canDown) CustomAccessibilityAction("Move down") { moveExercise(snap, date, exId, 1); true } else null
+                    if (canUp) CustomAccessibilityAction(upLabel) { moveExercise(snap, date, exId, -1); true } else null,
+                    if (canDown) CustomAccessibilityAction(downLabel) { moveExercise(snap, date, exId, 1); true } else null
+                )
+                val openLabel = stringResource(R.string.day_open_named, name)
+                val spoken = pluralStringResource(
+                    if (isCurrent) R.plurals.drawer_row_spoken_current else R.plurals.drawer_row_spoken, count, name, count
                 )
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = Spacing.row)
                         .background(if (isCurrent) Brand.Gold.copy(alpha = 0.16f) else Brand.Onyx)
-                        .clickable(onClickLabel = "Open $name") { onOpen(exId) }
+                        .clickable(onClickLabel = openLabel) { onOpen(exId) }
                         .semantics(mergeDescendants = true) {
-                            contentDescription = "$name, $count set${if (count == 1) "" else "s"}" + if (isCurrent) ", current" else ""
+                            contentDescription = spoken
                             selected = isCurrent
                             if (actions.isNotEmpty()) customActions = actions
                         },
@@ -233,11 +242,11 @@ fun WorkoutDrawer(
                         Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             color = if (isCurrent) Brand.GoldLight else MaterialTheme.colorScheme.onSurface)
                         Text(
-                            (if (!hasSets) "No sets yet"
+                            (if (!hasSets) stringResource(R.string.drawer_no_sets)
                             else if (com.fitlens.companion.data.Settings.currentPortable().markComplete)
-                                "${sets.count { it.exerciseId == exId && it.done }}/$count sets done"
-                            else "$count set${if (count == 1) "" else "s"}") +
-                                (letters[group]?.let { "  ·  Superset $it" } ?: ""),
+                                stringResource(R.string.day_sets_done, sets.count { it.exerciseId == exId && it.done }, count)
+                            else pluralStringResource(R.plurals.day_sets, count, count)) +
+                                (letters[group]?.let { "  ·  " + stringResource(R.string.drawer_superset_suffix, it) } ?: ""),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -247,14 +256,14 @@ fun WorkoutDrawer(
                         val nextEx = logged.getOrNull(logged.indexOf(exId) + 1)
                         com.fitlens.companion.ui.design.OverflowMenu(
                             listOf(
-                                com.fitlens.companion.ui.design.MenuAction("Superset with the next exercise", enabled = nextEx != null) {
+                                com.fitlens.companion.ui.design.MenuAction(stringResource(R.string.drawer_superset_next), enabled = nextEx != null) {
                                     nextEx?.let { n -> AppScope.scope.launch { Workouts.groupExercises(date, listOf(exId, n)) } }
                                 },
-                                com.fitlens.companion.ui.design.MenuAction("Remove from superset", enabled = group > 0) {
+                                com.fitlens.companion.ui.design.MenuAction(stringResource(R.string.day_remove_superset), enabled = group > 0) {
                                     AppScope.scope.launch { Workouts.ungroupExercise(date, exId) }
                                 }
                             ),
-                            description = "Superset options for $name"
+                            description = stringResource(R.string.drawer_superset_options, name)
                         )
                         if (logged.size > 1) DragHandle(name, onStep = { by -> dragStep(exId, by) }, onEnd = { dragEnd() })
                     }
@@ -263,11 +272,11 @@ fun WorkoutDrawer(
         }
         // FitNotes's footer (#124, #141): three uppercase rows with an icon each, a rule between them.
         GoldHairline()
-        DrawerAction(Icons.Filled.Add, "Add exercise", onAddExercise)
+        DrawerAction(Icons.Filled.Add, stringResource(R.string.day_add_exercise), onAddExercise)
         HorizontalDivider(color = Brand.Hairline)
-        DrawerAction(FitIcons.Link, "Add to superset", onAddToSuperset)
+        DrawerAction(FitIcons.Link, stringResource(R.string.drawer_add_to_superset), onAddToSuperset)
         HorizontalDivider(color = Brand.Hairline)
-        DrawerAction(Icons.Filled.Home, "Home", onDayLog)
+        DrawerAction(Icons.Filled.Home, stringResource(R.string.drawer_home), onDayLog)
     }
 }
 
@@ -297,10 +306,11 @@ private fun DrawerAction(icon: androidx.compose.ui.graphics.vector.ImageVector, 
 private fun DragHandle(name: String, onStep: (Int) -> Unit, onEnd: () -> Unit) {
     val step by rememberUpdatedState(onStep)
     val end by rememberUpdatedState(onEnd)
+    val dragLabel = stringResource(R.string.drawer_drag, name)
     Box(
         Modifier
             .size(Spacing.touch)
-            .semantics { contentDescription = "Drag to reorder $name" }
+            .semantics { contentDescription = dragLabel }
             .pointerInput(Unit) {
                 var total = 0f
                 detectVerticalDragGestures(

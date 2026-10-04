@@ -70,6 +70,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.ExerciseTypes
 import com.fitlens.companion.data.MRecord
@@ -146,35 +150,35 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = if (nav.atHome) "FitLens" else "Training log",
+            title = stringResource(if (nav.atHome) R.string.app_name else R.string.day_title),
             onBack = if (nav.atHome) null else ({ nav.pop() }),
             centered = false,
             // FitNotes's app icon before its title (#141).
             brandMark = nav.atHome,
             actions = listOf(
-                TopBarAction(Icons.Filled.DateRange, "Calendar") { nav.push(Screen.Calendar) },
-                TopBarAction(Icons.Filled.Add, "Add exercise") { nav.push(Screen.Library(date)) }
+                TopBarAction(Icons.Filled.DateRange, stringResource(R.string.day_calendar)) { nav.push(Screen.Calendar) },
+                TopBarAction(Icons.Filled.Add, stringResource(R.string.day_add_exercise)) { nav.push(Screen.Library(date)) }
             ),
             // A running rest stays in view after going back to the day (#109).
             trailing = { RestTimerButton(onOpen = { restSheet = true }, onlyWhileRunning = true) },
             overflow = listOfNotNull(
-                if (date != Dates.today()) MenuAction("Go to today") { go(Dates.today()) } else null,
-                MenuAction("Add workout") { addWorkout = true },
-                MenuAction("Replace this workout", enabled = sets.isNotEmpty()) { replaceWorkout = true },
-                MenuAction("Create workout from this day", enabled = sets.isNotEmpty()) { saveAsWorkout = true },
-                MenuAction(if (running != null) "Stop workout timer" else "Workout time") {
+                if (date != Dates.today()) MenuAction(stringResource(R.string.day_go_today)) { go(Dates.today()) } else null,
+                MenuAction(stringResource(R.string.day_add_workout)) { addWorkout = true },
+                MenuAction(stringResource(R.string.day_replace_workout), enabled = sets.isNotEmpty()) { replaceWorkout = true },
+                MenuAction(stringResource(R.string.day_create_workout), enabled = sets.isNotEmpty()) { saveAsWorkout = true },
+                MenuAction(stringResource(if (running != null) R.string.day_stop_timer else R.string.day_workout_time)) {
                     if (running != null) WorkoutClock.stop(date, running) else editTime = true
                 },
                 // FitNotes's single Copy Workout entry (#148) offers copy, move and copy previous.
-                MenuAction("Copy workout") { copyChooser = true },
-                MenuAction("Share workout", enabled = sets.isNotEmpty()) { share = true },
-                MenuAction("Delete this workout", enabled = hasWorkout) { deleteWorkout = true },
-                MenuAction("Add photos to this day") { importForDay() },
-                MenuAction("Add measurement") { addMeasurement = true },
-                MenuAction("Analysis") { nav.push(Screen.Analysis) },
-                MenuAction("Body tracker") { nav.push(Screen.Body) },
-                MenuAction("Photos") { nav.push(Screen.Photos) },
-                MenuAction("Settings") { nav.push(Screen.SettingsHome) }
+                MenuAction(stringResource(R.string.day_copy_workout)) { copyChooser = true },
+                MenuAction(stringResource(R.string.day_share_workout), enabled = sets.isNotEmpty()) { share = true },
+                MenuAction(stringResource(R.string.day_delete_workout), enabled = hasWorkout) { deleteWorkout = true },
+                MenuAction(stringResource(R.string.day_add_photos)) { importForDay() },
+                MenuAction(stringResource(R.string.day_add_measurement)) { addMeasurement = true },
+                MenuAction(stringResource(R.string.day_menu_analysis)) { nav.push(Screen.Analysis) },
+                MenuAction(stringResource(R.string.day_menu_body)) { nav.push(Screen.Body) },
+                MenuAction(stringResource(R.string.day_menu_photos)) { nav.push(Screen.Photos) },
+                MenuAction(stringResource(R.string.day_menu_settings)) { nav.push(Screen.SettingsHome) }
             )
         )
         DayNavigator(
@@ -314,7 +318,7 @@ private fun DayContent(
                 val firstOfGroup = group > 0 && byExercise.firstOrNull { (_, s) -> s.maxOf { it.superset } == group }?.first == exId
                 if (firstOfGroup) {
                     Text(
-                        "SUPERSET ${letters[group] ?: ""}",
+                        stringResource(R.string.day_superset_heading, letters[group] ?: ""),
                         style = MaterialTheme.typography.labelSmall,
                         color = Brand.Gold,
                         modifier = Modifier.padding(start = Spacing.lg, top = Spacing.sm)
@@ -332,24 +336,25 @@ private fun DayContent(
                 val live = WorkoutClock.running(snap, date)?.let { start -> rememberElapsed(start) }
                 val info = listOfNotNull(
                     live?.let { "● ${fmtDuration(it.toInt())}" } ?: if (total > 0) fmtDuration(total.toInt()) else null,
-                    if (Settings.currentPortable().markComplete) "${sets.count { it.done }}/${sets.size} sets done"
-                    else "${sets.size} set${if (sets.size == 1) "" else "s"}",
-                    "${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0)} ${snap.weightUnit} volume"
+                    if (Settings.currentPortable().markComplete) stringResource(R.string.day_sets_done, sets.count { it.done }, sets.size)
+                    else pluralStringResource(R.plurals.day_sets, sets.size, sets.size),
+                    stringResource(R.string.day_volume, fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0), snap.weightUnit)
                 ).joinToString("  ·  ")
                 Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
                     Text(info.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     // The workout comment is the day's own note on the session as a whole (owner, 2026-10-03), under a
                     // heading so it reads apart from the exercises' comments.
                     if (comments.isNotEmpty() || sets.isNotEmpty()) {
-                        com.fitlens.companion.ui.design.SectionLabel("Workout comment", Modifier.padding(top = Spacing.md))
+                        com.fitlens.companion.ui.design.SectionLabel(stringResource(R.string.day_workout_comment), Modifier.padding(top = Spacing.md))
                     }
+                    val editLabel = stringResource(R.string.day_edit_workout_comment)
                     comments.forEach {
                         Text(
                             "“$it”",
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = Spacing.touch)
-                                .clickable(onClickLabel = "Edit workout comment", onClick = onEditComment)
+                                .clickable(onClickLabel = editLabel, onClick = onEditComment)
                                 .padding(vertical = Spacing.sm),
                             style = MaterialTheme.typography.bodyMedium,
                             fontStyle = FontStyle.Italic
@@ -362,7 +367,7 @@ private fun DayContent(
                             modifier = Modifier.heightIn(min = Spacing.touch),
                             contentPadding = PaddingValues(horizontal = 0.dp)
                         ) {
-                            Text("Add workout comment", style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(R.string.day_add_workout_comment), style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -371,7 +376,11 @@ private fun DayContent(
     }
 
     deleteRecord?.let { r ->
-        ConfirmDialog("Delete measurement?", "${r.name} ${fmtNum(r.value)} ${r.unit} (added in FitLens)", onDismiss = { deleteRecord = null }) {
+        ConfirmDialog(
+            stringResource(R.string.day_delete_measurement_title),
+            stringResource(R.string.day_delete_measurement_body, r.name, fmtNum(r.value), r.unit),
+            confirm = stringResource(R.string.day_delete),
+            onDismiss = { deleteRecord = null }) {
             AppScope.scope.launch { Store.deleteRecord(r.id) }
         }
     }
@@ -380,6 +389,8 @@ private fun DayContent(
 /** The day's progress photos as a compact strip, with an Add photo tile at the end (FitLens extra, #81). */
 @Composable
 private fun PhotoStrip(snap: Snapshot, nav: Nav, photos: List<Photo>, onAddPhoto: () -> Unit) {
+    val openLabel = stringResource(R.string.day_open_photo)
+    val addLabel = stringResource(R.string.day_add_photos)
     LazyRow(
         contentPadding = PaddingValues(horizontal = Spacing.lg, vertical = Spacing.sm),
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
@@ -387,7 +398,7 @@ private fun PhotoStrip(snap: Snapshot, nav: Nav, photos: List<Photo>, onAddPhoto
         itemsIndexed(photos, key = { _, p -> p.id }) { i, p ->
             PhotoThumb(
                 snap, p,
-                Modifier.height(120.dp).width(90.dp).clickable(onClickLabel = "Open photo") {
+                Modifier.height(120.dp).width(90.dp).clickable(onClickLabel = openLabel) {
                     nav.push(Screen.PhotoViewer(photos.map { it.id }, i))
                 },
                 sizePx = 360
@@ -399,13 +410,13 @@ private fun PhotoStrip(snap: Snapshot, nav: Nav, photos: List<Photo>, onAddPhoto
                     .height(120.dp)
                     .width(90.dp)
                     .border(1.dp, Brand.Hairline, FitShapes.row)
-                    .clickable(onClickLabel = "Add photos to this day", onClick = onAddPhoto)
-                    .semantics(mergeDescendants = true) { contentDescription = "Add photos to this day" },
+                    .clickable(onClickLabel = addLabel, onClick = onAddPhoto)
+                    .semantics(mergeDescendants = true) { contentDescription = addLabel },
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null, tint = Brand.Gold)
-                Text("ADD PHOTO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.day_add_photo_tile), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -431,6 +442,8 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRec
             val prev = remember(snap, r.id) { snap.recordsByName[r.name]?.lastOrNull { it.date < r.date } }
             val def = snap.allMeasurements.firstOrNull { it.name == r.name }
             val change = prev?.let { changeText(it, r) }
+            val openLabel = stringResource(R.string.day_open_named, r.name)
+            val deleteLabel = stringResource(R.string.day_delete_value)
             if (i > 0) HorizontalDivider(color = Brand.Hairline)
             // Name and value share one line, and the change gets a line of its own under them, so nothing is squeezed
             // into breaking mid-word (#128).
@@ -439,9 +452,9 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRec
                     .fillMaxWidth()
                     .heightIn(min = Spacing.row)
                     .combinedClickable(
-                        onClickLabel = "Open ${r.name}",
+                        onClickLabel = openLabel,
                         onClick = { onOpen(r) },
-                        onLongClickLabel = if (r.source == "manual") "Delete this value" else null,
+                        onLongClickLabel = if (r.source == "manual") deleteLabel else null,
                         onLongClick = if (r.source == "manual") ({ onDelete(r) }) else null
                     )
                     .semantics(mergeDescendants = true) {}
@@ -509,9 +522,9 @@ private fun EmptyDay(
             modifier.fillMaxWidth().padding(horizontal = Spacing.md, vertical = Spacing.lg),
             verticalAlignment = Alignment.Top
         ) {
-            EmptyDayAction(Icons.Filled.Add, "Add exercise", onAddExercise, Modifier.weight(1f))
-            EmptyDayAction(Icons.Filled.List, "Add workout", onAddWorkout, Modifier.weight(1f))
-            EmptyDayAction(FitIcons.Copy, "Copy previous workout", onCopyPrevious, Modifier.weight(1f))
+            EmptyDayAction(Icons.Filled.Add, stringResource(R.string.day_add_exercise), onAddExercise, Modifier.weight(1f))
+            EmptyDayAction(Icons.Filled.List, stringResource(R.string.day_add_workout), onAddWorkout, Modifier.weight(1f))
+            EmptyDayAction(FitIcons.Copy, stringResource(R.string.day_copy_previous), onCopyPrevious, Modifier.weight(1f))
         }
         return
     }
@@ -521,12 +534,12 @@ private fun EmptyDay(
     ) {
         Spacer(Modifier.weight(1f))
         if (showEmptyText) {
-            Text("Workout log empty", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.day_log_empty), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
         }
         Spacer(Modifier.weight(1f))
-        EmptyDayAction(Icons.Filled.Add, "Add exercise", onAddExercise)
-        EmptyDayAction(Icons.Filled.List, "Add workout", onAddWorkout)
-        EmptyDayAction(FitIcons.Copy, "Copy previous workout", onCopyPrevious)
+        EmptyDayAction(Icons.Filled.Add, stringResource(R.string.day_add_exercise), onAddExercise)
+        EmptyDayAction(Icons.Filled.List, stringResource(R.string.day_add_workout), onAddWorkout)
+        EmptyDayAction(FitIcons.Copy, stringResource(R.string.day_copy_previous), onCopyPrevious)
         Spacer(Modifier.height(Spacing.lg))
     }
 }
@@ -569,7 +582,8 @@ private fun ExerciseOnDay(
     showCategories: Boolean,
     setsShown: Int
 ) {
-    val name = snap.exercises[exId]?.name ?: "Exercise #$exId"
+    val res = LocalContext.current.resources
+    val name = snap.exercises[exId]?.name ?: stringResource(R.string.day_exercise_fallback, exId)
     var expanded by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var swapping by remember { mutableStateOf(false) }
@@ -596,21 +610,21 @@ private fun ExerciseOnDay(
         setsDone = exSets.count { it.done },
         setsTotal = if (markComplete) exSets.size else null,
         menu = listOf(
-            MenuAction("Log sets") { nav.push(Screen.SetEntry(date, exId)) },
-            MenuAction(if (exerciseComment.isNullOrBlank()) "Add exercise comment" else "Edit exercise comment") { commenting = true },
-            MenuAction("History and graph") { nav.push(Screen.SetEntry(date, exId, page = 1)) },
-            MenuAction("Overview") { overview = true },
-            MenuAction("Records and goals") { nav.push(Screen.ExerciseDetail(exId)) },
-            MenuAction("Move up", enabled = displayOrder(snap, date).indexOf(exId) > 0) { moveExercise(snap, date, exId, -1) },
-            MenuAction("Move down", enabled = displayOrder(snap, date).let { it.indexOf(exId) in 0 until it.lastIndex }) {
+            MenuAction(stringResource(R.string.day_ex_log_sets)) { nav.push(Screen.SetEntry(date, exId)) },
+            MenuAction(stringResource(if (exerciseComment.isNullOrBlank()) R.string.day_ex_add_comment else R.string.day_ex_edit_comment)) { commenting = true },
+            MenuAction(stringResource(R.string.day_ex_history)) { nav.push(Screen.SetEntry(date, exId, page = 1)) },
+            MenuAction(stringResource(R.string.day_ex_overview)) { overview = true },
+            MenuAction(stringResource(R.string.day_ex_records)) { nav.push(Screen.ExerciseDetail(exId)) },
+            MenuAction(stringResource(R.string.day_move_up), enabled = displayOrder(snap, date).indexOf(exId) > 0) { moveExercise(snap, date, exId, -1) },
+            MenuAction(stringResource(R.string.day_move_down), enabled = displayOrder(snap, date).let { it.indexOf(exId) in 0 until it.lastIndex }) {
                 moveExercise(snap, date, exId, 1)
             },
-            MenuAction("Superset with…", enabled = dayExercises(snap, date).size > 1) { grouping = true },
-            MenuAction("Remove from superset", enabled = group > 0) {
+            MenuAction(stringResource(R.string.day_ex_superset), enabled = dayExercises(snap, date).size > 1) { grouping = true },
+            MenuAction(stringResource(R.string.day_remove_superset), enabled = group > 0) {
                 AppScope.scope.launch { Workouts.ungroupExercise(date, exId) }
             },
-            MenuAction("Swap exercise") { swapping = true },
-            MenuAction("Remove from this workout") { confirmDelete = true }
+            MenuAction(stringResource(R.string.day_ex_swap)) { swapping = true },
+            MenuAction(stringResource(R.string.day_ex_remove)) { confirmDelete = true }
         )
     ) {
         exSets.take(limit).forEachIndexed { i, s ->
@@ -633,13 +647,13 @@ private fun ExerciseOnDay(
         val hidden = exSets.size - limit
         if (hidden > 0) {
             TextButton(onClick = { expanded = true }, modifier = Modifier.heightIn(min = Spacing.touch)) {
-                Text("+$hidden more set${if (hidden == 1) "" else "s"}", style = MaterialTheme.typography.labelMedium)
+                Text(pluralStringResource(R.plurals.day_more_sets, hidden, hidden), style = MaterialTheme.typography.labelMedium)
             }
         }
     }
     if (grouping) {
         SearchablePicker(
-            title = "Superset $name with",
+            title = stringResource(R.string.day_superset_title, name),
             items = exercisePickerItems(snap).filter { it.id != exId && it.id in dayExercises(snap, date) },
             multiSelect = true,
             onDismiss = { grouping = false },
@@ -654,22 +668,22 @@ private fun ExerciseOnDay(
         // Swaps the exercise for today only: its sets on this day move to the chosen one (#100). A saved workout's
         // exercise is swapped for good in the workout editor.
         SearchablePicker(
-            title = "Swap $name for",
+            title = stringResource(R.string.day_swap_title, name),
             items = exercisePickerItems(snap).filter { it.id != exId },
-            searchLabel = "Search exercises",
+            searchLabel = stringResource(R.string.day_search_exercises),
             onDismiss = { swapping = false },
             onPick = { ids ->
                 swapping = false
                 ids.firstOrNull()?.let { to ->
-                    val toName = snap.exercises[to]?.name ?: "the new exercise"
+                    val toName = snap.exercises[to]?.name ?: res.getString(R.string.day_swap_new_fallback)
                     AppScope.scope.launch {
                         try {
                             val moved = Workouts.swapExercise(date, exId, to)
-                            UiEvents.show("Swapped $name for $toName", "Undo") {
+                            UiEvents.show(res.getString(R.string.day_swapped, name, toName), res.getString(R.string.undo)) {
                                 AppScope.scope.launch { Workouts.setExerciseOf(moved, exId) }
                             }
                         } catch (e: WorkoutDataException) {
-                            UiEvents.show(e.message ?: "That swap didn't work.")
+                            UiEvents.show(e.message ?: res.getString(R.string.day_swap_failed))
                         }
                     }
                 }
@@ -682,30 +696,29 @@ private fun ExerciseOnDay(
             initial = exerciseComment,
             onSave = { text -> AppScope.scope.launch { Workouts.setExerciseComment(date, exId, text) } },
             onDismiss = { commenting = false },
-            title = "Exercise comment",
+            title = stringResource(R.string.day_exercise_comment),
             detailed = true,
             earlier = earlierExerciseComments(snap, exId, date, 5)
         )
     }
     if (confirmDelete) {
         ConfirmDialog(
-            "Remove $name from this workout?",
-            "Its ${exSets.size} set${if (exSets.size == 1) "" else "s"} on ${Dates.medium(date)} will be deleted. " +
-                "The exercise stays in your library.",
-            confirm = "Remove",
+            stringResource(R.string.day_remove_title, name),
+            pluralStringResource(R.plurals.day_remove_body, exSets.size, exSets.size, Dates.medium(date)),
+            confirm = stringResource(R.string.day_remove),
             onDismiss = { confirmDelete = false }
         ) {
             val removed = exSets
             val removedComment = exerciseComment
             AppScope.scope.launch {
                 Workouts.deleteHistory(date, date, setOf(exId))
-                UiEvents.show("$name removed from this workout", "Undo") {
+                UiEvents.show(res.getString(R.string.day_removed, name), res.getString(R.string.undo)) {
                     AppScope.scope.launch {
                         try {
                             Workouts.addSets(removed)
                             if (!removedComment.isNullOrBlank()) Workouts.setExerciseComment(date, exId, removedComment)
                         } catch (e: Exception) {
-                            UiEvents.show("Couldn't undo that: ${e.message}")
+                            UiEvents.show(res.getString(R.string.day_undo_failed, e.message ?: e.javaClass.simpleName))
                         }
                     }
                 }

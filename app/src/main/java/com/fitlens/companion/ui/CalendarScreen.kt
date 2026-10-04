@@ -57,6 +57,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
@@ -97,16 +101,16 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
             title = Dates.monthYear(month.atDay(1)),
             onBack = { nav.pop() },
             actions = listOf(
-                TopBarAction(Icons.Filled.Home, "Go to today") {
+                TopBarAction(Icons.Filled.Home, stringResource(R.string.day_go_today)) {
                     selected = today
                     monthStr = YearMonth.from(LocalDate.now()).toString()
                 },
-                TopBarAction(Icons.Filled.Search, if (filter.active) "Change the filter" else "Filter days") { filtering = true },
-                TopBarAction(Icons.Filled.List, "List of every day") { nav.push(Screen.Timeline) }
+                TopBarAction(Icons.Filled.Search, stringResource(if (filter.active) R.string.cal_change_filter else R.string.cal_filter_days)) { filtering = true },
+                TopBarAction(Icons.Filled.List, stringResource(R.string.cal_every_day)) { nav.push(Screen.Timeline) }
             ),
             // Share the selected day's workout (#87), offered only when that day has sets to share.
             overflow = if (snap.setsByDate[selected].isNullOrEmpty()) emptyList()
-                else listOf(MenuAction("Share ${Dates.medium(selected)}'s workout") { sharing = true })
+                else listOf(MenuAction(stringResource(R.string.cal_share_day, Dates.medium(selected))) { sharing = true })
         )
         if (filter.active) FilterBar(snap, filter, month, matches, onEdit = { filtering = true }) {
             Settings.updateDevice { it.copy(calendarFilter = null) }
@@ -115,11 +119,11 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
         val monthGrid: @Composable () -> Unit = {
             Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { shift(-1) }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.cal_previous_month))
                 }
                 MonthCount(snap, month, Modifier.weight(1f))
                 IconButton(onClick = { shift(1) }) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.cal_next_month))
                 }
             }
             // Weekday header, starting on the chosen first day of the week (#7).
@@ -174,9 +178,9 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
                 }
             }
             Row(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                Dot(colors.accent, 6.dp); Text(" Photo    ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Dot(colors.series, 6.dp); Text(" Measurement    ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("Other dots: categories", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Dot(colors.accent, 6.dp); Text(" " + stringResource(R.string.cal_legend_photo) + "    ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Dot(colors.series, 6.dp); Text(" " + stringResource(R.string.cal_legend_measurement) + "    ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.cal_legend_other), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         val dayPanel: @Composable () -> Unit = {
@@ -216,27 +220,27 @@ private fun FilterBar(snap: Snapshot, filter: CalendarFilter, month: YearMonth, 
     val prefix = month.toString()
     val inMonth = matches.count { it.startsWith(prefix) }
     val words = filter.describe(snap)
+    val changeLabel = stringResource(R.string.cal_change_filter)
     Row(
         Modifier
             .fillMaxWidth()
             .background(Brand.Graphite)
-            .clickable(onClickLabel = "Change the filter", onClick = onEdit)
+            .clickable(onClickLabel = changeLabel, onClick = onEdit)
             .padding(start = Spacing.lg, end = Spacing.xs, top = Spacing.xs, bottom = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
             Text(words, style = MaterialTheme.typography.bodyMedium, color = Brand.GoldLight, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                "${plural(inMonth, "day")} this month  ·  ${plural(matches.size, "day")} in all".uppercase(),
+                (pluralStringResource(R.plurals.cal_days_month, inMonth, inMonth) + "  ·  " +
+                    pluralStringResource(R.plurals.cal_days_all, matches.size, matches.size)).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        TextButton(onClick = onClear, modifier = Modifier.heightIn(min = Spacing.touch)) { Text("Clear") }
+        TextButton(onClick = onClear, modifier = Modifier.heightIn(min = Spacing.touch)) { Text(stringResource(R.string.cal_clear)) }
     }
 }
-
-private fun plural(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
 
 /** "12 workouts this month", with the month's photo count. */
 @Composable
@@ -245,8 +249,8 @@ private fun MonthCount(snap: Snapshot, month: YearMonth, modifier: Modifier) {
     val workouts = snap.setsByDate.keys.count { it.startsWith(prefix) }
     val photos = snap.photosByDate.filterKeys { it.startsWith(prefix) }.values.sumOf { it.size }
     Text(
-        (if (workouts == 1) "1 workout" else "$workouts workouts") + " this month" +
-            if (photos > 0) " · $photos photo${if (photos == 1) "" else "s"}" else "",
+        pluralStringResource(R.plurals.cal_workouts_month, workouts, workouts) +
+            if (photos > 0) " · " + pluralStringResource(R.plurals.cal_photos, photos, photos) else "",
         modifier,
         style = MaterialTheme.typography.labelLarge,
         textAlign = TextAlign.Center,
@@ -267,14 +271,15 @@ private fun DayCell(
     val cats = remember(sets) {
         sets?.map { it.exerciseId }?.distinct()?.mapNotNull { snap.categoryOf(it) }?.distinctBy { it.id }?.take(3).orEmpty()
     }
-    val spoken = buildString {
-        append(Dates.long(date))
-        if (sets != null) append(", workout, ").append(sets.map { it.exerciseId }.distinct().size).append(" exercises")
-        if (!photos.isNullOrEmpty()) append(", photo")
-        if (hasRecords) append(", measurements")
-        if (isToday) append(", today")
-        if (dimmed) append(", doesn't match the filter")
-    }
+    val res = LocalContext.current.resources
+    val spoken = listOfNotNull(
+        Dates.long(date),
+        sets?.map { it.exerciseId }?.distinct()?.size?.let { n -> res.getQuantityString(R.plurals.cal_spoken_workout, n, n) },
+        if (!photos.isNullOrEmpty()) res.getString(R.string.cal_spoken_photo) else null,
+        if (hasRecords) res.getString(R.string.cal_spoken_measurements) else null,
+        if (isToday) res.getString(R.string.cal_spoken_today) else null,
+        if (dimmed) res.getString(R.string.cal_spoken_dimmed) else null
+    ).joinToString(", ")
     Box(
         Modifier
             .fillMaxSize()
@@ -326,14 +331,14 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
         // The selected day under a FitNotes heading (#144).
         SectionLabel(historyDay(date))
         if (sets.isEmpty() && records.isEmpty() && photos.isEmpty()) {
-            Text("Nothing logged on this day.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.cal_nothing_logged), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (sets.isNotEmpty()) {
             Text(
                 listOfNotNull(
                     if (secs > 0) fmtDuration(secs.toInt()) else null,
-                    "${byExercise.size} exercise${if (byExercise.size == 1) "" else "s"}",
-                    "${sets.size} set${if (sets.size == 1) "" else "s"}"
+                    pluralStringResource(R.plurals.cal_exercises, byExercise.size, byExercise.size),
+                    pluralStringResource(R.plurals.day_sets, sets.size, sets.size)
                 ).joinToString("  ·  ").uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -349,12 +354,13 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
             }
             HorizontalDivider(color = Brand.Hairline)
         }
+        val overviewLabel = stringResource(R.string.cal_show_overview)
         byExercise.forEach { (exId, exSets) ->
             val fields = setFields(snap, exId, exSets)
-            Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Show overview") { onOverview(exId) }.padding(top = Spacing.sm)) {
+            Column(Modifier.fillMaxWidth().clickable(onClickLabel = overviewLabel) { onOverview(exId) }.padding(top = Spacing.sm)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel(snap.exercises[exId]?.name ?: "Exercise", Modifier.weight(1f))
-                    if (exSets.any { it.isPr }) Text(" PR", style = MaterialTheme.typography.labelMedium, color = Brand.Gold)
+                    SectionLabel(snap.exercises[exId]?.name ?: stringResource(R.string.drawer_exercise_fallback), Modifier.weight(1f))
+                    if (exSets.any { it.isPr }) Text(" " + stringResource(R.string.cal_pr), style = MaterialTheme.typography.labelMedium, color = Brand.Gold)
                 }
                 exSets.forEachIndexed { i, s ->
                     val marks = setMarks(s)
@@ -380,13 +386,13 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
         }
         if (photos.isNotEmpty()) {
             Text(
-                "${photos.size} progress photo${if (photos.size == 1) "" else "s"}",
+                pluralStringResource(R.plurals.cal_progress_photos, photos.size, photos.size),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         GoldButton(onClick = onOpen, modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row).padding(top = Spacing.sm)) {
-            Text(if (sets.isEmpty()) "Open day to log" else "Open day")
+            Text(stringResource(if (sets.isEmpty()) R.string.cal_open_day_log else R.string.cal_open_day))
         }
     }
 }

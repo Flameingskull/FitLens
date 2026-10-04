@@ -753,4 +753,144 @@
     <string name="app_open_failed_title">Your data couldn't be opened</string>
     <string name="app_open_failed_body">Nothing has been changed or deleted. Try again, and if this keeps happening, restart your phone. Details: %1$s</string>
     <string name="app_open_retry">Try again</string>
+    <!-- Day log (#94) -->
+    <string name="day_title">Training log</string>
+    <string name="day_calendar">Calendar</string>
+    <string name="day_add_exercise">Add exercise</string>
+    <string name="day_go_today">Go to today</string>
+    <string name="day_add_workout">Add workout</string>
+    <string name="day_replace_workout">Replace this workout</string>
+    <string name="day_create_workout">Create workout from this day</string>
+    <string name="day_stop_timer">Stop workout timer</string>
+    <string name="day_workout_time">Workout time</string>
+    <string name="day_copy_workout">Copy workout</string>
+    <string name="day_share_workout">Share workout</string>
+    <string name="day_delete_workout">Delete this workout</string>
+    <string name="day_add_photos">Add photos to this day</string>
+    <string name="day_add_measurement">Add measurement</string>
+    <string name="day_menu_analysis">Analysis</string>
+    <string name="day_menu_body">Body tracker</string>
+    <string name="day_menu_photos">Photos</string>
+    <string name="day_menu_settings">Settings</string>
+    <string name="day_superset_heading">SUPERSET %1$s</string>
+    <string name="day_sets_done">%1$d/%2$d sets done</string>
+    <plurals name="day_sets">
+        <item quantity="one">%d set</item>
+        <item quantity="other">%d sets</item>
+    </plurals>
+    <string name="day_volume">%1$s %2$s volume</string>
+    <string name="day_workout_comment">Workout comment</string>
+    <string name="day_edit_workout_comment">Edit workout comment</string>
+    <string name="day_add_workout_comment">Add workout comment</string>
+    <string name="day_delete_measurement_title">Delete measurement?</string>
+    <string name="day_delete_measurement_body">%1$s %2$s %3$s (added in FitLens)</string>
+    <string name="day_delete">Delete</string>
+    <string name="day_open_photo">Open photo</string>
+    <string name="day_add_photo_tile">ADD PHOTO</string>
+    <string name="day_open_named">Open %1$s</string>
+    <string name="day_delete_value">Delete this value</string>
+    <string name="day_copy_previous">Copy previous workout</string>
+    <string name="day_log_empty">Workout log empty</string>
+    <string name="day_exercise_fallback">Exercise #%1$d</string>
+    <string name="day_ex_log_sets">Log sets</string>
+    <string name="day_ex_add_comment">Add exercise comment</string>
+    <string name="day_ex_edit_comment">Edit exercise comment</string>
+    <string name="day_ex_history">History and graph</string>
+    <string name="day_ex_overview">Overview</string>
+    <string name="day_ex_records">Records and goals</string>
+    <string name="day_move_up">Move up</string>
+    <string name="day_move_down">Move down</string>
+    <string name="day_ex_superset">Superset with…</string>
+    <string name="day_remove_superset">Remove from superset</string>
+    <string name="day_ex_swap">Swap exercise</string>
+    <string name="day_ex_remove">Remove from this workout</string>
+    <plurals name="day_more_sets">
+        <item quantity="one">+%d more set</item>
+        <item quantity="other">+%d more sets</item>
+    </plurals>
+    <string name="day_superset_title">Superset %1$s with</string>
+    <string name="day_swap_title">Swap %1$s for</string>
+    <string name="day_search_exercises">Search exercises</string>
+    <string name="day_swap_new_fallback">the new exercise</string>
+    <string name="day_swapped">Swapped %1$s for %2$s</string>
+    <string name="day_swap_failed">That swap didn\'t work.</string>
+    <string name="day_exercise_comment">Exercise comment</string>
+    <string name="day_remove_title">Remove %1$s from this workout?</string>
+    <plurals name="day_remove_body">
+        <item quantity="one">Its %1$d set on %2$s will be deleted. The exercise stays in your library.</item>
+        <item quantity="other">Its %1$d sets on %2$s will be deleted. The exercise stays in your library.</item>
+    </plurals>
+    <string name="day_remove">Remove</string>
+    <string name="day_removed">%1$s removed from this workout</string>
+    <string name="day_undo_failed">Couldn\'t undo that: %1$s</string>
+    <!-- Workout drawer (#94) -->
+    <plurals name="drawer_exercises">
+        <item quantity="one">%d EXERCISE</item>
+        <item quantity="other">%d EXERCISES</item>
+    </plurals>
+    <string name="drawer_reorder_hint">Drag a handle to reorder</string>
+    <string name="drawer_exercise_fallback">Exercise</string>
+    <plurals name="drawer_row_spoken">
+        <item quantity="one">%1$s, %2$d set</item>
+        <item quantity="other">%1$s, %2$d sets</item>
+    </plurals>
+    <plurals name="drawer_row_spoken_current">
+        <item quantity="one">%1$s, %2$d set, current</item>
+        <item quantity="other">%1$s, %2$d sets, current</item>
+    </plurals>
+    <string name="drawer_no_sets">No sets yet</string>
+    <string name="drawer_superset_suffix">Superset %1$s</string>
+    <string name="drawer_superset_next">Superset with the next exercise</string>
+    <string name="drawer_superset_options">Superset options for %1$s</string>
+    <string name="drawer_add_to_superset">Add to superset</string>
+    <string name="drawer_home">Home</string>
+    <string name="drawer_drag">Drag to reorder %1$s</string>
+    <!-- Calendar (#94) -->
+    <string name="cal_change_filter">Change the filter</string>
+    <string name="cal_filter_days">Filter days</string>
+    <string name="cal_every_day">List of every day</string>
+    <string name="cal_share_day">Share %1$s\'s workout</string>
+    <string name="cal_previous_month">Previous month</string>
+    <string name="cal_next_month">Next month</string>
+    <string name="cal_legend_photo">Photo</string>
+    <string name="cal_legend_measurement">Measurement</string>
+    <string name="cal_legend_other">Other dots: categories</string>
+    <plurals name="cal_days_month">
+        <item quantity="one">%d day this month</item>
+        <item quantity="other">%d days this month</item>
+    </plurals>
+    <plurals name="cal_days_all">
+        <item quantity="one">%d day in all</item>
+        <item quantity="other">%d days in all</item>
+    </plurals>
+    <string name="cal_clear">Clear</string>
+    <plurals name="cal_workouts_month">
+        <item quantity="one">%d workout this month</item>
+        <item quantity="other">%d workouts this month</item>
+    </plurals>
+    <plurals name="cal_photos">
+        <item quantity="one">%d photo</item>
+        <item quantity="other">%d photos</item>
+    </plurals>
+    <plurals name="cal_spoken_workout">
+        <item quantity="one">workout, %d exercise</item>
+        <item quantity="other">workout, %d exercises</item>
+    </plurals>
+    <string name="cal_spoken_photo">photo</string>
+    <string name="cal_spoken_measurements">measurements</string>
+    <string name="cal_spoken_today">today</string>
+    <string name="cal_spoken_dimmed">doesn\'t match the filter</string>
+    <string name="cal_nothing_logged">Nothing logged on this day.</string>
+    <plurals name="cal_exercises">
+        <item quantity="one">%d exercise</item>
+        <item quantity="other">%d exercises</item>
+    </plurals>
+    <string name="cal_show_overview">Show overview</string>
+    <string name="cal_pr">PR</string>
+    <plurals name="cal_progress_photos">
+        <item quantity="one">%d progress photo</item>
+        <item quantity="other">%d progress photos</item>
+    </plurals>
+    <string name="cal_open_day_log">Open day to log</string>
+    <string name="cal_open_day">Open day</string>
 </resources>
