@@ -58,7 +58,7 @@ class TimerService : Service() {
             ACTION_STOP_REST -> RestTimer.stop()
             ACTION_STOP_WORKOUT -> {
                 val today = Dates.today()
-                Store.snapshot.value?.let { WorkoutClock.running(it, today) }?.let { WorkoutClock.stop(today, it) }
+                Store.snapshot.value?.let { WorkoutClock.running(it, today) }?.let { WorkoutClock.stop(resources, today, it) }
             }
         }
         update()

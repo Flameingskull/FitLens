@@ -221,7 +221,7 @@ private fun autoAdvance(
             nav.home(date)
             val running = Store.snapshot.value?.let { WorkoutClock.running(it, date) }
             if (running != null) {
-                UiEvents.show(res.getString(R.string.set_workout_complete), res.getString(R.string.day_stop_timer)) { WorkoutClock.stop(date, running) }
+                UiEvents.show(res.getString(R.string.set_workout_complete), res.getString(R.string.day_stop_timer)) { WorkoutClock.stop(res, date, running) }
             } else {
                 UiEvents.show(res.getString(R.string.set_workout_complete), res.getString(R.string.undo)) {
                     AppScope.scope.launch { Workouts.setDone(setId, false) }

@@ -135,6 +135,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
     var copyChooser by state.saved("copyChooser", false)
     var restSheet by state.saved("restSheet", false)
     val running = WorkoutClock.running(snap, date)
+    val res = LocalContext.current.resources
     val importForDay = rememberPhotoImporter(forcedDate = date)
     val hasWorkout = sets.isNotEmpty() || snap.workoutComments.containsKey(date)
     // Remembers which way the last step went, so the page slides in from the matching side.
@@ -167,7 +168,7 @@ fun DayScreen(snap: Snapshot, nav: Nav, date: String) {
                 MenuAction(stringResource(R.string.day_replace_workout), enabled = sets.isNotEmpty()) { replaceWorkout = true },
                 MenuAction(stringResource(R.string.day_create_workout), enabled = sets.isNotEmpty()) { saveAsWorkout = true },
                 MenuAction(stringResource(if (running != null) R.string.day_stop_timer else R.string.day_workout_time)) {
-                    if (running != null) WorkoutClock.stop(date, running) else editTime = true
+                    if (running != null) WorkoutClock.stop(res, date, running) else editTime = true
                 },
                 // FitNotes's single Copy Workout entry (#148) offers copy, move and copy previous.
                 MenuAction(stringResource(R.string.day_copy_workout)) { copyChooser = true },

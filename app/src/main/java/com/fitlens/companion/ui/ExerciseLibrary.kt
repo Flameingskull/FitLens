@@ -292,7 +292,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
                     snap, routine,
                     onOpen = { open(listOf(it)) },
                     onLogAll = { d ->
-                        val toOpen = logWorkoutDay(snap, date, "${routine.name} · ${d.name}", d.exercises, routine.id, d.id)
+                        val toOpen = logWorkoutDay(res, snap, date, "${routine.name} · ${d.name}", d.exercises, routine.id, d.id)
                         // Logging a day returns to the day log, like choosing an exercise does; exercises with no sets
                         // to add open one after another instead.
                         if (toOpen.isEmpty()) nav.pop() else open(toOpen)

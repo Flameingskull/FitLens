@@ -2,6 +2,10 @@
 
 package com.fitlens.companion.ui
 
+import android.content.res.Resources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.ui.platform.LocalContext
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import androidx.compose.foundation.clickable
@@ -56,20 +60,18 @@ import kotlinx.coroutines.launch
  * the snackbar. Everything goes through [Workouts], which keeps the FitNotes merge rules intact.
  */
 
-private fun plural(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
-
 /**
  * FitNotes's Copy Workout dialog (#148): one menu entry, three choices, each with a line of explanation. Every choice
  * opens its FitLens sheet, which keeps the review step and Undo.
  */
 @Composable
 fun CopyWorkoutSheet(hasSets: Boolean, hasWorkout: Boolean, onDismiss: () -> Unit, onChoose: (CopyChoice) -> Unit) {
-    FitSheet(title = "Copy workout", onDismiss = onDismiss) {
-        CopyChoiceRow("Copy This Workout", "Copy sets from the current workout to a different day", hasSets) { onChoose(CopyChoice.COPY_THIS) }
+    FitSheet(title = stringResource(R.string.wk_copy_title), onDismiss = onDismiss) {
+        CopyChoiceRow(stringResource(R.string.wk_copy_this), stringResource(R.string.wk_copy_this_detail), hasSets) { onChoose(CopyChoice.COPY_THIS) }
         GoldHairline()
-        CopyChoiceRow("Move This Workout", "Move sets from the current workout to a different day", hasWorkout) { onChoose(CopyChoice.MOVE_THIS) }
+        CopyChoiceRow(stringResource(R.string.wk_move_this), stringResource(R.string.wk_move_this_detail), hasWorkout) { onChoose(CopyChoice.MOVE_THIS) }
         GoldHairline()
-        CopyChoiceRow("Copy Previous Workout", "Copy sets from a previous workout into the current day", true) { onChoose(CopyChoice.COPY_PREVIOUS) }
+        CopyChoiceRow(stringResource(R.string.wk_copy_previous), stringResource(R.string.wk_copy_previous_detail), true) { onChoose(CopyChoice.COPY_PREVIOUS) }
     }
 }
 
@@ -103,12 +105,13 @@ internal fun SetChecklist(snap: Snapshot, date: String, ticked: Set<Long>, onTic
             .map { (exId, own) -> exId to own.sortedBy { it.position } }
     }
     val all = remember(sets) { sets.map { it.id }.toSet() }
-    ChecklistHeading("Select All", stateOf(ticked, all), bold = false) {
+    val res = LocalContext.current.resources
+    ChecklistHeading(stringResource(R.string.wk_select_all), stateOf(ticked, all), bold = false) {
         onTicked(if (all.all { it in ticked }) ticked - all else ticked + all)
     }
     byExercise.forEach { (exId, own) ->
         val ids = own.map { it.id }.toSet()
-        ChecklistHeading((snap.exercises[exId]?.name ?: "Exercise").uppercase(), stateOf(ticked, ids), bold = true) {
+        ChecklistHeading((snap.exercises[exId]?.name ?: stringResource(R.string.ex_fallback)).uppercase(), stateOf(ticked, ids), bold = true) {
             onTicked(if (ids.all { it in ticked }) ticked - ids else ticked + ids)
         }
         val fields = setFields(snap, exId, own)
@@ -121,7 +124,8 @@ internal fun SetChecklist(snap: Snapshot, date: String, ticked: Set<Long>, onTic
                     .heightIn(min = Spacing.touch)
                     .toggleable(value = on, role = Role.Checkbox, onValueChange = { onTicked(if (it) ticked + s.id else ticked - s.id) })
                     .semantics(mergeDescendants = true) {
-                        contentDescription = "Set ${i + 1}, " + cells.joinToString(", ") { it.spoken } + if (s.isPr) ", personal record" else ""
+                        contentDescription = res.getString(R.string.wk_set_spoken, i + 1, cells.joinToString(", ") { it.spoken }) +
+                            if (s.isPr) res.getString(R.string.wk_pr_spoken) else ""
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -178,11 +182,12 @@ private fun ChecklistHeading(title: String, state: ToggleableState, bold: Boolea
 fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val existing = remember(snap, date) { snap.workoutComments[date]?.joinToString("\n\n").orEmpty() }
     var text by remember(date) { mutableStateOf(existing) }
+    val res = LocalContext.current.resources
 
     FitSheet(
-        title = "Workout comment",
+        title = stringResource(R.string.wk_comment_title),
         onDismiss = onDismiss,
-        confirmLabel = "Save comment",
+        confirmLabel = stringResource(R.string.wk_comment_save),
         confirmEnabled = text.trim() != existing.trim(),
         onConfirm = {
             val value = text
@@ -191,7 +196,7 @@ fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 try {
                     Workouts.setWorkoutComment(date, value)
                 } catch (e: WorkoutDataException) {
-                    UiEvents.show(e.message ?: "That comment couldn't be saved.")
+                    UiEvents.show(e.message ?: res.getString(R.string.set_comment_failed))
                 }
             }
         }
@@ -204,12 +209,12 @@ fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            label = { Text("Notes on the day and the workout as a whole") },
+            label = { Text(stringResource(R.string.wk_comment_hint)) },
             modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp)
         )
         if ((snap.workoutComments[date]?.size ?: 0) > 1) {
             Text(
-                "This day had more than one comment from FitNotes. Saving replaces them with the single comment above.",
+                stringResource(R.string.wk_comment_many),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -220,13 +225,13 @@ fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                     onDismiss()
                     AppScope.scope.launch {
                         Workouts.setWorkoutComment(date, null)
-                        UiEvents.show("Comment deleted", "Undo") {
+                        UiEvents.show(res.getString(R.string.wk_comment_deleted), res.getString(R.string.undo)) {
                             AppScope.scope.launch { Workouts.setWorkoutComment(date, existing) }
                         }
                     }
                 },
                 modifier = Modifier.heightIn(min = Spacing.touch)
-            ) { Text("Delete comment", color = MaterialTheme.colorScheme.error) }
+            ) { Text(stringResource(R.string.wk_comment_delete), color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -239,24 +244,28 @@ fun DeleteWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     // Every time row, not just the first: a day can carry more than one and undo has to put them all back (#69).
     val times = remember(snap, date) { snap.workoutTimes[date].orEmpty() }
     val exercises = remember(sets) { sets.map { it.exerciseId }.distinct().size }
+    val res = LocalContext.current.resources
 
     ConfirmSheet(
-        title = "Delete this workout?",
-        message = "${plural(sets.size, "set")} across ${plural(exercises, "exercise")}" +
-            (if (comment.isNullOrBlank()) "" else ", and the workout comment") +
-            (if (times.isEmpty()) "" else ", and the start and finish times") +
-            ", will be removed from ${Dates.medium(date)}. Photos and measurements on this day are kept.",
-        confirmLabel = "Delete workout",
+        title = stringResource(R.string.wk_delete_title),
+        message = stringResource(
+            R.string.wk_delete_body,
+            pluralStringResource(R.plurals.sets_count, sets.size, sets.size),
+            pluralStringResource(R.plurals.lib_exercises, exercises, exercises)
+        ) + (if (comment.isNullOrBlank()) "" else stringResource(R.string.wk_delete_comment)) +
+            (if (times.isEmpty()) "" else stringResource(R.string.wk_delete_times)) +
+            stringResource(R.string.wk_delete_end, Dates.medium(date)),
+        confirmLabel = stringResource(R.string.wk_delete_confirm),
         onDismiss = onDismiss,
-        onConfirm = { deleteWithUndo(date, sets, comment, times, snap.exerciseComments[date].orEmpty()) }
+        onConfirm = { deleteWithUndo(res, date, sets, comment, times, snap.exerciseComments[date].orEmpty()) }
     )
 }
 
 /** Deletes the workout on [date], then offers to put back its sets, comment and times. */
-private fun deleteWithUndo(date: String, sets: List<SetRow>, comment: String?, times: List<WorkoutTime>, exerciseComments: Map<Long, String>) {
+private fun deleteWithUndo(res: Resources, date: String, sets: List<SetRow>, comment: String?, times: List<WorkoutTime>, exerciseComments: Map<Long, String>) {
     AppScope.scope.launch {
         Workouts.deleteWorkout(date)
-        UiEvents.show("Workout deleted", "Undo") {
+        UiEvents.show(res.getString(R.string.wk_deleted), res.getString(R.string.undo)) {
             AppScope.scope.launch {
                 try {
                     Workouts.addSets(sets)
@@ -264,7 +273,7 @@ private fun deleteWithUndo(date: String, sets: List<SetRow>, comment: String?, t
                     if (times.isNotEmpty()) Workouts.setWorkoutTimes(date, times)
                     if (exerciseComments.isNotEmpty()) Workouts.setExerciseComments(date, exerciseComments)
                 } catch (e: Exception) {
-                    UiEvents.show("Couldn't undo that: ${e.message}")
+                    UiEvents.show(res.getString(R.string.day_undo_failed, e.message.orEmpty()))
                 }
             }
         }
@@ -284,28 +293,29 @@ fun CopyOrMoveWorkoutSheet(snap: Snapshot, date: String, move: Boolean, onDismis
     var checked by remember(date) { mutableStateOf(exercises.toSet()) }
     val ids = snap.setsByDate[date].orEmpty().filter { move || it.exerciseId in checked }.map { it.id }
     val chosen = target
+    val res = LocalContext.current.resources
 
     FitSheet(
-        title = if (move) "Move workout" else "Copy workout",
+        title = stringResource(if (move) R.string.wk_move_title else R.string.wk_copy_title),
         onDismiss = onDismiss,
         confirmLabel = when {
-            move -> "Move workout"
-            else -> "Copy ${plural(ids.size, "set")}"
+            move -> stringResource(R.string.wk_move_title)
+            else -> pluralStringResource(R.plurals.wk_copy_sets, ids.size, ids.size)
         },
         confirmEnabled = chosen != null && chosen != date && (move || ids.isNotEmpty()),
         onConfirm = {
             if (chosen != null) {
                 onDismiss()
-                if (move) moveWithUndo(snap, date, chosen) else copyWithUndo(date, chosen, ids)
+                if (move) moveWithUndo(res, snap, date, chosen) else copyWithUndo(res, date, chosen, ids)
             }
         }
     ) {
         Text(
-            "FROM ${Dates.long(date).uppercase()}",
+            stringResource(R.string.wk_from, Dates.long(date)).uppercase(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text("To which day?", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.wk_to_which_day), style = MaterialTheme.typography.titleMedium)
         val today = Dates.today()
         val quick = listOf(-1L, 0L, 1L).map { shift(today, it) }.filter { it != date }.distinct()
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
@@ -314,13 +324,13 @@ fun CopyOrMoveWorkoutSheet(snap: Snapshot, date: String, move: Boolean, onDismis
             }
         }
         GlassOutlinedButton(onClick = { picking = true }, modifier = Modifier.heightIn(min = Spacing.touch)) {
-            Text(if (chosen == null || chosen in quick) "Choose a date" else Dates.long(chosen))
+            Text(if (chosen == null || chosen in quick) stringResource(R.string.wk_choose_date) else Dates.long(chosen))
         }
         if (chosen != null) {
             val already = snap.setsByDate[chosen].orEmpty().size
             if (already > 0) {
                 Text(
-                    "${Dates.medium(chosen)} already has ${plural(already, "set")}. These are added to them; nothing is replaced.",
+                    pluralStringResource(R.plurals.wk_already_has, already, Dates.medium(chosen), already),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -329,7 +339,7 @@ fun CopyOrMoveWorkoutSheet(snap: Snapshot, date: String, move: Boolean, onDismis
         GoldHairline()
         if (move) {
             Text(
-                "The whole workout moves: every exercise below, with the workout comment and times.",
+                stringResource(R.string.wk_move_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -355,39 +365,40 @@ fun CopyPreviousWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit
     var checked by remember(source) { mutableStateOf(sourceExercises.toSet()) }
     val from = source
     val ids = from?.let { d -> snap.setsByDate[d].orEmpty().filter { it.exerciseId in checked }.map { it.id } }.orEmpty()
+    val res = LocalContext.current.resources
 
     FitSheet(
-        title = if (from == null) "Copy previous workout" else "What to copy",
+        title = stringResource(if (from == null) R.string.wk_copy_previous_title else R.string.wk_what_to_copy),
         onDismiss = onDismiss,
-        confirmLabel = if (from == null) null else "Copy ${plural(ids.size, "set")}",
+        confirmLabel = if (from == null) null else pluralStringResource(R.plurals.wk_copy_sets, ids.size, ids.size),
         confirmEnabled = ids.isNotEmpty(),
         onConfirm = if (from == null) null else ({
             onDismiss()
-            copyWithUndo(from, date, ids)
+            copyWithUndo(res, from, date, ids)
         })
     ) {
         if (from == null) {
             Text(
-                "INTO ${Dates.long(date).uppercase()}",
+                stringResource(R.string.wk_into, Dates.long(date)).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (days.isEmpty()) {
-                Text("There are no other workouts to copy from yet.", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.wk_nothing_to_copy), style = MaterialTheme.typography.bodyMedium)
             }
             days.forEach { d ->
                 val dSets = snap.setsByDate[d].orEmpty()
-                val names = dSets.map { snap.exercises[it.exerciseId]?.name ?: "Exercise" }.distinct()
+                val names = dSets.map { snap.exercises[it.exerciseId]?.name ?: res.getString(R.string.ex_fallback) }.distinct()
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = Spacing.row)
-                        .clickable(onClickLabel = "Choose this workout") { source = d }
+                        .clickable(onClickLabel = stringResource(R.string.wk_choose_this)) { source = d }
                         .padding(vertical = Spacing.sm)
                 ) {
                     Text(Dates.long(d), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "${plural(names.size, "exercise")} · ${names.joinToString(", ")}",
+                        pluralStringResource(R.plurals.lib_exercises, names.size, names.size) + " · " + names.joinToString(", "),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
@@ -398,10 +409,10 @@ fun CopyPreviousWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit
             }
         } else {
             TextButton(onClick = { source = null }, modifier = Modifier.heightIn(min = Spacing.touch)) {
-                Text("‹ Another workout")
+                Text(stringResource(R.string.wk_another))
             }
             Text(
-                "FROM ${Dates.long(from).uppercase()} INTO ${Dates.medium(date).uppercase()}",
+                stringResource(R.string.wk_from_into, Dates.long(from), Dates.medium(date)).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -409,7 +420,7 @@ fun CopyPreviousWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit
                 checked = if (on) checked + exId else checked - exId
             }
             Text(
-                "Set comments come across too. Personal-record marks don't: a copy isn't the day the record was set.",
+                stringResource(R.string.wk_copy_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -450,7 +461,7 @@ private fun ExerciseSummary(snap: Snapshot, day: String, exId: Long) {
 private fun ExerciseLines(snap: Snapshot, day: String, exId: Long) {
     val exSets = snap.setsByDate[day].orEmpty().filter { it.exerciseId == exId }
     val res = LocalContext.current.resources
-    Text(snap.exercises[exId]?.name ?: "Exercise #$exId", style = MaterialTheme.typography.bodyLarge)
+    Text(snap.exercises[exId]?.name ?: stringResource(R.string.ex_fallback), style = MaterialTheme.typography.bodyLarge)
     Text(
         exSets.joinToString(", ") { describeSet(res, snap, it.weightKg, it.reps, it.distance, it.durationSec, it.exerciseId) },
         style = MaterialTheme.typography.bodySmall,
@@ -463,15 +474,15 @@ private fun ExerciseLines(snap: Snapshot, day: String, exId: Long) {
 private fun shift(date: String, days: Long): String = Dates.parse(date)?.plusDays(days)?.format(Dates.ISO) ?: date
 
 /** Copies [ids] from [from] into [to], then offers to remove exactly the copies again. */
-private fun copyWithUndo(from: String, to: String, ids: List<Long>) {
+private fun copyWithUndo(res: Resources, from: String, to: String, ids: List<Long>) {
     AppScope.scope.launch {
         try {
             val copies = Workouts.copyWorkout(from, to, ids)
-            UiEvents.show("Copied ${plural(copies.size, "set")} to ${Dates.medium(to)}", "Undo") {
+            UiEvents.show(res.getQuantityString(R.plurals.wk_copied_to, copies.size, copies.size, Dates.medium(to)), res.getString(R.string.undo)) {
                 AppScope.scope.launch { Workouts.deleteSets(copies) }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: "That didn't work.")
+            UiEvents.show(e.message ?: res.getString(R.string.wk_failed))
         }
     }
 }
@@ -480,7 +491,7 @@ private fun copyWithUndo(from: String, to: String, ids: List<Long>) {
  * Moves the workout on [from] to [to]. Undo moves the same sets back and restores both days' comments and times as
  * they were, since a move can merge them on the day it lands.
  */
-private fun moveWithUndo(snap: Snapshot, from: String, to: String) {
+private fun moveWithUndo(res: Resources, snap: Snapshot, from: String, to: String) {
     val setIds = snap.setsByDate[from].orEmpty().map { it.id }
     val fromComment = snap.workoutComments[from]?.joinToString("\n\n")
     val toComment = snap.workoutComments[to]?.joinToString("\n\n")
@@ -491,7 +502,7 @@ private fun moveWithUndo(snap: Snapshot, from: String, to: String) {
     AppScope.scope.launch {
         try {
             val moved = Workouts.moveWorkout(from, to)
-            UiEvents.show("Moved ${plural(moved, "set")} to ${Dates.medium(to)}", "Undo") {
+            UiEvents.show(res.getQuantityString(R.plurals.wk_moved_to, moved, moved, Dates.medium(to)), res.getString(R.string.undo)) {
                 AppScope.scope.launch {
                     try {
                         Workouts.moveSets(setIds, from)
@@ -502,12 +513,12 @@ private fun moveWithUndo(snap: Snapshot, from: String, to: String) {
                         Workouts.setExerciseComments(from, fromExerciseComments)
                         Workouts.setExerciseComments(to, toExerciseComments)
                     } catch (e: Exception) {
-                        UiEvents.show("Couldn't undo that: ${e.message}")
+                        UiEvents.show(res.getString(R.string.day_undo_failed, e.message.orEmpty()))
                     }
                 }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: "That didn't work.")
+            UiEvents.show(e.message ?: res.getString(R.string.wk_failed))
         }
     }
 }

@@ -2,6 +2,10 @@
 
 package com.fitlens.companion.ui
 
+import android.content.res.Resources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.foundation.horizontalScroll
@@ -76,17 +80,17 @@ object WorkoutClock {
         snap.workoutTimes[date]?.firstOrNull { it.start.isNotBlank() && it.end.isBlank() }?.start
 
     /** Stops the timer on [date] at the current time, with Undo. */
-    fun stop(date: String, start: String) {
+    fun stop(res: Resources, date: String, start: String) {
         AppScope.scope.launch {
             try {
                 val end = now()
                 Workouts.setWorkoutTime(date, start, end)
                 val secs = Dates.secondsBetween(start, end).toInt()
-                UiEvents.show("Workout timer stopped at ${fmtDuration(secs)}", "Undo") {
+                UiEvents.show(res.getString(R.string.wk_timer_stopped, fmtDuration(secs)), res.getString(R.string.undo)) {
                     AppScope.scope.launch { Workouts.setWorkoutTime(date, start, null) }
                 }
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: "The timer couldn't be stopped.")
+                UiEvents.show(e.message ?: res.getString(R.string.wk_timer_stop_failed))
             }
         }
     }
@@ -123,6 +127,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val liveSecs = if (s != null && e == null && isToday) rememberElapsed(s) else null
     val secs = liveSecs ?: if (s != null && e != null) Dates.secondsBetween(s, e) else 0L
     val askNotify = rememberNotificationAsk()
+    val res = androidx.compose.ui.platform.LocalContext.current.resources
 
     fun save(newStart: String?, newEnd: String?) {
         onDismiss()
@@ -130,16 +135,16 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             try {
                 Workouts.setWorkoutTime(date, newStart, newEnd)
             } catch (ex: WorkoutDataException) {
-                UiEvents.show(ex.message ?: "That time couldn't be saved.")
+                UiEvents.show(ex.message ?: res.getString(R.string.wk_time_save_failed))
             }
         }
     }
 
     FitSheet(
-        title = "Workout time",
+        title = stringResource(R.string.wk_time_title),
         onDismiss = onDismiss,
-        dismissLabel = "Close",
-        confirmLabel = "Save",
+        dismissLabel = stringResource(R.string.close),
+        confirmLabel = stringResource(R.string.wk_save),
         confirmEnabled = s != null && (e == null || e >= s),
         onConfirm = { save(s, e) }
     ) {
@@ -147,19 +152,19 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             Text(Dates.long(date), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             OptionsMenu(
                 options = emptyList(),
-                description = "Workout time options",
+                description = stringResource(R.string.wk_time_options),
                 actions = listOf(
-                    MenuAction("Clear the time", enabled = times.isNotEmpty() || s != null) { save(null, null) },
-                    MenuAction("End time now", enabled = s != null && isToday) { end = WorkoutClock.now() }
+                    MenuAction(stringResource(R.string.wk_time_clear), enabled = times.isNotEmpty() || s != null) { save(null, null) },
+                    MenuAction(stringResource(R.string.wk_time_end_now), enabled = s != null && isToday) { end = WorkoutClock.now() }
                 )
             )
         }
         GoldHairline()
-        TimeField("Start Time", s) { picking = true }
-        TimeField("End Time", e, enabled = s != null) { picking = false }
+        TimeField(stringResource(R.string.wk_start_time), s) { picking = true }
+        TimeField(stringResource(R.string.wk_end_time), e, enabled = s != null) { picking = false }
         if (secs > 0) {
             Text(
-                "Duration ${fmtDuration(secs.toInt())}",
+                stringResource(R.string.wk_duration, fmtDuration(secs.toInt())),
                 style = MaterialTheme.typography.titleMedium,
                 color = Brand.Gold
             )
@@ -167,18 +172,18 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         if (isToday) {
             when {
                 s == null || e != null -> GoldButton(
-                    onClick = { askNotify(); save(WorkoutClock.now(), null); UiEvents.show("Workout timer started") },
+                    onClick = { askNotify(); save(WorkoutClock.now(), null); UiEvents.show(res.getString(R.string.wk_timer_started)) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
-                ) { Text("Start Timer") }
+                ) { Text(stringResource(R.string.wk_start_timer)) }
                 else -> GoldButton(
-                    onClick = { onDismiss(); WorkoutClock.stop(date, s) },
+                    onClick = { onDismiss(); WorkoutClock.stop(res, date, s) },
                     modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
-                ) { Text("Stop Timer") }
+                ) { Text(stringResource(R.string.wk_stop_timer)) }
             }
         }
         if (times.size > 1) {
             Text(
-                "This day has ${times.size} time ranges from FitNotes. Saving replaces them with the one above.",
+                pluralStringResource(R.plurals.wk_time_ranges, times.size, times.size),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -190,16 +195,16 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         val state = rememberTimePickerState(current.hour, current.minute, is24Hour = true)
         AlertDialog(
             onDismissRequest = { picking = null },
-            title = { Text(if (isStart) "Start time" else "End time") },
+            title = { Text(stringResource(if (isStart) R.string.wk_start_time_title else R.string.wk_end_time_title)) },
             text = { TimePicker(state = state, colors = fitTimePickerColors()) },
             confirmButton = {
                 TextButton(onClick = {
                     val picked = WorkoutClock.stamp(date, LocalTime.of(state.hour, state.minute))
                     if (isStart) start = picked else end = picked
                     picking = null
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.wk_set)) }
             },
-            dismissButton = { TextButton(onClick = { picking = null }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { picking = null }) { Text(stringResource(R.string.cancel)) } }
         )
     }
 }
@@ -208,13 +213,15 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
 @Composable
 private fun TimeField(label: String, stamp: String?, enabled: Boolean = true, onClick: () -> Unit) {
     val time = stamp?.drop(11)?.take(5)
+    val setLabel = stringResource(R.string.wk_set_field, label)
+    val notSet = stringResource(R.string.wk_not_set)
     Column(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
-            .clickable(enabled = enabled, onClickLabel = "Set $label") { onClick() }
+            .clickable(enabled = enabled, onClickLabel = setLabel) { onClick() }
             .alpha(if (enabled) 1f else 0.45f)
-            .semantics(mergeDescendants = true) { stateDescription = time ?: "Not set" }
+            .semantics(mergeDescendants = true) { stateDescription = time ?: notSet }
             .padding(vertical = Spacing.xs)
     ) {
         Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
@@ -238,6 +245,7 @@ private fun TimeField(label: String, stamp: String?, enabled: Boolean = true, on
 @Composable
 fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    val res = ctx.resources
     val sets = snap.setsByDate[date].orEmpty()
     val exercises = remember(sets) { sets.groupBy { it.exerciseId }.entries.sortedBy { e -> e.value.minOf { it.position } }.map { it.key } }
     // Set-level selection (#11): ticking an exercise ticks all of its sets.
@@ -256,13 +264,13 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     val durationSecs = snap.workoutTimes[date].orEmpty().sumOf { Dates.secondsBetween(it.start, it.end) }
 
     fun text(): String = buildString {
-        if (withDate) append("Workout · ").append(Dates.long(date)).append('\n')
-        if (withDuration && durationSecs > 0) append("Duration ").append(fmtDuration(durationSecs.toInt())).append('\n')
+        if (withDate) append(res.getString(R.string.wk_share_heading, Dates.long(date))).append('\n')
+        if (withDuration && durationSecs > 0) append(res.getString(R.string.wk_duration, fmtDuration(durationSecs.toInt()))).append('\n')
         chosen.forEach { exId ->
-            append('\n').append(snap.exercises[exId]?.name ?: "Exercise").append('\n')
+            append('\n').append(snap.exercises[exId]?.name ?: res.getString(R.string.ex_fallback)).append('\n')
             setsOf(exId).filter { it.id in ticked }.forEachIndexed { i, s ->
-                append("  ").append(i + 1).append(". ").append(describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId))
-                if (withPrs && s.isPr) append("  (PR)")
+                append("  ").append(i + 1).append(". ").append(describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId))
+                if (withPrs && s.isPr) append("  ").append(res.getString(R.string.wk_pr_mark))
                 if (!s.comment.isNullOrBlank()) append("  “").append(s.comment).append('”')
                 append('\n')
             }
@@ -270,25 +278,25 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             if (withComment) snap.exerciseComments[date.take(10)]?.get(exId)?.let { append("  “").append(it).append("”\n") }
         }
         if (withComment) snap.workoutComments[date]?.forEach { append('\n').append('“').append(it).append("”\n") }
-        append("\nLogged with FitLens")
+        append('\n').append(res.getString(R.string.wk_logged_with))
     }
 
     /** The image's content, without the photo, which is loaded off the main thread while the image is drawn. */
     fun card(): ShareImages.WorkoutCard {
         val n = ticked.size
         val subtitle = listOfNotNull(
-            "Workout",
+            res.getString(R.string.wk_workout),
             fmtDuration(durationSecs.toInt()).takeIf { withDuration && durationSecs > 0 },
-            "$n set${if (n == 1) "" else "s"}"
+            res.getQuantityString(R.plurals.sets_count, n, n)
         ).joinToString("  ·  ")
         return ShareImages.WorkoutCard(
-            title = if (withDate) Dates.long(date) else "Workout",
+            title = if (withDate) Dates.long(date) else res.getString(R.string.wk_workout),
             subtitle = subtitle,
             exercises = chosen.map { exId ->
                 ShareImages.CardExercise(
-                    snap.exercises[exId]?.name ?: "Exercise",
+                    snap.exercises[exId]?.name ?: res.getString(R.string.ex_fallback),
                     setsOf(exId).filter { it.id in ticked }.map { s ->
-                        describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId) to (withPrs && s.isPr)
+                        describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId) to (withPrs && s.isPr)
                     },
                     if (withComment) snap.exerciseComments[date.take(10)]?.get(exId) else null
                 )
@@ -302,18 +310,18 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     // image, what to include, a progress photo) live behind Options.
     var options by remember { mutableStateOf(false) }
     FitSheet(
-        title = "Share workout",
+        title = stringResource(R.string.wk_share_title),
         onDismiss = onDismiss,
-        confirmLabel = "Share",
+        confirmLabel = stringResource(R.string.wk_share),
         confirmEnabled = ticked.isNotEmpty(),
-        secondaryLabel = "Options",
+        secondaryLabel = stringResource(R.string.wk_options),
         onSecondary = { options = true },
         onConfirm = {
             if (asImage) {
                 val c = card()
                 val photo = photos.getOrNull(photoIdx)?.let { snap.photoFile(it) }
                 onDismiss()
-                ShareImages.share(ctx, "Creating workout image…", ShareImages.fileName("workout", date)) {
+                ShareImages.share(ctx, res.getString(R.string.wk_share_creating), ShareImages.fileName("workout", date)) {
                     val bmp = photo?.let { FrameRenderer.loadBitmap(it, 1000, 1300) }
                     try {
                         ShareImages.renderWorkout(ShareImages.WorkoutCard(c.title, c.subtitle, c.exercises, c.comments, bmp))
@@ -327,34 +335,36 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(android.content.Intent.EXTRA_TEXT, body)
-                    putExtra(android.content.Intent.EXTRA_SUBJECT, "Workout · ${Dates.long(date)}")
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, res.getString(R.string.wk_share_heading, Dates.long(date)))
                 }
-                ctx.startActivity(android.content.Intent.createChooser(send, "Share workout"))
+                ctx.startActivity(android.content.Intent.createChooser(send, res.getString(R.string.wk_share_title)))
             }
         }
     ) {
         SetChecklist(snap, date, ticked) { ticked = it }
     }
     if (options) {
-        FitSheet(title = "Share options", onDismiss = { options = false }, dismissLabel = "Done") {
-            SectionLabel("Share as")
-            SegmentedSwitch(options = listOf("Text", "Image"), selected = if (asImage) 1 else 0, onSelect = { asImage = it == 1 })
-            SectionLabel("Include")
+        FitSheet(title = stringResource(R.string.wk_share_options), onDismiss = { options = false }, dismissLabel = stringResource(R.string.ex_done)) {
+            SectionLabel(stringResource(R.string.wk_share_as))
+            SegmentedSwitch(options = listOf(stringResource(R.string.wk_text), stringResource(R.string.wk_image)), selected = if (asImage) 1 else 0, onSelect = { asImage = it == 1 })
+            SectionLabel(stringResource(R.string.wk_include))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
-                FilterChip(selected = withDate, onClick = { withDate = !withDate }, label = { Text("Date") })
-                FilterChip(selected = withDuration, onClick = { withDuration = !withDuration }, label = { Text("Duration") })
-                FilterChip(selected = withComment, onClick = { withComment = !withComment }, label = { Text("Comment") })
-                FilterChip(selected = withPrs, onClick = { withPrs = !withPrs }, label = { Text("PR marks") })
+                FilterChip(selected = withDate, onClick = { withDate = !withDate }, label = { Text(stringResource(R.string.wk_date)) })
+                FilterChip(selected = withDuration, onClick = { withDuration = !withDuration }, label = { Text(stringResource(R.string.wk_duration_label)) })
+                FilterChip(selected = withComment, onClick = { withComment = !withComment }, label = { Text(stringResource(R.string.wk_comment)) })
+                FilterChip(selected = withPrs, onClick = { withPrs = !withPrs }, label = { Text(stringResource(R.string.wk_pr_marks)) })
             }
             // A progress photo goes on the image only when one is chosen here (#11).
             if (asImage && photos.isNotEmpty()) {
-                SectionLabel("Progress photo")
+                SectionLabel(stringResource(R.string.wk_progress_photo))
                 DropdownPill(
-                    "Progress photo",
-                    listOf("No photo") + photos.mapIndexed { i, p -> "Photo ${i + 1}" + if (p.pose.isNotBlank()) " · ${p.pose}" else "" },
+                    stringResource(R.string.wk_progress_photo),
+                    listOf(stringResource(R.string.wk_no_photo)) + photos.mapIndexed { i, p ->
+                        res.getString(R.string.wk_photo_n, i + 1) + if (p.pose.isNotBlank()) " · ${p.pose}" else ""
+                    },
                     photoIdx + 1
                 ) { i -> photoIdx = i - 1 }
             }

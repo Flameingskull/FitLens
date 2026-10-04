@@ -2,6 +2,8 @@
 
 package com.fitlens.companion.ui
 
+import android.content.res.Resources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -61,8 +63,6 @@ import kotlinx.coroutines.launch
  * [logWorkoutDay], shared with the library's **Log all**.
  */
 
-private fun howMany(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
-
 /** A row of single-choice chips that scrolls sideways, for picking one of [options] (id to label). */
 @Composable
 private fun ChoiceChips(options: List<Pair<Long, String>>, selected: Long, onSelect: (Long) -> Unit) {
@@ -80,19 +80,20 @@ fun exercisePickerItems(snap: Snapshot): List<PickerItem> = snap.exercisesSorted
     PickerItem(
         id = ex.id,
         title = ex.name,
-        subtitle = snap.lastUsedByExercise[ex.id]?.let { "Last ${Dates.medium(it)}" } ?: "Not logged yet",
-        section = cat?.name ?: "Uncategorised",
+        subtitle = snap.lastUsedByExercise[ex.id]?.let { stringResource(R.string.wk_last_done, Dates.medium(it)) }
+            ?: stringResource(R.string.wk_not_logged),
+        section = cat?.name ?: stringResource(R.string.lib_uncategorised),
         color = categoryColour(cat?.colour ?: 0)
     )
 }
 
 /** A day's exercises as one line, for example "Bench Press, Squat and 3 more". */
-fun exerciseLine(snap: Snapshot, exercises: List<PlannedExercise>): String {
-    val names = exercises.map { snap.exercises[it.exerciseId]?.name ?: "Exercise" }
+fun exerciseLine(res: Resources, snap: Snapshot, exercises: List<PlannedExercise>): String {
+    val names = exercises.map { snap.exercises[it.exerciseId]?.name ?: res.getString(R.string.ex_fallback) }
     return when {
-        names.isEmpty() -> "No exercises yet"
+        names.isEmpty() -> res.getString(R.string.lib_day_empty)
         names.size <= 3 -> names.joinToString(", ")
-        else -> names.take(2).joinToString(", ") + " and ${names.size - 2} more"
+        else -> res.getQuantityString(R.plurals.wk_and_more, names.size - 2, names.take(2).joinToString(", "), names.size - 2)
     }
 }
 
@@ -106,6 +107,7 @@ private fun weekdayOf(date: String): String =
  * add (nothing to copy yet, or "Don't populate any sets"), so the caller can open them to log by hand.
  */
 fun logWorkoutDay(
+    res: Resources,
     snap: Snapshot,
     date: String,
     label: String,
@@ -134,19 +136,19 @@ fun logWorkoutDay(
                 did = Store.snapshot.value?.routinesById?.get(wid)?.days?.firstOrNull()?.id
             }
             val ids = if (rows.isNotEmpty() || rests.isNotEmpty()) Workouts.logPlanned(date, rows, wid, did, groups, rests) else emptyList()
-            UiEvents.show("$label added: ${howMany(ids.size, "set")}", "Undo") {
+            UiEvents.show(res.getString(R.string.wk_day_added, label, res.getQuantityString(R.plurals.sets_count, ids.size, ids.size)), res.getString(R.string.undo)) {
                 AppScope.scope.launch {
                     try {
                         Workouts.deleteSets(ids)
                         if (old.isNotEmpty()) Workouts.addSets(old)
                         if (oldComments.isNotEmpty()) Workouts.setExerciseComments(date, oldComments)
                     } catch (e: Exception) {
-                        UiEvents.show("Couldn't undo that: ${e.message}")
+                        UiEvents.show(res.getString(R.string.day_undo_failed, e.message.orEmpty()))
                     }
                 }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: "That workout couldn't be added.")
+            UiEvents.show(e.message ?: res.getString(R.string.wk_add_failed))
         }
     }
     return toOpen
@@ -174,10 +176,10 @@ fun AddWorkoutSheet(snap: Snapshot, nav: Nav, date: String, replace: Boolean, on
 
     if (building) {
         SearchablePicker(
-            title = "Choose exercises",
+            title = stringResource(R.string.wk_choose_exercises),
             items = exercisePickerItems(snap),
             multiSelect = true,
-            searchLabel = "Search exercises",
+            searchLabel = stringResource(R.string.ex_search_exercises),
             onDismiss = { building = false },
             onPick = { ids ->
                 building = false
@@ -193,10 +195,11 @@ fun AddWorkoutSheet(snap: Snapshot, nav: Nav, date: String, replace: Boolean, on
         return
     }
 
-    FitSheet(title = if (replace) "Replace this workout" else "Add workout", onDismiss = onDismiss) {
+    val res = LocalContext.current.resources
+    FitSheet(title = stringResource(if (replace) R.string.wk_replace_title else R.string.wk_add_title), onDismiss = onDismiss) {
         Text(
-            if (replace) "The sets on ${Dates.medium(date)} are replaced by the workout day you choose. You can undo it."
-            else "Choose a day from one of your workouts, or pick exercises for today.",
+            if (replace) stringResource(R.string.wk_replace_intro, Dates.medium(date))
+            else stringResource(R.string.wk_add_intro),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -205,20 +208,21 @@ fun AddWorkoutSheet(snap: Snapshot, nav: Nav, date: String, replace: Boolean, on
             Text(r.name.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             r.days.forEach { d ->
                 val usable = d.exercises.isNotEmpty()
+                val chooseLabel = stringResource(R.string.wk_choose_day, d.name)
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = Spacing.row)
-                        .clickable(enabled = usable, onClickLabel = "Choose ${d.name}") { chosen = Choice(r, d) }
+                        .clickable(enabled = usable, onClickLabel = chooseLabel) { chosen = Choice(r, d) }
                         .padding(vertical = Spacing.sm)
                 ) {
                     Text(
-                        d.name + if (d.id == next?.id) "  ·  NEXT" else "",
+                        if (d.id == next?.id) stringResource(R.string.wk_day_next, d.name) else d.name,
                         style = MaterialTheme.typography.titleMedium,
                         color = if (d.id == next?.id) Brand.Gold else MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        exerciseLine(snap, d.exercises),
+                        exerciseLine(res, snap, d.exercises),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
@@ -232,15 +236,15 @@ fun AddWorkoutSheet(snap: Snapshot, nav: Nav, date: String, replace: Boolean, on
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = Spacing.row)
-                .clickable(onClickLabel = "Choose exercises") { building = true },
+                .clickable(onClickLabel = stringResource(R.string.wk_choose_exercises)) { building = true },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Filled.Add, contentDescription = null, tint = Brand.Gold)
             Spacer(Modifier.width(Spacing.md))
-            Text("Choose exercises", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.wk_choose_exercises), style = MaterialTheme.typography.titleMedium)
         }
         if (snap.routines.isEmpty()) {
-            TextButton(onClick = { onDismiss(); nav.push(Screen.WorkoutEditor(0L)) }) { Text("Create a workout") }
+            TextButton(onClick = { onDismiss(); nav.push(Screen.WorkoutEditor(0L)) }) { Text(stringResource(R.string.wk_create_workout)) }
         }
     }
 }
@@ -261,15 +265,16 @@ private fun ReviewWorkoutSheet(
     var ticked by remember(choice) { mutableStateOf(exercises.indices.toSet()) }
     val isNew = choice.workout == null
     var saveIt by remember(choice) { mutableStateOf(false) }
-    var newName by remember(choice) { mutableStateOf("${weekdayOf(date)} workout") }
+    val res = LocalContext.current.resources
+    var newName by remember(choice) { mutableStateOf(res.getString(R.string.wk_default_name, weekdayOf(date))) }
     val setCount = resolved.filterIndexed { i, _ -> i in ticked }.sumOf { it.size }
 
     FitSheet(
-        title = choice.workout?.let { "${it.name} · ${choice.day.name}" } ?: "Chosen exercises",
+        title = choice.workout?.let { "${it.name} · ${choice.day.name}" } ?: stringResource(R.string.wk_chosen_exercises),
         onDismiss = onDismiss,
         confirmLabel = when {
-            setCount > 0 -> (if (replace) "Replace with " else "Add ") + howMany(setCount, "set")
-            else -> "Add exercises"
+            setCount > 0 -> pluralStringResource(if (replace) R.plurals.wk_replace_with else R.plurals.wk_add_sets, setCount, setCount)
+            else -> stringResource(R.string.wk_add_exercises)
         },
         confirmEnabled = ticked.isNotEmpty() && (!saveIt || newName.isNotBlank()),
         onConfirm = {
@@ -277,15 +282,15 @@ private fun ReviewWorkoutSheet(
             val picked = exercises.filterIndexed { i, _ -> i in ticked }
             val saveAs = if (isNew && saveIt) Routine(0L, newName, days = listOf(choice.day.copy(exercises = picked))) else null
             val toOpen = logWorkoutDay(
-                snap, date, choice.workout?.name ?: "Workout", picked,
+                res, snap, date, choice.workout?.name ?: res.getString(R.string.wk_workout), picked,
                 workoutId = choice.workout?.id ?: 0L, dayId = choice.day.id.takeIf { it > 0L }, replace = replace, saveAs = saveAs
             )
             if (toOpen.isNotEmpty()) nav.push(Screen.SetEntry(date, toOpen.first(), toOpen.drop(1)))
         }
     ) {
-        TextButton(onClick = onBack, modifier = Modifier.heightIn(min = Spacing.touch)) { Text("‹ Choose another") }
+        TextButton(onClick = onBack, modifier = Modifier.heightIn(min = Spacing.touch)) { Text(stringResource(R.string.wk_choose_another)) }
         Text(
-            (if (replace) "REPLACES THE WORKOUT ON " else "ADDS TO ") + Dates.long(date).uppercase(),
+            stringResource(if (replace) R.string.wk_replaces_on else R.string.wk_adds_to, Dates.long(date)).uppercase(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -321,18 +326,18 @@ private fun ReviewWorkoutSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Checkbox(checked = saveIt, onCheckedChange = null)
-                Text("Save as a new workout", Modifier.padding(start = Spacing.sm))
+                Text(stringResource(R.string.wk_save_new), Modifier.padding(start = Spacing.sm))
             }
             if (saveIt) {
                 OutlinedTextField(
-                    value = newName, onValueChange = { newName = it }, label = { Text("Workout name") },
+                    value = newName, onValueChange = { newName = it }, label = { Text(stringResource(R.string.wk_name)) },
                     singleLine = true, modifier = Modifier.fillMaxWidth()
                 )
             }
         }
         if (replace && snap.setsByDate[date].orEmpty().isNotEmpty()) {
             Text(
-                "The ${howMany(snap.setsByDate[date].orEmpty().size, "set")} already on this day are removed first.",
+                snap.setsByDate[date].orEmpty().size.let { n -> pluralStringResource(R.plurals.wk_removed_first, n, n) },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -353,13 +358,14 @@ private fun ReviewWorkoutSheet(
 @Composable
 fun SaveAsWorkoutSheet(snap: Snapshot, nav: Nav, date: String, onDismiss: () -> Unit) {
     val weekday = weekdayOf(date)
+    val res = LocalContext.current.resources
     var ticked by remember(date) { mutableStateOf(snap.setsByDate[date].orEmpty().map { it.id }.toSet()) }
     val exercises = remember(snap, date, ticked) { Routines.fromDate(snap, date, Routines.FILL_PLANNED, ticked) }
     var fill by remember { mutableStateOf(Routines.FILL_PLANNED) }
     // 0 saves a new workout; otherwise the workout the day joins, as a new day (dayId 0) or in place of a day.
     var routineId by remember { mutableStateOf(0L) }
     var dayId by remember { mutableStateOf(0L) }
-    var name by remember { mutableStateOf("$weekday workout") }
+    var name by remember { mutableStateOf(res.getString(R.string.wk_default_name, weekday)) }
     var dayName by remember { mutableStateOf(weekday) }
     val target = snap.routinesById[routineId]
 
@@ -375,61 +381,61 @@ fun SaveAsWorkoutSheet(snap: Snapshot, nav: Nav, date: String, onDismiss: () -> 
                 val routineSaved = when {
                     into == null -> {
                         val id = Routines.save(Routine(0L, newName, days = listOf(RoutineDay(0L, newDayName, planned))))
-                        UiEvents.show("Saved ${newName.trim()}", "Undo") { AppScope.scope.launch { Routines.delete(id) } }
+                        UiEvents.show(res.getString(R.string.lib_saved, newName.trim()), res.getString(R.string.undo)) { AppScope.scope.launch { Routines.delete(id) } }
                         id
                     }
                     intoDay != null -> {
                         Routines.setDayExercises(intoDay.id, planned)
-                        UiEvents.show("Replaced ${intoDay.name} in ${into.name}", "Undo") {
+                        UiEvents.show(res.getString(R.string.wk_replaced_day, intoDay.name, into.name), res.getString(R.string.undo)) {
                             AppScope.scope.launch { Routines.setDayExercises(intoDay.id, intoDay.exercises) }
                         }
                         into.id
                     }
                     else -> {
                         val added = Routines.addDay(into.id, newDayName, planned)
-                        UiEvents.show("Added $newDayName to ${into.name}", "Undo") { AppScope.scope.launch { Routines.deleteDay(added) } }
+                        UiEvents.show(res.getString(R.string.wk_added_day, newDayName, into.name), res.getString(R.string.undo)) { AppScope.scope.launch { Routines.deleteDay(added) } }
                         into.id
                     }
                 }
                 if (edit) nav.push(Screen.WorkoutEditor(routineSaved))
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: "That workout couldn't be saved.")
+                UiEvents.show(e.message ?: res.getString(R.string.wk_save_failed))
             }
         }
     }
 
     FitSheet(
-        title = "Create workout",
+        title = stringResource(R.string.wk_create_title),
         onDismiss = onDismiss,
-        confirmLabel = "Save",
+        confirmLabel = stringResource(R.string.wk_save),
         confirmEnabled = exercises.isNotEmpty() && (target != null || name.isNotBlank()),
         onConfirm = { save(edit = false) },
-        secondaryLabel = "Edit",
+        secondaryLabel = stringResource(R.string.lib_edit),
         onSecondary = { save(edit = true) }
     ) {
         SetChecklist(snap, date, ticked) { ticked = it }
-        SectionLabel("Save to")
+        SectionLabel(stringResource(R.string.wk_save_to))
         if (snap.routines.isNotEmpty()) {
-            ChoiceChips(listOf(0L to "New workout") + snap.routines.map { it.id to it.name }, routineId) { routineId = it; dayId = 0L }
+            ChoiceChips(listOf(0L to stringResource(R.string.wk_new_workout)) + snap.routines.map { it.id to it.name }, routineId) { routineId = it; dayId = 0L }
             if (target != null) {
-                ChoiceChips(listOf(0L to "As a new day") + target.days.map { it.id to "Instead of ${it.name}" }, dayId) { dayId = it }
+                ChoiceChips(listOf(0L to stringResource(R.string.wk_as_new_day)) + target.days.map { it.id to res.getString(R.string.wk_instead_of, it.name) }, dayId) { dayId = it }
             }
         }
         if (target == null) {
             OutlinedTextField(
-                value = name, onValueChange = { name = it }, label = { Text("Workout name") },
+                value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.wk_name)) },
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
         }
         if (dayId == 0L) {
             OutlinedTextField(
-                value = dayName, onValueChange = { dayName = it }, label = { Text("Day name, for example Monday or Push Day") },
+                value = dayName, onValueChange = { dayName = it }, label = { Text(stringResource(R.string.wk_day_name)) },
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
         }
-        SectionLabel("Next time, each exercise")
+        SectionLabel(stringResource(R.string.wk_next_time))
         SegmentedSwitch(
-            options = listOf("Uses these sets", "Copies previous"),
+            options = listOf(stringResource(R.string.wk_uses_these), stringResource(R.string.wk_copies_previous)),
             selected = if (fill == Routines.FILL_PLANNED) 0 else 1,
             onSelect = { fill = if (it == 0) Routines.FILL_PLANNED else Routines.FILL_LAST }
         )
