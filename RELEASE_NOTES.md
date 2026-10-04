@@ -1,32 +1,34 @@
 ## Overview
 
-This update builds on the Settings work in the last release. Each Settings page that holds preferences can now be
-put back to its defaults on its own, so you can start the rest timer afresh without touching your units or photo
-options. Logging a set also feels more solid: your phone gives a short pulse when a set is saved or ticked done, and
-a distinct pattern when you set a personal record.
+This update makes FitLens steadier when it starts and calmer to move around in. If your data ever can't be opened,
+FitLens now explains what happened and offers to try again instead of closing. Screens respect your phone's
+**Remove animations** setting, and on Android 14 and later the back gesture previews the screen you're returning to.
+The day log, the workout drawer, the calendar and the Track tab also now take their wording from one place, ready
+for future translations.
 
 There's no database change. Everything you've logged is kept. Install it over the current app as usual.
 
 ## What's new
 
-- **Reset this section.** Home Screen Settings, Rest Timer and Progress Photos & Media each have a ⋮ menu in their
-  top bar with **Reset this section**. It asks first, then puts only that page's options back to their defaults,
-  and a message offers **Undo** straight afterwards. The rest of Settings and all your data stay as they are. The
-  option is dimmed when the page is already at its defaults.
-- **Feel your sets.** Saving a set, updating one or ticking it done gives one firm pulse, so you know it's recorded
-  without looking. A new personal record plays its own rising pattern. Haptics follow your phone's touch feedback
-  setting, so turning that off silences them too.
+- **A clear message if your data can't be opened.** FitLens used to close if something stopped it reading your
+  data at start-up. Now it shows what went wrong, confirms that nothing was changed or deleted, and offers **Try
+  again**.
+- **Predictive back.** On Android 14 and later, starting the back gesture shows a preview of the screen underneath,
+  so you can see where you're going before you let go.
 
 ## Improved
 
-- **Settings wording.** Backup and restore, Import from FitNotes, Help (including every offline guide), About and
-  the rest timer's sound options now take their text from one place in the app, ready for future translations.
-- **Counts read properly.** Backup, restore and PDF report counts now say "1 photo", "1 workout" and "1 backup"
-  rather than "1 photos" and the like.
+- **Remove animations is respected.** With **Remove animations** turned on in your phone's accessibility settings,
+  screens change straight away instead of sliding.
+- **A tidier start-up screen.** While FitLens loads, you'll see a short "Opening FitLens" message instead of a bare
+  spinner.
+- **Day log, workout drawer, calendar and Track wording.** Every label, menu item, message and TalkBack description
+  on these screens now comes from one place in the app. Counts read properly throughout, for example "1 set",
+  "1 exercise", "1 day this month" and "1 progress photo".
 
 ## Known limitations
 
-- Reset this section is on the pages that hold preferences: Home Screen Settings, Rest Timer and Progress Photos &
-  Media. The settings on the main Settings list are reset together with **Reset settings to defaults**.
-- Screen transitions, the remaining empty and loading states, and a few other polish items are still to come.
-- Some screens outside Settings still keep their own text and will move over as they're next updated.
+- The History and Graph tabs, the exercise library, Analysis, the body tracker and the photo screens still keep their
+  own wording and will move over as they're next updated.
+- Shared screen transitions (from an exercise card into the exercise screen), the remaining empty and error states
+  on individual screens, and a final contrast and TalkBack review are still to come.
