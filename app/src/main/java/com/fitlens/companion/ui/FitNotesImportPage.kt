@@ -6,6 +6,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.FileKind
 import com.fitlens.companion.data.FitNotesImporter
@@ -21,11 +24,12 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Settings → Import From FitNotes: a backup file, or the FitNotes backup folder with optional auto-sync. It replaced the
- * Sync tab (#35). The screen showing it also needs a [FitNotesImportHost].
+ * Sync tab (#35). The screen showing it also needs a [FitNotesImportHost]. Its text is in `res/values/strings.xml` (#94).
  */
 @Composable
 fun FitNotesImportPage(snap: Snapshot) {
     val ctx = LocalContext.current.applicationContext
+    val res = LocalContext.current.resources
     val device by Settings.device.collectAsState()
     val folder = device.backupFolder?.let { android.net.Uri.parse(it) }
     val autoSync = device.autoSync
@@ -36,8 +40,8 @@ fun FitNotesImportPage(snap: Snapshot) {
         if (uri != null) when (FitNotesImporter.sniff(ctx, uri)) {
             // A FitNotes backup shows what it adds before anything is imported (FitNotesImportHost).
             FileKind.FITNOTES_BACKUP -> FitNotesImports.start(ctx, uri)
-            FileKind.BODY_CSV -> runBusy("Importing…") { FitNotesImporter.importBodyCsv(ctx, uri) }
-            else -> UiEvents.show("That isn't a FitNotes backup (.fitnotes) or Body Tracker CSV.")
+            FileKind.BODY_CSV -> runBusy(res.getString(R.string.import_busy)) { FitNotesImporter.importBodyCsv(ctx, uri) }
+            else -> UiEvents.show(res.getString(R.string.import_not_fitnotes))
         }
     }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
@@ -48,42 +52,44 @@ fun FitNotesImportPage(snap: Snapshot) {
     }
 
     // Built from the shared settings rows (#86), like every other Settings page.
-    SettingsGroup("FitNotes data")
+    SettingsGroup(stringResource(R.string.import_group_data))
     SettingsNote(
-        if (lastName == null) "Nothing imported yet." else {
+        if (lastName == null) stringResource(R.string.import_nothing_yet) else {
             val at = lastAt?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")) } ?: ""
-            "Last import: $lastName ($at)\n${snap.setsByDate.size} workouts · ${snap.sets.size} sets · ${snap.records.size} body records"
+            val workouts = snap.setsByDate.size
+            val sets = snap.sets.size
+            val records = snap.records.size
+            stringResource(R.string.import_last, lastName, at) + "\n" + listOf(
+                pluralStringResource(R.plurals.restore_workouts, workouts, workouts),
+                pluralStringResource(R.plurals.import_sets, sets, sets),
+                pluralStringResource(R.plurals.restore_body_records, records, records)
+            ).joinToString(" · ")
         }
     )
-    SettingsActionRow(
-        "Import a backup file",
-        "FitNotes backups (.fitnotes, which include everything) and Body Tracker CSV exports. Imports merge: you'll " +
-            "see what will be added first, anything already in FitLens is skipped, and nothing you logged or edited " +
-            "in FitLens is deleted or changed."
-    ) { openBackup.launch(arrayOf("*/*")) }
-    SettingsActionRow(
-        "Open FitNotes",
-        "Make a fresh backup there, then share it straight to FitLens."
-    ) { if (!BackupSync.launchFitNotes(ctx)) UiEvents.show("FitNotes isn't installed on this phone.") }
+    SettingsActionRow(stringResource(R.string.import_file), stringResource(R.string.import_file_summary)) {
+        openBackup.launch(arrayOf("*/*"))
+    }
+    val notInstalled = stringResource(R.string.import_fitnotes_missing)
+    SettingsActionRow(stringResource(R.string.import_open_fitnotes), stringResource(R.string.import_open_fitnotes_summary)) {
+        if (!BackupSync.launchFitNotes(ctx)) UiEvents.show(notInstalled)
+    }
 
-    SettingsGroup("FitNotes backup folder")
-    SettingsNote(
-        "For moving over from FitNotes gradually. Choose the folder where FitNotes saves its backups, then tap Sync " +
-            "now to import the newest one."
-    )
+    SettingsGroup(stringResource(R.string.import_group_folder))
+    SettingsNote(stringResource(R.string.import_folder_note))
+    val root = stringResource(R.string.settings_folder_root)
     SettingsActionRow(
-        if (folder == null) "Choose the FitNotes folder" else "FitNotes folder",
-        if (folder == null) "No folder chosen yet." else "Tap to change it.",
-        value = folder?.let { it.lastPathSegment?.substringAfter(':')?.ifBlank { "(root)" } ?: it.toString() }
+        stringResource(if (folder == null) R.string.import_choose_folder else R.string.import_folder),
+        stringResource(if (folder == null) R.string.import_no_folder else R.string.settings_tap_to_change),
+        value = folder?.let { it.lastPathSegment?.substringAfter(':')?.ifBlank { root } ?: it.toString() }
     ) { pickFolder.launch(null) }
     if (folder != null) {
-        SettingsActionRow("Sync now", "Imports the newest backup in the folder, if it has changed.") {
+        SettingsActionRow(stringResource(R.string.import_sync_now), stringResource(R.string.import_sync_now_summary)) {
             FitNotesImports.startFromFolder(ctx)
         }
         SettingsSwitchRow(
-            "Sync automatically", autoSync,
-            summary = "Off by default. When on, FitLens quietly imports the newest backup each time it opens, if it has changed."
+            stringResource(R.string.import_sync_auto), autoSync,
+            summary = stringResource(R.string.import_sync_auto_summary)
         ) { BackupSync.setAutoSync(it) }
     }
-    SettingsNote("FitLens never changes your FitNotes data. It only reads FitNotes backups.")
+    SettingsNote(stringResource(R.string.import_read_only_note))
 }

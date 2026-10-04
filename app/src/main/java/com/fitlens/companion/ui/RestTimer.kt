@@ -369,15 +369,17 @@ internal fun RestAlertOptions() {
             Settings.updateDevice { it.copy(restSoundUri = picked?.takeIf { u -> u != default }?.toString()) }
         }
     }
-        SettingsSwitchRow("Start after saving a set", prefs.restAutoStart) { on ->
+        SettingsSwitchRow(stringResource(R.string.rest_auto_start), prefs.restAutoStart) { on ->
             if (on) askNotify()
             Settings.updatePortable { it.copy(restAutoStart = on) }
         }
-        SettingsSwitchRow("Vibrate when rest is over", prefs.restVibrate) { on -> Settings.updatePortable { it.copy(restVibrate = on) } }
-        SettingsSwitchRow("Play a sound when rest is over", prefs.restSound) { on -> Settings.updatePortable { it.copy(restSound = on) } }
+        SettingsSwitchRow(stringResource(R.string.rest_vibrate), prefs.restVibrate) { on -> Settings.updatePortable { it.copy(restVibrate = on) } }
+        SettingsSwitchRow(stringResource(R.string.rest_sound_switch), prefs.restSound) { on -> Settings.updatePortable { it.copy(restSound = on) } }
         // With the sound off, its options stay in place, dimmed, and say why (#41).
         val soundOn = prefs.restSound
         val soundOff = stringResource(R.string.rest_sound_off_reason)
+        val pickerTitle = stringResource(R.string.rest_picker_title)
+        val noPicker = stringResource(R.string.rest_no_picker)
         run {
             SettingsActionRow(
                 title = stringResource(R.string.rest_sound_title),
@@ -387,7 +389,7 @@ internal fun RestAlertOptions() {
                 onClick = {
                     val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
                         putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION or RingtoneManager.TYPE_ALARM)
-                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Rest over sound")
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, pickerTitle)
                         putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
                         putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
                         putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, RestSound.uri(device.restSoundUri))
@@ -395,14 +397,15 @@ internal fun RestAlertOptions() {
                     try {
                         pickSound.launch(intent)
                     } catch (e: ActivityNotFoundException) {
-                        UiEvents.show("This phone has no sound picker, so the notification sound is used.")
+                        UiEvents.show(noPicker)
                     }
                 }
             )
             var volume by remember(prefs.restVolume) { mutableFloatStateOf(prefs.restVolume.toFloat()) }
+            val volumeLabel = stringResource(R.string.rest_volume_description)
             // Lined up with the rows above (#86).
             Column(Modifier.padding(horizontal = Spacing.lg).alpha(if (soundOn) 1f else 0.45f)) {
-                Text("VOLUME  ·  ${volume.toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.rest_volume, volume.toInt()), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Slider(
                     value = volume,
                     onValueChange = { volume = it },
@@ -413,13 +416,13 @@ internal fun RestAlertOptions() {
                         Settings.updatePortable { it.copy(restVolume = v) }
                         RestSound.play(ctx, device.restSoundUri, v)
                     },
-                    modifier = Modifier.semantics { contentDescription = "Rest over sound volume" }
+                    modifier = Modifier.semantics { contentDescription = volumeLabel }
                 )
                 TextButton(
                     onClick = { RestSound.play(ctx, device.restSoundUri, volume.toInt()) },
                     enabled = soundOn,
                     modifier = Modifier.heightIn(min = Spacing.touch)
-                ) { Text("Play the sound") }
+                ) { Text(stringResource(R.string.rest_play_sound)) }
             }
         }
 }

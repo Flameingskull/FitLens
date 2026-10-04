@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
@@ -50,7 +51,7 @@ internal fun openInBrowser(ctx: Context, url: String) {
     try {
         ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     } catch (e: ActivityNotFoundException) {
-        UiEvents.show("There's no browser on this phone to open $url")
+        UiEvents.show(ctx.getString(R.string.about_no_browser, url))
     }
 }
 
@@ -147,15 +148,15 @@ fun WhatsNewSheet(onDismiss: () -> Unit) {
     val version = remember { appVersion(ctx).first }
     val notes = remember { ReleaseNotes.load(ctx) }
     FitSheet(
-        title = "What's new in $version",
+        title = stringResource(R.string.whats_new_title, version),
         onDismiss = onDismiss,
-        dismissLabel = "Close",
-        secondaryLabel = "All releases",
+        dismissLabel = stringResource(R.string.close),
+        secondaryLabel = stringResource(R.string.about_all_releases),
         onSecondary = { openInBrowser(ctx, "$REPO_URL/releases") }
     ) {
         if (notes == null) {
             Text(
-                "This build doesn't include its release notes. Every release's notes are on GitHub.",
+                stringResource(R.string.whats_new_missing),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -165,92 +166,19 @@ fun WhatsNewSheet(onDismiss: () -> Unit) {
     }
 }
 
-/** A short in-app guide (#33): its title, a one-line summary for the list, and its paragraphs. */
-private class Guide(val title: String, val summary: String, val paragraphs: List<String>)
+/** A short in-app guide (#33): its title, a one-line summary for the list, and its paragraphs, as string resources (#94). */
+private class Guide(@StringRes val title: Int, @StringRes val summary: Int, val paragraphs: List<Int>)
 
 private val GUIDES = listOf(
-    Guide(
-        "Logging a workout", "The day log, sets, the rest timer and the workout timer",
-        listOf(
-            "The day log is home. Use ‹ and › or swipe to move between days, and Calendar to jump to any date.",
-            "Tap + to open the exercise library and pick an exercise. Its Track tab logs sets: enter the weight and reps " +
-                "(or distance and time), then **Save**. Tap a saved set to change or delete it. Each set has its own " +
-                "comment button and a done checkbox.",
-            "The alarm clock in the top bar starts the rest timer; while it runs, its countdown replaces the icon. " +
-                "The workout drawer lists the day's exercises, so you can move between them mid-workout.",
-            "The History and Graph tabs show every earlier session of the exercise."
-        )
-    ),
-    Guide(
-        "Workouts and routines", "Groups of exercises by day, added in one go",
-        listOf(
-            "A workout is a set of exercises grouped into days you name, such as \"Push Day\" or \"Monday\". From the " +
-                "day log's ⋮ menu, **Add workout** adds a whole day's exercises and its planned sets at once.",
-            "**Create workout from this day** turns what you logged into a workout to repeat. **Copy workout** copies a " +
-                "day to another date."
-        )
-    ),
-    Guide(
-        "Comments", "Notes on the day, on an exercise or on one set",
-        listOf(
-            "A workout comment is about the whole day. An exercise comment is a longer note on that exercise in the " +
-                "workout: the last one is shown the next time you log the exercise, and every one is in its History.",
-            "Each set also has its own comment, from the speech-bubble button on its row."
-        )
-    ),
-    Guide(
-        "Body tracker", "Bodyweight, body fat and your own measurements",
-        listOf(
-            "Open it from the day log's ⋮ menu. Track lists each measurement with its latest value and change; tap one " +
-                "to log a value. History and Graph show them over time, and the pencil edits the list of measurements.",
-            "On an exercise graph, the ⋮ menu can draw a body measurement over the graph on its own scale, and the " +
-                "Relative Strength graph divides your estimated 1RM by your bodyweight."
-        )
-    ),
-    Guide(
-        "Progress photos", "Importing, poses, comparing and the slideshow",
-        listOf(
-            "Open Photos from the day log's ⋮ menu. **+** imports photos; the ⋮ menu imports a whole folder and checks " +
-                "photo dates. Each photo can have a pose (front, side, back or other).",
-            "Open a photo to view it full screen, or compare two photos side by side. Tapping a point on a " +
-                "training graph shows the progress photo nearest that date.",
-            "The ▶ button plays a slideshow, which can be saved as a video in Movies/FitLens. Settings → Progress Photos " +
-                "& Media sets the defaults."
-        )
-    ),
-    Guide(
-        "PDF report", "A printable summary of your training and photos",
-        listOf(
-            "Settings → Backup and restore → **Create PDF report** makes a report with dark or light pages and up to " +
-                "four photos per day. It's made on your phone."
-        )
-    ),
-    Guide(
-        "Backups and restore", "Keeping your data safe, on your phone only",
-        listOf(
-            "Settings → Backup and restore saves or shares a .fitlens backup with everything: workouts, body values, " +
-                "photos and settings. Restore replaces what's on the phone, after a safety copy.",
-            "Automatic backups go to a folder you choose, daily or weekly. Nothing is ever uploaded: FitLens has no " +
-                "account, no cloud service and no internet permission."
-        )
-    ),
-    Guide(
-        "Importing from FitNotes", "Bring your FitNotes history across",
-        listOf(
-            "Settings → Import from FitNotes merges a FitNotes backup into FitLens. Imports only add what's missing: " +
-                "they never wipe or overwrite anything you've logged in FitLens.",
-            "You can import again at any time, or let FitLens sync a FitNotes backup folder."
-        )
-    ),
-    Guide(
-        "Analysis and graphs", "Totals, breakdowns, records and pinned graphs",
-        listOf(
-            "Open Analysis from the day log's ⋮ menu: Workouts totals, a Breakdown by category or exercise, every " +
-                "exercise's graphs, goals and a records board.",
-            "Every graph can be drawn as a line, bar, area or step chart, opened full screen to zoom, given a trend, " +
-                "compared with other exercises and pinned to the Analysis overview with the star."
-        )
-    )
+    Guide(R.string.guide_logging, R.string.guide_logging_summary, listOf(R.string.guide_logging_1, R.string.guide_logging_2, R.string.guide_logging_3, R.string.guide_logging_4)),
+    Guide(R.string.guide_routines, R.string.guide_routines_summary, listOf(R.string.guide_routines_1, R.string.guide_routines_2)),
+    Guide(R.string.guide_comments, R.string.guide_comments_summary, listOf(R.string.guide_comments_1, R.string.guide_comments_2)),
+    Guide(R.string.guide_body, R.string.guide_body_summary, listOf(R.string.guide_body_1, R.string.guide_body_2)),
+    Guide(R.string.guide_photos, R.string.guide_photos_summary, listOf(R.string.guide_photos_1, R.string.guide_photos_2, R.string.guide_photos_3)),
+    Guide(R.string.guide_pdf, R.string.guide_pdf_summary, listOf(R.string.guide_pdf_1)),
+    Guide(R.string.guide_backups, R.string.guide_backups_summary, listOf(R.string.guide_backups_1, R.string.guide_backups_2)),
+    Guide(R.string.guide_import, R.string.guide_import_summary, listOf(R.string.guide_import_1, R.string.guide_import_2)),
+    Guide(R.string.guide_analysis, R.string.guide_analysis_summary, listOf(R.string.guide_analysis_1, R.string.guide_analysis_2))
 )
 
 /** Settings → Help (#33): short guides that work offline, then links to the full guide and the issue forms. */
@@ -258,19 +186,23 @@ private val GUIDES = listOf(
 fun HelpPage() {
     val ctx = LocalContext.current
     var open by remember { mutableStateOf<Guide?>(null) }
-    SettingsGroup("Guides")
-    GUIDES.forEach { g -> SettingsActionRow(g.title, g.summary) { open = g } }
-    SettingsGroup("More help")
-    SettingsActionRow("The FitLens guide", "Every feature in detail, on GitHub") { openInBrowser(ctx, "$REPO_URL#readme") }
-    SettingsActionRow("Report a problem or suggest a feature", "The bug report and feature request forms") {
+    SettingsGroup(stringResource(R.string.help_group_guides))
+    GUIDES.forEach { g -> SettingsActionRow(stringResource(g.title), stringResource(g.summary)) { open = g } }
+    SettingsGroup(stringResource(R.string.help_group_more))
+    SettingsActionRow(stringResource(R.string.help_guide), stringResource(R.string.help_guide_summary)) {
+        openInBrowser(ctx, "$REPO_URL#readme")
+    }
+    SettingsActionRow(stringResource(R.string.help_report), stringResource(R.string.help_report_summary)) {
         openInBrowser(ctx, "$REPO_URL/issues/new/choose")
     }
-    SettingsActionRow("All releases", "What changed in every update") { openInBrowser(ctx, "$REPO_URL/releases") }
-    SettingsNote("These links open in your browser. FitLens itself has no internet access.")
+    SettingsActionRow(stringResource(R.string.about_all_releases), stringResource(R.string.help_releases_summary)) {
+        openInBrowser(ctx, "$REPO_URL/releases")
+    }
+    SettingsNote(stringResource(R.string.help_links_note))
     open?.let { g ->
         val accent = MaterialTheme.colorScheme.primary
-        FitSheet(title = g.title, onDismiss = { open = null }, dismissLabel = "Close") {
-            g.paragraphs.forEach { Text(inlineMarkdown(it, accent), style = MaterialTheme.typography.bodyMedium) }
+        FitSheet(title = stringResource(g.title), onDismiss = { open = null }, dismissLabel = stringResource(R.string.close)) {
+            g.paragraphs.forEach { Text(inlineMarkdown(stringResource(it), accent), style = MaterialTheme.typography.bodyMedium) }
         }
     }
 }
@@ -287,15 +219,17 @@ fun AboutPage() {
     val (version, code) = remember { appVersion(ctx) }
     var whatsNew by remember { mutableStateOf(false) }
     var licences by remember { mutableStateOf(false) }
-    SettingsGroup("FitLens")
+    val tapHint = stringResource(R.string.about_copy_hint_toast)
+    val copied = stringResource(R.string.about_copied)
+    SettingsGroup(stringResource(R.string.about_group_app))
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
             .combinedClickable(
-                onClickLabel = "Show how to copy",
-                onLongClickLabel = "Copy version details",
-                onClick = { UiEvents.show("Long-press to copy the version details for a bug report") },
+                onClickLabel = stringResource(R.string.about_click_label),
+                onLongClickLabel = stringResource(R.string.about_long_click_label),
+                onClick = { UiEvents.show(tapHint) },
                 onLongClick = {
                     clipboard.setText(
                         AnnotatedString(
@@ -303,34 +237,34 @@ fun AboutPage() {
                                 "${Build.MANUFACTURER} ${Build.MODEL}"
                         )
                     )
-                    UiEvents.show("Version details copied")
+                    UiEvents.show(copied)
                 }
             )
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Version", style = MaterialTheme.typography.bodyLarge)
-            Text("$version (build $code)", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.about_version), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.about_version_value, version, code), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Text(
-                "Long-press to copy it with your phone's details, for a bug report",
+                stringResource(R.string.about_copy_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
-    SettingsActionRow("What's new", "This update's release notes") { whatsNew = true }
-    SettingsActionRow("Open-source licences", "FitLens, the Manrope font and the libraries it's built with") { licences = true }
+    SettingsActionRow(stringResource(R.string.about_whats_new), stringResource(R.string.about_whats_new_summary)) { whatsNew = true }
+    SettingsActionRow(stringResource(R.string.licences_title), stringResource(R.string.about_licences_summary)) { licences = true }
     SaveSpeed()
-    SettingsGroup("Privacy")
-    SettingsNote(
-        "FitLens is a workout log that pairs your training with progress photos. It works entirely on this phone: " +
-            "no account, no cloud service and no internet permission. Your data leaves the phone only in backups, " +
-            "reports, videos and images you save or share yourself."
-    )
-    SettingsGroup("Links")
-    SettingsActionRow("Source code", "FitLens is free and open source") { openInBrowser(ctx, REPO_URL) }
-    SettingsActionRow("Report a problem", "The bug report form") { openInBrowser(ctx, "$REPO_URL/issues/new/choose") }
-    SettingsActionRow("All releases", "Every update and its notes") { openInBrowser(ctx, "$REPO_URL/releases") }
+    SettingsGroup(stringResource(R.string.about_group_privacy))
+    SettingsNote(stringResource(R.string.about_privacy))
+    SettingsGroup(stringResource(R.string.about_group_links))
+    SettingsActionRow(stringResource(R.string.about_source), stringResource(R.string.about_source_summary)) { openInBrowser(ctx, REPO_URL) }
+    SettingsActionRow(stringResource(R.string.about_report), stringResource(R.string.about_report_summary)) {
+        openInBrowser(ctx, "$REPO_URL/issues/new/choose")
+    }
+    SettingsActionRow(stringResource(R.string.about_all_releases), stringResource(R.string.about_releases_summary)) {
+        openInBrowser(ctx, "$REPO_URL/releases")
+    }
     if (whatsNew) WhatsNewSheet { whatsNew = false }
     if (licences) LicencesSheet { licences = false }
 }
@@ -371,18 +305,14 @@ private fun LicencesSheet(onDismiss: () -> Unit) {
     val ofl = remember {
         try { ctx.resources.openRawResource(R.raw.manrope_ofl).bufferedReader().use { it.readText() } } catch (e: Exception) { null }
     }
-    FitSheet(title = "Open-source licences", onDismiss = onDismiss, dismissLabel = "Close") {
-        SectionLabel("FitLens")
-        Text("MIT License. Copyright (c) 2026 Flameingskull.", style = MaterialTheme.typography.bodyMedium)
-        SectionLabel("Libraries", Modifier.padding(top = 8.dp))
+    FitSheet(title = stringResource(R.string.licences_title), onDismiss = onDismiss, dismissLabel = stringResource(R.string.close)) {
+        SectionLabel(stringResource(R.string.about_group_app))
+        Text(stringResource(R.string.licences_fitlens), style = MaterialTheme.typography.bodyMedium)
+        SectionLabel(stringResource(R.string.licences_libraries), Modifier.padding(top = 8.dp))
+        Text(stringResource(R.string.licences_libraries_text), style = MaterialTheme.typography.bodyMedium)
+        SectionLabel(stringResource(R.string.licences_manrope), Modifier.padding(top = 8.dp))
         Text(
-            "Apache License 2.0: AndroidX (Core, Activity, Lifecycle, Navigation, Compose, Material 3, WorkManager, " +
-                "DataStore, ExifInterface), Kotlin, kotlinx.coroutines, kotlinx.serialization and Coil.",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        SectionLabel("Manrope font", Modifier.padding(top = 8.dp))
-        Text(
-            ofl ?: "SIL Open Font License 1.1.",
+            ofl ?: stringResource(R.string.licences_ofl),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
