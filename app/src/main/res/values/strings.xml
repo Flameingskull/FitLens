@@ -750,7 +750,7 @@
     <!-- App shell: start-up and busy states (#93) -->
     <string name="app_opening_title">Opening FitLens</string>
     <string name="app_opening_body">Loading your workouts, measurements and photos.</string>
-    <string name="app_open_failed_title">Your data couldn't be opened</string>
+    <string name="app_open_failed_title">Your data couldn\'t be opened</string>
     <string name="app_open_failed_body">Nothing has been changed or deleted. Try again, and if this keeps happening, restart your phone. Details: %1$s</string>
     <string name="app_open_retry">Try again</string>
     <!-- Day log (#94) -->
@@ -893,4 +893,50 @@
     </plurals>
     <string name="cal_open_day_log">Open day to log</string>
     <string name="cal_open_day">Open day</string>
+    <!-- Set entry, Track tab (#94) -->
+    <string name="set_advance_next">%1$s done. Next: %2$s</string>
+    <string name="set_advance_next_fallback">exercise</string>
+    <string name="set_workout_complete">Workout complete</string>
+    <string name="set_enter_something">Enter something to save.</string>
+    <string name="set_new_pr">New personal record: %1$s %2$s × %3$d</string>
+    <string name="set_updated">Set updated</string>
+    <string name="set_updated_next">Set updated. Next set selected.</string>
+    <string name="set_save_failed">That set couldn\'t be saved.</string>
+    <string name="set_superset_needs_another">Log another exercise today first, then add it to a superset with this one.</string>
+    <string name="set_drawer_open">Workout: every exercise today</string>
+    <string name="set_exercise_info">Exercise info</string>
+    <string name="set_calculator">Set calculator</string>
+    <string name="set_plate_calculator">Plate calculator</string>
+    <string name="set_tab_track">Track</string>
+    <string name="set_tab_history">History</string>
+    <string name="set_tab_graph">Graph</string>
+    <string name="set_field_weight">Weight (%1$s)</string>
+    <string name="set_field_reps">Reps</string>
+    <string name="set_field_distance">Distance (%1$s)</string>
+    <string name="set_field_time">Time (mm:ss)</string>
+    <string name="set_field_value">Value</string>
+    <string name="set_type">Set type</string>
+    <string name="set_rir_none">RIR: none</string>
+    <string name="set_rpe_none">RPE: none</string>
+    <string name="set_reps_in_reserve">Reps in reserve</string>
+    <string name="set_effort">Effort</string>
+    <string name="set_save">Save</string>
+    <string name="set_update">Update</string>
+    <string name="set_move_up">Move set up</string>
+    <string name="set_move_down">Move set down</string>
+    <string name="set_new_instead">New set instead</string>
+    <string name="set_next_exercise">Next exercise: %1$s</string>
+    <plurals name="set_next_exercise_more">
+        <item quantity="one">Next exercise: %1$s (%2$d more after)</item>
+        <item quantity="other">Next exercise: %1$s (%2$d more after)</item>
+    </plurals>
+    <string name="set_none_today">No sets yet today.</string>
+    <string name="set_none_ever">Nothing logged for this exercise yet.</string>
+    <string name="set_none_today_filled">No sets yet today — the fields are filled in from last time.</string>
+    <string name="set_volume">volume %1$s %2$s</string>
+    <string name="set_delete_title">Delete this set?</string>
+    <string name="set_deleted">Set deleted</string>
+    <string name="set_this_exercise">this exercise</string>
+    <string name="set_number">Set %1$d</string>
+    <string name="set_comment_failed">That comment couldn\'t be saved.</string>
 </resources>

@@ -59,6 +59,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.PortableSettings
@@ -183,8 +186,10 @@ private const val ADVANCE_DELAY_MS = 1_500L
  * happened. After the last exercise the day log opens with "Workout complete", offering to stop a running workout
  * timer.
  */
-private fun autoAdvance(snap: Snapshot, nav: Nav, date: String, exerciseId: Long, setId: Long, queue: List<Long>) {
-    val name = snap.exercises[exerciseId]?.name ?: "Exercise"
+private fun autoAdvance(
+    res: android.content.res.Resources, snap: Snapshot, nav: Nav, date: String, exerciseId: Long, setId: Long, queue: List<Long>
+) {
+    val name = snap.exercises[exerciseId]?.name ?: res.getString(R.string.drawer_exercise_fallback)
     val order = displayOrder(snap, date)
     val next = order.getOrNull(order.indexOf(exerciseId) + 1)
     // Only move while this exercise is still on top: the user may have gone elsewhere in the meantime.
@@ -198,7 +203,10 @@ private fun autoAdvance(snap: Snapshot, nav: Nav, date: String, exerciseId: Long
                 switched = true
             }
         }
-        UiEvents.show("$name done. Next: ${snap.exercises[next]?.name ?: "exercise"}", "Undo") {
+        UiEvents.show(
+            res.getString(R.string.set_advance_next, name, snap.exercises[next]?.name ?: res.getString(R.string.set_advance_next_fallback)),
+            res.getString(R.string.undo)
+        ) {
             pending.cancel()
             AppScope.scope.launch { Workouts.setDone(setId, false) }
             val top = nav.top
@@ -213,9 +221,9 @@ private fun autoAdvance(snap: Snapshot, nav: Nav, date: String, exerciseId: Long
             nav.home(date)
             val running = Store.snapshot.value?.let { WorkoutClock.running(it, date) }
             if (running != null) {
-                UiEvents.show("Workout complete", "Stop workout timer") { WorkoutClock.stop(date, running) }
+                UiEvents.show(res.getString(R.string.set_workout_complete), res.getString(R.string.day_stop_timer)) { WorkoutClock.stop(date, running) }
             } else {
-                UiEvents.show("Workout complete", "Undo") {
+                UiEvents.show(res.getString(R.string.set_workout_complete), res.getString(R.string.undo)) {
                     AppScope.scope.launch { Workouts.setDone(setId, false) }
                     nav.push(Screen.SetEntry(date, exerciseId, queue))
                 }
@@ -323,6 +331,7 @@ fun SetEntryScreen(
     }
 
     val appContext = LocalContext.current.applicationContext
+    val res = LocalContext.current.resources
     var restSheet by remember { mutableStateOf(false) }
 
     fun save() {
@@ -335,7 +344,7 @@ fun SetEntryScreen(
         // Blank means not recorded; 0 is a real value for a custom metric (#14).
         val met = if (showMetric) metric.trim().replace(',', '.').toDoubleOrNull() else null
         if (kg == 0.0 && r == 0 && dist == 0.0 && dur == 0 && met == null) {
-            UiEvents.show("Enter something to save.")
+            UiEvents.show(res.getString(R.string.set_enter_something))
             return
         }
         val chosen = selected?.let { id -> sets.firstOrNull { it.id == id } }
@@ -365,7 +374,7 @@ fun SetEntryScreen(
                     // A saved set confirms with one pulse; a record gets its own pattern (#93).
                     if (isPr && Settings.currentPortable().celebratePrs) {
                         Haptics.record(view)
-                        UiEvents.show("New personal record: ${snap.fmtWeight(kg, exerciseId)} ${snap.weightUnitOf(exerciseId)} × $r")
+                        UiEvents.show(res.getString(R.string.set_new_pr, snap.fmtWeight(kg, exerciseId), snap.weightUnitOf(exerciseId), r))
                     } else {
                         Haptics.confirm(view)
                     }
@@ -379,10 +388,10 @@ fun SetEntryScreen(
                         sets.getOrNull(sets.indexOfFirst { it.id == chosen.id } + 1)
                     } else null
                     selected = next?.id
-                    UiEvents.show(if (next == null) "Set updated" else "Set updated. Next set selected.")
+                    UiEvents.show(res.getString(if (next == null) R.string.set_updated else R.string.set_updated_next))
                 }
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: "That set couldn't be saved.")
+                UiEvents.show(e.message ?: res.getString(R.string.set_save_failed))
             }
         }
     }
@@ -422,7 +431,7 @@ fun SetEntryScreen(
                     onAddToSuperset = {
                         scope.launch { drawer.close() }
                         if (dayExercises(snap, date).any { it != exerciseId }) grouping = true
-                        else UiEvents.show("Log another exercise today first, then add it to a superset with this one.")
+                        else UiEvents.show(res.getString(R.string.set_superset_needs_another))
                     }
                 )
             }
@@ -430,38 +439,39 @@ fun SetEntryScreen(
     ) {
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = ex?.name ?: "Exercise",
+            title = ex?.name ?: stringResource(R.string.drawer_exercise_fallback),
             centered = false,
             // FitNotes's bar (#129): the workout drawer's ≡ where the back arrow was, so the exercise's name has room
             // beside the rest timer, records and info. Back is the phone's back.
-            navigation = TopBarAction(Icons.Filled.Menu, "Workout: every exercise today") { scope.launch { drawer.open() } },
+            navigation = TopBarAction(Icons.Filled.Menu, stringResource(R.string.set_drawer_open)) { scope.launch { drawer.open() } },
             // FitNotes's order (#122): the rest timer's alarm clock (the time left while a rest runs, #109), the
             // records trophy, then the exercise's info with Edit (#110).
             trailing = {
                 RestTimerButton(onOpen = { restSheet = true })
                 IconButton(onClick = { nav.push(Screen.ExerciseDetail(exerciseId)) }, enabled = allSets.isNotEmpty()) {
-                    Icon(FitIcons.Trophy, contentDescription = "Records and goals")
+                    Icon(FitIcons.Trophy, contentDescription = stringResource(R.string.day_ex_records))
                 }
                 IconButton(onClick = { showInfo = true }, enabled = ex != null) {
-                    Icon(Icons.Filled.Info, contentDescription = "Exercise info")
+                    Icon(Icons.Filled.Info, contentDescription = stringResource(R.string.set_exercise_info))
                 }
             },
             overflow = listOfNotNull(
                 // The calculators (#28) fill in this set's weight.
-                if (showWeight) MenuAction("Set calculator") { calculator = "set" } else null,
-                if (showWeight) MenuAction("Plate calculator") { calculator = "plate" } else null
+                if (showWeight) MenuAction(stringResource(R.string.set_calculator)) { calculator = "set" } else null,
+                if (showWeight) MenuAction(stringResource(R.string.set_plate_calculator)) { calculator = "plate" } else null
             )
         )
         FitTabRow(
-            titles = listOf("Track", "History", "Graph"),
+            titles = listOf(stringResource(R.string.set_tab_track), stringResource(R.string.set_tab_history), stringResource(R.string.set_tab_graph)),
             selected = pager.currentPage,
             onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
         )
         // Where this exercise sits in its superset (#18).
         supersetMembers(snap, date, supersetOf(snap, date, exerciseId)).takeIf { it.size > 1 }?.let { members ->
+            val unnamed = stringResource(R.string.drawer_exercise_fallback)
             Text(
-                "SUPERSET ${supersetLetters(snap, date)[supersetOf(snap, date, exerciseId)] ?: ""}  ·  " +
-                    members.joinToString(" → ") { id -> (snap.exercises[id]?.name ?: "Exercise").let { if (id == exerciseId) it.uppercase() else it } },
+                stringResource(R.string.day_superset_heading, supersetLetters(snap, date)[supersetOf(snap, date, exerciseId)] ?: "") + "  ·  " +
+                    members.joinToString(" → ") { id -> (snap.exercises[id]?.name ?: unnamed).let { if (id == exerciseId) it.uppercase() else it } },
                 style = MaterialTheme.typography.labelSmall,
                 color = Brand.Gold,
                 maxLines = 2,
@@ -498,7 +508,7 @@ fun SetEntryScreen(
                 Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (showWeight) {
                         StepperField(
-                            label = "Weight (${snap.weightUnitOf(exerciseId)})",
+                            label = stringResource(R.string.set_field_weight, snap.weightUnitOf(exerciseId)),
                             value = weight,
                             onValue = { weight = it },
                             onStep = { dir -> weight = fmtNum(max(0.0, num(weight) + dir * weightStep), 2) }
@@ -506,7 +516,7 @@ fun SetEntryScreen(
                     }
                     if (showReps) {
                         StepperField(
-                            label = "Reps",
+                            label = stringResource(R.string.set_field_reps),
                             value = reps,
                             onValue = { reps = it },
                             onStep = { dir -> reps = max(0, (reps.trim().toIntOrNull() ?: 0) + dir).toString() },
@@ -515,7 +525,7 @@ fun SetEntryScreen(
                     }
                     if (showDistance) {
                         StepperField(
-                            label = "Distance (${snap.distanceUnit(exerciseId)})",
+                            label = stringResource(R.string.set_field_distance, snap.distanceUnit(exerciseId)),
                             value = distance,
                             onValue = { distance = it },
                             onStep = { dir -> distance = fmtNum(max(0.0, num(distance) + dir * DISTANCE_STEP), 2) }
@@ -523,7 +533,7 @@ fun SetEntryScreen(
                     }
                     if (showDuration) {
                         StepperField(
-                            label = "Time (mm:ss)",
+                            label = stringResource(R.string.set_field_time),
                             value = duration,
                             onValue = { duration = it },
                             onStep = { dir ->
@@ -537,7 +547,7 @@ fun SetEntryScreen(
                         // The type's own metric (#14), stepping by 1.
                         val unit = metricDef?.metricUnit?.let { " ($it)" }.orEmpty()
                         StepperField(
-                            label = (metricDef?.metricName ?: "Value") + unit,
+                            label = (metricDef?.metricName ?: stringResource(R.string.set_field_value)) + unit,
                             value = metric,
                             onValue = { metric = it },
                             onStep = { dir ->
@@ -551,18 +561,18 @@ fun SetEntryScreen(
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         val types = SetTypes.all
                         DropdownPill(
-                            "Set type",
+                            stringResource(R.string.set_type),
                             types.map { t -> SetTypes.badge(t)?.let { "$it · ${SetTypes.label(t)}" } ?: SetTypes.label(t) },
                             types.indexOf(setType).coerceAtLeast(0)
                         ) { i -> setType = types[i] }
                         Spacer(Modifier.weight(1f))
                         if (prefs.effortMode != Effort.OFF) {
                             val rir = prefs.effortMode == Effort.RIR
-                            val choices: List<Pair<String, Double?>> = listOf((if (rir) "RIR: none" else "RPE: none") to null) +
+                            val choices: List<Pair<String, Double?>> = listOf(stringResource(if (rir) R.string.set_rir_none else R.string.set_rpe_none) to null) +
                                 if (rir) Effort.rirSteps.map { r -> "RIR ${if (r >= 5) "5+" else "$r"}" to Effort.rpeFromRir(r) }
                                 else Effort.rpeSteps.map { v -> "RPE ${fmtNum(v, 1)}" to v }
                             DropdownPill(
-                                if (rir) "Reps in reserve" else "Effort",
+                                stringResource(if (rir) R.string.set_reps_in_reserve else R.string.set_effort),
                                 choices.map { it.first },
                                 choices.indexOfFirst { it.second == rpe }.coerceAtLeast(0)
                             ) { i -> rpe = choices[i].second }
@@ -572,17 +582,17 @@ fun SetEntryScreen(
                     if (selected == null) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(48.dp)) {
-                                Text("Save", style = MaterialTheme.typography.labelLarge)
+                                Text(stringResource(R.string.set_save), style = MaterialTheme.typography.labelLarge)
                             }
-                            GlassOutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Clear") }
+                            GlassOutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(48.dp)) { Text(stringResource(R.string.cal_clear)) }
                         }
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Update") }
+                            GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(48.dp)) { Text(stringResource(R.string.set_update)) }
                             GlassOutlinedButton(
                                 onClick = { deleting = sets.firstOrNull { it.id == selected } },
                                 modifier = Modifier.weight(1f).height(48.dp)
-                            ) { Text("Delete") }
+                            ) { Text(stringResource(R.string.day_delete)) }
                         }
                         // Move the selected set within this exercise (#70).
                         val at = sets.indexOfFirst { it.id == selected }
@@ -591,15 +601,15 @@ fun SetEntryScreen(
                                 onClick = { selected?.let { moveSet(snap, date, it, -1) } },
                                 enabled = at > 0,
                                 modifier = Modifier.weight(1f)
-                            ) { Text("Move set up") }
+                            ) { Text(stringResource(R.string.set_move_up)) }
                             TextButton(
                                 onClick = { selected?.let { moveSet(snap, date, it, 1) } },
                                 enabled = at in 0 until sets.lastIndex,
                                 modifier = Modifier.weight(1f)
-                            ) { Text("Move set down") }
+                            ) { Text(stringResource(R.string.set_move_down)) }
                         }
                         TextButton(onClick = { selected = null }, modifier = Modifier.fillMaxWidth()) {
-                            Text("New set instead")
+                            Text(stringResource(R.string.set_new_instead))
                         }
                     }
                     // The next of the exercises chosen together in the library (#83). Exercises already in the day's
@@ -610,7 +620,8 @@ fun SetEntryScreen(
                             modifier = Modifier.fillMaxWidth().height(52.dp)
                         ) {
                             Text(
-                                "Next exercise: ${next.name}" + if (queue.size > 1) " (${queue.size - 1} more after)" else "",
+                                if (queue.size > 1) pluralStringResource(R.plurals.set_next_exercise_more, queue.size - 1, next.name, queue.size - 1)
+                                else stringResource(R.string.set_next_exercise, next.name),
                                 maxLines = 1,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                             )
@@ -626,9 +637,9 @@ fun SetEntryScreen(
                 item {
                     Text(
                         when {
-                            !fillFromLast -> "No sets yet today."
-                            template == null -> "Nothing logged for this exercise yet."
-                            else -> "No sets yet today — the fields are filled in from last time."
+                            !fillFromLast -> stringResource(R.string.set_none_today)
+                            template == null -> stringResource(R.string.set_none_ever)
+                            else -> stringResource(R.string.set_none_today_filled)
                         },
                         Modifier.padding(horizontal = 16.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -670,7 +681,7 @@ fun SetEntryScreen(
                             AppScope.scope.launch {
                                 Workouts.setDone(s.id, on)
                                 if (on && sets.all { it.id == s.id || it.done }) {
-                                    autoAdvance(snap, nav, date, exerciseId, s.id, queue)
+                                    autoAdvance(res, snap, nav, date, exerciseId, s.id, queue)
                                 }
                             }
                         }
@@ -690,8 +701,8 @@ fun SetEntryScreen(
                 item {
                     val volume = sets.sumOf { it.weightKg * it.reps }
                     Text(
-                        "${sets.size} set${if (sets.size == 1) "" else "s"}" +
-                            if (volume > 0) " · volume ${fmtNum(snap.weight(volume, exerciseId), 0)} ${snap.weightUnitOf(exerciseId)}" else "",
+                        pluralStringResource(R.plurals.day_sets, sets.size, sets.size) +
+                            if (volume > 0) " · " + stringResource(R.string.set_volume, fmtNum(snap.weight(volume, exerciseId), 0), snap.weightUnitOf(exerciseId)) else "",
                         Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -706,21 +717,22 @@ fun SetEntryScreen(
 
     deleting?.let { s ->
         ConfirmDialog(
-            title = "Delete this set?",
+            title = stringResource(R.string.set_delete_title),
             text = describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
+            confirm = stringResource(R.string.day_delete),
             onDismiss = { deleting = null }
         ) {
             selected = null
             AppScope.scope.launch {
                 Workouts.deleteSet(s.id)
-                UiEvents.show("Set deleted", "Undo") {
+                UiEvents.show(res.getString(R.string.set_deleted), res.getString(R.string.undo)) {
                     AppScope.scope.launch {
                         try {
                             // The whole row goes back (isPr included, #69), and restoring an imported set also
                             // clears the skip rule its delete left behind (#76).
                             Workouts.addSets(listOf(s))
                         } catch (e: Exception) {
-                            UiEvents.show("Couldn't undo that: ${e.message}")
+                            UiEvents.show(res.getString(R.string.day_undo_failed, e.message ?: e.javaClass.simpleName))
                         }
                     }
                 }
@@ -730,7 +742,7 @@ fun SetEntryScreen(
     if (restSheet) RestTimerSheet(ex) { restSheet = false }
     if (grouping) {
         SearchablePicker(
-            title = "Superset ${ex?.name ?: "this exercise"} with",
+            title = stringResource(R.string.day_superset_title, ex?.name ?: stringResource(R.string.set_this_exercise)),
             items = exercisePickerItems(snap).filter { it.id != exerciseId && it.id in dayExercises(snap, date) },
             multiSelect = true,
             onDismiss = { grouping = false },
@@ -742,11 +754,11 @@ fun SetEntryScreen(
     }
     if (editingExerciseComment) {
         SetCommentSheet(
-            describe = "${ex?.name ?: "Exercise"} · ${relativeDayLabel(date)}",
+            describe = "${ex?.name ?: stringResource(R.string.drawer_exercise_fallback)} · ${relativeDayLabel(date)}",
             initial = snap.exerciseComments[date.take(10)]?.get(exerciseId),
             onSave = { text -> AppScope.scope.launch { Workouts.setExerciseComment(date, exerciseId, text) } },
             onDismiss = { editingExerciseComment = false },
-            title = "Exercise comment",
+            title = stringResource(R.string.day_exercise_comment),
             detailed = true,
             earlier = earlierExerciseComments(snap, exerciseId, date, 5)
         )
@@ -754,14 +766,14 @@ fun SetEntryScreen(
     commenting?.let { s ->
         val number = sets.indexOfFirst { it.id == s.id } + 1
         SetCommentSheet(
-            describe = "Set $number · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
+            describe = stringResource(R.string.set_number, number) + " · " + describeSet(snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
             initial = s.comment,
             onSave = { text ->
                 AppScope.scope.launch {
                     try {
                         Workouts.setComment(s.id, text)
                     } catch (e: WorkoutDataException) {
-                        UiEvents.show(e.message ?: "That comment couldn't be saved.")
+                        UiEvents.show(e.message ?: res.getString(R.string.set_comment_failed))
                     }
                 }
             },
