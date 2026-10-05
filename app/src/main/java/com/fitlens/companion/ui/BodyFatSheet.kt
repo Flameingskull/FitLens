@@ -7,6 +7,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -38,6 +42,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun BodyFatCalculatorSheet(snap: Snapshot, date: String, onDismiss: () -> Unit, onUse: (percent: Double, comment: String) -> Unit) {
     val prefs by Settings.portable.collectAsState()
+    val res = LocalContext.current.resources
     val sex = BodyFat.Sex.of(prefs.profileSex)
     val typed = remember { mutableStateMapOf<BodyFat.Input, String>() }
     val day = Dates.epochDay(date)
@@ -84,26 +89,26 @@ fun BodyFatCalculatorSheet(snap: Snapshot, date: String, onDismiss: () -> Unit, 
         // Values typed here are logged too, so the calculation can always be traced back.
         val toSave = rows.mapNotNull { r -> r.typedValue?.let { Triple(r.name, r.unit, it) } }
         AppScope.scope.launch { toSave.forEach { (n, u, v) -> Store.addManualRecord(n, u, date, time, v, null) } }
-        val comment = "Calculated (US Navy formula, ${sex!!.label.lowercase()}) from " +
-            rows.joinToString(", ") { "${it.input.label.lowercase()} ${it.shown}" }
+        val comment = res.getString(
+            R.string.bf_comment, sex!!.label.lowercase(), rows.joinToString(", ") { "${it.input.label.lowercase()} ${it.shown}" }
+        )
         onUse(Math.round(p * 10) / 10.0, comment)
         onDismiss()
     }
 
     FitSheet(
-        title = "Calculate body fat",
+        title = stringResource(R.string.bf_title),
         onDismiss = onDismiss,
-        confirmLabel = percent?.let { "Use ${fmtNum(it, 1)}%" } ?: "Use",
+        confirmLabel = percent?.let { stringResource(R.string.bf_use_value, fmtNum(it, 1)) } ?: stringResource(R.string.bf_use),
         confirmEnabled = percent != null,
         onConfirm = { use() }
     ) {
         Text(
-            "${BodyFat.METHOD}, from your body measurements. Typical error: about ±${fmtNum(BodyFat.TYPICAL_ERROR, 1)} " +
-                "percentage points.",
+            stringResource(R.string.bf_intro, BodyFat.METHOD, fmtNum(BodyFat.TYPICAL_ERROR, 1)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        SectionLabel("Sex")
+        SectionLabel(stringResource(R.string.bf_sex))
         SegmentedSwitch(
             options = BodyFat.Sex.entries.map { it.label },
             selected = sex?.ordinal ?: -1,
@@ -111,18 +116,18 @@ fun BodyFatCalculatorSheet(snap: Snapshot, date: String, onDismiss: () -> Unit, 
         )
         if (sex == null) {
             Text(
-                "Choose one to see which measurements the formula needs. It's saved in Settings, where you can change it.",
+                stringResource(R.string.bf_choose_sex),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            SectionLabel("Measurements")
+            SectionLabel(stringResource(R.string.body_measurements))
             rows.forEach { r -> InputRow(r.input, r.latest, r.ageDays, r.stale, r.unit, typed[r.input].orEmpty()) { typed[r.input] = it } }
             when {
                 missing.isNotEmpty() -> Text(
-                    "Add ${missing.joinToString(", ") { it.input.label.lowercase() }} to calculate. " +
-                        "Enter ${if (missing.size == 1) "it" else "them"} above, and ${if (missing.size == 1) "it's" else "they're"} " +
-                        "saved to your body tracker on ${Dates.medium(date)}.",
+                    pluralStringResource(
+                        R.plurals.bf_missing, missing.size, missing.joinToString(", ") { it.input.label.lowercase() }, Dates.medium(date)
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -132,7 +137,7 @@ fun BodyFatCalculatorSheet(snap: Snapshot, date: String, onDismiss: () -> Unit, 
                     color = MaterialTheme.colorScheme.primary
                 )
                 percent != null -> Text(
-                    "Body fat: ${fmtNum(percent, 1)}%",
+                    stringResource(R.string.bf_result, fmtNum(percent, 1)),
                     style = MaterialTheme.typography.headlineSmall
                 )
             }
@@ -152,21 +157,27 @@ private fun InputRow(
     onText: (String) -> Unit
 ) {
     Column(Modifier.fillMaxWidth()) {
+        val value = latest?.let { "${fmtNum(it.value, 1)} ${it.unit}".trim() }
         val status = when {
-            latest == null -> "Not logged yet: needed"
-            ageDays == 0L -> "${fmtNum(latest.value, 1)} ${latest.unit} · today".trim()
-            else -> "${fmtNum(latest.value, 1)} ${latest.unit} · ${Dates.medium(latest.date)} ($ageDays ${if (ageDays == 1L) "day" else "days"} ago)"
+            latest == null -> stringResource(R.string.bf_not_logged)
+            ageDays == 0L -> stringResource(R.string.bf_today, value.orEmpty())
+            else -> pluralStringResource(R.plurals.bf_days_ago, (ageDays ?: 0L).toInt(), value.orEmpty(), Dates.medium(latest.date), (ageDays ?: 0L).toInt())
         }
-        Text("${input.label}: $status", style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.an_label_value, input.label, status), style = MaterialTheme.typography.bodyLarge)
         Text(
-            "Measure ${input.howTo}." + if (stale) " Over ${BodyFat.STALE_DAYS} days old: re-measure for an accurate result." else "",
+            stringResource(R.string.bf_measure, input.howTo) + if (stale) " " + stringResource(R.string.bf_stale, BodyFat.STALE_DAYS) else "",
             style = MaterialTheme.typography.bodySmall,
             color = if (stale) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
         OutlinedTextField(
             value = text,
             onValueChange = onText,
-            label = { Text(if (latest == null) "${input.label} ($unit), needed" else "New ${input.label.lowercase()} ($unit), optional") },
+            label = {
+                Text(
+                    if (latest == null) stringResource(R.string.bf_field_needed, input.label, unit)
+                    else stringResource(R.string.bf_field_new, input.label.lowercase(), unit)
+                )
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth()

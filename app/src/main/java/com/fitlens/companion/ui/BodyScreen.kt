@@ -44,7 +44,12 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -93,24 +98,24 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = "Body Tracker",
+            title = stringResource(R.string.body_title),
             onBack = LocalNavBack.current,
-            actions = listOf(TopBarAction(Icons.Filled.Edit, "Measurements") { nav.push(Screen.Measurements) }),
+            actions = listOf(TopBarAction(Icons.Filled.Edit, stringResource(R.string.body_measurements)) { nav.push(Screen.Measurements) }),
             overflow = listOfNotNull(
-                if (measurements.size > 1) MenuAction("Reorder measurements") { ordering = true } else null,
-                MenuAction("Measurements") { nav.push(Screen.Measurements) }
+                if (measurements.size > 1) MenuAction(stringResource(R.string.body_reorder)) { ordering = true } else null,
+                MenuAction(stringResource(R.string.body_measurements)) { nav.push(Screen.Measurements) }
             )
         )
         if (measurements.isEmpty()) {
-            EmptyState("No measurements yet", "Add the standard measurements and your own, or import a FitNotes backup.") {
+            EmptyState(stringResource(R.string.body_empty_title), stringResource(R.string.body_empty_body)) {
                 Row {
-                    TextButton(onClick = { nav.push(Screen.Measurements) }) { Text("Measurements") }
-                    TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
+                    TextButton(onClick = { nav.push(Screen.Measurements) }) { Text(stringResource(R.string.body_measurements)) }
+                    TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text(stringResource(R.string.body_import)) }
                 }
             }
         } else {
             FitTabRow(
-                titles = listOf("Track", "History", "Graph"),
+                titles = bodyTabs(),
                 selected = pager.currentPage,
                 onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
             )
@@ -129,7 +134,7 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
                         val shown = graphOf.takeIf { it in names } ?: names.first()
                         Column {
                             // FitNotes's "GRAPH: Bodyweight" picker over the graph.
-                            DropdownPill("Graph", names, names.indexOf(shown), Modifier.padding(horizontal = 4.dp)) { graphOf = names[it] }
+                            DropdownPill(stringResource(R.string.ex_graph), names, names.indexOf(shown), Modifier.padding(horizontal = 4.dp)) { graphOf = names[it] }
                             key(shown) { BodyGraphPane(snap, nav, shown) }
                         }
                     }
@@ -140,20 +145,25 @@ fun BodyScreen(snap: Snapshot, nav: Nav) {
     if (ordering) MeasurementOrderSheet(measurements) { ordering = false }
 }
 
+/** The Track, History and Graph tabs, as the body tracker and each measurement name them. */
+@Composable
+internal fun bodyTabs(): List<String> =
+    listOf(stringResource(R.string.body_tab_track), stringResource(R.string.body_tab_history), stringResource(R.string.ex_graph))
+
 /** How long ago a value was logged, as FitNotes says it: "4 hours ago", "5 days ago", "1 month ago", "2 years ago". */
-internal fun agoText(date: String, time: String): String {
+internal fun agoText(res: Resources, date: String, time: String): String {
     val at = runCatching { java.time.LocalDateTime.parse(date.take(10) + "T" + time.take(5).ifBlank { "12:00" }) }.getOrNull()
         ?: return Dates.medium(date)
     val now = java.time.LocalDateTime.now()
     val mins = java.time.Duration.between(at, now).toMinutes().coerceAtLeast(0)
-    fun n(v: Long, unit: String) = "$v $unit${if (v == 1L) "" else "s"} ago"
+    fun n(id: Int, v: Long) = res.getQuantityString(id, v.toInt(), v.toInt())
     return when {
-        mins < 1 -> "Just now"
-        mins < 60 -> n(mins, "minute")
-        mins < 60 * 24 -> n(mins / 60, "hour")
-        mins < 60 * 24 * 30 -> n(mins / (60 * 24), "day")
-        mins < 60 * 24 * 365 -> n(mins / (60 * 24 * 30), "month")
-        else -> n(mins / (60 * 24 * 365), "year")
+        mins < 1 -> res.getString(R.string.body_just_now)
+        mins < 60 -> n(R.plurals.body_minutes_ago, mins)
+        mins < 60 * 24 -> n(R.plurals.body_hours_ago, mins / 60)
+        mins < 60 * 24 * 30 -> n(R.plurals.body_days_ago, mins / (60 * 24))
+        mins < 60 * 24 * 365 -> n(R.plurals.body_months_ago, mins / (60 * 24 * 30))
+        else -> n(R.plurals.body_years_ago, mins / (60 * 24 * 365))
     }
 }
 
@@ -163,18 +173,19 @@ internal fun agoText(date: String, time: String): String {
  */
 @Composable
 private fun MeasurementListRow(snap: Snapshot, m: MeasurementDef, onOpen: () -> Unit) {
+    val res = LocalContext.current.resources
     val recs = snap.recordsByName[m.name].orEmpty()
     val last = recs.lastOrNull()
     val prev = recs.getOrNull(recs.size - 2)
     val unit = m.unit.ifBlank { last?.unit.orEmpty() }
-    val change = if (last != null && prev != null) changeText(prev, last) else null
-    val spoken = m.name + ", " + (last?.let { "${fmtNum(it.value)} $unit on ${Dates.medium(it.date)}" } ?: "nothing logged yet") +
-        (change?.let { ", $it" } ?: "")
+    val change = if (last != null && prev != null) changeText(res, prev, last) else null
+    val spoken = m.name + ", " + (last?.let { res.getString(R.string.body_value_on, "${fmtNum(it.value)} $unit".trim(), Dates.medium(it.date)) }
+        ?: res.getString(R.string.body_nothing_logged)) + (change?.let { ", $it" } ?: "")
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
-            .clickable(onClickLabel = "Open ${m.name}", onClick = onOpen)
+            .clickable(onClickLabel = res.getString(R.string.day_open_named, m.name), onClick = onOpen)
             .semantics(mergeDescendants = true) { contentDescription = spoken }
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
@@ -182,7 +193,7 @@ private fun MeasurementListRow(snap: Snapshot, m: MeasurementDef, onOpen: () -> 
         Column(Modifier.weight(1f)) {
             Text(m.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
             Text(
-                last?.let { agoText(it.date, it.time) } ?: "Tap to record a value",
+                last?.let { agoText(res, it.date, it.time) } ?: stringResource(R.string.body_tap_to_record),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -208,6 +219,7 @@ private fun MeasurementListRow(snap: Snapshot, m: MeasurementDef, onOpen: () -> 
  */
 @Composable
 private fun BodyHistoryAll(snap: Snapshot, measurements: List<MeasurementDef>, onOpen: (MRecord) -> Unit) {
+    val res = LocalContext.current.resources
     var filter by rememberSaveable { mutableStateOf<String?>(null) }
     val names = measurements.map { it.name }
     val all = remember(snap, filter) {
@@ -217,13 +229,13 @@ private fun BodyHistoryAll(snap: Snapshot, measurements: List<MeasurementDef>, o
     val byDay = remember(all) { all.groupBy { it.date.take(10) } }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
         item(key = "filter") {
-            DropdownPill("History", listOf("All") + names, (filter?.let { names.indexOf(it) + 1 } ?: 0), Modifier.padding(horizontal = 4.dp)) { i ->
+            DropdownPill(stringResource(R.string.body_tab_history), listOf(stringResource(R.string.an_span_all)) + names, (filter?.let { names.indexOf(it) + 1 } ?: 0), Modifier.padding(horizontal = 4.dp)) { i ->
                 filter = if (i == 0) null else names[i - 1]
             }
         }
         if (all.isEmpty()) {
             item(key = "none") {
-                Text("Nothing logged yet.", Modifier.padding(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.body_nothing_yet), Modifier.padding(Spacing.lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         byDay.forEach { (day, recs) ->
@@ -246,7 +258,7 @@ private fun BodyHistoryAll(snap: Snapshot, measurements: List<MeasurementDef>, o
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = Spacing.row)
-                        .clickable(onClickLabel = "Open ${r.name}") { onOpen(r) }
+                        .clickable(onClickLabel = res.getString(R.string.day_open_named, r.name)) { onOpen(r) }
                         .semantics(mergeDescendants = true) {}
                         .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
                     verticalAlignment = Alignment.CenterVertically
@@ -261,7 +273,7 @@ private fun BodyHistoryAll(snap: Snapshot, measurements: List<MeasurementDef>, o
                             if (r.unit.isNotBlank()) Text(" ${r.unit}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (prev != null) {
-                            Text(changeText(prev, r), style = MaterialTheme.typography.bodySmall, color = changeColour(def, prev.value, r.value), maxLines = 1)
+                            Text(changeText(res, prev, r), style = MaterialTheme.typography.bodySmall, color = changeColour(def, prev.value, r.value), maxLines = 1)
                         }
                     }
                 }
@@ -285,7 +297,7 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
     // Line, bar, area or step, remembered for each measurement (#137).
     val (kind, setKind) = rememberChartKind("body:$selectedName")
     if (all.isEmpty()) {
-        EmptyState("Nothing to graph yet", "Log $selectedName on the Track tab and it is graphed here.")
+        EmptyState(stringResource(R.string.body_graph_empty_title), stringResource(R.string.body_graph_empty_body, selectedName))
         return
     }
     LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
@@ -335,7 +347,7 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
                     footer = {
                         selectedPoint?.let { points.getOrNull(it) }?.let { p ->
                             Text(
-                                "${Dates.long(p.date)}: ${fmtNum(p.y, 1)} $unit",
+                                stringResource(R.string.an_label_value, Dates.long(p.date), "${fmtNum(p.y, 1)} $unit".trim()),
                                 Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                                 style = MaterialTheme.typography.titleMedium
                             )
@@ -359,7 +371,7 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
                 }
             }
             Text(
-                "Tap the graph to see that day. Gold ticks and rings mark days with photos.",
+                stringResource(R.string.body_graph_hint),
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -385,14 +397,14 @@ private fun SelectedPointCard(snap: Snapshot, nav: Nav, r: MRecord) {
             }
             Column(Modifier.weight(1f)) {
                 Text(Dates.long(r.date), style = MaterialTheme.typography.titleMedium)
-                Text("${r.name}: ${fmtNum(r.value)} ${r.unit}", style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.an_label_value, r.name, "${fmtNum(r.value)} ${r.unit}".trim()), style = MaterialTheme.typography.headlineSmall)
                 if (!r.comment.isNullOrBlank()) Text("“${r.comment}”", style = MaterialTheme.typography.bodySmall)
                 if (photo == null && near != null) {
-                    Text("Photo shown is from ${Dates.medium(near.date ?: "")}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.body_photo_from, Dates.medium(near.date ?: "")), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else if (photo == null) {
-                    Text("No photo within a week", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.body_no_photo_week), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text("Open day →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.body_open_day), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -407,19 +419,19 @@ private fun StatsBlock(list: List<MRecord>, unit: String) {
     val max = list.maxBy { it.value }
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth()) {
-            LabelValue("Start · ${Dates.short(first.date)}", "${fmtNum(first.value)} $unit", Modifier.weight(1f))
-            LabelValue("Latest · ${Dates.short(last.date)}", "${fmtNum(last.value)} $unit", Modifier.weight(1f))
-            LabelValue("Change", "${fmtSigned(last.value - first.value)} $unit", Modifier.weight(1f), deltaColour(last.value - first.value, Color.Unspecified))
+            LabelValue(stringResource(R.string.body_stat_start, Dates.short(first.date)), "${fmtNum(first.value)} $unit", Modifier.weight(1f))
+            LabelValue(stringResource(R.string.body_stat_latest, Dates.short(last.date)), "${fmtNum(last.value)} $unit", Modifier.weight(1f))
+            LabelValue(stringResource(R.string.body_stat_change), "${fmtSigned(last.value - first.value)} $unit", Modifier.weight(1f), deltaColour(last.value - first.value, Color.Unspecified))
         }
         Row(Modifier.fillMaxWidth()) {
-            LabelValue("Lowest · ${Dates.short(min.date)}", "${fmtNum(min.value)} $unit", Modifier.weight(1f))
-            LabelValue("Highest · ${Dates.short(max.date)}", "${fmtNum(max.value)} $unit", Modifier.weight(1f))
-            LabelValue("Entries", "${list.size}", Modifier.weight(1f))
+            LabelValue(stringResource(R.string.body_stat_lowest, Dates.short(min.date)), "${fmtNum(min.value)} $unit", Modifier.weight(1f))
+            LabelValue(stringResource(R.string.body_stat_highest, Dates.short(max.date)), "${fmtNum(max.value)} $unit", Modifier.weight(1f))
+            LabelValue(stringResource(R.string.body_stat_entries), "${list.size}", Modifier.weight(1f))
         }
         val days = Dates.epochDay(last.date) - Dates.epochDay(first.date)
         if (days >= 14) {
             val perWeek = (last.value - first.value) / days * 7
-            Text("Average ${fmtSigned(perWeek, 2)} $unit per week over ${days} days", style = MaterialTheme.typography.bodyMedium, color = deltaColour(perWeek, Color.Unspecified))
+            Text(stringResource(R.string.body_avg_per_week, "${fmtSigned(perWeek, 2)} $unit".trim(), days.toInt()), style = MaterialTheme.typography.bodyMedium, color = deltaColour(perWeek, Color.Unspecified))
         }
     }
 }
@@ -430,10 +442,11 @@ private fun StatsBlock(list: List<MRecord>, unit: String) {
  */
 @Composable
 internal fun BodyHistoryPane(snap: Snapshot, name: String, onOpen: (MRecord) -> Unit) {
+    val res = LocalContext.current.resources
     val records = snap.recordsByName[name].orEmpty()
     val def = snap.allMeasurements.firstOrNull { it.name == name }
     if (records.isEmpty()) {
-        EmptyState("No history yet", "Every value you log for $name appears here, newest first.")
+        EmptyState(stringResource(R.string.ex_history_empty_title), stringResource(R.string.body_history_empty_body, name))
         return
     }
     val byDate = remember(records) { records.groupBy { it.date.take(10) }.toSortedMap() }
@@ -451,18 +464,18 @@ internal fun BodyHistoryPane(snap: Snapshot, name: String, onOpen: (MRecord) -> 
                         SetRowView(
                             index = i + 1,
                             summary = "${fmtNum(r.value)} ${r.unit}",
-                            cells = valueCells(r),
+                            cells = valueCells(res, r),
                             comment = r.comment,
                             framed = false,
                             showIndex = false,
-                            noun = "Value",
+                            noun = stringResource(R.string.body_value),
                             onClick = { onOpen(r) }
                         )
                         // The change since the value before, coloured by the goal's direction (#27); the arrow and
                         // sign keep the meaning without colour.
                         if (prev != null) {
                             Text(
-                                changeText(prev, r),
+                                changeText(res, prev, r),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = changeColour(def, prev.value, r.value),
                                 modifier = Modifier.padding(start = 18.dp)
@@ -476,10 +489,10 @@ internal fun BodyHistoryPane(snap: Snapshot, name: String, onOpen: (MRecord) -> 
 }
 
 /** A value and the time it was logged, in the set-row columns the exercise screen uses. */
-internal fun valueCells(r: MRecord): List<SetCell> {
+internal fun valueCells(res: Resources, r: MRecord): List<SetCell> {
     val time = r.time.take(5)
     return listOfNotNull(
         SetCell(fmtNum(r.value), r.unit, "${fmtNum(r.value)} ${r.unit}"),
-        time.takeIf { it.isNotBlank() }?.let { SetCell(it, spoken = "at $it", unitSlot = false) }
+        time.takeIf { it.isNotBlank() }?.let { SetCell(it, spoken = res.getString(R.string.body_at_time, it), unitSlot = false) }
     )
 }

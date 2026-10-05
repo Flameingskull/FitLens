@@ -1493,4 +1493,158 @@
     <string name="st_e1rm_body">Sets with a high number of reps can reduce the accuracy of the 1-rep-max calculation. Specify the maximum number of reps you would like to be included in the calculation.</string>
     <string name="st_e1rm_hint">(Recommended: 10–15. Leave it empty for the %1$s formula\'s limit of %2$d.)</string>
     <string name="st_e1rm_invalid">Choose 1 to %1$d reps.</string>
+    <!-- Body tracker (#94) -->
+    <string name="body_title">Body Tracker</string>
+    <string name="body_measurements">Measurements</string>
+    <string name="body_reorder">Reorder measurements</string>
+    <string name="body_empty_title">No measurements yet</string>
+    <string name="body_empty_body">Add the standard measurements and your own, or import a FitNotes backup.</string>
+    <string name="body_import">Import from FitNotes</string>
+    <string name="body_tab_track">Track</string>
+    <string name="body_tab_history">History</string>
+    <string name="body_just_now">Just now</string>
+    <plurals name="body_minutes_ago">
+        <item quantity="one">%1$d minute ago</item>
+        <item quantity="other">%1$d minutes ago</item>
+    </plurals>
+    <plurals name="body_hours_ago">
+        <item quantity="one">%1$d hour ago</item>
+        <item quantity="other">%1$d hours ago</item>
+    </plurals>
+    <plurals name="body_days_ago">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
+    <plurals name="body_months_ago">
+        <item quantity="one">%1$d month ago</item>
+        <item quantity="other">%1$d months ago</item>
+    </plurals>
+    <plurals name="body_years_ago">
+        <item quantity="one">%1$d year ago</item>
+        <item quantity="other">%1$d years ago</item>
+    </plurals>
+    <string name="body_value_on">%1$s on %2$s</string>
+    <string name="body_nothing_logged">nothing logged yet</string>
+    <string name="body_tap_to_record">Tap to record a value</string>
+    <string name="body_nothing_yet">Nothing logged yet.</string>
+    <string name="body_graph_empty_title">Nothing to graph yet</string>
+    <string name="body_graph_empty_body">Log %1$s on the Track tab and it is graphed here.</string>
+    <string name="body_graph_hint">Tap the graph to see that day. Gold ticks and rings mark days with photos.</string>
+    <string name="body_photo_from">Photo shown is from %1$s</string>
+    <string name="body_no_photo_week">No photo within a week</string>
+    <string name="body_open_day">Open day →</string>
+    <string name="body_stat_start">Start · %1$s</string>
+    <string name="body_stat_latest">Latest · %1$s</string>
+    <string name="body_stat_change">Change</string>
+    <string name="body_stat_lowest">Lowest · %1$s</string>
+    <string name="body_stat_highest">Highest · %1$s</string>
+    <string name="body_stat_entries">Entries</string>
+    <string name="body_avg_per_week">Average %1$s per week over %2$d days</string>
+    <string name="body_history_empty_body">Every value you log for %1$s appears here, newest first.</string>
+    <string name="body_value">Value</string>
+    <string name="body_at_time">at %1$s</string>
+    <!-- Measurements (#94) -->
+    <string name="ms_new">New measurement</string>
+    <string name="ms_intro">Tap a measurement below to edit it or set a goal. Enable a measurement for tracking by hitting the checkbox.</string>
+    <string name="ms_add_standard">Add the standard measurements (%1$d)</string>
+    <string name="ms_empty_body">Add the standard set, create your own with +, or import a FitNotes backup.</string>
+    <string name="ms_set_goal_for">Set a goal for %1$s</string>
+    <string name="ms_unit_for">Unit for %1$s</string>
+    <string name="ms_unit_as_settings">Unit as in Settings (%1$s)</string>
+    <string name="ms_always_in">Always in %1$s</string>
+    <string name="ms_show">Show %1$s</string>
+    <string name="ms_on">On</string>
+    <string name="ms_off">Off</string>
+    <string name="ms_options_for">Options for %1$s</string>
+    <string name="ms_delete_title">Delete %1$s?</string>
+    <plurals name="ms_delete_manual">
+        <item quantity="one">The %1$d value you entered by hand will be deleted.</item>
+        <item quantity="other">The %1$d values you entered by hand will be deleted.</item>
+    </plurals>
+    <string name="ms_delete_fitnotes">Values from FitNotes stay under their FitNotes measurement.</string>
+    <string name="ms_unit_kg">Kilograms (kgs)</string>
+    <string name="ms_unit_lb">Pounds (lbs)</string>
+    <string name="ms_unit_mg">Milligrams (mg)</string>
+    <string name="ms_unit_mcg">Micrograms (mcg)</string>
+    <string name="ms_unit_g">Grams (g)</string>
+    <string name="ms_unit_iu">International Unit (IU)</string>
+    <string name="ms_unit_percent" formatted="false">Percent (%)</string>
+    <string name="ms_unit_mm">Millimetres (mm)</string>
+    <string name="ms_unit_ml">Millilitres (ml)</string>
+    <string name="ms_unit_kcal">Calories (kcal)</string>
+    <!-- One measurement and the log sheet (#94) -->
+    <string name="bm_enter_number">Enter a number to save.</string>
+    <string name="bm_updated">Value updated</string>
+    <string name="bm_manage">Manage measurements</string>
+    <string name="bm_calculate">Calculate from measurements</string>
+    <string name="bm_time">Time (HH:mm)</string>
+    <string name="bm_comment">Comment</string>
+    <string name="bm_update">Update</string>
+    <string name="bm_from_fitnotes">This value came from FitNotes. Change it in FitNotes and import again.</string>
+    <string name="bm_new_instead">New value instead</string>
+    <string name="bm_nothing_for">Nothing logged for %1$s yet.</string>
+    <string name="bm_nothing_day">Nothing logged on this day.</string>
+    <string name="bm_delete_title">Delete this value?</string>
+    <string name="bm_delete_body">%1$s: %2$s on %3$s</string>
+    <string name="bm_deleted">Value deleted</string>
+    <string name="bm_undo">Undo</string>
+    <string name="bm_calculated">Calculated: check it, then Save</string>
+    <string name="mse_log">Log a measurement</string>
+    <string name="mse_edit">Edit %1$s</string>
+    <string name="mse_close">Close</string>
+    <string name="mse_measurement">Measurement</string>
+    <string name="mse_from_fitnotes">This value came from FitNotes. Change it in FitNotes and import again: a value edited here would come back beside the original on the next import.</string>
+    <string name="mse_value_unit">Value (%1$s)</string>
+    <string name="mse_comment_optional">Comment (optional)</string>
+    <string name="mse_delete_value">Delete value</string>
+    <!-- Measurement goals and order (#94) -->
+    <string name="mg_no_change">No change since %1$s</string>
+    <string name="mg_change">%1$s %2$s since %3$s · was %4$s</string>
+    <string name="mg_increase">Goal: increase</string>
+    <string name="mg_increase_to">Goal: increase to %1$s</string>
+    <string name="mg_decrease">Goal: decrease</string>
+    <string name="mg_decrease_to">Goal: decrease to %1$s</string>
+    <string name="mg_target">Goal: %1$s</string>
+    <string name="mg_none">No goal set</string>
+    <string name="mg_type_increase">Increase</string>
+    <string name="mg_type_decrease">Decrease</string>
+    <string name="mg_type_target">Specific value</string>
+    <string name="mg_type_none">No goal</string>
+    <string name="mg_title">Goal for %1$s</string>
+    <string name="mg_target_optional">Target (%1$s, optional)</string>
+    <string name="mg_note">Changes in the history are green when they move towards the goal and red when they move away. A goal set here isn\'t replaced by a later FitNotes import.</string>
+    <string name="mg_order_title">Order of measurements</string>
+    <string name="mg_order_save">Save order</string>
+    <!-- Custom metrics (#94) -->
+    <string name="cm_new">New custom metric</string>
+    <string name="cm_unit">Unit (e.g. cm, kcal, hrs)</string>
+    <string name="cm_fill_from">Fill in from FitNotes</string>
+    <string name="cm_same_name">Same name</string>
+    <string name="cm_same_name_note">Uses FitNotes values from a measurement with the same name, ignoring capitals. If there isn\'t one, you enter values by hand.</string>
+    <string name="cm_link_note">Uses every value of FitNotes “%1$s”. You can still add values by hand.</string>
+    <string name="cm_enter_name">Enter a name</string>
+    <string name="cm_clash">A custom metric called %1$s already exists</string>
+    <!-- Body fat calculator (#94) -->
+    <string name="bf_comment">Calculated (US Navy formula, %1$s) from %2$s</string>
+    <string name="bf_title">Calculate body fat</string>
+    <string name="bf_use">Use</string>
+    <string name="bf_use_value">Use %1$s%%</string>
+    <string name="bf_intro">%1$s, from your body measurements. Typical error: about ±%2$s percentage points.</string>
+    <string name="bf_sex">Sex</string>
+    <string name="bf_choose_sex">Choose one to see which measurements the formula needs. It\'s saved in Settings, where you can change it.</string>
+    <plurals name="bf_missing">
+        <item quantity="one">Add %1$s to calculate. Enter it above, and it\'s saved to your body tracker on %2$s.</item>
+        <item quantity="other">Add %1$s to calculate. Enter them above, and they\'re saved to your body tracker on %2$s.</item>
+    </plurals>
+    <string name="bf_result">Body fat: %1$s%%</string>
+    <string name="bf_not_logged">Not logged yet: needed</string>
+    <string name="bf_today">%1$s · today</string>
+    <plurals name="bf_days_ago">
+        <item quantity="one">%1$s · %2$s (%3$d day ago)</item>
+        <item quantity="other">%1$s · %2$s (%3$d days ago)</item>
+    </plurals>
+    <string name="bf_measure">Measure %1$s.</string>
+    <string name="bf_stale">Over %1$d days old: re-measure for an accurate result.</string>
+    <string name="bf_field_needed">%1$s (%2$s), needed</string>
+    <string name="bf_field_new">New %1$s (%2$s), optional</string>
 </resources>

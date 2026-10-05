@@ -22,7 +22,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +55,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
+    val res = LocalContext.current.resources
     var creating by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<MeasurementDef?>(null) }
     var deleting by remember { mutableStateOf<MeasurementDef?>(null) }
@@ -58,28 +64,28 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
     val missing = remember(snap) { StandardMeasurements.missing(snap.measurementDefs.map { it.name }) }
 
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("Measurements") {
-            IconButton(onClick = { creating = true }) { Icon(Icons.Filled.Add, contentDescription = "New measurement") }
+        PlainTopBar(stringResource(R.string.body_measurements)) {
+            IconButton(onClick = { creating = true }) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.ms_new)) }
         }
         LazyColumn(contentPadding = PaddingValues(bottom = Spacing.xxl)) {
             item {
                 Column(Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.sm)) {
                     // FitNotes's words at the top of Measurements (#144).
                     Text(
-                        "Tap a measurement below to edit it or set a goal. Enable a measurement for tracking by hitting the checkbox.",
+                        stringResource(R.string.ms_intro),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     if (missing.isNotEmpty()) {
                         GlassOutlinedButton(
                             onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } },
                             modifier = Modifier.padding(top = Spacing.sm).heightIn(min = Spacing.touch)
-                        ) { Text("Add the standard measurements (${missing.size})") }
+                        ) { Text(stringResource(R.string.ms_add_standard, missing.size)) }
                     }
                 }
                 HorizontalDivider(color = Brand.Hairline)
             }
             if (all.isEmpty()) {
-                item { EmptyState("No measurements yet", "Add the standard set, create your own with +, or import a FitNotes backup.") }
+                item { EmptyState(stringResource(R.string.body_empty_title), stringResource(R.string.ms_empty_body)) }
             }
             items(all, key = { it.name }) { m ->
                 // As FitNotes lists them (#144): the name in bold, its unit in full, its goal, then the tracking checkbox.
@@ -88,24 +94,24 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
                     Modifier
                         .fillMaxWidth()
                         .heightIn(min = 72.dp)
-                        .clickable(onClickLabel = "Set a goal for ${m.name}") { goalFor = m }
+                        .clickable(onClickLabel = stringResource(R.string.ms_set_goal_for, m.name)) { goalFor = m }
                         .padding(start = Spacing.lg, end = Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f).padding(vertical = Spacing.sm)) {
                         Text(m.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
                         if (m.unit.isNotBlank()) {
-                            Text(unitLongName(m.unit), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(unitLongName(res, m.unit), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text(goalText(m), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(goalText(res, m), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         // Its own unit (#7): a weight in kg or lbs, a length in cm or in, whatever Settings says for the
                         // rest. Values are stored as logged and converted for display.
                         val choices = MeasureUnits.choices(m.unit)
                         if (choices.isNotEmpty()) {
                             val global = if (WeightUnits.of(m.unit) != null) snap.weightUnit else snap.lengthUnit
                             DropdownPill(
-                                "Unit for ${m.name}",
-                                listOf("Unit as in Settings ($global)") + choices.map { "Always in $it" },
+                                stringResource(R.string.ms_unit_for, m.name),
+                                listOf(stringResource(R.string.ms_unit_as_settings, global)) + choices.map { stringResource(R.string.ms_always_in, it) },
                                 m.displayUnit?.let { u -> choices.indexOf(u) + 1 } ?: 0
                             ) { i ->
                                 val unit = if (i == 0) null else choices[i - 1]
@@ -117,17 +123,17 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
                         checked = m.enabled,
                         onCheckedChange = { on -> AppScope.scope.launch { Store.setMeasurementEnabled(m.name, m.unit, on) } },
                         modifier = Modifier.semantics {
-                            contentDescription = "Show ${m.name}"
-                            stateDescription = if (m.enabled) "On" else "Off"
+                            contentDescription = res.getString(R.string.ms_show, m.name)
+                            stateDescription = res.getString(if (m.enabled) R.string.ms_on else R.string.ms_off)
                         }
                     )
                     if (m.custom) {
                         OverflowMenu(
                             listOf(
-                                MenuAction("Edit") { editing = m },
-                                MenuAction("Delete") { deleting = m }
+                                MenuAction(stringResource(R.string.lib_edit)) { editing = m },
+                                MenuAction(stringResource(R.string.lib_delete)) { deleting = m }
                             ),
-                            description = "Options for ${m.name}"
+                            description = stringResource(R.string.ms_options_for, m.name)
                         )
                     }
                 }
@@ -142,27 +148,27 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
     deleting?.let { m ->
         val manual = Store.manualCount(snap, m.name)
         ConfirmDialog(
-            title = "Delete ${m.name}?",
-            text = (if (manual > 0) "The $manual values you entered by hand will be deleted. " else "") +
-                "Values from FitNotes stay under their FitNotes measurement.",
+            title = stringResource(R.string.ms_delete_title, m.name),
+            text = (if (manual > 0) pluralStringResource(R.plurals.ms_delete_manual, manual, manual) + " " else "") +
+                stringResource(R.string.ms_delete_fitnotes),
             onDismiss = { deleting = null }
         ) { AppScope.scope.launch { Store.deleteCustomMetric(m.name) } }
     }
 }
 
 /** A unit as FitNotes names it on Measurements (#144): "Kilograms (kgs)", "Milligrams (mg)", "Percent (%)". */
-internal fun unitLongName(unit: String): String = when (unit.trim().lowercase()) {
-    "kg", "kgs" -> "Kilograms (kgs)"
-    "lb", "lbs" -> "Pounds (lbs)"
-    "mg" -> "Milligrams (mg)"
-    "mcg", "µg", "ug" -> "Micrograms (mcg)"
-    "g" -> "Grams (g)"
-    "iu" -> "International Unit (IU)"
-    "%" -> "Percent (%)"
-    "cm" -> "Centimetres (cm)"
-    "in" -> "Inches (in)"
-    "mm" -> "Millimetres (mm)"
-    "ml" -> "Millilitres (ml)"
-    "kcal" -> "Calories (kcal)"
+internal fun unitLongName(res: Resources, unit: String): String = when (unit.trim().lowercase()) {
+    "kg", "kgs" -> res.getString(R.string.ms_unit_kg)
+    "lb", "lbs" -> res.getString(R.string.ms_unit_lb)
+    "mg" -> res.getString(R.string.ms_unit_mg)
+    "mcg", "µg", "ug" -> res.getString(R.string.ms_unit_mcg)
+    "g" -> res.getString(R.string.ms_unit_g)
+    "iu" -> res.getString(R.string.ms_unit_iu)
+    "%" -> res.getString(R.string.ms_unit_percent)
+    "cm" -> res.getString(R.string.unit_centimetres)
+    "in" -> res.getString(R.string.unit_inches)
+    "mm" -> res.getString(R.string.ms_unit_mm)
+    "ml" -> res.getString(R.string.ms_unit_ml)
+    "kcal" -> res.getString(R.string.ms_unit_kcal)
     else -> unit
 }

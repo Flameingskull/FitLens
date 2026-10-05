@@ -15,6 +15,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +54,7 @@ fun MeasurementEntrySheet(
     onOpenDay: ((String) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
+    val res = LocalContext.current.resources
     val names = remember(snap) {
         (snap.usedMeasurements.map { it.name } + snap.measurementDefs.filter { it.enabled }.map { it.name }).distinct()
     }
@@ -71,7 +76,7 @@ fun MeasurementEntrySheet(
         val v = value.trim().replace(',', '.').toDoubleOrNull()
         val n = name.trim()
         if (v == null || n.isBlank()) {
-            UiEvents.show("Enter a number")
+            UiEvents.show(res.getString(R.string.bm_enter_number))
             return
         }
         // The time typed in, or now when it can't be read.
@@ -86,12 +91,12 @@ fun MeasurementEntrySheet(
     }
 
     FitSheet(
-        title = if (existing == null) "Log a measurement" else if (editable) "Edit ${existing.name}" else existing.name,
+        title = if (existing == null) stringResource(R.string.mse_log) else if (editable) stringResource(R.string.mse_edit, existing.name) else existing.name,
         onDismiss = onDismiss,
-        dismissLabel = if (editable) "Cancel" else "Close",
-        confirmLabel = if (editable) "Save" else null,
+        dismissLabel = stringResource(if (editable) R.string.cancel else R.string.mse_close),
+        confirmLabel = if (editable) stringResource(R.string.type_save) else null,
         onConfirm = if (editable) ({ save() }) else null,
-        secondaryLabel = if (existing != null && editable) "Delete" else null,
+        secondaryLabel = if (existing != null && editable) stringResource(R.string.lib_delete) else null,
         onSecondary = if (existing != null && editable) ({ confirmDelete = true }) else null
     ) {
         if (existing == null) {
@@ -100,32 +105,31 @@ fun MeasurementEntrySheet(
             }
             OutlinedTextField(
                 value = name, onValueChange = { name = it },
-                label = { Text("Measurement") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+                label = { Text(stringResource(R.string.mse_measurement)) }, singleLine = true, modifier = Modifier.fillMaxWidth()
             )
         }
         if (!editable && existing != null) {
             Text(
-                "${fmtNum(existing.value)} ${existing.unit}".trim() + " on ${Dates.long(existing.date)}",
+                stringResource(R.string.body_value_on, "${fmtNum(existing.value)} ${existing.unit}".trim(), Dates.long(existing.date)),
                 style = MaterialTheme.typography.headlineSmall
             )
             if (!existing.comment.isNullOrBlank()) Text("“${existing.comment}”", style = MaterialTheme.typography.bodyMedium)
             Text(
-                "This value came from FitNotes. Change it in FitNotes and import again: a value edited here would come " +
-                    "back beside the original on the next import.",
+                stringResource(R.string.mse_from_fitnotes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
             OutlinedTextField(
                 value = value, onValueChange = { value = it },
-                label = { Text("Value" + if (unit.isNotBlank()) " ($unit)" else "") },
+                label = { Text(if (unit.isNotBlank()) stringResource(R.string.mse_value_unit, unit) else stringResource(R.string.body_value)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
             // Body fat can be worked out from the tape measurements (#153).
             if (existing == null && BodyFat.isBodyFat(name)) {
-                TextButton(onClick = { calculating = true }) { Text("Calculate from measurements") }
+                TextButton(onClick = { calculating = true }) { Text(stringResource(R.string.bm_calculate)) }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 GlassOutlinedButton(onClick = { pickDate = true }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) {
@@ -133,18 +137,18 @@ fun MeasurementEntrySheet(
                 }
                 OutlinedTextField(
                     value = timeText, onValueChange = { timeText = it },
-                    label = { Text("Time (HH:mm)") }, singleLine = true,
+                    label = { Text(stringResource(R.string.bm_time)) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)
                 )
             }
             OutlinedTextField(
                 value = comment, onValueChange = { comment = it },
-                label = { Text("Comment (optional)") }, modifier = Modifier.fillMaxWidth()
+                label = { Text(stringResource(R.string.mse_comment_optional)) }, modifier = Modifier.fillMaxWidth()
             )
         }
         if (existing != null && onOpenDay != null) {
-            TextButton(onClick = { onDismiss(); onOpenDay(existing.date) }) { Text("Open ${Dates.medium(existing.date)}") }
+            TextButton(onClick = { onDismiss(); onOpenDay(existing.date) }) { Text(stringResource(R.string.st_open_day, Dates.medium(existing.date))) }
         }
     }
     if (calculating) {
@@ -156,9 +160,9 @@ fun MeasurementEntrySheet(
     if (pickDate) PickDateDialog(theDate, onDismiss = { pickDate = false }) { theDate = it }
     if (confirmDelete && existing != null) {
         ConfirmSheet(
-            title = "Delete this value?",
-            message = "${existing.name}: ${fmtNum(existing.value)} ${existing.unit} on ${Dates.long(existing.date)}.",
-            confirmLabel = "Delete value",
+            title = stringResource(R.string.bm_delete_title),
+            message = stringResource(R.string.bm_delete_body, existing.name, "${fmtNum(existing.value)} ${existing.unit}".trim(), Dates.long(existing.date)) + ".",
+            confirmLabel = stringResource(R.string.mse_delete_value),
             onDismiss = { confirmDelete = false },
             onConfirm = {
                 AppScope.scope.launch { Store.deleteRecord(existing.id) }

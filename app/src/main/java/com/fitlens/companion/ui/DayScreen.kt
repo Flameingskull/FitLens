@@ -442,7 +442,7 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRec
         records.forEachIndexed { i, r ->
             val prev = remember(snap, r.id) { snap.recordsByName[r.name]?.lastOrNull { it.date < r.date } }
             val def = snap.allMeasurements.firstOrNull { it.name == r.name }
-            val change = prev?.let { changeText(it, r) }
+            val change = prev?.let { changeText(LocalContext.current.resources, it, r) }
             val openLabel = stringResource(R.string.day_open_named, r.name)
             val deleteLabel = stringResource(R.string.day_delete_value)
             if (i > 0) HorizontalDivider(color = Brand.Hairline)

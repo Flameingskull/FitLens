@@ -22,6 +22,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +73,7 @@ private fun shiftDay(date: String, days: Long): String =
  */
 @Composable
 fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0) {
+    val res = LocalContext.current.resources
     val def = snap.allMeasurements.firstOrNull { it.name == name }
     val records = snap.recordsByName[name].orEmpty()
     val unit = def?.unit?.takeIf { it.isNotBlank() } ?: records.lastOrNull()?.unit ?: ""
@@ -104,7 +109,7 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
     fun save() {
         val v = value.trim().replace(',', '.').toDoubleOrNull()
         if (v == null) {
-            UiEvents.show("Enter a number to save.")
+            UiEvents.show(res.getString(R.string.bm_enter_number))
             return
         }
         // The time typed in, or now when it can't be read.
@@ -117,7 +122,7 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
                 Store.addManualRecord(name, unit, d, time, v, c)
             } else {
                 Store.updateRecord(editing.id, d, time, v, c)
-                UiEvents.show("Value updated")
+                UiEvents.show(res.getString(R.string.bm_updated))
             }
         }
         selected = null
@@ -138,11 +143,11 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
             title = name,
             subtitle = unit.takeIf { it.isNotBlank() },
             onBack = { nav.pop() },
-            actions = listOf(TopBarAction(Icons.Filled.Edit, "Manage measurements") { nav.push(Screen.Measurements) }),
-            overflow = listOf(MenuAction("Goal", enabled = def != null) { editingGoal = true })
+            actions = listOf(TopBarAction(Icons.Filled.Edit, stringResource(R.string.bm_manage)) { nav.push(Screen.Measurements) }),
+            overflow = listOf(MenuAction(stringResource(R.string.goal_generic), enabled = def != null) { editingGoal = true })
         )
         FitTabRow(
-            titles = listOf("Track", "History", "Graph"),
+            titles = bodyTabs(),
             selected = pager.currentPage,
             onSelect = { i -> scope.launch { pager.animateScrollToPage(i) } }
         )
@@ -177,52 +182,52 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
                             )
                             if (isBodyFat && chosen == null) {
                                 GlassOutlinedButton(onClick = { calculating = true }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                                    Text("Calculate from measurements")
+                                    Text(stringResource(R.string.bm_calculate))
                                 }
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
                                     value = timeText, onValueChange = { timeText = it },
-                                    label = { Text("Time (HH:mm)") }, singleLine = true,
+                                    label = { Text(stringResource(R.string.bm_time)) }, singleLine = true,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.weight(1f)
                                 )
                                 OutlinedTextField(
                                     value = comment, onValueChange = { comment = it },
-                                    label = { Text("Comment") }, singleLine = true,
+                                    label = { Text(stringResource(R.string.bm_comment)) }, singleLine = true,
                                     modifier = Modifier.weight(2f)
                                 )
                             }
                             if (def != null && def.goalType != 0) {
-                                Text(goalText(def), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(goalText(res, def), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             // As in FitNotes: Save and Clear for a new value, Update and Delete for the selected one.
                             if (chosen == null) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     GoldButton(onClick = { save() }, modifier = Modifier.weight(1f).height(52.dp)) {
-                                        Text("Save", style = MaterialTheme.typography.labelLarge)
+                                        Text(stringResource(R.string.type_save), style = MaterialTheme.typography.labelLarge)
                                     }
-                                    GlassOutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(52.dp)) { Text("Clear") }
+                                    GlassOutlinedButton(onClick = { clear() }, modifier = Modifier.weight(1f).height(52.dp)) { Text(stringResource(R.string.cal_clear)) }
                                 }
                             } else {
                                 // A value imported from FitNotes isn't edited: the next import would bring it back.
                                 val editable = chosen.source == "manual"
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    GoldButton(onClick = { save() }, enabled = editable, modifier = Modifier.weight(1f).height(52.dp)) { Text("Update") }
+                                    GoldButton(onClick = { save() }, enabled = editable, modifier = Modifier.weight(1f).height(52.dp)) { Text(stringResource(R.string.bm_update)) }
                                     GlassOutlinedButton(
                                         onClick = { deleting = chosen },
                                         enabled = editable,
                                         modifier = Modifier.weight(1f).height(52.dp)
-                                    ) { Text("Delete") }
+                                    ) { Text(stringResource(R.string.lib_delete)) }
                                 }
                                 if (!editable) {
                                     Text(
-                                        "This value came from FitNotes. Change it in FitNotes and import again.",
+                                        stringResource(R.string.bm_from_fitnotes),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                TextButton(onClick = { selected = null }, modifier = Modifier.fillMaxWidth()) { Text("New value instead") }
+                                TextButton(onClick = { selected = null }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.bm_new_instead)) }
                             }
                         }
                     }
@@ -230,7 +235,7 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
                     if (dayValues.isEmpty()) {
                         item {
                             Text(
-                                if (template == null) "Nothing logged for $name yet." else "Nothing logged on this day.",
+                                if (template == null) stringResource(R.string.bm_nothing_for, name) else stringResource(R.string.bm_nothing_day),
                                 Modifier.padding(16.dp),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -241,10 +246,10 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
                             SetRowView(
                                 index = i + 1,
                                 summary = "${fmtNum(r.value)} ${r.unit}",
-                                cells = valueCells(r),
+                                cells = valueCells(res, r),
                                 comment = r.comment,
                                 selected = selected == r.id,
-                                noun = "Value",
+                                noun = stringResource(R.string.body_value),
                                 onClick = { selected = if (selected == r.id) null else r.id }
                             )
                         }
@@ -256,14 +261,14 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
 
     deleting?.let { r ->
         ConfirmDialog(
-            title = "Delete this value?",
-            text = "$name: ${fmtNum(r.value)} ${r.unit} on ${Dates.long(r.date)}",
+            title = stringResource(R.string.bm_delete_title),
+            text = stringResource(R.string.bm_delete_body, name, "${fmtNum(r.value)} ${r.unit}".trim(), Dates.long(r.date)),
             onDismiss = { deleting = null }
         ) {
             selected = null
             AppScope.scope.launch {
                 Store.deleteRecord(r.id)
-                UiEvents.show("Value deleted", "Undo") {
+                UiEvents.show(res.getString(R.string.bm_deleted), res.getString(R.string.bm_undo)) {
                     AppScope.scope.launch { Store.addManualRecord(r.name, r.unit, r.date, r.time, r.value, r.comment) }
                 }
             }
@@ -273,7 +278,7 @@ fun BodyMeasurementScreen(snap: Snapshot, nav: Nav, name: String, page: Int = 0)
         BodyFatCalculatorSheet(snap, date, onDismiss = { calculating = false }) { p, c ->
             value = fmtNum(p, 1)
             comment = c
-            UiEvents.show("Calculated: check it, then Save")
+            UiEvents.show(res.getString(R.string.bm_calculated))
         }
     }
     if (editingGoal && def != null) MeasurementGoalSheet(def) { editingGoal = false }
