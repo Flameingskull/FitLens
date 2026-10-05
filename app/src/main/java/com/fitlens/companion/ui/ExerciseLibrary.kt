@@ -706,7 +706,7 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
         )
         InfoRow(
             stringResource(R.string.lib_info_graph),
-            graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0) ?: stringResource(R.string.ex_none)
+            graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0)?.let { graphName(LocalContext.current.resources, it) } ?: stringResource(R.string.ex_none)
         )
         InfoRow(stringResource(R.string.lib_info_type), ExerciseTypes.label(ex.type))
     }
@@ -953,7 +953,7 @@ fun ExerciseEditorSheet(
                             FilterChip(
                                 selected = defaultGraph == i || (defaultGraph < 0 && i == 0),
                                 onClick = { defaultGraph = i },
-                                label = { Text(label) }
+                                label = { Text(graphName(LocalContext.current.resources, label)) }
                             )
                         }
                     }

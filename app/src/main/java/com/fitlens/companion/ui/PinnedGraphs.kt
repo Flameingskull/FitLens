@@ -1,6 +1,8 @@
 package com.fitlens.companion.ui
 
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -147,7 +149,7 @@ fun PinGraphButton(pinned: Boolean, onToggle: () -> Unit) {
     IconButton(onClick = onToggle) {
         Icon(
             if (pinned) Icons.Filled.Star else FitIcons.StarOutline,
-            contentDescription = if (pinned) "Unpin from the Analysis overview" else "Pin to the Analysis overview",
+            contentDescription = stringResource(if (pinned) R.string.pin_unpin_cd else R.string.pin_pin_cd),
             tint = MaterialTheme.colorScheme.primary
         )
     }
@@ -168,10 +170,7 @@ fun AnalysisOverviewTab(snap: Snapshot, onOpen: (PinnedGraph) -> Unit) {
         } else snap.exercises.containsKey(p.exerciseId) && p.graph in graphLabelsFor(snap, p.exerciseId)
     }
     if (pins.isEmpty()) {
-        EmptyState(
-            "No pinned graphs yet",
-            "Tap the star on a Workouts graph, or on any exercise graph here in Exercises or on the exercise's Graph tab. It appears here with its latest value and change."
-        )
+        EmptyState(stringResource(R.string.pin_empty_title), stringResource(R.string.pin_empty_body))
         return
     }
     fun move(p: PinnedGraph, by: Int) = updatePins { list ->
@@ -212,7 +211,7 @@ private fun PinnedGraphCard(
     val avgDuration = totals?.first == Analysis.Metric.Duration && pin.average
     val res = LocalContext.current.resources
     val title = if (totals != null) "${totalsGraphName(res, totals.first, totals.second)} · ${filterLabel(res, snap, pin.totalsFilter)}"
-    else "${snap.exercises[pin.exerciseId]?.name ?: "Exercise"} · ${pin.graph}"
+    else "${snap.exercises[pin.exerciseId]?.name ?: res.getString(R.string.ex_fallback)} · ${graphName(res, pin.graph)}"
     val formula = Records.chosen()
     val series = rememberDerived(
         "pinnedGraph", snap.trainingKey, if (pin.graph == GRAPH_RELATIVE_STRENGTH) snap.bodyKey else null, pin, formula,
@@ -233,25 +232,25 @@ private fun PinnedGraphCard(
         if (totals != null) totalsText(res, totals.first, avgDuration, unit, v) else graphValueText(pin.graph, v, unit)
     val main = series?.firstOrNull()?.points.orEmpty()
     val summary = when {
-        series == null -> "Working it out…"
-        main.isEmpty() -> "No data in this range"
+        series == null -> res.getString(R.string.ex_working)
+        main.isEmpty() -> res.getString(R.string.pin_no_data)
         else -> {
             // The latest value, then the change in its own unit from the first in the range (never a bare number).
             val first = main.first().y
             val last = main.last().y
             val change = last - first
             val sign = if (change >= 0) "+" else "−"
-            "Latest ${show(last)} · $sign${show(kotlin.math.abs(change))} from ${show(first)} (${rangeName(RANGES[pin.range].first)})"
+            res.getString(R.string.pin_summary, show(last), "$sign${show(kotlin.math.abs(change))}", show(first), rangeName(res, RANGES[pin.range].first))
         }
     }
     val moveActions = listOfNotNull(
-        onMoveUp?.let { f -> CustomAccessibilityAction("Move up") { f(); true } },
-        onMoveDown?.let { f -> CustomAccessibilityAction("Move down") { f(); true } }
+        onMoveUp?.let { f -> CustomAccessibilityAction(res.getString(R.string.pin_move_up)) { f(); true } },
+        onMoveDown?.let { f -> CustomAccessibilityAction(res.getString(R.string.pin_move_down)) { f(); true } }
     )
     Column(
         Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Open $title", onClick = onOpen)
+            .clickable(onClickLabel = res.getString(R.string.st_open_day, title), onClick = onOpen)
             .semantics { if (moveActions.isNotEmpty()) customActions = moveActions }
             .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 4.dp)
     ) {
@@ -267,11 +266,11 @@ private fun PinnedGraphCard(
             }
             OverflowMenu(
                 listOfNotNull(
-                    onMoveUp?.let { MenuAction("Move up", onClick = it) },
-                    onMoveDown?.let { MenuAction("Move down", onClick = it) },
-                    MenuAction("Unpin", onClick = onUnpin)
+                    onMoveUp?.let { MenuAction(res.getString(R.string.pin_move_up), onClick = it) },
+                    onMoveDown?.let { MenuAction(res.getString(R.string.pin_move_down), onClick = it) },
+                    MenuAction(res.getString(R.string.pin_unpin), onClick = onUnpin)
                 ),
-                description = "Options for $title"
+                description = res.getString(R.string.ms_options_for, title)
             )
             if (onMoveUp != null || onMoveDown != null) DragHandle(title, CARD_HEIGHT + 64.dp, onMoveUp, onMoveDown)
         }

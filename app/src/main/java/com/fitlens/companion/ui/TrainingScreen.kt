@@ -446,7 +446,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 ),
                 kind = kind, onKind = setKind,
                 leading = {
-                    DropdownPill(stringResource(R.string.ex_graph), labels, gIdx.coerceIn(0, labels.lastIndex)) { gIdx = it }
+                    DropdownPill(stringResource(R.string.ex_graph), labels.map { graphName(res, it) }, gIdx.coerceIn(0, labels.lastIndex)) { gIdx = it }
                     // "Max weight for reps" (#22): which rep count, 1 to 15, kept for this exercise while the app is open.
                     if (g.label == GRAPH_WEIGHT_FOR_REPS) {
                         DropdownPill(stringResource(R.string.ex_reps), (1..Records.MAX_REPS).map { res.getQuantityString(R.plurals.reps_count, it, it) }, repsFor - 1) { i ->
@@ -488,7 +488,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             val skipped = compare.filter { it != exId && it !in others }.mapNotNull { snap.exercises[it]?.name }
             if (skipped.isNotEmpty()) {
                 Text(
-                    stringResource(R.string.ex_not_shown, skipped.joinToString(", "), g.label),
+                    stringResource(R.string.ex_not_shown, skipped.joinToString(", "), graphName(res, g.label)),
                     Modifier.padding(horizontal = 16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -540,7 +540,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 val best = if (g.lowerIsBetter) pts.minOf { it.y } else pts.maxOf { it.y }
                 return res.getString(R.string.ex_series_line, name, show(pts.first().y), show(pts.last().y), show(best))
             }
-            val summary = if (series.size == 1) line(series[0], g.label).orEmpty()
+            val summary = if (series.size == 1) line(series[0], graphName(res, g.label)).orEmpty()
             else series.mapNotNull { line(it, it.label) }.joinToString("\n")
             // Tapping a date shows every series' value on or nearest that date (#53).
             fun valuesOnly(p: ChartPoint): String =
@@ -561,12 +561,12 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 val trend = if (showTrend) trendOf(shown) else null
                 val image = ShareImages.GraphImage(
                     title = name,
-                    graph = g.label,
-                    range = rangeName(RANGES[rangeIdx].first),
+                    graph = graphName(res, g.label),
+                    range = rangeName(res, RANGES[rangeIdx].first),
                     points = shown,
                     format = { v -> show(v) },
                     // The body overlay goes in as a line of figures only when chosen for this share (#56).
-                    summary = line(series[0], g.label).orEmpty() + (overlay?.takeIf { shareBody }?.let { o ->
+                    summary = line(series[0], graphName(res, g.label)).orEmpty() + (overlay?.takeIf { shareBody }?.let { o ->
                         val lo = shown.minOf { it.x }
                         val hi = shown.maxOf { it.x }
                         val inRange = o.points.filter { q -> q.x in lo..hi }
@@ -619,7 +619,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
             ChartHint()
             if (fullScreen) {
                 FullScreenChart(
-                    "${ex?.name ?: stringResource(R.string.ex_fallback)} · ${g.label}",
+                    "${ex?.name ?: stringResource(R.string.ex_fallback)} · ${graphName(res, g.label)}",
                     onDismiss = { fullScreen = false },
                     controls = {
                         GraphOptionChips(
@@ -1053,7 +1053,7 @@ internal fun RecordsTab(snap: Snapshot, allSets: List<SetRow>, timeBased: Boolea
                 }
                 PeriodDropdown(
                     label = stringResource(R.string.ex_period),
-                    options = Records.Period.entries.map { it.label },
+                    options = Records.Period.entries.map { it.text(LocalContext.current.resources) },
                     selected = period?.ordinal ?: -1,
                     custom = if (from != null && to != null) from to to else null,
                     onSelect = { periodIdx = it },

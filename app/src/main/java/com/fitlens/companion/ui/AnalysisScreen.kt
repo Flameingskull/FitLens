@@ -536,7 +536,7 @@ private fun DurationPerWorkout(snap: Snapshot, nav: Nav, filter: Analysis.Filter
     SectionTitle(stringResource(R.string.an_each_workout))
     Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         // Line, bar, area or step (#137).
-        DropdownPill(stringResource(R.string.an_chart_type), ChartKind.entries.map { it.label }, kind.ordinal) { i -> setKind(ChartKind.entries[i]) }
+        DropdownPill(stringResource(R.string.an_chart_type), ChartKind.entries.map { it.text(res) }, kind.ordinal) { i -> setKind(ChartKind.entries[i]) }
         Spacer(Modifier.weight(1f))
         OptionsMenu(
             listOf(

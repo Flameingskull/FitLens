@@ -4,6 +4,7 @@ import android.content.res.Resources
 import com.fitlens.companion.R
 import com.fitlens.companion.data.Analysis
 import com.fitlens.companion.data.GoalKinds
+import com.fitlens.companion.data.Records
 import kotlin.math.roundToInt
 
 /*
@@ -108,3 +109,57 @@ internal fun goalKindText(res: Resources, kind: Int): String = res.getString(
         else -> R.string.goal_generic
     }
 )
+
+/** "Line", "Bar", "Area", "Step" (#137). */
+internal fun ChartKind.text(res: Resources): String = res.getString(
+    when (this) {
+        ChartKind.LINE -> R.string.ck_line
+        ChartKind.BAR -> R.string.ck_bar
+        ChartKind.AREA -> R.string.ck_area
+        ChartKind.STEP -> R.string.ck_step
+    }
+)
+
+/** A Records tab period: "Workout", "Week", "All". */
+internal fun Records.Period.text(res: Resources): String = res.getString(
+    when (this) {
+        Records.Period.WORKOUT -> R.string.an_span_workout
+        Records.Period.WEEK -> R.string.an_span_week
+        Records.Period.MONTH -> R.string.an_span_month
+        Records.Period.YEAR -> R.string.an_span_year
+        Records.Period.ALL -> R.string.an_span_all
+    }
+)
+
+/** A range preset's name in a menu (the keys in [RANGES]): "1M" reads as "1 month". */
+internal fun rangeName(res: Resources, short: String): String = when (short) {
+    "1M" -> res.getString(R.string.range_1m)
+    "3M" -> res.getString(R.string.range_3m)
+    "6M" -> res.getString(R.string.range_6m)
+    "1Y" -> res.getString(R.string.range_1y)
+    "All" -> res.getString(R.string.an_all_time)
+    else -> short
+}
+
+/**
+ * An exercise graph's name as shown (#94). The `GRAPH_*` names are stored keys (default graphs, pins, chart kinds),
+ * so they stay as they are and only their display comes from strings.xml. A custom metric's graphs keep their own name.
+ */
+internal fun graphName(res: Resources, key: String): String = when (key) {
+    GRAPH_E1RM -> res.getString(R.string.gr_e1rm)
+    GRAPH_MAX_WEIGHT -> res.getString(R.string.gr_max_weight)
+    GRAPH_WORKOUT_VOLUME -> res.getString(R.string.gr_workout_volume)
+    GRAPH_WORKOUT_REPS -> res.getString(R.string.gr_workout_reps)
+    GRAPH_MAX_REPS -> res.getString(R.string.gr_max_reps)
+    GRAPH_MAX_VOLUME -> res.getString(R.string.gr_max_volume)
+    GRAPH_WEIGHT_FOR_REPS -> res.getString(R.string.gr_weight_for_reps)
+    GRAPH_RECORDS -> res.getString(R.string.gr_records)
+    GRAPH_RELATIVE_STRENGTH -> res.getString(R.string.gr_relative_strength)
+    GRAPH_LONGEST -> res.getString(R.string.gr_max_time)
+    GRAPH_TOTAL_TIME -> res.getString(R.string.gr_total_time)
+    GRAPH_DISTANCE -> res.getString(R.string.gr_distance)
+    GRAPH_MAX_DISTANCE -> res.getString(R.string.gr_max_distance)
+    GRAPH_MAX_SPEED -> res.getString(R.string.gr_max_speed)
+    GRAPH_MAX_PACE -> res.getString(R.string.gr_max_pace)
+    else -> key
+}

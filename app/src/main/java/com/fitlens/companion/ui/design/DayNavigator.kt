@@ -22,6 +22,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,12 +56,13 @@ private val RelativeDayFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("
  * How a day reads in a [DayNavigator]: "Today", "Yesterday" or "Tomorrow", otherwise a short weekday date
  * ("Mon 3 Aug"), with the year added when it isn't the current one. [date] is an ISO date.
  */
+@Composable
 fun relativeDayLabel(date: String, today: LocalDate = LocalDate.now()): String {
     val d = Dates.parse(date) ?: return date
     return when (d.toEpochDay() - today.toEpochDay()) {
-        0L -> "Today"
-        -1L -> "Yesterday"
-        1L -> "Tomorrow"
+        0L -> stringResource(R.string.day_today)
+        -1L -> stringResource(R.string.day_yesterday)
+        1L -> stringResource(R.string.day_tomorrow)
         else -> if (d.year == today.year) d.format(RelativeDayFormat) else Dates.long(date)
     }
 }
@@ -82,8 +85,8 @@ fun DayNavigator(
     onPickDate: (String) -> Unit,
     modifier: Modifier = Modifier,
     onToday: (() -> Unit)? = null,
-    previousDescription: String = "Previous day",
-    nextDescription: String = "Next day"
+    previousDescription: String = stringResource(R.string.dn_previous),
+    nextDescription: String = stringResource(R.string.dn_next)
 ) {
     var picking by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
@@ -132,8 +135,8 @@ fun DayNavigator(
                     .heightIn(min = Spacing.touch)
                     .clip(FitShapes.row)
                     .combinedClickable(
-                        onClickLabel = "Choose a date",
-                        onLongClickLabel = if (onToday != null) "Go to today" else null,
+                        onClickLabel = stringResource(R.string.dn_choose),
+                        onLongClickLabel = if (onToday != null) stringResource(R.string.dn_go_today) else null,
                         onLongClick = longClick,
                         onClick = { picking = true }
                     )

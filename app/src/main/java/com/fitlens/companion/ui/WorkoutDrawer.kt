@@ -336,4 +336,5 @@ private fun DragHandle(name: String, onStep: (Int) -> Unit, onEnd: () -> Unit) {
     }
 }
 
+@Composable
 private fun relativeLabel(date: String): String = com.fitlens.companion.ui.design.relativeDayLabel(date)

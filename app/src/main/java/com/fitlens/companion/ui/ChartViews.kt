@@ -41,6 +41,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -120,19 +123,20 @@ fun DonutChart(
     val colors = LocalChartColors.current
     val sel = selected.coerceIn(0, slices.lastIndex)
     fun share(i: Int) = slices[i].value.coerceAtLeast(0.0) / total
+    val breakdownWord = stringResource(R.string.ch_breakdown)
     // Largest-remainder rounding, so the legend always adds up to 100% (#52).
     val percents = remember(slices) { Analysis.percents(slices.map { it.value }) }
     fun pct(i: Int) = "${percents[i]}%"
 
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { onSelect((sel - 1 + slices.size) % slices.size) }) { Text("Previous") }
+            TextButton(onClick = { onSelect((sel - 1 + slices.size) % slices.size) }) { Text(stringResource(R.string.ch_previous)) }
             Box(Modifier.size(diameter), contentAlignment = Alignment.Center) {
                 Canvas(
                     Modifier
                         .size(diameter)
                         .semantics {
-                            contentDescription = "Breakdown. " + slices.indices.joinToString(", ") { "${slices[it].label} ${pct(it)}" }
+                            contentDescription = "$breakdownWord. " + slices.indices.joinToString(", ") { "${slices[it].label} ${pct(it)}" }
                             stateDescription = "${slices[sel].label}, ${pct(sel)}"
                             liveRegion = LiveRegionMode.Polite
                         }
@@ -184,7 +188,7 @@ fun DonutChart(
                     Text(valueFormat(slices[sel].value), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center, maxLines = 1)
                 }
             }
-            TextButton(onClick = { onSelect((sel + 1) % slices.size) }) { Text("Next") }
+            TextButton(onClick = { onSelect((sel + 1) % slices.size) }) { Text(stringResource(R.string.ch_next)) }
         }
         if (legend) DonutLegend(slices, sel, onSelect, valueFormat)
     }
@@ -240,7 +244,7 @@ val FullscreenIcon: ImageVector = materialIcon(name = "FitLens.Fullscreen") {
 @Composable
 fun ExpandGraphButton(onClick: () -> Unit) {
     IconButton(onClick = { ChartHints.expanded(); onClick() }) {
-        Icon(FullscreenIcon, contentDescription = "Show graph full screen", tint = MaterialTheme.colorScheme.primary)
+        Icon(FullscreenIcon, contentDescription = stringResource(R.string.ch_full_screen), tint = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -261,7 +265,7 @@ fun ChartHint(modifier: Modifier = Modifier) {
     val device by Settings.device.collectAsState()
     if (!(device.chartTapSeen && device.chartExpandSeen)) {
         Text(
-            "Tap a point on the graph to view more details.\nDouble tap graph to expand.",
+            stringResource(R.string.ch_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -295,12 +299,13 @@ fun FullScreenChart(
     val viewport = ChartViewport(from, to, yFrom, yTo)
     val set: (ChartViewport) -> Unit = { v -> from = v.from; to = v.to; yFrom = v.yFrom; yTo = v.yTo }
     val reset: () -> Unit = { set(ChartViewport()) }
+    val res = LocalContext.current.resources
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
-                BackTopBar(title, onBack = onDismiss, backLabel = "Close full screen") {
+                BackTopBar(title, onBack = onDismiss, backLabel = stringResource(R.string.ch_close_full)) {
                     IconButton(onClick = reset, enabled = !viewport.isFull) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Reset zoom")
+                        Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.ch_reset_zoom))
                     }
                 }
                 controls()
@@ -311,15 +316,15 @@ fun FullScreenChart(
                         .padding(8.dp)
                         .semantics {
                             customActions = listOf(
-                                CustomAccessibilityAction("Zoom in") { set(viewport.transform(0.5f, 0f, 2f)); true },
-                                CustomAccessibilityAction("Zoom out") { set(viewport.transform(0.5f, 0f, 0.5f)); true },
-                                CustomAccessibilityAction("Move earlier") { set(viewport.transform(0.5f, 0.5f, 1f)); true },
-                                CustomAccessibilityAction("Move later") { set(viewport.transform(0.5f, -0.5f, 1f)); true }
+                                CustomAccessibilityAction(res.getString(R.string.ch_zoom_in)) { set(viewport.transform(0.5f, 0f, 2f)); true },
+                                CustomAccessibilityAction(res.getString(R.string.ch_zoom_out)) { set(viewport.transform(0.5f, 0f, 0.5f)); true },
+                                CustomAccessibilityAction(res.getString(R.string.ch_earlier)) { set(viewport.transform(0.5f, 0.5f, 1f)); true },
+                                CustomAccessibilityAction(res.getString(R.string.ch_later)) { set(viewport.transform(0.5f, -0.5f, 1f)); true }
                             ) + if (!valueZoom) emptyList<CustomAccessibilityAction>() else listOf(
-                                CustomAccessibilityAction("Zoom in on values") { set(viewport.transformY(0.5f, 0f, 2f)); true },
-                                CustomAccessibilityAction("Zoom out on values") { set(viewport.transformY(0.5f, 0f, 0.5f)); true },
-                                CustomAccessibilityAction("Show higher values") { set(viewport.transformY(0.5f, 0.5f, 1f)); true },
-                                CustomAccessibilityAction("Show lower values") { set(viewport.transformY(0.5f, -0.5f, 1f)); true }
+                                CustomAccessibilityAction(res.getString(R.string.ch_zoom_in_values)) { set(viewport.transformY(0.5f, 0f, 2f)); true },
+                                CustomAccessibilityAction(res.getString(R.string.ch_zoom_out_values)) { set(viewport.transformY(0.5f, 0f, 0.5f)); true },
+                                CustomAccessibilityAction(res.getString(R.string.ch_higher)) { set(viewport.transformY(0.5f, 0.5f, 1f)); true },
+                                CustomAccessibilityAction(res.getString(R.string.ch_lower)) { set(viewport.transformY(0.5f, -0.5f, 1f)); true }
                             )
                         }
                         .pointerInput(valueZoom) {
@@ -337,8 +342,7 @@ fun FullScreenChart(
                 }
                 footer()
                 Text(
-                    if (valueZoom) "Pinch across to zoom the timeline, up and down to zoom the values. Drag to move, tap for details."
-                    else "Pinch to zoom, drag to move along the timeline, tap for details.",
+                    stringResource(if (valueZoom) R.string.ch_pinch_values else R.string.ch_pinch),
                     Modifier.fillMaxWidth().padding(12.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -365,7 +369,7 @@ fun FullScreenDonut(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize()) {
-                BackTopBar(title, onBack = onDismiss, backLabel = "Close full screen")
+                BackTopBar(title, onBack = onDismiss, backLabel = stringResource(R.string.ch_close_full))
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(8.dp)) {
                     // The Previous and Next buttons either side of the donut take about 150dp of the width.
                     if (maxWidth > maxHeight) {
@@ -416,30 +420,27 @@ fun GraphOptionChips(
         Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val res = LocalContext.current.resources
         // The dropdowns scroll sideways on a narrow phone, so the ⋮ and full-screen buttons always stay in view.
         Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
             leading()
-            DropdownPill("Range", RANGES.map { rangeName(it.first) }, rangeIdx, onSelect = onRange)
+            DropdownPill(stringResource(R.string.ch_range), RANGES.map { rangeName(res, it.first) }, rangeIdx, onSelect = onRange)
             if (kind != null && onKind != null) {
-                DropdownPill("Chart type", ChartKind.entries.map { it.label }, kind.ordinal) { i -> onKind(ChartKind.entries[i]) }
+                DropdownPill(stringResource(R.string.an_chart_type), ChartKind.entries.map { it.text(res) }, kind.ordinal) { i -> onKind(ChartKind.entries[i]) }
             }
         }
         OptionsMenu(
             listOfNotNull(
-                ToggleOption("Trend line", showTrend, onTrend),
-                onFromZero?.let { ToggleOption("Start from zero", fromZero, it) }
+                ToggleOption(stringResource(R.string.ch_trend_line), showTrend, onTrend),
+                onFromZero?.let { ToggleOption(stringResource(R.string.ch_from_zero), fromZero, it) }
             ) + extra,
             // Share the graph as a branded image (#22).
-            actions = listOfNotNull(onShare?.let { MenuAction("Share graph as image", onClick = it) }) + actions
+            actions = listOfNotNull(onShare?.let { MenuAction(stringResource(R.string.ch_share), onClick = it) }) + actions
         )
         trailing()
     }
 }
 
-/** A range preset's name in a menu: "1M" reads as "1 month". */
-internal fun rangeName(short: String): String = when (short) {
-    "1M" -> "1 month"; "3M" -> "3 months"; "6M" -> "6 months"; "1Y" -> "1 year"; "All" -> "All time"; else -> short
-}
 
 /**
  * Pinch and drag for [FullScreenChart] (#96). It works like detectTransformGestures, with the same touch slop so a tap
