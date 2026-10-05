@@ -48,6 +48,7 @@ import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.WorkoutDataException
+import com.fitlens.companion.data.userText
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.ui.design.FitSheet
 import com.fitlens.companion.ui.design.PickerItem
@@ -143,12 +144,12 @@ fun logWorkoutDay(
                         if (old.isNotEmpty()) Workouts.addSets(old)
                         if (oldComments.isNotEmpty()) Workouts.setExerciseComments(date, oldComments)
                     } catch (e: Exception) {
-                        UiEvents.show(res.getString(R.string.day_undo_failed, e.message.orEmpty()))
+                        UiEvents.show(res.getString(R.string.day_undo_failed, e.userText(res)))
                     }
                 }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: res.getString(R.string.wk_add_failed))
+            UiEvents.show(e.text(res))
         }
     }
     return toOpen
@@ -399,7 +400,7 @@ fun SaveAsWorkoutSheet(snap: Snapshot, nav: Nav, date: String, onDismiss: () -> 
                 }
                 if (edit) nav.push(Screen.WorkoutEditor(routineSaved))
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: res.getString(R.string.wk_save_failed))
+                UiEvents.show(e.text(res))
             }
         }
     }

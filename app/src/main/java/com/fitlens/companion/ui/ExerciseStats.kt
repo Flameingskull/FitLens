@@ -286,7 +286,7 @@ fun EstimatedOneRmSettingsSheet(onDismiss: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium
         )
         Text(
-            stringResource(R.string.st_e1rm_hint, formula.label, formula.maxReps),
+            stringResource(R.string.st_e1rm_hint, formulaText(LocalContext.current.resources, formula), formula.maxReps),
             style = MaterialTheme.typography.bodySmall,
             fontStyle = FontStyle.Italic,
             color = MaterialTheme.colorScheme.onSurfaceVariant

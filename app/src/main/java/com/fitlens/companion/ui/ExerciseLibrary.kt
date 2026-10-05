@@ -708,7 +708,7 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
             stringResource(R.string.lib_info_graph),
             graphs.getOrNull(ex.defaultGraph.takeIf { it >= 0 } ?: 0)?.let { graphName(LocalContext.current.resources, it) } ?: stringResource(R.string.ex_none)
         )
-        InfoRow(stringResource(R.string.lib_info_type), ExerciseTypes.label(ex.type))
+        InfoRow(stringResource(R.string.lib_info_type), exerciseTypeText(LocalContext.current.resources, ex.type))
     }
 }
 
@@ -784,7 +784,7 @@ fun ExerciseEditorSheet(
                     onSaved(id)
                 }
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: res.getString(R.string.lib_save_failed))
+                UiEvents.show(e.text(res))
             }
         }
     }
@@ -849,13 +849,13 @@ fun ExerciseEditorSheet(
                     val main = listOf(ExerciseTypes.WEIGHT_REPS, ExerciseTypes.DISTANCE_TIME)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         main.forEach { t ->
-                            FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
+                            FilterChip(selected = type == t, onClick = { type = t }, label = { Text(exerciseTypeText(LocalContext.current.resources, t)) })
                         }
                     }
                     FieldLabel(stringResource(R.string.lib_more_types))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         ExerciseTypes.all.filter { it !in main }.forEach { t ->
-                            FilterChip(selected = type == t, onClick = { type = t }, label = { Text(ExerciseTypes.label(t)) })
+                            FilterChip(selected = type == t, onClick = { type = t }, label = { Text(exerciseTypeText(LocalContext.current.resources, t)) })
                         }
                     }
                     // The user's own types (#14); the library is in the key so a new or edited type shows at once.
@@ -875,13 +875,13 @@ fun ExerciseEditorSheet(
                             FilterChip(
                                 selected = false,
                                 onClick = { typeSheet = type },
-                                label = { Text(stringResource(R.string.types_edit, ExerciseTypes.label(type))) },
+                                label = { Text(stringResource(R.string.types_edit, exerciseTypeText(LocalContext.current.resources, type))) },
                                 leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) }
                             )
                         }
                     }
                     Text(
-                        stringResource(R.string.lib_type_example, ExerciseTypes.example(type)),
+                        stringResource(R.string.lib_type_example, exerciseTypeExample(LocalContext.current.resources, type)),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -926,7 +926,7 @@ fun ExerciseEditorSheet(
                         FieldLabel(stringResource(R.string.lib_distance_unit))
                         DropdownPill(
                             stringResource(R.string.lib_distance_unit),
-                            listOf(stringResource(R.string.lib_as_settings_unit, global)) + DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
+                            listOf(stringResource(R.string.lib_as_settings_unit, global)) + DistanceUnits.ALL.map { "${distanceUnitText(res, it)} ($it)" },
                             distUnit?.let { DistanceUnits.ALL.indexOf(it) + 1 } ?: 0
                         ) { i -> distUnit = if (i == 0) null else DistanceUnits.ALL[i - 1] }
                         if (existing != null && distUnit != existing.distanceUnit && snap.setsByExercise[existing.id].orEmpty().any { it.distance > 0 }) {
@@ -1077,7 +1077,7 @@ private fun MergeExerciseFlow(snap: Snapshot, ex: Exercise, onDismiss: () -> Uni
                     val n = Workouts.mergeExercises(ex.id, target.id)
                     ImportSummary(res.getString(R.string.lib_merged, ex.name, target.name, res.getQuantityString(R.plurals.sets_count, n, n)), ok = true)
                 } catch (e: WorkoutDataException) {
-                    ImportSummary(e.message ?: res.getString(R.string.lib_merge_failed), ok = false)
+                    ImportSummary(e.text(res), ok = false)
                 }
             }
         }
@@ -1205,7 +1205,7 @@ fun CategoryEditorSheet(
                     }
                     onSaved(id)
                 } catch (e: WorkoutDataException) {
-                    UiEvents.show(e.message ?: res.getString(R.string.lib_category_save_failed))
+                    UiEvents.show(e.text(res))
                 }
             }
         }
@@ -1273,7 +1273,8 @@ fun StarterLibraryDialog(onDismiss: () -> Unit) {
                 AppScope.scope.launch {
                     UiEvents.busy.value = res.getString(R.string.lib_starter_adding)
                     try {
-                        UiEvents.show(Workouts.seedStarterLibrary(CategoryPaletteArgb).message)
+                        UiEvents.show(Workouts.seedStarterLibrary(CategoryPaletteArgb).text(res))
+
                     } catch (e: Exception) {
                         UiEvents.show(res.getString(R.string.lib_starter_failed, e.message.orEmpty()))
                     } finally {

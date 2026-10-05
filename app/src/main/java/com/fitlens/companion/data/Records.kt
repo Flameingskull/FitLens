@@ -31,6 +31,7 @@ object Records {
      * New entries go at the end of the list shown in Settings only by [key]; the stored value is the key, never the
      * position, so adding Mayhew changes nothing anyone has chosen.
      */
+    /** [label] names the formula after its author; Automatic's is worded by `formulaText` on screen (#156). */
     enum class Formula(val key: String, val label: String, val maxReps: Int) {
         AUTO("auto", "Automatic (recommended)", MAX_ESTIMATE_REPS),
         EPLEY("epley", "Epley", 12),

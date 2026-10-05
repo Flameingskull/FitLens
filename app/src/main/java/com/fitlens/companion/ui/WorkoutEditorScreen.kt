@@ -144,7 +144,7 @@ fun WorkoutEditorScreen(snap: Snapshot, nav: Nav, id: Long) {
                 if (r.id == 0L) Settings.updatePortable { it.copy(lastRoutineId = saved) }
                 UiEvents.show(context.getString(R.string.workout_saved, r.name.trim()))
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: context.getString(R.string.workout_save_failed))
+                UiEvents.show(e.text(context.resources))
             }
         }
     }

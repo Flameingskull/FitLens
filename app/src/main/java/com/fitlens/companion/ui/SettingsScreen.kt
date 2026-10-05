@@ -233,7 +233,7 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
         mainRow(s, R.string.settings_distance_unit, R.string.settings_distance_unit_kw) { title ->
             SettingsChoiceRow(
                 title,
-                DistanceUnits.ALL.map { "${DistanceUnits.label(it)} ($it)" },
+                DistanceUnits.ALL.map { "${distanceUnitText(LocalContext.current.resources, it)} ($it)" },
                 DistanceUnits.ALL.indexOf(prefs.distanceUnit).coerceAtLeast(0),
                 summary = stringResource(R.string.settings_distance_unit_summary)
             ) { i -> Settings.updatePortable { it.copy(distanceUnit = DistanceUnits.ALL[i]) } }
@@ -626,7 +626,7 @@ private fun WeightStepRow(title: String, unit: String, currentKg: Double?) {
 internal fun DistanceAndLengthSetting(distanceUnit: String, lengthUnit: String) {
     SectionTitle(stringResource(R.string.setup_distances))
     com.fitlens.companion.ui.design.SegmentedSwitch(
-        options = DistanceUnits.ALL.map { DistanceUnits.label(it) },
+        options = DistanceUnits.ALL.map { distanceUnitText(LocalContext.current.resources, it) },
         selected = DistanceUnits.ALL.indexOf(distanceUnit).coerceAtLeast(0),
         onSelect = { i -> Settings.updatePortable { it.copy(distanceUnit = DistanceUnits.ALL[i]) } }
     )
@@ -697,7 +697,7 @@ private fun FormulaChoice(title: String, snap: Snapshot, chosen: Records.Formula
     val notEstimated = stringResource(R.string.formula_not_estimated)
     SettingsChoiceRow(
         title,
-        formulas.map { it.label },
+        formulas.map { formulaText(LocalContext.current.resources, it) },
         formulas.indexOf(chosen).coerceAtLeast(0),
         summary = stringResource(R.string.formula_summary),
         descriptions = formulas.map { f ->

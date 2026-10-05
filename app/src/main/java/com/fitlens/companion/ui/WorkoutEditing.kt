@@ -47,6 +47,7 @@ import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.SetRow
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.WorkoutDataException
+import com.fitlens.companion.data.userText
 import com.fitlens.companion.data.WorkoutTime
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.ui.design.ConfirmSheet
@@ -196,7 +197,7 @@ fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 try {
                     Workouts.setWorkoutComment(date, value)
                 } catch (e: WorkoutDataException) {
-                    UiEvents.show(e.message ?: res.getString(R.string.set_comment_failed))
+                    UiEvents.show(e.text(res))
                 }
             }
         }
@@ -273,7 +274,7 @@ private fun deleteWithUndo(res: Resources, date: String, sets: List<SetRow>, com
                     if (times.isNotEmpty()) Workouts.setWorkoutTimes(date, times)
                     if (exerciseComments.isNotEmpty()) Workouts.setExerciseComments(date, exerciseComments)
                 } catch (e: Exception) {
-                    UiEvents.show(res.getString(R.string.day_undo_failed, e.message.orEmpty()))
+                    UiEvents.show(res.getString(R.string.day_undo_failed, e.userText(res)))
                 }
             }
         }
@@ -482,7 +483,7 @@ private fun copyWithUndo(res: Resources, from: String, to: String, ids: List<Lon
                 AppScope.scope.launch { Workouts.deleteSets(copies) }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: res.getString(R.string.wk_failed))
+            UiEvents.show(e.text(res))
         }
     }
 }
@@ -513,12 +514,12 @@ private fun moveWithUndo(res: Resources, snap: Snapshot, from: String, to: Strin
                         Workouts.setExerciseComments(from, fromExerciseComments)
                         Workouts.setExerciseComments(to, toExerciseComments)
                     } catch (e: Exception) {
-                        UiEvents.show(res.getString(R.string.day_undo_failed, e.message.orEmpty()))
+                        UiEvents.show(res.getString(R.string.day_undo_failed, e.userText(res)))
                     }
                 }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: res.getString(R.string.wk_failed))
+            UiEvents.show(e.text(res))
         }
     }
 }

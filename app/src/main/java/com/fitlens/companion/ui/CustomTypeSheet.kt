@@ -59,7 +59,7 @@ fun CustomTypeSheet(existing: CustomType?, onDismiss: () -> Unit, onSaved: (Int)
                 onSaved(id)
                 onDismiss()
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: res.getString(R.string.type_save_failed))
+                UiEvents.show(e.text(res))
             }
         }
     }
@@ -77,7 +77,7 @@ fun CustomTypeSheet(existing: CustomType?, onDismiss: () -> Unit, onSaved: (Int)
                         UiEvents.show(res.getString(R.string.type_deleted, existing.name))
                         onDismiss()
                     } catch (e: WorkoutDataException) {
-                        UiEvents.show(e.message ?: res.getString(R.string.type_delete_failed))
+                        UiEvents.show(e.text(res))
                     }
                 }
                 confirmDelete = false
@@ -131,7 +131,7 @@ fun CustomTypeSheet(existing: CustomType?, onDismiss: () -> Unit, onSaved: (Int)
             count > CustomType.MAX_VALUES ->
                 pluralStringResource(R.plurals.type_hint_too_many, CustomType.MAX_VALUES, CustomType.MAX_VALUES, count)
             ownMetric && draft.metricName == null -> stringResource(R.string.type_hint_metric_name)
-            else -> stringResource(R.string.type_hint_ready, draft.describe().lowercase())
+            else -> stringResource(R.string.type_hint_ready, customTypeText(res, draft).lowercase())
         }
         Text(
             hint,

@@ -80,7 +80,7 @@ fun setCells(res: Resources, snap: Snapshot, fields: List<SetField>, s: SetRow):
         SetField.DISTANCE ->
             if (s.distance > 0) {
                 val unit = snap.distanceUnit(s.exerciseId)
-                fmtNum(s.distance).let { SetCell(it, unit, "$it ${DistanceUnits.spoken(unit)}") }
+                fmtNum(s.distance).let { SetCell(it, unit, "$it ${distanceUnitSpoken(res, unit)}") }
             }
             else SetCell("—", spoken = res.getString(R.string.sc_no_distance))
         SetField.TIME ->

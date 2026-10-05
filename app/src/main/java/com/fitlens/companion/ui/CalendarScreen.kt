@@ -363,7 +363,7 @@ private fun SelectedDay(snap: Snapshot, date: String, onOverview: (Long) -> Unit
                     if (exSets.any { it.isPr }) Text(" " + stringResource(R.string.cal_pr), style = MaterialTheme.typography.labelMedium, color = Brand.Gold)
                 }
                 exSets.forEachIndexed { i, s ->
-                    val marks = setMarks(s)
+                    val marks = setMarks(LocalContext.current.resources, s)
                     com.fitlens.companion.ui.design.SetRow(
                         index = i + 1,
                         summary = describeSet(LocalContext.current.resources, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),

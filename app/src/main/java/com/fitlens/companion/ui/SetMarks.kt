@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import android.content.res.Resources
 import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.PortableSettings
 import com.fitlens.companion.data.SetRow
@@ -13,13 +14,13 @@ import com.fitlens.companion.data.Settings
  */
 data class SetMarks(val badge: String?, val badgeSpoken: String?, val effort: String?, val effortSpoken: String?)
 
-fun setMarks(s: SetRow, prefs: PortableSettings = Settings.currentPortable()): SetMarks {
+fun setMarks(res: Resources, s: SetRow, prefs: PortableSettings = Settings.currentPortable()): SetMarks {
     val badge = if (prefs.showSetType) SetTypes.badge(s.setType) else null
     val rpe = s.rpe?.takeIf { prefs.effortMode != Effort.OFF }
     return SetMarks(
         badge = badge,
-        badgeSpoken = badge?.let { SetTypes.label(s.setType).lowercase() },
-        effort = rpe?.let { Effort.short(it, prefs.effortMode) },
-        effortSpoken = rpe?.let { Effort.spoken(it, prefs.effortMode) }
+        badgeSpoken = badge?.let { setTypeText(res, s.setType).lowercase() },
+        effort = rpe?.let { effortText(res, it, prefs.effortMode) },
+        effortSpoken = rpe?.let { effortSpoken(res, it, prefs.effortMode) }
     )
 }

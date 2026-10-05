@@ -20,14 +20,6 @@ object MediaPrefs {
     const val GROUP_POSE = "pose"
     val GROUPS = listOf(GROUP_DAY, GROUP_WEEK, GROUP_MONTH, GROUP_YEAR, GROUP_POSE)
 
-    fun groupLabel(key: String): String = when (key) {
-        GROUP_DAY -> "Day"
-        GROUP_WEEK -> "Week"
-        GROUP_YEAR -> "Year"
-        GROUP_POSE -> "Pose"
-        else -> "Month"
-    }
-
     /** A stored grouping, or Month when it's missing or unknown. */
     fun groupOf(stored: String?): String = stored?.takeIf { it in GROUPS } ?: GROUP_MONTH
 

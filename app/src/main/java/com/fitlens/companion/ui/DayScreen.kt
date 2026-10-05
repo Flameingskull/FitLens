@@ -83,6 +83,7 @@ import com.fitlens.companion.data.SetRow as LoggedSet
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.WorkoutDataException
+import com.fitlens.companion.data.userText
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
@@ -629,7 +630,7 @@ private fun ExerciseOnDay(
         )
     ) {
         exSets.take(limit).forEachIndexed { i, s ->
-            val marks = setMarks(s)
+            val marks = setMarks(res, s)
             SetRow(
                 index = i + 1,
                 summary = describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
@@ -684,7 +685,7 @@ private fun ExerciseOnDay(
                                 AppScope.scope.launch { Workouts.setExerciseOf(moved, exId) }
                             }
                         } catch (e: WorkoutDataException) {
-                            UiEvents.show(e.message ?: res.getString(R.string.day_swap_failed))
+                            UiEvents.show(e.text(res))
                         }
                     }
                 }
@@ -719,7 +720,7 @@ private fun ExerciseOnDay(
                             Workouts.addSets(removed)
                             if (!removedComment.isNullOrBlank()) Workouts.setExerciseComment(date, exId, removedComment)
                         } catch (e: Exception) {
-                            UiEvents.show(res.getString(R.string.day_undo_failed, e.message ?: e.javaClass.simpleName))
+                            UiEvents.show(res.getString(R.string.day_undo_failed, e.userText(res)))
                         }
                     }
                 }

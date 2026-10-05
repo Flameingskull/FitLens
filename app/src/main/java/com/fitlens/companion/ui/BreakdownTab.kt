@@ -76,7 +76,8 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
     val sliceResult = rememberDerived("breakdownSlices", snap.trainingKey, measure, group, window) {
         window?.let { Analysis.breakdown(snap, measure, group, it.from, it.to) }.orEmpty()
     }
-    val slices = sliceResult.orEmpty()
+    val slices = remember(sliceResult, group, res) { sliceResult.orEmpty().map { it.copy(label = it.text(res, group)) } }
+
     // Only on the first visit: after that the cached result shows straight away.
     val working = (windowList == null && span != Analysis.Span.Custom) || (window != null && sliceResult == null)
     fun shown(v: Double) = if (measure == Analysis.Measure.Volume) snap.weight(v) else v

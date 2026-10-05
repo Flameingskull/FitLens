@@ -28,17 +28,6 @@ object GoalKinds {
     val strength = listOf(MAX_WEIGHT, E1RM, MAX_REPS, SET_VOLUME, WORKOUT_VOLUME)
     val timed = listOf(LONGEST_SET, WORKOUT_DISTANCE)
 
-    fun label(k: Int): String = when (k) {
-        MAX_WEIGHT -> "Max weight"
-        E1RM -> "Estimated 1RM"
-        MAX_REPS -> "Max reps in a set"
-        SET_VOLUME -> "Volume in one set"
-        WORKOUT_VOLUME -> "Volume in one workout"
-        LONGEST_SET -> "Longest set"
-        WORKOUT_DISTANCE -> "Distance in one workout"
-        else -> "Goal"
-    }
-
     fun isWeight(k: Int) = k == MAX_WEIGHT || k == E1RM || k == SET_VOLUME || k == WORKOUT_VOLUME
     fun isTime(k: Int) = k == LONGEST_SET
 

@@ -28,11 +28,9 @@
     <string name="type_edit_note">Exercises of this type follow the change. Sets already logged keep every value.</string>
     <string name="type_created">Type %1$s created</string>
     <string name="type_saved">Type %1$s saved</string>
-    <string name="type_save_failed">That type couldn\'t be saved.</string>
     <string name="type_delete_title">Delete %1$s?</string>
     <string name="type_delete_body">Exercises can\'t use it any more. A type that an exercise still uses can\'t be deleted.</string>
     <string name="type_deleted">Type %1$s deleted</string>
-    <string name="type_delete_failed">That type couldn\'t be deleted.</string>
     <string name="types_yours">Your types</string>
     <string name="types_new">New type</string>
     <string name="types_edit">Edit %1$s</string>
@@ -41,7 +39,6 @@
     <string name="workout_day_n">Day %1$d</string>
     <string name="workout_name_needed">Enter a name for the workout.</string>
     <string name="workout_saved">Saved %1$s</string>
-    <string name="workout_save_failed">That workout couldn\'t be saved.</string>
     <string name="workout_new_title">New workout</string>
     <string name="workout_edit_title">Edit workout</string>
     <string name="workout_save">Save workout</string>
@@ -813,7 +810,6 @@
     <string name="day_search_exercises">Search exercises</string>
     <string name="day_swap_new_fallback">the new exercise</string>
     <string name="day_swapped">Swapped %1$s for %2$s</string>
-    <string name="day_swap_failed">That swap didn\'t work.</string>
     <string name="day_exercise_comment">Exercise comment</string>
     <string name="day_remove_title">Remove %1$s from this workout?</string>
     <plurals name="day_remove_body">
@@ -901,7 +897,6 @@
     <string name="set_new_pr">New personal record: %1$s %2$s × %3$d</string>
     <string name="set_updated">Set updated</string>
     <string name="set_updated_next">Set updated. Next set selected.</string>
-    <string name="set_save_failed">That set couldn\'t be saved.</string>
     <string name="set_superset_needs_another">Log another exercise today first, then add it to a superset with this one.</string>
     <string name="set_drawer_open">Workout: every exercise today</string>
     <string name="set_exercise_info">Exercise info</string>
@@ -938,7 +933,6 @@
     <string name="set_deleted">Set deleted</string>
     <string name="set_this_exercise">this exercise</string>
     <string name="set_number">Set %1$d</string>
-    <string name="set_comment_failed">That comment couldn\'t be saved.</string>
     <string name="ex_fallback">Exercise</string>
     <string name="ex_calculator">1RM calculator</string>
     <string name="ex_e1rm_settings">Estimated 1RM settings</string>
@@ -1011,7 +1005,6 @@
         <item quantity="one">Copied %1$d set to today</item>
         <item quantity="other">Copied %1$d sets to today</item>
     </plurals>
-    <string name="ex_copy_failed">Couldn\'t copy those sets.</string>
     <string name="ex_record_best">Best %1$s</string>
     <string name="ex_record_longest">Longest</string>
     <string name="ex_record_farthest">Farthest</string>
@@ -1084,7 +1077,6 @@
     <string name="lib_info_type">Type</string>
     <string name="lib_enter_name">Enter a name for the exercise.</string>
     <string name="lib_saved">Saved %1$s</string>
-    <string name="lib_save_failed">That exercise couldn\'t be saved.</string>
     <string name="lib_edit_exercise">Edit exercise</string>
     <string name="lib_close_unsaved">Close without saving</string>
     <string name="lib_save">Save</string>
@@ -1121,14 +1113,12 @@
     <string name="lib_merging">Merging exercises…</string>
     <string name="lib_merge_safety">Before merging %1$s into %2$s</string>
     <string name="lib_merged">Merged %1$s into %2$s (%3$s). Undo is in Settings → Backup.</string>
-    <string name="lib_merge_failed">Couldn\'t merge those exercises.</string>
     <string name="lib_categories">Categories</string>
     <string name="lib_categories_none">No categories yet.</string>
     <string name="lib_category_is_empty">The category is empty.</string>
     <string name="lib_category_delete_body">Its %1$s and all their logged history are kept. They become uncategorised.</string>
     <string name="lib_delete_category">Delete category</string>
     <string name="lib_save_category">Save category</string>
-    <string name="lib_category_save_failed">That category couldn\'t be saved.</string>
     <string name="lib_colour">Colour</string>
     <string name="lib_use_colour">Use colour %1$d</string>
     <string name="lib_colour_n">Colour %1$d</string>
@@ -1140,8 +1130,6 @@
     <string name="lib_starter_add">Add them</string>
     <string name="lib_title">Exercise library</string>
     <string name="wk_timer_stopped">Workout timer stopped at %1$s</string>
-    <string name="wk_timer_stop_failed">The timer couldn\'t be stopped.</string>
-    <string name="wk_time_save_failed">That time couldn\'t be saved.</string>
     <string name="wk_time_title">Workout time</string>
     <string name="wk_save">Save</string>
     <string name="wk_time_options">Workout time options</string>
@@ -1189,7 +1177,6 @@
         <item quantity="other">%1$s and %2$d more</item>
     </plurals>
     <string name="wk_day_added">%1$s added: %2$s</string>
-    <string name="wk_add_failed">That workout couldn\'t be added.</string>
     <string name="wk_choose_exercises">Choose exercises</string>
     <string name="wk_replace_title">Replace this workout</string>
     <string name="wk_add_title">Add workout</string>
@@ -1220,7 +1207,6 @@
     </plurals>
     <string name="wk_replaced_day">Replaced %1$s in %2$s</string>
     <string name="wk_added_day">Added %1$s to %2$s</string>
-    <string name="wk_save_failed">That workout couldn\'t be saved.</string>
     <string name="wk_create_title">Create workout</string>
     <string name="wk_save_to">Save to</string>
     <string name="wk_new_workout">New workout</string>
@@ -1278,7 +1264,6 @@
         <item quantity="one">Copied %1$d set to %2$s</item>
         <item quantity="other">Copied %1$d sets to %2$s</item>
     </plurals>
-    <string name="wk_failed">That didn\'t work.</string>
     <plurals name="wk_moved_to">
         <item quantity="one">Moved %1$d set to %2$s</item>
         <item quantity="other">Moved %1$d sets to %2$s</item>
@@ -2415,4 +2400,92 @@
     </plurals>
     <string name="pir_whole">%1$s.</string>
     <string name="pir_whole_detail">%1$s. %2$s.</string>
+    <!-- Data layer: why a workout, exercise, category or type couldn't be saved (#156) -->
+    <string name="wde_name_category">Enter a name for the category.</string>
+    <string name="wde_name_exercise">Enter a name for the exercise.</string>
+    <string name="wde_name_type">Enter a name for the type.</string>
+    <string name="wde_name_workout">Enter a name for the workout.</string>
+    <string name="wde_bad_date">That date isn\'t valid.</string>
+    <string name="wde_category_exists">There\'s already a category called %1$s.</string>
+    <string name="wde_category_gone">That category no longer exists.</string>
+    <string name="wde_exercise_exists">There\'s already an exercise called %1$s.</string>
+    <string name="wde_exercise_gone">That exercise no longer exists.</string>
+    <string name="wde_set_gone">That set no longer exists.</string>
+    <string name="wde_type_no_values">Choose at least one value for %1$s to record.</string>
+    <string name="wde_type_too_many">A type records at most %1$d values.</string>
+    <string name="wde_type_metric_builtin">%1$s is already a value you can choose. Tick it instead.</string>
+    <string name="wde_type_exists">There\'s already a type called %1$s.</string>
+    <plurals name="wde_type_in_use">
+        <item quantity="one">%1$d exercise uses this type. Give it another type first.</item>
+        <item quantity="other">%1$d exercises use this type. Give them another type first.</item>
+    </plurals>
+    <string name="wde_merge_same">Choose a different exercise to merge into.</string>
+    <!-- Starter library result (#156) -->
+    <string name="seed_nothing">Your library already had every starter exercise.</string>
+    <plurals name="seed_exercises">
+        <item quantity="one">%1$d exercise</item>
+        <item quantity="other">%1$d exercises</item>
+    </plurals>
+    <plurals name="seed_categories">
+        <item quantity="one">%1$d category</item>
+        <item quantity="other">%1$d categories</item>
+    </plurals>
+    <string name="seed_both">%1$s and %2$s</string>
+    <string name="seed_added">Added %1$s.</string>
+    <plurals name="seed_kept">
+        <item quantity="one">The %1$d you already had was left as it is.</item>
+        <item quantity="other">The %1$d you already had were left as they are.</item>
+    </plurals>
+    <string name="seed_added_kept">%1$s %2$s</string>
+    <!-- Breakdown slices without a name (#156) -->
+    <string name="slice_unknown_exercise">Unknown exercise</string>
+    <string name="slice_no_category">No category</string>
+    <string name="slice_other">Other (%1$d)</string>
+    <!-- Exercise types, set types, effort and distance units as shown on screen (#156) -->
+    <string name="xt_distance_time">Distance &amp; time</string>
+    <string name="xt_weight_distance">Weight &amp; distance</string>
+    <string name="xt_time">Time</string>
+    <string name="xt_weight_time">Weight &amp; time</string>
+    <string name="xt_reps_time">Reps &amp; time</string>
+    <string name="xt_reps_distance">Reps &amp; distance</string>
+    <string name="xt_weight">Weight</string>
+    <string name="xt_reps">Reps</string>
+    <string name="xt_distance">Distance</string>
+    <string name="xt_weight_reps">Weight &amp; reps</string>
+    <string name="xte_distance_time">Running, cycling, rowing</string>
+    <string name="xte_weight_distance">Sled push, farmer\'s walk for distance</string>
+    <string name="xte_time">Plank, stretching</string>
+    <string name="xte_weight_time">Weighted plank, loaded carry, dead hang</string>
+    <string name="xte_reps_time">Burpees or skipping in a set time</string>
+    <string name="xte_reps_distance">Lunges over a distance</string>
+    <string name="xte_weight">A single heavy lift or hold</string>
+    <string name="xte_reps">Pull-ups, push-ups, dips</string>
+    <string name="xte_distance">Swimming lengths, a walk</string>
+    <string name="xte_weight_reps">Bench press, squat, curls</string>
+    <string name="ct_weight">weight</string>
+    <string name="ct_reps">reps</string>
+    <string name="ct_distance">distance</string>
+    <string name="ct_time">time</string>
+    <string name="ct_metric_unit">%1$s (%2$s)</string>
+    <string name="ct_list_two">%1$s and %2$s</string>
+    <string name="ct_list_more">%1$s, %2$s</string>
+    <string name="stype_working">Working</string>
+    <string name="stype_warmup">Warm-up</string>
+    <string name="stype_drop">Drop set</string>
+    <string name="stype_failure">To failure</string>
+    <string name="eff_rpe">RPE %1$s</string>
+    <string name="eff_rir">%1$d RIR</string>
+    <string name="eff_rir_max">5+ RIR</string>
+    <plurals name="eff_rir_spoken">
+        <item quantity="one">%1$d rep in reserve</item>
+        <item quantity="other">%1$d reps in reserve</item>
+    </plurals>
+    <string name="eff_rir_max_spoken">5 or more reps in reserve</string>
+    <string name="du_km">Kilometres</string>
+    <string name="du_mi">Miles</string>
+    <string name="du_m">Metres</string>
+    <string name="du_km_spoken">kilometres</string>
+    <string name="du_mi_spoken">miles</string>
+    <string name="du_m_spoken">metres</string>
+    <string name="formula_auto">Automatic (recommended)</string>
 </resources>

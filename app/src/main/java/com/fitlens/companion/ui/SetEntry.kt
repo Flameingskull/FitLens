@@ -73,6 +73,7 @@ import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.WorkoutDataException
+import com.fitlens.companion.data.userText
 import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
@@ -391,7 +392,7 @@ fun SetEntryScreen(
                     UiEvents.show(res.getString(if (next == null) R.string.set_updated else R.string.set_updated_next))
                 }
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: res.getString(R.string.set_save_failed))
+                UiEvents.show(e.text(res))
             }
         }
     }
@@ -562,7 +563,7 @@ fun SetEntryScreen(
                         val types = SetTypes.all
                         DropdownPill(
                             stringResource(R.string.set_type),
-                            types.map { t -> SetTypes.badge(t)?.let { "$it · ${SetTypes.label(t)}" } ?: SetTypes.label(t) },
+                            types.map { t -> SetTypes.badge(t)?.let { "$it · ${setTypeText(res, t)}" } ?: setTypeText(res, t) },
                             types.indexOf(setType).coerceAtLeast(0)
                         ) { i -> setType = types[i] }
                         Spacer(Modifier.weight(1f))
@@ -651,7 +652,7 @@ fun SetEntryScreen(
             sets.forEachIndexed { i, s ->
                 item(key = "s${s.id}") {
                     val isSelected = selected == s.id
-                    val marks = setMarks(s, prefs)
+                    val marks = setMarks(res, s, prefs)
                     SetRowView(
                         index = i + 1,
                         summary = describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
@@ -732,7 +733,7 @@ fun SetEntryScreen(
                             // clears the skip rule its delete left behind (#76).
                             Workouts.addSets(listOf(s))
                         } catch (e: Exception) {
-                            UiEvents.show(res.getString(R.string.day_undo_failed, e.message ?: e.javaClass.simpleName))
+                            UiEvents.show(res.getString(R.string.day_undo_failed, e.userText(res)))
                         }
                     }
                 }
@@ -773,7 +774,7 @@ fun SetEntryScreen(
                     try {
                         Workouts.setComment(s.id, text)
                     } catch (e: WorkoutDataException) {
-                        UiEvents.show(e.message ?: res.getString(R.string.set_comment_failed))
+                        UiEvents.show(e.text(res))
                     }
                 }
             },

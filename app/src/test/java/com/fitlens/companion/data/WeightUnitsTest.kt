@@ -93,7 +93,6 @@ class WeightUnitsTest {
     fun distanceUnitsAreLabelsOnly() {
         assertEquals("mi", DistanceUnits.of(" MI "))
         assertNull(DistanceUnits.of("furlong"))
-        assertEquals("Metres", DistanceUnits.label(DistanceUnits.M))
     }
 
     @Test

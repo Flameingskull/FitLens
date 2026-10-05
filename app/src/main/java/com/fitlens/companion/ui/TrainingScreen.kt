@@ -877,7 +877,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                         if (snap.photosByDate.containsKey(d)) Dot(LocalChartColors.current.accent)
                     }
                     l.forEachIndexed { i, s ->
-                        val marks = setMarks(s)
+                        val marks = setMarks(res, s)
                         SetRowView(
                             index = i + 1,
                             summary = describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId),
@@ -956,7 +956,7 @@ private fun copyToToday(res: Resources, date: String, ids: List<Long>) {
                 AppScope.scope.launch { Workouts.deleteSets(copies) }
             }
         } catch (e: WorkoutDataException) {
-            UiEvents.show(e.message ?: res.getString(R.string.ex_copy_failed))
+            UiEvents.show(e.text(res))
         }
     }
 }

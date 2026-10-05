@@ -52,6 +52,10 @@ object ExerciseTypes {
         WEIGHT_ONLY, REPS_ONLY, DISTANCE_ONLY, TIME
     )
 
+    /**
+     * A type's English name, or a custom type's own name. The screen shows `exerciseTypeText` (`ui/ModelText.kt`,
+     * #156); this one keeps a custom type from taking a built-in type's name.
+     */
     fun label(type: Int): String = when (type) {
         in custom -> custom.getValue(type).name
         DISTANCE_TIME -> "Distance & time"
@@ -64,21 +68,6 @@ object ExerciseTypes {
         REPS_ONLY -> "Reps"
         DISTANCE_ONLY -> "Distance"
         else -> "Weight & reps"
-    }
-
-    /** A short example of the kind of exercise each type suits, for the type picker. */
-    fun example(type: Int): String = when (type) {
-        in custom -> custom.getValue(type).describe()
-        DISTANCE_TIME -> "Running, cycling, rowing"
-        WEIGHT_DISTANCE -> "Sled push, farmer's walk for distance"
-        TIME -> "Plank, stretching"
-        WEIGHT_TIME -> "Weighted plank, loaded carry, dead hang"
-        REPS_TIME -> "Burpees or skipping in a set time"
-        REPS_DISTANCE -> "Lunges over a distance"
-        WEIGHT_ONLY -> "A single heavy lift or hold"
-        REPS_ONLY -> "Pull-ups, push-ups, dips"
-        DISTANCE_ONLY -> "Swimming lengths, a walk"
-        else -> "Bench press, squat, curls"
     }
 
     private val weightTypes = setOf(WEIGHT_REPS, WEIGHT_DISTANCE, WEIGHT_TIME, WEIGHT_ONLY)
@@ -123,16 +112,6 @@ data class CustomType(
     val metricUnit: String? = null
 ) {
     val valueCount: Int get() = listOf(weight, reps, distance, time, metricName != null).count { it }
-
-    /** "Weight, reps and height (cm)", for the type picker. */
-    fun describe(): String {
-        val parts = listOfNotNull(
-            "weight".takeIf { weight }, "reps".takeIf { reps }, "distance".takeIf { distance }, "time".takeIf { time },
-            metricName?.let { n -> n.lowercase(Locale.getDefault()) + (metricUnit?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") }
-        )
-        val list = if (parts.size < 2) parts.joinToString("") else parts.dropLast(1).joinToString(", ") + " and " + parts.last()
-        return list.replaceFirstChar { it.titlecase(Locale.getDefault()) }
-    }
 
     companion object {
         const val MAX_VALUES = 3
@@ -205,13 +184,6 @@ object SetTypes {
 
     val all = listOf(WORKING, WARMUP, DROP, FAILURE)
 
-    fun label(t: Int): String = when (t) {
-        WARMUP -> "Warm-up"
-        DROP -> "Drop set"
-        FAILURE -> "To failure"
-        else -> "Working"
-    }
-
     /** The badge letter, or null for a working set (which needs none). */
     fun badge(t: Int): String? = when (t) {
         WARMUP -> "W"
@@ -244,17 +216,6 @@ object Effort {
     fun rpeFromRir(rir: Int): Double = (10 - rir.coerceIn(0, 5)).toDouble()
 
     fun rirFromRpe(rpe: Double): Int = (10.0 - rpe).toInt().coerceIn(0, 5)
-
-    /** Short text for a set list: "RPE 8.5" or "2 RIR". */
-    fun short(rpe: Double, mode: String): String =
-        if (mode == RIR) { val r = rirFromRpe(rpe); if (r >= 5) "5+ RIR" else "$r RIR" } else "RPE ${fmtNum(rpe, 1)}"
-
-    /** What TalkBack reads: "RPE 8" or "2 reps in reserve". */
-    fun spoken(rpe: Double, mode: String): String =
-        if (mode == RIR) {
-            val r = rirFromRpe(rpe)
-            if (r >= 5) "5 or more reps in reserve" else if (r == 1) "1 rep in reserve" else "$r reps in reserve"
-        } else "RPE ${fmtNum(rpe, 1)}"
 }
 
 data class MeasurementDef(
@@ -289,13 +250,6 @@ object MeasurementGoals {
     const val TARGET = 3
 
     val all = listOf(NONE, INCREASE, DECREASE, TARGET)
-
-    fun label(t: Int): String = when (t) {
-        INCREASE -> "Increase"
-        DECREASE -> "Decrease"
-        TARGET -> "Specific value"
-        else -> "No goal"
-    }
 
     /** Whether going from [from] to [to] moves towards the goal, or null when there's no goal or no change. */
     fun isImprovement(type: Int, target: Double, from: Double, to: Double): Boolean? {
@@ -332,15 +286,6 @@ object DateSources {
     const val FILE = "file"          // file modified time (least reliable)
     const val MANUAL = "manual"      // set by the user
     const val NONE = "none"
-
-    fun label(s: String): String = when (s) {
-        EXIF -> "Photo metadata (EXIF)"
-        MEDIA -> "Media library date taken"
-        FILENAME -> "Date in file name"
-        FILE -> "File modified date (check this)"
-        MANUAL -> "Set manually"
-        else -> "No date found"
-    }
 
     /** Sources worth a second look by the user. */
     fun needsReview(s: String) = s == FILE || s == NONE
@@ -472,19 +417,6 @@ object DistanceUnits {
 
     /** A known unit, or null. */
     fun of(unit: String?): String? = unit?.trim()?.lowercase()?.takeIf { it in ALL }
-
-    fun label(unit: String): String = when (unit) {
-        MI -> "Miles"
-        M -> "Metres"
-        else -> "Kilometres"
-    }
-
-    /** The unit as TalkBack reads it. */
-    fun spoken(unit: String): String = when (unit) {
-        MI -> "miles"
-        M -> "metres"
-        else -> "kilometres"
-    }
 }
 
 /** Length units for body measurements (#7): values keep the unit they were logged in and are shown in the user's. */

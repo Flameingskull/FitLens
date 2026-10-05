@@ -1,5 +1,9 @@
 package com.fitlens.companion.data
 
+import android.content.res.Resources
+import com.fitlens.companion.R
+
+
 /** One exercise in the starter library. [type] uses [ExerciseTypes]. */
 data class StarterExercise(val name: String, val type: Int = ExerciseTypes.WEIGHT_REPS)
 
@@ -115,13 +119,19 @@ object StarterLibrary {
 
 /** What [Workouts.seedStarterLibrary] added. Nothing that already existed is ever changed. */
 data class SeedResult(val categoriesAdded: Int, val exercisesAdded: Int, val skipped: Int) {
-    val message: String
-        get() {
-            if (categoriesAdded == 0 && exercisesAdded == 0) return "Your library already had every starter exercise."
-            val parts = ArrayList<String>()
-            if (exercisesAdded > 0) parts.add("$exercisesAdded exercise${if (exercisesAdded == 1) "" else "s"}")
-            if (categoriesAdded > 0) parts.add("$categoriesAdded categor${if (categoriesAdded == 1) "y" else "ies"}")
-            val tail = if (skipped > 0) " The $skipped you already had were left as they are." else ""
-            return "Added " + parts.joinToString(" and ") + "." + tail
+    /** "Added 12 exercises and 3 categories. The 4 you already had were left as they are." (#156) */
+    fun text(res: Resources): String {
+        if (categoriesAdded == 0 && exercisesAdded == 0) return res.getString(R.string.seed_nothing)
+        val exercises = res.getQuantityString(R.plurals.seed_exercises, exercisesAdded, exercisesAdded)
+        val categories = res.getQuantityString(R.plurals.seed_categories, categoriesAdded, categoriesAdded)
+        val what = when {
+            exercisesAdded > 0 && categoriesAdded > 0 -> res.getString(R.string.seed_both, exercises, categories)
+            exercisesAdded > 0 -> exercises
+            else -> categories
         }
+        val added = res.getString(R.string.seed_added, what)
+        return if (skipped > 0) res.getString(R.string.seed_added_kept, added, res.getQuantityString(R.plurals.seed_kept, skipped, skipped))
+        else added
+    }
 }
+

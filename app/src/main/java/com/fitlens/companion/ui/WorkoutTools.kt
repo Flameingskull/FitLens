@@ -90,7 +90,7 @@ object WorkoutClock {
                     AppScope.scope.launch { Workouts.setWorkoutTime(date, start, null) }
                 }
             } catch (e: WorkoutDataException) {
-                UiEvents.show(e.message ?: res.getString(R.string.wk_timer_stop_failed))
+                UiEvents.show(e.text(res))
             }
         }
     }
@@ -135,7 +135,7 @@ fun WorkoutTimeSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
             try {
                 Workouts.setWorkoutTime(date, newStart, newEnd)
             } catch (ex: WorkoutDataException) {
-                UiEvents.show(ex.message ?: res.getString(R.string.wk_time_save_failed))
+                UiEvents.show(ex.text(res))
             }
         }
     }

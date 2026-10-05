@@ -175,7 +175,8 @@ object Routines {
      */
     suspend fun save(routine: Routine): Long = write { w ->
         val name = routine.name.trim().replace(Regex("\\s+"), " ")
-        if (name.isEmpty()) throw WorkoutDataException("Enter a name for the workout.")
+        if (name.isEmpty()) throw WorkoutDataException(R.string.wde_name_workout)
+
         val cv = ContentValues().apply { put("name", name); put("notes", routine.notes?.trim()?.ifBlank { null }) }
         val id = if (routine.id == 0L) {
             val next = w.rawQuery("SELECT IFNULL(MAX(sort_order), -1) + 1 FROM routine", null)

@@ -96,7 +96,16 @@ internal fun Analysis.Span.before(res: Resources): String = res.getString(
 internal fun Analysis.DateWindow.text(res: Resources, span: Analysis.Span): String =
     if (span == Analysis.Span.All) res.getString(R.string.an_all_time) else label
 
+/** A breakdown slice's name: the exercise or category, or "Unknown exercise", "No category" or "Other (3)" (#156). */
+internal fun Analysis.Slice.text(res: Resources, by: Analysis.GroupBy): String = when {
+    others > 0 -> res.getString(R.string.slice_other, others)
+    label.isNotEmpty() -> label
+    by == Analysis.GroupBy.Exercise -> res.getString(R.string.slice_unknown_exercise)
+    else -> res.getString(R.string.slice_no_category)
+}
+
 /** A goal kind's name: "Max weight", "Volume in one workout" (#25). */
+
 internal fun goalKindText(res: Resources, kind: Int): String = res.getString(
     when (kind) {
         GoalKinds.MAX_WEIGHT -> R.string.goal_max_weight

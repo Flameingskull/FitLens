@@ -145,8 +145,12 @@ object Analysis {
 
     enum class Span(val label: String) { Workout("Workout"), Week("Week"), Month("Month"), Year("Year"), All("All"), Custom("Custom") }
 
-    /** A breakdown slice. [id] is the category or exercise id, or null for "Other". */
-    data class Slice(val id: Long?, val label: String, val value: Double)
+    /**
+     * A breakdown slice. [id] is the category or exercise id, or null for "Other". [label] is the exercise or category
+     * name, empty when it has none; [others] is how many slices the "Other" slice groups. The screen words unnamed
+     * slices (`Slice.text` in `ui/AnalysisText.kt`, #156).
+     */
+    data class Slice(val id: Long?, val label: String, val value: Double, val others: Int = 0)
 
     /** An inclusive range of ISO dates with a human name. */
     data class DateWindow(val from: String, val to: String, val label: String)
@@ -160,7 +164,8 @@ object Analysis {
         if (days.isEmpty()) return emptyList()
         return when (span) {
             Span.Workout -> days.map { DateWindow(it, it, Dates.long(it)) }
-            Span.All -> listOf(DateWindow(days.last(), days.first(), "All time"))
+            // Worded "All time" by `DateWindow.text` on screen (#156).
+            Span.All -> listOf(DateWindow(days.last(), days.first(), ""))
             Span.Custom -> emptyList()
             Span.Week, Span.Month, Span.Year -> {
                 val p = when (span) { Span.Week -> Period.Week; Span.Month -> Period.Month; else -> Period.Year }
@@ -194,14 +199,14 @@ object Analysis {
             if (by == GroupBy.Exercise) s.exerciseId else snap.exercises[s.exerciseId]?.categoryId ?: 0L
         }
         val slices = groups.map { (id, list) ->
-            val label = if (by == GroupBy.Exercise) snap.exercises[id]?.name ?: "Unknown exercise"
-            else snap.categories[id]?.name ?: "No category"
+            val label = (if (by == GroupBy.Exercise) snap.exercises[id]?.name else snap.categories[id]?.name).orEmpty()
             Slice(id, label, measure(list, m))
         }.filter { it.value > 0 }.sortedByDescending { it.value }
         if (slices.size <= maxSlices) return slices
         val kept = slices.take(maxSlices - 1)
         val rest = slices.drop(maxSlices - 1)
-        return kept + Slice(null, "Other (${rest.size})", rest.sumOf { it.value })
+        return kept + Slice(null, "", rest.sumOf { it.value }, others = rest.size)
+
     }
 
     /** The window just before [w] of the same length, for "vs last week" comparisons. */

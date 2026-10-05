@@ -1,13 +1,35 @@
 package com.fitlens.companion.data
 
 import android.content.ContentValues
+import android.content.res.Resources
 import android.database.sqlite.SQLiteDatabase
+import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
+import com.fitlens.companion.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-/** A change to workout data that can't be made, with a message that can be shown to the user as it is. */
-class WorkoutDataException(message: String) : IllegalArgumentException(message)
+
+/**
+ * Why a workout write was refused. The data layer has no `Resources`, so it carries the string and its arguments and
+ * the screen words it with [text] (#156).
+ */
+class WorkoutDataException private constructor(private val word: (Resources) -> String) : IllegalArgumentException() {
+    constructor(@StringRes id: Int, vararg args: Any) : this({ res -> res.getString(id, *args) })
+
+    fun text(res: Resources): String = word(res)
+
+    companion object {
+        /** A refusal whose wording depends on a count. */
+        fun counted(@PluralsRes id: Int, n: Int): WorkoutDataException = WorkoutDataException { it.getQuantityString(id, n, n) }
+    }
+}
+
+/** What to tell the user about a failed write: a [WorkoutDataException]'s own wording, else the exception's message. */
+fun Throwable.userText(res: Resources): String =
+    (this as? WorkoutDataException)?.text(res) ?: message ?: javaClass.simpleName
+
 
 /**
  * Create, update and delete workout data in FitLens: categories, exercises, sets, and per-day workout comments and
@@ -71,15 +93,16 @@ object Workouts {
         w.insert("import_rule", null, ContentValues().apply { put("kind", kind); put("key", key); putNull("target_id") })
     }
 
-    private fun cleanName(name: String, what: String): String {
+    /** [missing] is what the user is told when the name is blank. */
+    private fun cleanName(name: String, @StringRes missing: Int): String {
         val n = name.trim().replace(Regex("\\s+"), " ")
-        if (n.isEmpty()) throw WorkoutDataException("Enter a name for the $what.")
+        if (n.isEmpty()) throw WorkoutDataException(missing)
         return n
     }
 
     private fun checkDate(date: String): String {
         val d = date.take(10)
-        if (Dates.parse(d) == null) throw WorkoutDataException("That date isn't valid.")
+        if (Dates.parse(d) == null) throw WorkoutDataException(R.string.wde_bad_date)
         return d
     }
 
@@ -163,8 +186,8 @@ object Workouts {
     // ---------- Categories ----------
 
     suspend fun createCategory(name: String, colour: Int = 0): Long = write(LIBRARY) { w ->
-        val n = cleanName(name, "category")
-        if (sameName(w, "category", n) != null) throw WorkoutDataException("There's already a category called $n.")
+        val n = cleanName(name, R.string.wde_name_category)
+        if (sameName(w, "category", n) != null) throw WorkoutDataException(R.string.wde_category_exists, n)
         val order = w.longOrNull("SELECT IFNULL(MAX(sort_order), 0) + 1 FROM category") ?: 1L
         clearDeletedLink(w, RULE_CATEGORY, n)
         w.insertOrThrow("category", null, ContentValues().apply {
@@ -173,11 +196,11 @@ object Workouts {
     }
 
     suspend fun updateCategory(id: Long, name: String, colour: Int): Unit = write(LIBRARY) { w ->
-        val n = cleanName(name, "category")
+        val n = cleanName(name, R.string.wde_name_category)
         val old = w.rawQuery("SELECT name FROM category WHERE id=?", arrayOf(id.toString())).use { c ->
             if (c.moveToFirst()) c.strOr(0) else null
-        } ?: throw WorkoutDataException("That category no longer exists.")
-        if (sameName(w, "category", n, exceptId = id) != null) throw WorkoutDataException("There's already a category called $n.")
+        } ?: throw WorkoutDataException(R.string.wde_category_gone)
+        if (sameName(w, "category", n, exceptId = id) != null) throw WorkoutDataException(R.string.wde_category_exists, n)
         if (nameKey(old) != nameKey(n)) {
             setLink(w, RULE_CATEGORY, nameKey(old), id)
             clearDeletedLink(w, RULE_CATEGORY, n)
@@ -238,7 +261,7 @@ object Workouts {
         w.execSQL("UPDATE OR REPLACE workout_rest SET exercise_id=? WHERE date=? AND exercise_id=?", arrayOf<Any>(to, d, from))
         if (from == to) return@write emptyList()
         w.longOrNull("SELECT id FROM exercise WHERE id=?", to.toString())
-            ?: throw WorkoutDataException("That exercise no longer exists.")
+            ?: throw WorkoutDataException(R.string.wde_exercise_gone)
         val ids = ArrayList<Long>()
         w.rawQuery(
             "SELECT id, exercise_id, date, weight, reps, distance, duration, source FROM workout_set " +
@@ -278,7 +301,7 @@ object Workouts {
         val changed = w.update("workout_set", ContentValues().apply {
             put("comment", comment?.trim()?.takeIf { it.isNotEmpty() }); put("source", Sources.FITLENS)
         }, "id=?", arrayOf(id.toString()))
-        if (changed == 0) throw WorkoutDataException("That set no longer exists.")
+        if (changed == 0) throw WorkoutDataException(R.string.wde_set_gone)
     }
 
     /** Ticks a set off, or clears the tick (#19). Nothing else about the set changes. */
@@ -361,8 +384,8 @@ object Workouts {
 
     /** [type] is one of [ExerciseTypes]. */
     suspend fun createExercise(name: String, categoryId: Long, type: Int = 0, notes: String? = null): Long = write(LIBRARY) { w ->
-        val n = cleanName(name, "exercise")
-        if (sameName(w, "exercise", n) != null) throw WorkoutDataException("There's already an exercise called $n.")
+        val n = cleanName(name, R.string.wde_name_exercise)
+        if (sameName(w, "exercise", n) != null) throw WorkoutDataException(R.string.wde_exercise_exists, n)
         clearDeletedLink(w, RULE_EXERCISE, n)
         w.insertOrThrow("exercise", null, ContentValues().apply {
             put("name", n); put("category_id", categoryId); put("type", type)
@@ -371,11 +394,11 @@ object Workouts {
     }
 
     suspend fun updateExercise(id: Long, name: String, categoryId: Long, type: Int, notes: String?): Unit = write(LIBRARY) { w ->
-        val n = cleanName(name, "exercise")
+        val n = cleanName(name, R.string.wde_name_exercise)
         val old = w.rawQuery("SELECT name FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
             if (c.moveToFirst()) c.strOr(0) else null
-        } ?: throw WorkoutDataException("That exercise no longer exists.")
-        if (sameName(w, "exercise", n, exceptId = id) != null) throw WorkoutDataException("There's already an exercise called $n.")
+        } ?: throw WorkoutDataException(R.string.wde_exercise_gone)
+        if (sameName(w, "exercise", n, exceptId = id) != null) throw WorkoutDataException(R.string.wde_exercise_exists, n)
         if (nameKey(old) != nameKey(n)) {
             setLink(w, RULE_EXERCISE, nameKey(old), id)
             clearDeletedLink(w, RULE_EXERCISE, n)
@@ -413,20 +436,20 @@ object Workouts {
      * type has. Returns its id. Exercises of an edited type follow the change; their sets keep every value.
      */
     suspend fun saveExerciseType(t: CustomType): Int = write(LIBRARY) { w ->
-        val n = cleanName(t.name, "type")
+        val n = cleanName(t.name, R.string.wde_name_type)
         val metric = t.metricName?.trim()?.takeIf { it.isNotEmpty() }
         val count = t.copy(metricName = metric).valueCount
-        if (count == 0) throw WorkoutDataException("Choose at least one value for $n to record.")
-        if (count > CustomType.MAX_VALUES) throw WorkoutDataException("A type records at most ${CustomType.MAX_VALUES} values.")
+        if (count == 0) throw WorkoutDataException(R.string.wde_type_no_values, n)
+        if (count > CustomType.MAX_VALUES) throw WorkoutDataException(R.string.wde_type_too_many, CustomType.MAX_VALUES)
         // Its graphs are named after it ("Best Height"), so it can't share a name with a value FitLens already records.
         if (metric != null && nameKey(metric) in setOf("weight", "reps", "distance", "time")) {
-            throw WorkoutDataException("$metric is already a value you can choose. Tick it instead.")
+            throw WorkoutDataException(R.string.wde_type_metric_builtin, metric)
         }
         val clash = (ExerciseTypes.all.map { ExerciseTypes.label(it) } +
             w.rawQuery("SELECT name FROM exercise_type WHERE id<>?", arrayOf(t.id.toString())).use { c ->
                 buildList { while (c.moveToNext()) add(c.strOr(0)) }
             }).any { nameKey(it) == nameKey(n) }
-        if (clash) throw WorkoutDataException("There's already a type called $n.")
+        if (clash) throw WorkoutDataException(R.string.wde_type_exists, n)
         val id = if (t.id >= ExerciseTypes.CUSTOM_BASE) t.id else
             ((w.longOrNull("SELECT MAX(id) FROM exercise_type")?.toInt() ?: 0) + 1).coerceAtLeast(ExerciseTypes.CUSTOM_BASE)
         w.insertWithOnConflict("exercise_type", null, ContentValues().apply {
@@ -444,9 +467,7 @@ object Workouts {
     suspend fun deleteExerciseType(id: Int): Unit = write(LIBRARY) { w ->
         val users = w.longOrNull("SELECT COUNT(*) FROM exercise WHERE type=?", id.toString()) ?: 0L
         if (users > 0) {
-            throw WorkoutDataException(
-                "$users exercise${if (users == 1L) " uses" else "s use"} this type. Give ${if (users == 1L) "it" else "them"} another type first."
-            )
+            throw WorkoutDataException.counted(R.plurals.wde_type_in_use, users.toInt())
         }
         w.delete("exercise_type", "id=?", arrayOf(id.toString()))
     }
@@ -478,11 +499,12 @@ object Workouts {
      * PR marks are replayed, since the joined history can change them. Returns how many sets moved.
      */
     suspend fun mergeExercises(fromId: Long, intoId: Long): Int = write { w ->
-        if (fromId == intoId) throw WorkoutDataException("Choose a different exercise to merge into.")
+        if (fromId == intoId) throw WorkoutDataException(R.string.wde_merge_same)
+
         data class Row(val name: String, val notes: String?, val favourite: Boolean)
         fun row(id: Long) = w.rawQuery("SELECT name, notes, favourite FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
             if (c.moveToFirst()) Row(c.strOr(0), c.str(1), c.int(2) != 0) else null
-        } ?: throw WorkoutDataException("That exercise no longer exists.")
+        } ?: throw WorkoutDataException(R.string.wde_exercise_gone)
         val from = row(fromId)
         val into = row(intoId)
         val fromArg = arrayOf(fromId.toString())
@@ -586,7 +608,7 @@ object Workouts {
     ): Long = writeSets { w, scope ->
         val d = checkDate(date)
         w.longOrNull("SELECT id FROM exercise WHERE id=?", exerciseId.toString())
-            ?: throw WorkoutDataException("That exercise no longer exists.")
+            ?: throw WorkoutDataException(R.string.wde_exercise_gone)
         // Its PR mark is decided here against earlier sets, so no other set changes and only this exercise is re-read.
         scope.exercises += exerciseId
         val countWarmups = Settings.currentPortable().warmupsCount
@@ -626,7 +648,7 @@ object Workouts {
                 scope.exercises += c.lng(0)
                 c.strOr(6) to setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5))
             } else null
-        } ?: throw WorkoutDataException("That set no longer exists.")
+        } ?: throw WorkoutDataException(R.string.wde_set_gone)
         scope.exercises += set.exerciseId
         val newKey = setKey(set.exerciseId, d, set.weightKg, set.reps, set.distance, set.durationSec)
         if (old.first == Sources.FITNOTES && old.second != newKey) addSkip(w, RULE_SET, old.second)
