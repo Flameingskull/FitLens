@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.ui.design.FitTabRow
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /**
  * The exercise overview (#26): one sheet with an exercise's History, Graph, Records, Stats and Goals, opened from the
@@ -47,7 +49,7 @@ fun ExerciseOverviewSheet(snap: Snapshot, nav: Nav, exId: Long, date: String, on
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f)) {
             Row(Modifier.fillMaxWidth().padding(start = Spacing.lg, end = Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    snap.exercises[exId]?.name ?: "Exercise",
+                    snap.exercises[exId]?.name ?: stringResource(R.string.ex_fallback),
                     Modifier.weight(1f),
                     style = MaterialTheme.typography.titleLarge,
                     maxLines = 2,
@@ -62,9 +64,12 @@ fun ExerciseOverviewSheet(snap: Snapshot, nav: Nav, exId: Long, date: String, on
                             else -> Screen.ExerciseDetail(exId)
                         }
                     )
-                }) { Text("Open full screen") }
+                }) { Text(stringResource(R.string.eo_open_full)) }
             }
-            FitTabRow(titles = listOf("History", "Graph", "Records", "Stats", "Goals"), selected = tab, onSelect = { tab = it })
+            FitTabRow(titles = listOf(
+                stringResource(R.string.set_tab_history), stringResource(R.string.set_tab_graph), stringResource(R.string.ex_tab_records),
+                stringResource(R.string.ex_tab_stats), stringResource(R.string.ex_tab_goals)
+            ), selected = tab, onSelect = { tab = it })
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
                     0 -> ExerciseHistoryPane(snap, nav, exId)

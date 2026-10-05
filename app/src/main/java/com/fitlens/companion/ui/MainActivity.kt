@@ -282,7 +282,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         lifecycleScope.launch {
             if (BackupSync.autoSyncEnabled() && BackupSync.folder() != null && UiEvents.busy.value == null) {
-                UiEvents.busy.value = "Checking for a new FitNotes backup…"
+                UiEvents.busy.value = getString(R.string.ma_checking)
                 try {
                     BackupSync.syncIfNewer(this@MainActivity)?.let { UiEvents.show(it.message, it.level()) }
                 } finally {
@@ -341,13 +341,13 @@ class MainActivity : ComponentActivity() {
                     FitNotesImports.pending.value = u
                 }
                 FileKind.BODY_CSV -> FitNotesImporter.importBodyCsv(this, u).let { UiEvents.show(it.message, it.level()) }
-                FileKind.WORKOUT_CSV -> UiEvents.show("Workout CSVs aren't needed — share a FitNotes backup (.fitnotes) instead; it contains everything.")
+                FileKind.WORKOUT_CSV -> UiEvents.show(getString(R.string.ma_workout_csv))
                 FileKind.ARCHIVE -> {
                     // A .fitlens backup: Settings → Backup checks it and asks before restoring.
                     openBackups()
                     UiEvents.pendingRestore.value = u
                 }
-                FileKind.UNKNOWN -> UiEvents.show("FitLens doesn't recognise that file.")
+                FileKind.UNKNOWN -> UiEvents.show(getString(R.string.ma_unknown))
             }
         }
         if (images.isNotEmpty()) {

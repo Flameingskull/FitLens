@@ -48,6 +48,9 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlinx.coroutines.launch
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /**
  * FitNotes's tabs (#80, #141): bold uppercase labels, ivory until chosen and gold when chosen, a gold indicator under
@@ -152,12 +155,12 @@ fun SegmentedSwitch(options: List<String>, selected: Int, onSelect: (Int) -> Uni
 }
 
 /** The preset windows offered by [RangeDropdown]. [months] is null for all time. */
-enum class RangePreset(val label: String, val months: Long?) {
-    OneMonth("Last month", 1),
-    ThreeMonths("Last 3 months", 3),
-    SixMonths("Last 6 months", 6),
-    OneYear("Last year", 12),
-    All("All dates", null);
+enum class RangePreset(@StringRes val label: Int, val months: Long?) {
+    OneMonth(R.string.rp_month, 1),
+    ThreeMonths(R.string.rp_3months, 3),
+    SixMonths(R.string.rp_6months, 6),
+    OneYear(R.string.rp_year, 12),
+    All(R.string.rp_all, null);
 
     /** The first ISO date inside this window, or null for all time. */
     fun startDate(today: LocalDate = LocalDate.now()): String? = months?.let { today.minusMonths(it).format(Dates.ISO) }
@@ -176,8 +179,8 @@ fun RangeDropdown(
     modifier: Modifier = Modifier
 ) {
     PeriodDropdown(
-        label = "Date range",
-        options = RangePreset.entries.map { it.label },
+        label = stringResource(R.string.rp_label),
+        options = RangePreset.entries.map { stringResource(it.label) },
         selected = selected?.ordinal ?: -1,
         custom = custom,
         onSelect = { onPreset(RangePreset.entries[it]) },
@@ -217,9 +220,9 @@ fun DateRangePickerDialog(
                     }
                     onDismiss()
                 }
-            ) { Text("Apply") }
+            ) { Text(stringResource(R.string.cmn_apply)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     ) {
         DateRangePicker(state = state, modifier = Modifier.weight(1f), colors = fitDatePickerColors())
     }

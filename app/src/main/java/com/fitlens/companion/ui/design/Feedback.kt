@@ -15,7 +15,7 @@ import com.fitlens.companion.ui.FitShapes
  * Shows [message] with an Undo action for a reversible change, and runs [onUndo] if it is tapped (#80).
  * Suspends until the snackbar goes. Results worth re-reading belong in the kept result history (#62), not here.
  */
-suspend fun SnackbarHostState.showUndo(message: String, onUndo: () -> Unit, undoLabel: String = "Undo") {
+suspend fun SnackbarHostState.showUndo(message: String, onUndo: () -> Unit, undoLabel: String) {
     val result = showSnackbar(
         message = message,
         actionLabel = undoLabel,

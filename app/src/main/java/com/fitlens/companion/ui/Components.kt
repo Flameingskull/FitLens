@@ -54,6 +54,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /**
  * How much a result weighs, which decides how it reaches the user (#62).
@@ -146,7 +148,7 @@ fun GoldHairline(modifier: Modifier = Modifier) {
 /** A pushed screen's top bar with a back arrow. A thin wrapper over [FitTopBar], kept until every screen moves (#80). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BackTopBar(title: String, onBack: () -> Unit, backLabel: String = "Back", actions: @Composable () -> Unit = {}) {
+fun BackTopBar(title: String, onBack: () -> Unit, backLabel: String = stringResource(R.string.cmn_back), actions: @Composable () -> Unit = {}) {
     FitTopBar(title = title, onBack = onBack, backLabel = backLabel, trailing = { actions() })
 }
 
@@ -168,7 +170,7 @@ fun PhotoThumb(snap: Snapshot, photo: Photo, modifier: Modifier = Modifier, size
     val ctx = LocalContext.current
     AsyncImage(
         model = ImageRequest.Builder(ctx).data(snap.photoFile(photo)).size(sizePx).crossfade(true).build(),
-        contentDescription = "Progress photo ${photo.date ?: ""} ${photo.pose}",
+        contentDescription = stringResource(R.string.cmn_photo_cd, photo.date ?: "", if (photo.pose.isBlank()) "" else poseText(ctx.resources, photo.pose)).trim(),
         contentScale = contentScale,
         modifier = modifier.clip(FitShapes.row).background(MaterialTheme.colorScheme.surfaceVariant)
     )
@@ -280,9 +282,9 @@ fun PickDateDialog(initial: String?, onDismiss: () -> Unit, onPicked: (String) -
                     onPicked(Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate().format(Dates.ISO))
                 }
                 onDismiss()
-            }) { Text("OK") }
+            }) { Text(stringResource(R.string.cmn_ok)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     ) {
         DatePicker(state = state, colors = fitDatePickerColors())
     }
@@ -301,7 +303,7 @@ fun ResultDialog(m: UiMessage, onDismiss: () -> Unit) {
         title = {
             Column {
                 Text(
-                    if (failure) "That didn't work" else "Worth knowing",
+                    if (failure) stringResource(R.string.cmn_failed) else stringResource(R.string.cmn_worth_knowing),
                     style = MaterialTheme.typography.titleLarge,
                     color = if (failure) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
@@ -316,21 +318,21 @@ fun ResultDialog(m: UiMessage, onDismiss: () -> Unit) {
         confirmButton = {
             val action = m.actionLabel
             if (action != null) TextButton(onClick = { onDismiss(); m.onAction?.invoke() }) { Text(action) }
-            else TextButton(onClick = onDismiss) { Text("OK") }
+            else TextButton(onClick = onDismiss) { Text(stringResource(R.string.cmn_ok)) }
         },
         dismissButton = {
-            if (m.actionLabel != null) TextButton(onClick = onDismiss) { Text("Close") }
+            if (m.actionLabel != null) TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         }
     )
 }
 
 @Composable
-fun ConfirmDialog(title: String, text: String, confirm: String = "Delete", onDismiss: () -> Unit, onConfirm: () -> Unit) {
+fun ConfirmDialog(title: String, text: String, confirm: String = stringResource(R.string.cmn_delete), onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = { TextButton(onClick = { onConfirm(); onDismiss() }) { Text(confirm) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }

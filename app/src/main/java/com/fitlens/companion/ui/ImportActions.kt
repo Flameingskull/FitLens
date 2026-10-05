@@ -21,9 +21,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import android.app.Application
+import android.content.res.Resources
+import com.fitlens.companion.R
 
 /** Scope that outlives individual screens so long imports/exports aren't cancelled by navigation. */
 object AppScope {
+    /** The app's resources, for messages from jobs that have no screen (#94). Set by [init] when the app starts. */
+    @Volatile
+    private var res: Resources? = null
+
+    fun init(app: Application) {
+        res = app.resources
+    }
+
+    /** "Something went wrong: …" for a failed job, in the app's language. */
+    fun failure(detail: String): String = res?.getString(R.string.err_generic, detail) ?: detail
     /**
      * Reports a failed background job instead of letting it reach the default handler, which kills the process.
      * `SupervisorJob` stops one failed child cancelling its siblings, but it does not swallow the exception, so
@@ -33,16 +46,16 @@ object AppScope {
     private val reportErrors = CoroutineExceptionHandler { _, e ->
         Log.e("FitLens", "Background job failed", e)
         UiEvents.busy.value = null
-        UiEvents.show("Something went wrong: ${e.message ?: e::class.java.simpleName}", ResultLevel.Failure)
+        UiEvents.show(failure(e.message ?: e::class.java.simpleName), ResultLevel.Failure)
     }
 
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main + reportErrors)
 }
 
 suspend fun runPhotoImport(ctx: Context, uris: List<Uri>, forcedDate: String?, pose: String = Poses.NONE): PhotoImportResult {
-    UiEvents.busy.value = "Importing ${uris.size} photos…"
+    UiEvents.busy.value = ctx.resources.getQuantityString(R.plurals.ia_importing, uris.size, uris.size)
     try {
-        val r = PhotoImporter.importUris(ctx, uris, forcedDate, pose) { d, t -> UiEvents.busy.value = "Importing photos… $d / $t" }
+        val r = PhotoImporter.importUris(ctx, uris, forcedDate, pose) { d, t -> UiEvents.busy.value = ctx.getString(R.string.ia_progress, d, t) }
         UiEvents.show(r.describe())
         return r
     } finally {
@@ -60,7 +73,7 @@ fun runBusy(label: String, block: suspend () -> ImportSummary?) {
         try {
             block()?.let { UiEvents.show(it.message, it.level()) }
         } catch (e: Exception) {
-            UiEvents.show("Something went wrong: ${e.message}", ResultLevel.Failure)
+            UiEvents.show(AppScope.failure(e.message.orEmpty()), ResultLevel.Failure)
         } finally {
             UiEvents.busy.value = null
         }
@@ -101,7 +114,7 @@ fun PhotoImportHost() {
                 try {
                     p.onDone(runPhotoImport(ctx, p.uris, p.forcedDate, defaultPose))
                 } catch (e: Exception) {
-                    UiEvents.show("Something went wrong: ${e.message}")
+                    UiEvents.show(AppScope.failure(e.message.orEmpty()))
                 }
             }
         }
@@ -111,7 +124,7 @@ fun PhotoImportHost() {
         count = p.uris.size,
         onCancel = {
             PhotoImports.pending.value = null
-            UiEvents.show("Photo import cancelled.")
+            UiEvents.show(ctx.getString(R.string.ia_cancelled))
         },
         onPick = { pose ->
             PhotoImports.pending.value = null
@@ -119,7 +132,7 @@ fun PhotoImportHost() {
                 try {
                     p.onDone(runPhotoImport(ctx, p.uris, p.forcedDate, pose))
                 } catch (e: Exception) {
-                    UiEvents.show("Something went wrong: ${e.message}")
+                    UiEvents.show(AppScope.failure(e.message.orEmpty()))
                 }
             }
         }
@@ -141,9 +154,9 @@ fun rememberFolderPhotoImporter(onDone: (PhotoImportResult) -> Unit = {}): () ->
     val ctx = LocalContext.current.applicationContext
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
         if (tree != null) AppScope.scope.launch {
-            UiEvents.busy.value = "Scanning folder…"
+            UiEvents.busy.value = ctx.getString(R.string.ia_scanning)
             val uris = try { PhotoImporter.listFolderImages(ctx, tree) } finally { UiEvents.busy.value = null }
-            if (uris.isEmpty()) UiEvents.show("No images found in that folder.")
+            if (uris.isEmpty()) UiEvents.show(ctx.getString(R.string.ia_no_images))
             else PhotoImports.request(PendingPhotoImport(uris, null, onDone))
         }
     }

@@ -574,7 +574,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                         else "\n${o.label}: ${fmtNum(inRange.first().y, 1)} → ${fmtNum(inRange.last().y, 1)} $overlayUnit".trimEnd()
                     } ?: ""),
                     trend = trend,
-                    trendNote = trend?.let { res.getString(R.string.ex_trend, trendText(it, { v -> fmtNum(v, 1) }, trendUnit)) },
+                    trendNote = trend?.let { res.getString(R.string.ex_trend, trendText(res, it, { v -> fmtNum(v, 1) }, trendUnit)) },
                     goal = goalLine,
                     kind = kind
                 )

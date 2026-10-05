@@ -249,7 +249,7 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
         mainRow(s, R.string.settings_sex, R.string.settings_sex_kw) { title ->
             SettingsChoiceRow(
                 title,
-                com.fitlens.companion.data.BodyFat.Sex.entries.map { it.label },
+                com.fitlens.companion.data.BodyFat.Sex.entries.map { sexText(LocalContext.current.resources, it) },
                 com.fitlens.companion.data.BodyFat.Sex.of(prefs.profileSex)?.ordinal ?: -1,
                 summary = stringResource(R.string.settings_sex_summary)
             ) { i -> Settings.updatePortable { it.copy(profileSex = com.fitlens.companion.data.BodyFat.Sex.entries[i].key) } }

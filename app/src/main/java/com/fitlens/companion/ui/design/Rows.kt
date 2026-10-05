@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.FitShapes
 import com.fitlens.companion.ui.Spacing
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /** Which way a [StatTile]'s delta moved. Always shown with an arrow and words, never by colour alone. */
 enum class Trend { Up, Down, Flat }
@@ -81,8 +83,8 @@ fun StatTile(
         if (!delta.isNullOrBlank()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when (trend) {
-                    Trend.Up -> Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Up", tint = Brand.Rise, modifier = Modifier.size(18.dp))
-                    Trend.Down -> Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Down", tint = Brand.Fall, modifier = Modifier.size(18.dp))
+                    Trend.Up -> Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.cmn_up), tint = Brand.Rise, modifier = Modifier.size(18.dp))
+                    Trend.Down -> Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.cmn_down), tint = Brand.Fall, modifier = Modifier.size(18.dp))
                     else -> {}
                 }
                 Text(
@@ -122,9 +124,11 @@ fun ListRowWithMenu(
     onMoveDown: (() -> Unit)? = null
 ) {
     val tap = onClick
+    val moveUp = stringResource(R.string.cmn_move_up)
+    val moveDown = stringResource(R.string.cmn_move_down)
     val moveActions = listOfNotNull(
-        onMoveUp?.let { f -> CustomAccessibilityAction("Move up") { f(); true } },
-        onMoveDown?.let { f -> CustomAccessibilityAction("Move down") { f(); true } }
+        onMoveUp?.let { f -> CustomAccessibilityAction(moveUp) { f(); true } },
+        onMoveDown?.let { f -> CustomAccessibilityAction(moveDown) { f(); true } }
     )
     Row(
         modifier
@@ -147,7 +151,7 @@ fun ListRowWithMenu(
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (menu.isNotEmpty()) OverflowMenu(menu, description = "Options for $title")
+        if (menu.isNotEmpty()) OverflowMenu(menu, description = stringResource(R.string.cmn_options_for, title))
         if (onMoveUp != null || onMoveDown != null) DragHandle(title, Spacing.row, onMoveUp, onMoveDown)
     }
 }
@@ -161,10 +165,11 @@ fun ListRowWithMenu(
 fun DragHandle(title: String, step: Dp, onMoveUp: (() -> Unit)?, onMoveDown: (() -> Unit)?) {
     val up by rememberUpdatedState(onMoveUp)
     val down by rememberUpdatedState(onMoveDown)
+    val dragLabel = stringResource(R.string.cmn_drag_reorder, title)
     Box(
         Modifier
             .size(Spacing.touch)
-            .semantics { contentDescription = "Drag to reorder $title" }
+            .semantics { contentDescription = dragLabel }
             .pointerInput(Unit) {
                 var total = 0f
                 detectVerticalDragGestures(

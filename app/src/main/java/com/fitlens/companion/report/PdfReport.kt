@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import kotlin.math.max
 import kotlin.math.min
+import com.fitlens.companion.R
 
 /** What goes into a PDF report. Dates are ISO (yyyy-MM-dd) and inclusive. */
 data class ReportOptions(
@@ -90,7 +91,7 @@ private fun wrap(text: String, p: Paint, width: Float): List<String> {
 }
 
 /** Starts pages as needed and draws the footer on each one. */
-private class PageWriter(val doc: PdfDocument, val p: Palette, val footer: String) {
+private class PageWriter(val res: Resources, val doc: PdfDocument, val p: Palette, val footer: String) {
     var pages = 0
         private set
     private var page: PdfDocument.Page? = null
@@ -107,7 +108,7 @@ private class PageWriter(val doc: PdfDocument, val p: Palette, val footer: Strin
         c.drawColor(p.bg)
         c.drawRect(M, PH - 40f, PW - M, PH - 39.4f, fill(p.hairline))
         val fp = paint(p.muted, 7.5f)
-        val num = "Page $pages"
+        val num = res.getString(R.string.pdf_page, pages)
         c.drawText(footer, M, PH - 26f, fp)
         c.drawText(num, PW - M - fp.measureText(num), PH - 26f, fp)
         y = M
@@ -160,15 +161,15 @@ object PdfReport {
         withContext(Dispatchers.Default) {
             val doc = PdfDocument()
             try {
-                val w = PageWriter(doc, if (o.dark) DARK else LIGHT, "FitLens progress report · ${Dates.medium(o.from)} – ${Dates.medium(o.to)}")
+                val w = PageWriter(res, doc, if (o.dark) DARK else LIGHT, res.getString(R.string.pdf_footer, Dates.medium(o.from), Dates.medium(o.to)))
                 val days = daysIn(snap, o)
-                progress("Creating PDF… cover")
+                progress(res.getString(R.string.pdf_creating_cover))
                 cover(w, snap, o, days)
-                if (o.measurements) { progress("Creating PDF… measurements"); measurements(w, snap, o) }
-                if (o.training) { progress("Creating PDF… training"); training(res, w, snap, o) }
+                if (o.measurements) { progress(res.getString(R.string.pdf_creating_measurements)); measurements(w, snap, o) }
+                if (o.training) { progress(res.getString(R.string.pdf_creating_training)); training(res, w, snap, o) }
                 if (o.dailyLog) daily(res, w, snap, o, days, progress)
                 w.finish()
-                progress("Saving PDF…")
+                progress(res.getString(R.string.pdf_saving))
                 withContext(Dispatchers.IO) { doc.writeTo(os) }
                 w.pages
             } finally {
@@ -199,13 +200,14 @@ object PdfReport {
     // ---------- Cover ----------
 
     private fun cover(w: PageWriter, snap: Snapshot, o: ReportOptions, days: List<String>) {
+        val res = w.res
         w.newPage()
         val p = w.p
         val c = w.c
         w.centered("FITLENS", paint(p.gold, 13f, bold = true, tracking = 0.5f), 96f)
         c.drawRect(PW / 2f - 40f, 108f, PW / 2f + 40f, 108.8f, fill(p.gold))
-        w.centered("Progress Report", paint(p.text, 34f, serif = true), 156f)
-        w.centered("${Dates.medium(o.from)} – ${Dates.medium(o.to)}", paint(p.muted, 12f, tracking = 0.05f), 182f)
+        w.centered(res.getString(R.string.pdf_title), paint(p.text, 34f, serif = true), 156f)
+        w.centered(res.getString(R.string.pdf_range, Dates.medium(o.from), Dates.medium(o.to)), paint(p.muted, 12f, tracking = 0.05f), 182f)
 
         val photos = snap.datedPhotos.filter { it.date!! >= o.from && it.date <= o.to }
         val first = photos.firstOrNull()
@@ -219,8 +221,8 @@ object PdfReport {
             val left = (PW - (2 * boxW + gap)) / 2f
             drawPhoto(w, snap, first, RectF(left, top, left + boxW, top + boxH), o.highQuality)
             drawPhoto(w, snap, last, RectF(left + boxW + gap, top, left + 2 * boxW + gap, top + boxH), o.highQuality)
-            val a = "BEFORE · ${Dates.medium(first.date!!).uppercase()}"
-            val b = "LATEST · ${Dates.medium(last.date!!).uppercase()}"
+            val a = res.getString(R.string.pdf_before, Dates.medium(first.date!!).uppercase())
+            val b = res.getString(R.string.pdf_latest, Dates.medium(last.date!!).uppercase())
             c.drawText(a, left + (boxW - label.measureText(a)) / 2f, top + boxH + 18f, label)
             c.drawText(b, left + boxW + gap + (boxW - label.measureText(b)) / 2f, top + boxH + 18f, label)
         } else if (first != null) {
@@ -230,10 +232,10 @@ object PdfReport {
         }
 
         val stats = listOf(
-            "Days logged" to days.size,
-            "Photos" to photos.size,
-            "Workouts" to days.count { snap.setsByDate.containsKey(it) },
-            "Measurements" to days.sumOf { snap.recordsByDate[it]?.size ?: 0 }
+            res.getString(R.string.pdf_days_logged) to days.size,
+            res.getString(R.string.pdf_photos) to photos.size,
+            res.getString(R.string.pdf_workouts) to days.count { snap.setsByDate.containsKey(it) },
+            res.getString(R.string.pdf_measurements) to days.sumOf { snap.recordsByDate[it]?.size ?: 0 }
         )
         val colW = CW / stats.size
         val valueP = paint(p.gold, 24f, serif = true)
@@ -246,17 +248,22 @@ object PdfReport {
             c.drawText(ls, cx - labelP.measureText(ls) / 2f, 670f, labelP)
         }
         c.drawRect(M, 700f, M + CW, 700.6f, fill(p.hairline))
-        w.centered("Generated ${Dates.medium(Dates.today())} with FitLens", paint(p.muted, 8f), 724f)
+        w.centered(res.getString(R.string.pdf_generated, Dates.medium(Dates.today())), paint(p.muted, 8f), 724f)
     }
 
     // ---------- Measurements ----------
 
     private fun measurements(w: PageWriter, snap: Snapshot, o: ReportOptions) {
+        val res = w.res
         val series = snap.usedMeasurements.mapNotNull { m ->
             val pts = snap.dailySeries(m.name).filter { it.date >= o.from && it.date <= o.to }
             if (pts.isEmpty()) null else Triple(m.name, m.unit.ifBlank { pts.last().unit }, pts)
         }
-        w.section("Body measurements", if (series.isEmpty()) "No measurements in this period." else "${series.size} measurements")
+        w.section(
+            res.getString(R.string.pdf_body),
+            if (series.isEmpty()) res.getString(R.string.pdf_no_measurements)
+            else res.getQuantityString(R.plurals.pdf_measurements_n, series.size, series.size)
+        )
         val p = w.p
         val photoDays = snap.photosByDate.keys.filter { it >= o.from && it <= o.to }.map { Dates.epochDay(it) }
         val cardH = 138f
@@ -273,11 +280,11 @@ object PdfReport {
             val low = pts.minBy { it.value }
             val high = pts.maxBy { it.value }
             val rows = listOf(
-                "Start" to "${fmtNum(first.value)}  ·  ${Dates.short(first.date)}",
-                "Latest" to "${fmtNum(last.value)}  ·  ${Dates.short(last.date)}",
-                "Change" to fmtSigned(last.value - first.value),
-                "Low" to "${fmtNum(low.value)}  ·  ${Dates.short(low.date)}",
-                "High" to "${fmtNum(high.value)}  ·  ${Dates.short(high.date)}"
+                res.getString(R.string.pdf_start) to res.getString(R.string.pdf_value_date, fmtNum(first.value), Dates.short(first.date)),
+                res.getString(R.string.pdf_latest_word) to res.getString(R.string.pdf_value_date, fmtNum(last.value), Dates.short(last.date)),
+                res.getString(R.string.pdf_change) to fmtSigned(last.value - first.value),
+                res.getString(R.string.pdf_low) to res.getString(R.string.pdf_value_date, fmtNum(low.value), Dates.short(low.date)),
+                res.getString(R.string.pdf_high) to res.getString(R.string.pdf_value_date, fmtNum(high.value), Dates.short(high.date))
             )
             val lp = paint(p.muted, 7f, bold = true, tracking = 0.15f)
             val vp = paint(p.text, 9f, bold = true)
@@ -294,7 +301,7 @@ object PdfReport {
                 c.drawText(Dates.short(first.date), chart.left, chart.bottom + 13f, dp)
                 w.rightText(Dates.short(last.date), dp, chart.right, chart.bottom + 13f)
             } else {
-                c.drawText("One entry in this period", chart.left, chart.centerY(), paint(p.muted, 8.5f, italic = true))
+                c.drawText(res.getString(R.string.pdf_one_entry), chart.left, chart.centerY(), paint(p.muted, 8.5f, italic = true))
             }
             w.y = top + cardH + 12f
         }
@@ -347,16 +354,21 @@ object PdfReport {
         val sets = snap.statSets.filter { it.date >= o.from && it.date <= o.to }
         val workouts = sets.map { it.date }.distinct().size
         w.section(
-            "Training",
-            if (sets.isEmpty()) "No workouts in this period."
-            else "$workouts workouts · ${sets.size} sets · volume ${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0)} ${snap.weightUnit}"
+            res.getString(R.string.pdf_training),
+            if (sets.isEmpty()) res.getString(R.string.pdf_no_workouts)
+            else res.getString(
+                R.string.pdf_training_summary,
+                res.getQuantityString(R.plurals.pdf_workouts_n, workouts, workouts),
+                res.getQuantityString(R.plurals.sets_count, sets.size, sets.size),
+                fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0), snap.weightUnit
+            )
         )
         if (sets.isEmpty()) return
         val p = w.p
         val cols = floatArrayOf(M + 8f, M + CW * 0.50f, M + CW * 0.63f, M + CW * 0.86f)
         val head = paint(p.gold, 7f, bold = true, tracking = 0.18f)
         fun header() {
-            listOf("Exercise", "Sessions", "Best set", "Est. 1RM").forEachIndexed { i, h -> w.c.drawText(h.uppercase(), cols[i], w.y + 10f, head) }
+            listOf(R.string.pdf_col_exercise, R.string.pdf_col_sessions, R.string.pdf_col_best, R.string.pdf_col_1rm).map { res.getString(it) }.forEachIndexed { i, h -> w.c.drawText(h.uppercase(), cols[i], w.y + 10f, head) }
             w.c.drawRect(M, w.y + 15f, M + CW, w.y + 15.6f, fill(p.hairline))
             w.y += 22f
         }
@@ -372,7 +384,7 @@ object PdfReport {
             if (i % 2 == 0) c.drawRect(M, w.y - 2f, M + CW, w.y + 13f, fill(p.card))
             val cat = snap.categoryOf(exId)
             if (cat != null) c.drawCircle(M + 3f, w.y + 5.5f, 2f, fill(cat.colour or 0xFF000000.toInt()))
-            val name = snap.exercises[exId]?.name ?: "Exercise #$exId"
+            val name = snap.exercises[exId]?.name ?: res.getString(R.string.pdf_exercise_n, exId)
             var shown = name
             while (rowP.measureText(shown) > cols[1] - cols[0] - 8f && shown.length > 4) shown = shown.dropLast(2) + "…"
             c.drawText(shown, cols[0], w.y + 9f, boldP)
@@ -391,7 +403,10 @@ object PdfReport {
     private fun workoutSeconds(start: String, end: String): Long = Dates.secondsBetween(start, end)
 
     private fun daily(res: Resources, w: PageWriter, snap: Snapshot, o: ReportOptions, days: List<String>, progress: (String) -> Unit) {
-        w.section("Daily log", if (days.isEmpty()) "Nothing logged in this period." else "${days.size} days")
+        w.section(
+            res.getString(R.string.pdf_daily),
+            if (days.isEmpty()) res.getString(R.string.pdf_nothing) else res.getQuantityString(R.plurals.pdf_days_n, days.size, days.size)
+        )
         val p = w.p
         val startDay = days.firstOrNull()?.let { Dates.epochDay(it) } ?: 0L
         val small = paint(p.gold, 7f, bold = true, tracking = 0.2f)
@@ -401,7 +416,7 @@ object PdfReport {
         val italic = paint(p.muted, 8.5f, italic = true)
 
         days.forEachIndexed { index, d ->
-            if (index % 5 == 0) progress("Creating PDF… day ${index + 1} of ${days.size}")
+            if (index % 5 == 0) progress(res.getString(R.string.pdf_creating_day, index + 1, days.size))
             val photos = snap.photosByDate[d].orEmpty().take(o.photosPerDay.coerceIn(0, 4))
             val recs = snap.recordsByDate[d].orEmpty().sortedWith(compareBy({ defOrder(snap, it.name) }, { it.time }))
             val sets = snap.setsByDate[d].orEmpty()
@@ -414,9 +429,9 @@ object PdfReport {
             w.ensure(34f + (if (n > 0) boxH + 24f else 0f) + 16f)
 
             fun header(continued: Boolean) {
-                val title = Dates.long(d) + if (continued) "  (continued)" else ""
+                val title = Dates.long(d) + if (continued) res.getString(R.string.pdf_continued) else ""
                 w.c.drawText(title, M, w.y + 16f, paint(p.text, if (continued) 11f else 15f, serif = true))
-                w.rightText("DAY ${Dates.epochDay(d) - startDay + 1}", small, M + CW, w.y + 14f)
+                w.rightText(res.getString(R.string.pdf_day_n, Dates.epochDay(d) - startDay + 1), small, M + CW, w.y + 14f)
                 w.y += if (continued) 24f else 30f
             }
             fun line(h: Float) { if (w.ensure(h)) header(true) }
@@ -429,19 +444,19 @@ object PdfReport {
                     if (ph.pose.isNotBlank()) w.c.drawText(ph.pose.uppercase(), left, w.y + boxH + 11f, small)
                 }
                 val more = (snap.photosByDate[d]?.size ?: 0) - n
-                if (more > 0) w.rightText("+$more more", muted, M + CW, w.y + boxH + 11f)
+                if (more > 0) w.rightText(res.getString(R.string.pdf_more, more), muted, M + CW, w.y + boxH + 11f)
                 w.y += boxH + 22f
             }
 
             if (recs.isNotEmpty()) {
                 line(30f)
-                w.c.drawText("BODY", M, w.y + 8f, small)
+                w.c.drawText(res.getString(R.string.pdf_body_caps), M, w.y + 8f, small)
                 w.y += 14f
                 recs.forEach { r ->
                     line(14f)
                     val prev = snap.recordsByName[r.name]?.lastOrNull { it.date < r.date }
                     w.c.drawText(r.name, M, w.y + 9f, text)
-                    prev?.let { w.c.drawText("${fmtSigned(r.value - it.value)} since ${Dates.short(it.date)}", M + CW * 0.45f, w.y + 9f, muted) }
+                    prev?.let { w.c.drawText(res.getString(R.string.pdf_since, fmtSigned(r.value - it.value), Dates.short(it.date)), M + CW * 0.45f, w.y + 9f, muted) }
                     w.rightText("${fmtNum(r.value)} ${r.unit}".trim(), bold, M + CW, w.y + 9f)
                     w.y += 14f
                 }
@@ -450,12 +465,12 @@ object PdfReport {
 
             if (sets.isNotEmpty() || comments.isNotEmpty()) {
                 line(30f)
-                w.c.drawText("WORKOUT", M, w.y + 8f, small)
+                w.c.drawText(res.getString(R.string.pdf_workout_caps), M, w.y + 8f, small)
                 val total = snap.workoutTimes[d]?.sumOf { workoutSeconds(it.start, it.end) } ?: 0L
                 val info = listOfNotNull(
-                    if (total > 0) "Duration ${fmtDuration(total.toInt())}" else null,
-                    if (sets.isNotEmpty()) "${sets.size} sets" else null,
-                    if (sets.isNotEmpty()) "Volume ${fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0)} ${snap.weightUnit}" else null
+                    if (total > 0) res.getString(R.string.pdf_duration, fmtDuration(total.toInt())) else null,
+                    if (sets.isNotEmpty()) res.getQuantityString(R.plurals.sets_count, sets.size, sets.size) else null,
+                    if (sets.isNotEmpty()) res.getString(R.string.pdf_volume, fmtNum(snap.weight(sets.sumOf { it.weightKg * it.reps }), 0), snap.weightUnit) else null
                 ).joinToString("  ·  ")
                 w.rightText(info, muted, M + CW, w.y + 8f)
                 w.y += 16f
@@ -466,10 +481,10 @@ object PdfReport {
                     line(28f)
                     val cat = snap.categoryOf(exId)
                     if (cat != null) w.c.drawCircle(M + 3f, w.y + 6f, 2.4f, fill(cat.colour or 0xFF000000.toInt()))
-                    w.c.drawText(snap.exercises[exId]?.name ?: "Exercise #$exId", M + 10f, w.y + 9.5f, bold)
+                    w.c.drawText(snap.exercises[exId]?.name ?: res.getString(R.string.pdf_exercise_n, exId), M + 10f, w.y + 9.5f, bold)
                     w.y += 14f
                     val setText = exSets.mapIndexed { i, s ->
-                        "${i + 1}. " + describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId) + if (s.isPr) " (PR)" else ""
+                        "${i + 1}. " + describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId) + if (s.isPr) res.getString(R.string.pdf_pr_suffix) else ""
                     }.joinToString("     ")
                     wrap(setText, text, CW - 10f).forEach { l -> line(12.5f); w.c.drawText(l, M + 10f, w.y + 9f, text); w.y += 12.5f }
                     exSets.filter { !it.comment.isNullOrBlank() }.forEach { s ->
@@ -481,7 +496,7 @@ object PdfReport {
 
             if (photos.isEmpty() && recs.isEmpty() && sets.isEmpty() && comments.isEmpty()) {
                 line(14f)
-                w.c.drawText("Photos on this day aren't included (photos per day is set to 0).", M, w.y + 9f, italic)
+                w.c.drawText(res.getString(R.string.pdf_no_photos), M, w.y + 9f, italic)
                 w.y += 14f
             }
             w.y += 6f

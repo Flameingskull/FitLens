@@ -90,7 +90,7 @@ fun BodyFatCalculatorSheet(snap: Snapshot, date: String, onDismiss: () -> Unit, 
         val toSave = rows.mapNotNull { r -> r.typedValue?.let { Triple(r.name, r.unit, it) } }
         AppScope.scope.launch { toSave.forEach { (n, u, v) -> Store.addManualRecord(n, u, date, time, v, null) } }
         val comment = res.getString(
-            R.string.bf_comment, sex!!.label.lowercase(), rows.joinToString(", ") { "${it.input.label.lowercase()} ${it.shown}" }
+            R.string.bf_comment, sexText(res, sex!!).lowercase(), rows.joinToString(", ") { "${inputText(res, it.input).lowercase()} ${it.shown}" }
         )
         onUse(Math.round(p * 10) / 10.0, comment)
         onDismiss()
@@ -104,13 +104,13 @@ fun BodyFatCalculatorSheet(snap: Snapshot, date: String, onDismiss: () -> Unit, 
         onConfirm = { use() }
     ) {
         Text(
-            stringResource(R.string.bf_intro, BodyFat.METHOD, fmtNum(BodyFat.TYPICAL_ERROR, 1)),
+            stringResource(R.string.bf_intro, stringResource(R.string.bfx_method), fmtNum(BodyFat.TYPICAL_ERROR, 1)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         SectionLabel(stringResource(R.string.bf_sex))
         SegmentedSwitch(
-            options = BodyFat.Sex.entries.map { it.label },
+            options = BodyFat.Sex.entries.map { sexText(res, it) },
             selected = sex?.ordinal ?: -1,
             onSelect = { i -> Settings.updatePortable { it.copy(profileSex = BodyFat.Sex.entries[i].key) } }
         )
@@ -126,13 +126,13 @@ fun BodyFatCalculatorSheet(snap: Snapshot, date: String, onDismiss: () -> Unit, 
             when {
                 missing.isNotEmpty() -> Text(
                     pluralStringResource(
-                        R.plurals.bf_missing, missing.size, missing.joinToString(", ") { it.input.label.lowercase() }, Dates.medium(date)
+                        R.plurals.bf_missing, missing.size, missing.joinToString(", ") { inputText(res, it.input).lowercase() }, Dates.medium(date)
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 result is BodyFat.Result.Invalid -> Text(
-                    result.reason,
+                    invalidText(res, result),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -156,6 +156,7 @@ private fun InputRow(
     text: String,
     onText: (String) -> Unit
 ) {
+    val res = LocalContext.current.resources
     Column(Modifier.fillMaxWidth()) {
         val value = latest?.let { "${fmtNum(it.value, 1)} ${it.unit}".trim() }
         val status = when {
@@ -163,9 +164,9 @@ private fun InputRow(
             ageDays == 0L -> stringResource(R.string.bf_today, value.orEmpty())
             else -> pluralStringResource(R.plurals.bf_days_ago, (ageDays ?: 0L).toInt(), value.orEmpty(), Dates.medium(latest.date), (ageDays ?: 0L).toInt())
         }
-        Text(stringResource(R.string.an_label_value, input.label, status), style = MaterialTheme.typography.bodyLarge)
+        Text(stringResource(R.string.an_label_value, inputText(res, input), status), style = MaterialTheme.typography.bodyLarge)
         Text(
-            stringResource(R.string.bf_measure, input.howTo) + if (stale) " " + stringResource(R.string.bf_stale, BodyFat.STALE_DAYS) else "",
+            stringResource(R.string.bf_measure, howToText(res, input)) + if (stale) " " + stringResource(R.string.bf_stale, BodyFat.STALE_DAYS) else "",
             style = MaterialTheme.typography.bodySmall,
             color = if (stale) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -174,8 +175,8 @@ private fun InputRow(
             onValueChange = onText,
             label = {
                 Text(
-                    if (latest == null) stringResource(R.string.bf_field_needed, input.label, unit)
-                    else stringResource(R.string.bf_field_new, input.label.lowercase(), unit)
+                    if (latest == null) stringResource(R.string.bf_field_needed, inputText(res, input), unit)
+                    else stringResource(R.string.bf_field_new, inputText(res, input).lowercase(), unit)
                 )
             },
             singleLine = true,

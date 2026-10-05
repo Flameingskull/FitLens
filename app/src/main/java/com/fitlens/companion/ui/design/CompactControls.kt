@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.ui.Spacing
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /*
  * Compact controls (#115): one small dropdown per choice and one menu for on/off options, instead of rows of chips,
@@ -45,11 +47,12 @@ fun DropdownPill(
 ) {
     var open by remember { mutableStateOf(false) }
     val current = options.getOrNull(selected).orEmpty()
+    val changeLabel = stringResource(R.string.cmn_change_cd, label, current)
     Box(modifier) {
         TextButton(
             onClick = { open = true },
             contentPadding = PaddingValues(start = Spacing.sm, end = Spacing.xs),
-            modifier = Modifier.heightIn(min = Spacing.touch).semantics { contentDescription = "$label: $current. Change" }
+            modifier = Modifier.heightIn(min = Spacing.touch).semantics { contentDescription = changeLabel }
         ) {
             Text(current, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
@@ -60,7 +63,7 @@ fun DropdownPill(
                     text = { Text(o) },
                     onClick = { onSelect(i); open = false },
                     leadingIcon = {
-                        if (i == selected) Icon(Icons.Filled.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary)
+                        if (i == selected) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.cmn_selected), tint = MaterialTheme.colorScheme.primary)
                         else Box(Modifier.size(24.dp))
                     }
                 )
@@ -75,10 +78,11 @@ fun DropdownPill(
  */
 @Composable
 fun PickerPill(label: String, current: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val changeLabel = stringResource(R.string.cmn_change_cd, label, current)
     TextButton(
         onClick = onClick,
         contentPadding = PaddingValues(start = Spacing.sm, end = Spacing.xs),
-        modifier = modifier.heightIn(min = Spacing.touch).semantics { contentDescription = "$label: $current. Change" }
+        modifier = modifier.heightIn(min = Spacing.touch).semantics { contentDescription = changeLabel }
     ) {
         Text(current, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
@@ -93,7 +97,7 @@ data class ToggleOption(val label: String, val on: Boolean, val onToggle: () -> 
  * [actions] (one-off commands such as "Share graph as image", #22) follow the options and close the menu.
  */
 @Composable
-fun OptionsMenu(options: List<ToggleOption>, description: String = "Graph options", actions: List<MenuAction> = emptyList()) {
+fun OptionsMenu(options: List<ToggleOption>, description: String = stringResource(R.string.cmn_graph_options), actions: List<MenuAction> = emptyList()) {
     if (options.isEmpty() && actions.isEmpty()) return
     var open by remember { mutableStateOf(false) }
     Box {
@@ -106,7 +110,7 @@ fun OptionsMenu(options: List<ToggleOption>, description: String = "Graph option
                     text = { Text(o.label) },
                     onClick = o.onToggle,
                     leadingIcon = {
-                        if (o.on) Icon(Icons.Filled.Check, contentDescription = "On", tint = MaterialTheme.colorScheme.primary)
+                        if (o.on) Icon(Icons.Filled.Check, contentDescription = stringResource(R.string.cmn_on), tint = MaterialTheme.colorScheme.primary)
                         else Box(Modifier.size(24.dp))
                     }
                 )
@@ -138,7 +142,7 @@ fun PeriodDropdown(
     modifier: Modifier = Modifier
 ) {
     var picking by remember { mutableStateOf(false) }
-    val customLabel = if (selected < 0 && custom != null) "${Dates.short(custom.first)} – ${Dates.short(custom.second)}" else "Custom…"
+    val customLabel = if (selected < 0 && custom != null) stringResource(R.string.cmn_range, Dates.short(custom.first), Dates.short(custom.second)) else stringResource(R.string.cmn_custom)
     DropdownPill(label, options + customLabel, if (selected < 0) options.size else selected, modifier) { i ->
         if (i < options.size) onSelect(i) else picking = true
     }

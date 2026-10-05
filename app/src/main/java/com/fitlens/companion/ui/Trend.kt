@@ -9,6 +9,8 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import android.content.res.Resources
+import com.fitlens.companion.R
 
 // Trend lines (#152). Every trend in FitLens comes from here, so the line drawn, the figures written under it and a
 // shared image always agree. Plain Kotlin with no Android parts, so it's unit tested on the JVM (TrendTest).
@@ -138,11 +140,11 @@ internal fun loess(pts: List<ChartPoint>): List<Pair<Long, Double>> {
  * (whichever suits the span), the fitted values at either end and their dates, and how much to trust it.
  * [format] writes a value; [unit] follows it (blank for plain counts).
  */
-fun trendText(t: TrendLine, format: (Double) -> String, unit: String): String {
+fun trendText(res: Resources, t: TrendLine, format: (Double) -> String, unit: String): String {
     val (per, days) = when {
-        t.spanDays <= 120 -> "week" to 7.0
-        t.spanDays <= 3 * 365 -> "month" to TrendLine.DAYS_PER_MONTH
-        else -> "year" to TrendLine.DAYS_PER_YEAR
+        t.spanDays <= 120 -> res.getString(R.string.tr_week) to 7.0
+        t.spanDays <= 3 * 365 -> res.getString(R.string.tr_month) to TrendLine.DAYS_PER_MONTH
+        else -> res.getString(R.string.tr_year) to TrendLine.DAYS_PER_YEAR
     }
     val rate = t.slope * days
     val decimals = when {
@@ -152,13 +154,14 @@ fun trendText(t: TrendLine, format: (Double) -> String, unit: String): String {
     }
     val u = if (unit.isBlank()) "" else " $unit"
     fun day(x: Long) = Dates.medium(LocalDate.ofEpochDay(x).format(Dates.ISO))
-    val head = "${fmtSigned(rate, decimals)}$u per $per: ${format(t.at(t.fromX))} → ${format(t.at(t.toX))}$u " +
-        "from ${day(t.fromX)} to ${day(t.toX)}"
-    val fit = "straight-line fit to ${t.n} points, R² ${fmtNum((t.r2 * 100).roundToInt() / 100.0, 2)}"
+    val head = res.getString(
+        R.string.tr_head, fmtSigned(rate, decimals) + u, per, format(t.at(t.fromX)), format(t.at(t.toX)) + u, day(t.fromX), day(t.toX)
+    )
+    val fit = res.getString(R.string.tr_fit, t.n, fmtNum((t.r2 * 100).roundToInt() / 100.0, 2))
     val caution = when {
-        t.fewPoints -> ". Only ${t.n} points, so read it with care"
-        t.looseFit -> ". A loose fit: the values vary more than they trend"
+        t.fewPoints -> res.getString(R.string.tr_few, t.n)
+        t.looseFit -> res.getString(R.string.tr_loose)
         else -> ""
     }
-    return "$head ($fit)$caution."
+    return res.getString(R.string.tr_whole, head, fit, caution)
 }

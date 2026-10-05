@@ -56,6 +56,8 @@ import com.fitlens.companion.ui.Dot
 import com.fitlens.companion.ui.FitShapes
 import com.fitlens.companion.ui.GoldHairline
 import com.fitlens.companion.ui.Spacing
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /**
  * Keeps a sheet's scrolling content from dragging the sheet itself (#103). Without it, pulling a list down once it is
@@ -83,7 +85,7 @@ fun FitSheet(
     confirmLabel: String? = null,
     onConfirm: (() -> Unit)? = null,
     confirmEnabled: Boolean = true,
-    dismissLabel: String = "Cancel",
+    dismissLabel: String = stringResource(R.string.cancel),
     destructive: Boolean = false,
     secondaryLabel: String? = null,
     onSecondary: (() -> Unit)? = null,
@@ -154,7 +156,7 @@ fun ConfirmSheet(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     destructive: Boolean = true,
-    dismissLabel: String = "Cancel"
+    dismissLabel: String = stringResource(R.string.cancel)
 ) {
     FitSheet(
         title = title,
@@ -191,10 +193,11 @@ fun SearchablePicker(
     onDismiss: () -> Unit,
     onPick: (List<Long>) -> Unit,
     multiSelect: Boolean = false,
-    searchLabel: String = "Search",
-    emptyText: String = "Nothing matches that search."
+    searchLabel: String = stringResource(R.string.cmn_search),
+    emptyText: String = stringResource(R.string.cmn_no_match)
 ) {
     val chosen = remember { mutableStateListOf<Long>() }
+    val selectedSuffix = stringResource(R.string.cmn_selected_suffix)
     // With exercises ticked, only Cancel closes the picker: a drag, a tap outside or Back leave it open, so a choice
     // is never lost by accident (#103).
     val sheetState = rememberModalBottomSheetState(
@@ -234,7 +237,7 @@ fun SearchablePicker(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     item {
-                        FilterChip(selected = section == null, onClick = { section = null }, label = { Text("All") })
+                        FilterChip(selected = section == null, onClick = { section = null }, label = { Text(stringResource(R.string.cmn_all)) })
                     }
                     items(sections) { s ->
                         FilterChip(selected = section == s, onClick = { section = if (section == s) null else s }, label = { Text(s) })
@@ -265,7 +268,7 @@ fun SearchablePicker(
                                 }
                             }
                             .semantics(mergeDescendants = true) {
-                                if (multiSelect) contentDescription = item.title + if (isChosen) ", selected" else ""
+                                if (multiSelect) contentDescription = item.title + if (isChosen) selectedSuffix else ""
                             }
                             .padding(horizontal = Spacing.lg),
                         verticalAlignment = Alignment.CenterVertically
@@ -292,9 +295,9 @@ fun SearchablePicker(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.End),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                     GoldButton(onClick = { onPick(chosen.toList()) }, enabled = chosen.isNotEmpty()) {
-                        Text(if (chosen.isEmpty()) "Add" else "Add ${chosen.size}")
+                        Text(if (chosen.isEmpty()) stringResource(R.string.cmn_add) else stringResource(R.string.cmn_add_n, chosen.size))
                     }
                 }
             }

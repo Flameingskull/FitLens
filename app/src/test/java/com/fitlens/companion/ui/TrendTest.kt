@@ -1,12 +1,19 @@
 package com.fitlens.companion.ui
 
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import kotlin.math.abs
 
-/** Trend lines (#152): the fit, its quality and its words must match the data exactly. */
+/** Trend lines (#152): the fit, its quality and its words must match the data exactly. Robolectric gives [trendText] its strings (#94). */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], application = Application::class)
 class TrendTest {
 
     private fun pts(vararg xy: Pair<Long, Double>) = xy.map { (x, y) -> ChartPoint(x, y, "") }
@@ -86,7 +93,8 @@ class TrendTest {
     @Test
     fun textGivesRateEndsAndFit() {
         val t = trendOf((0L..60L step 6).map { ChartPoint(20000 + it, 80 + it / 7.0, "") })!!
-        val s = trendText(t, { com.fitlens.companion.data.fmtNum(it, 1) }, "kg")
+        val res = ApplicationProvider.getApplicationContext<Application>().resources
+        val s = trendText(res, t, { com.fitlens.companion.data.fmtNum(it, 1) }, "kg")
         assertTrue(s, s.startsWith("+1 kg per week: 80 → 88.6 kg from "))
         assertTrue(s, s.contains("straight-line fit to 11 points, R² 1"))
     }

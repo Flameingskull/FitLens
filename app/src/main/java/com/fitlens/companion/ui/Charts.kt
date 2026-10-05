@@ -71,6 +71,9 @@ import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.log10
 import kotlin.math.pow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 // Shared chart components (#50). Every graph in FitLens is drawn by one of these, so they look and behave alike.
 // Colours come only from LocalChartColors (ui/Theme.kt).
@@ -246,7 +249,7 @@ internal fun DrawScope.marker(shape: Int, c: Offset, r: Float, color: Color, sty
 @Composable
 internal fun ChartEmpty(modifier: Modifier, height: Dp) {
     Box(modifier.fillMaxWidth().height(height), contentAlignment = Alignment.Center) {
-        Text("No data in this range", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.ch_no_data), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -330,7 +333,9 @@ fun FitChart(
         }
         if (series.size > 1 || showTrend || overlay != null) {
             val labels = series.map { it.label } +
-                listOfNotNull(overlay?.let { o -> "${o.label}${if (overlayUnit.isBlank()) "" else " ($overlayUnit)"}, right axis" })
+                listOfNotNull(overlay?.let { o ->
+                    stringResource(R.string.ch_right_axis, if (overlayUnit.isBlank()) o.label else stringResource(R.string.ch_with_unit, o.label, overlayUnit))
+                })
             ChartLegend(labels, hidden, showTrend) { i ->
                 hidden = if (i in hidden) hidden - i else hidden + i
             }
@@ -367,6 +372,7 @@ private fun TrendReadout(
     unit: String,
     skippedLast: Boolean
 ) {
+    val res = LocalContext.current.resources
     Column(
         Modifier
             .heightIn(max = 96.dp)
@@ -376,14 +382,14 @@ private fun TrendReadout(
     ) {
         visible.forEach { i ->
             val s = series[i]
-            val name = if (series.size > 1) "${s.label}: " else ""
+            val name = if (series.size > 1) res.getString(R.string.ch_series_name, s.label) else ""
             val t = trends[i]
             // Plain counts (workouts, sets) have no unit: name what's counted instead.
             val u = unit.ifBlank { if (series.size == 1) s.label.lowercase() else "" }
             Text(
-                name + if (t == null) "No trend: it needs at least ${TrendLine.MIN_POINTS} points on different days in view."
+                name + if (t == null) res.getString(R.string.ch_no_trend, TrendLine.MIN_POINTS)
                 // Fitted values aren't logged ones: one decimal, so a count's trend isn't rounded away.
-                else "Trend " + trendText(t, { v -> fmtNum(v, 1) }, u),
+                else res.getString(R.string.ch_trend_prefix, trendText(res, t, { v -> fmtNum(v, 1) }, u)),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (t == null) MaterialTheme.colorScheme.onSurfaceVariant
                 else deltaColour(t.slope, MaterialTheme.colorScheme.onSurfaceVariant)
@@ -391,7 +397,7 @@ private fun TrendReadout(
         }
         if (skippedLast && trends.isNotEmpty()) {
             Text(
-                "The period still in progress isn't counted in the trend.",
+                stringResource(R.string.ch_in_progress),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -465,26 +471,31 @@ private fun LinePlot(
         if (kind != ChartKind.BAR) 0f else (plotWidth / barSlots * 0.7f).coerceIn(2f, maxPx)
 
     // What TalkBack reads: each series' range, low, high and latest value, then the selected point.
+    val res = LocalContext.current.resources
     val u = if (unit.isBlank()) "" else " $unit"
     val description = visible.joinToString(". ") { i ->
         val pts = series[i].points
-        "${series[i].label}: ${Dates.medium(pts.first().date)} to ${Dates.medium(pts.last().date)}, " +
-            "lowest ${yFormat(pts.minOf { it.y })}$u, highest ${yFormat(pts.maxOf { it.y })}$u, latest ${yFormat(pts.last().y)}$u"
+        res.getString(
+            R.string.ch_desc_series, series[i].label, Dates.medium(pts.first().date), Dates.medium(pts.last().date),
+            yFormat(pts.minOf { it.y }) + u, yFormat(pts.maxOf { it.y }) + u, yFormat(pts.last().y) + u
+        )
     }
     val overlayText = overlay?.let { o ->
         val ou = if (overlayUnit.isBlank()) "" else " $overlayUnit"
-        ". ${o.label}, on the right axis: lowest ${fmtNum(overlayInView.minOf { it.y }, 1)}$ou, " +
-            "highest ${fmtNum(overlayInView.maxOf { it.y }, 1)}$ou"
+        res.getString(
+            R.string.ch_desc_overlay, o.label, fmtNum(overlayInView.minOf { it.y }, 1) + ou, fmtNum(overlayInView.maxOf { it.y }, 1) + ou
+        )
     }.orEmpty()
     val selectedPoint = selected?.let { s -> series.getOrNull(s.series)?.points?.getOrNull(s.index)?.let { s to it } }
-    val selectedText = selectedPoint?.let { (s, p) -> "${series[s.series].label}, ${Dates.long(p.date)}: ${yFormat(p.y)}$u" }
+    val selectedText = selectedPoint?.let { (s, p) -> res.getString(R.string.ch_desc_selected, series[s.series].label, Dates.long(p.date), yFormat(p.y) + u) }
+    val graphDescription = res.getString(R.string.ch_desc, description, overlayText)
 
     Canvas(
         Modifier
             .fillMaxWidth()
             .height(height)
             .semantics {
-                contentDescription = "Graph. $description$overlayText"
+                contentDescription = graphDescription
                 if (selectedText != null) stateDescription = selectedText
                 liveRegion = LiveRegionMode.Polite
             }
@@ -710,7 +721,7 @@ internal fun ChartLegend(labels: List<String>, hidden: Set<Int>, showTrend: Bool
                     )
                 }
                 Spacer(Modifier.width(6.dp))
-                Text("Trend", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.ch_trend_legend), style = MaterialTheme.typography.labelMedium)
             }
         }
     }

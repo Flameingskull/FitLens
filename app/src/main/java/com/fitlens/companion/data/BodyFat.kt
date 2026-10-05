@@ -44,11 +44,9 @@ object BodyFat {
     /** The method's typical error against underwater weighing, in percentage points. */
     const val TYPICAL_ERROR = 3.5
 
-    const val METHOD = "US Navy circumference method (Hodgdon & Beckett)"
-
     /** Results outside this range mean a measurement was mistyped, not a real body fat. */
-    private const val MIN_PERCENT = 2.0
-    private const val MAX_PERCENT = 75.0
+    const val MIN_PERCENT = 2.0
+    const val MAX_PERCENT = 75.0
 
     /** Is [name] the body fat measurement, however it was named (FitNotes calls it "Body Fat")? */
     fun isBodyFat(name: String): Boolean =
@@ -61,33 +59,35 @@ object BodyFat {
 
     sealed class Result {
         data class Ok(val percent: Double) : Result()
-        data class Invalid(val reason: String) : Result()
+        /** Why the measurements can't give a result; [value] is the height or percentage it refers to. */
+        data class Invalid(val problem: Problem, val value: Double = 0.0) : Result()
+    }
+
+    /** What's wrong with a set of measurements. The UI words each one (ui/BodyFatText.kt). */
+    enum class Problem { NOT_POSITIVE, HEIGHT_RANGE, WAIST_NECK, HIPS_NEEDED, WAIST_HIPS_NECK, OUT_OF_RANGE
     }
 
     /** Body fat in percent from lengths in centimetres; [hipsCm] is needed for women only. */
     fun navy(sex: Sex, heightCm: Double, neckCm: Double, waistCm: Double, hipsCm: Double?): Result {
-        if (heightCm <= 0 || neckCm <= 0 || waistCm <= 0) return Result.Invalid("Every measurement must be more than zero.")
+        if (heightCm <= 0 || neckCm <= 0 || waistCm <= 0) return Result.Invalid(Problem.NOT_POSITIVE)
         if (heightCm < 100 || heightCm > 250) {
-            return Result.Invalid("A height of ${fmtNum(heightCm, 1)} cm can't be right. Check it's in the unit shown.")
+            return Result.Invalid(Problem.HEIGHT_RANGE, heightCm)
         }
         val density = when (sex) {
             Sex.MALE -> {
-                if (waistCm <= neckCm) return Result.Invalid("The waist must be larger than the neck.")
+                if (waistCm <= neckCm) return Result.Invalid(Problem.WAIST_NECK)
                 1.0324 - 0.19077 * log10(waistCm - neckCm) + 0.15456 * log10(heightCm)
             }
             Sex.FEMALE -> {
-                val hips = hipsCm ?: return Result.Invalid("The hips measurement is needed.")
-                if (hips <= 0) return Result.Invalid("Every measurement must be more than zero.")
-                if (waistCm + hips <= neckCm) return Result.Invalid("The waist and hips together must be larger than the neck.")
+                val hips = hipsCm ?: return Result.Invalid(Problem.HIPS_NEEDED)
+                if (hips <= 0) return Result.Invalid(Problem.NOT_POSITIVE)
+                if (waistCm + hips <= neckCm) return Result.Invalid(Problem.WAIST_HIPS_NECK)
                 1.29579 - 0.35004 * log10(waistCm + hips - neckCm) + 0.22100 * log10(heightCm)
             }
         }
         val percent = 495.0 / density - 450.0
         if (percent < MIN_PERCENT || percent > MAX_PERCENT) {
-            return Result.Invalid(
-                "These measurements give ${fmtNum(percent, 1)}%, outside what the formula can measure " +
-                    "(${fmtNum(MIN_PERCENT, 0)}–${fmtNum(MAX_PERCENT, 0)}%). Check each value and its unit."
-            )
+            return Result.Invalid(Problem.OUT_OF_RANGE, percent)
         }
         return Result.Ok(percent)
     }

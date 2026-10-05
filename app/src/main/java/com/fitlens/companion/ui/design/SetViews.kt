@@ -80,6 +80,9 @@ import com.fitlens.companion.ui.Motion
 import com.fitlens.companion.ui.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /**
  * A FitNotes section label (owner, 2026-10-02): the [text] in uppercase over a fine gold rule, as FitNotes heads its
@@ -124,7 +127,7 @@ fun StepperField(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.CenterHorizontally)
         ) {
-            StepButton(symbol = "−", description = "Decrease $label") { onStep(-1) }
+            StepButton(symbol = "−", description = stringResource(R.string.sv_decrease, label)) { onStep(-1) }
             val outline = MaterialTheme.colorScheme.outline
             BasicTextField(
                 value = value,
@@ -154,7 +157,7 @@ fun StepperField(
                     },
                 decorationBox = { inner -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { inner() } }
             )
-            StepButton(symbol = "+", description = "Increase $label") { onStep(1) }
+            StepButton(symbol = "+", description = stringResource(R.string.sv_increase, label)) { onStep(1) }
         }
     }
 }
@@ -301,17 +304,18 @@ fun SetRow(
     effort: String? = null,
     effortSpoken: String? = null,
     /** What TalkBack calls the row: "Set 2", or "Value 2" for a body measurement. */
-    noun: String = "Set"
+    noun: String = stringResource(R.string.sv_set)
 ) {
+    val res = LocalContext.current.resources
     val shape = FitShapes.row
     val spoken = buildString {
         append(noun).append(' ').append(index).append(", ")
         if (badgeSpoken != null) append(badgeSpoken).append(", ")
         append(if (cells != null) cells.joinToString(", ") { it.spoken } else summary)
         if (effortSpoken != null) append(", ").append(effortSpoken)
-        if (isPr) append(", personal record")
-        if (!comment.isNullOrBlank()) append(", comment: ").append(comment)
-        if (done == true) append(", done")
+        if (isPr) append(res.getString(R.string.sv_pr_spoken))
+        if (!comment.isNullOrBlank()) append(res.getString(R.string.sv_comment_spoken, comment))
+        if (done == true) append(res.getString(R.string.sv_done_spoken))
     }
     // FitNotes's Track rows (#141): values on the glass with a rule under each, no box; the selected set is washed in
     // gold, as FitNotes washes it in blue.
@@ -337,7 +341,7 @@ fun SetRow(
     Box(modifier.fillMaxWidth().padding(setOuterPadding(framed))) {
         Row(frame.then(click).padding(setInnerPadding(framed, onComment != null)), verticalAlignment = align) {
             if (onComment != null) {
-                val label = if (hasComment) "Edit comment on ${noun.lowercase()} $index" else "Add comment to ${noun.lowercase()} $index"
+                val label = if (hasComment) stringResource(R.string.sv_edit_comment, noun.lowercase(), index) else stringResource(R.string.sv_add_comment, noun.lowercase(), index)
                 IconButton(onClick = onComment) {
                     Icon(
                         if (hasComment) FitIcons.Comment else FitIcons.CommentOutline,
@@ -359,9 +363,9 @@ fun SetRow(
                             })
                         }
                         if (isDone != null && toggleDone != null) {
-                            stateDescription = if (isDone) "Done" else "Not done"
+                            stateDescription = res.getString(if (isDone) R.string.sv_done else R.string.sv_not_done)
                             customActions = listOf(
-                                CustomAccessibilityAction(if (isDone) "Mark not done" else "Mark done") {
+                                CustomAccessibilityAction(res.getString(if (isDone) R.string.sv_mark_not_done else R.string.sv_mark_done)) {
                                     toggleDone(!isDone)
                                     true
                                 }
@@ -404,7 +408,7 @@ fun SetRow(
                             Text(summary, style = MaterialTheme.typography.bodyLarge)
                             if (effort != null) {
                                 Text(
-                                    "  ·  $effort",
+                                    stringResource(R.string.sv_effort, effort),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -432,7 +436,7 @@ fun SetRow(
                         if (badgeHere) SetTypeBadge(badge ?: "")
                         if (isPr) {
                             Text(
-                                "PR",
+                                stringResource(R.string.sv_pr),
                                 Modifier.padding(start = if (badgeHere) 4.dp else 0.dp),
                                 color = LocalChartColors.current.accent,
                                 fontWeight = FontWeight.Bold
@@ -440,7 +444,7 @@ fun SetRow(
                         }
                     }
                 } else if (isPr) {
-                    Text("PR", color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.sv_pr), color = LocalChartColors.current.accent, fontWeight = FontWeight.Bold)
                     if (trailingHint != null || done != null) Spacer(Modifier.width(6.dp))
                 }
                 if (done != null) {
@@ -484,7 +488,7 @@ fun ExerciseCommentRow(
         modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.touch)
-            .clickable(onClickLabel = if (has) "Edit exercise comment" else "Add exercise comment", onClick = onEdit)
+            .clickable(onClickLabel = if (has) stringResource(R.string.sv_edit_ex_comment) else stringResource(R.string.sv_add_ex_comment), onClick = onEdit)
             .semantics(mergeDescendants = true) {}
             .padding(horizontal = Spacing.lg, vertical = Spacing.xs),
         verticalAlignment = Alignment.CenterVertically
@@ -496,15 +500,15 @@ fun ExerciseCommentRow(
         )
         Spacer(Modifier.width(Spacing.md))
         Column(Modifier.weight(1f)) {
-            Text("EXERCISE COMMENT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.sv_ex_comment_caps), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                if (has) comment.orEmpty() else "Add exercise comment",
+                if (has) comment.orEmpty() else stringResource(R.string.sv_add_ex_comment),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (has) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (previous != null) {
                 Text(
-                    "LAST TIME · ${previous.first.uppercase()}",
+                    stringResource(R.string.sv_last_time, previous.first.uppercase()),
                     style = MaterialTheme.typography.labelSmall,
                     color = Brand.Gold,
                     modifier = Modifier.padding(top = Spacing.xs)
@@ -531,7 +535,7 @@ fun SetCommentSheet(
      * An exercise comment (owner, 2026-10-03): detailed notes on the exercise in this workout, kept to read later, so the
      * box is large and its earlier notes are listed under it. A set's comment stays a short note.
      */
-    title: String = "Comment",
+    title: String = stringResource(R.string.sv_comment),
     detailed: Boolean = false,
     earlier: List<Pair<String, String>> = emptyList()
 ) {
@@ -539,7 +543,7 @@ fun SetCommentSheet(
     FitSheet(
         title = title,
         onDismiss = onDismiss,
-        confirmLabel = "Save",
+        confirmLabel = stringResource(R.string.cmn_save),
         onConfirm = {
             onSave(text.trim().ifBlank { null })
             onDismiss()
@@ -549,13 +553,13 @@ fun SetCommentSheet(
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            placeholder = { Text(if (detailed) "Notes on this exercise: form, feel, equipment, what to change next time…" else "Comment text…") },
+            placeholder = { Text(if (detailed) stringResource(R.string.sv_notes_hint) else stringResource(R.string.sv_comment_hint)) },
             minLines = if (detailed) 6 else 2,
             maxLines = if (detailed) 16 else 5,
             modifier = Modifier.fillMaxWidth()
         )
         if (earlier.isNotEmpty()) {
-            SectionLabel("Earlier notes", Modifier.padding(top = Spacing.md))
+            SectionLabel(stringResource(R.string.sv_earlier), Modifier.padding(top = Spacing.md))
             earlier.forEach { (whenText, note) ->
                 Text(whenText.uppercase(), style = MaterialTheme.typography.labelSmall, color = Brand.Gold, modifier = Modifier.padding(top = Spacing.sm))
                 Text(note, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -595,7 +599,7 @@ fun ExerciseCard(
             .raisedGlass(FitShapes.card)
             .combinedClickable(
                 onClick = onClick,
-                onLongClickLabel = if (menu.isNotEmpty()) "Options for $name" else null,
+                onLongClickLabel = if (menu.isNotEmpty()) stringResource(R.string.cmn_options_for, name) else null,
                 onLongClick = if (menu.isNotEmpty()) ({ menuOpen = true }) else null
             )
     ) {
@@ -613,22 +617,23 @@ fun ExerciseCard(
             )
             if (hasPr) {
                 Text(
-                    "PR",
+                    stringResource(R.string.sv_pr),
                     color = LocalChartColors.current.accent,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = Spacing.sm)
                 )
             }
             if (done) {
-                Icon(Icons.Filled.CheckCircle, contentDescription = "Every set done", tint = Brand.Gold, modifier = Modifier.size(28.dp))
+                Icon(Icons.Filled.CheckCircle, contentDescription = stringResource(R.string.sv_every_done), tint = Brand.Gold, modifier = Modifier.size(28.dp))
             } else if (setsTotal != null && setsTotal > 0) {
+                val doneLabel = stringResource(R.string.sv_sets_done_cd, setsDone, setsTotal)
                 Text(
                     "$setsDone/$setsTotal",
                     style = MaterialTheme.typography.titleMedium,
                     color = Brand.Gold,
                     modifier = Modifier
                         .padding(start = Spacing.xs)
-                        .semantics { contentDescription = "$setsDone of $setsTotal sets done" }
+                        .semantics { contentDescription = doneLabel }
                 )
             }
             Box {

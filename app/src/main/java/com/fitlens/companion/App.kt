@@ -6,10 +6,12 @@ import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Store
 import com.fitlens.companion.ui.BrandFonts
 import com.fitlens.companion.ui.TimerService
+import com.fitlens.companion.ui.AppScope
 
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        AppScope.init(this)
         BrandFonts.init(this)
         Store.init(this)
         Settings.init(this)

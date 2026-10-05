@@ -109,7 +109,7 @@ private fun RangeState.label(): String {
     val p = preset
     val c = custom
     return when {
-        p != null && p != RangePreset.All -> p.label.lowercase()
+        p != null && p != RangePreset.All -> stringResource(p.label).lowercase()
         p == null && c != null -> stringResource(R.string.data_range_to, Dates.medium(c.first), Dates.medium(c.second))
         else -> stringResource(R.string.data_all_dates)
     }

@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.GoldHairline
 import com.fitlens.companion.ui.Spacing
+import androidx.compose.ui.res.stringResource
 
 /** An icon action in a [FitTopBar]. [description] is what TalkBack reads. */
 data class TopBarAction(
@@ -80,7 +81,7 @@ fun FitTopBar(
     onSettings: (() -> Unit)? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null,
     /** What TalkBack reads for the back arrow, e.g. "Close full screen" where Back would mislead (#96). */
-    backLabel: String = "Back",
+    backLabel: String = stringResource(R.string.cmn_back),
     titleMenu: List<MenuAction> = emptyList(),
     /** An icon in the navigation slot instead of a back arrow, such as the exercise screen's workout drawer (#129). */
     navigation: TopBarAction? = null,
@@ -110,7 +111,7 @@ fun FitTopBar(
                     Row(
                         Modifier
                             .heightIn(min = Spacing.touch)
-                            .clickable(onClickLabel = "Switch") { titleOpen = true },
+                            .clickable(onClickLabel = stringResource(R.string.cmn_switch)) { titleOpen = true },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -170,7 +171,7 @@ fun FitTopBar(
         }
         trailing()
         if (onSettings != null) {
-            IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = "Settings") }
+            IconButton(onClick = onSettings) { Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cmn_settings)) }
         }
         if (overflow.isNotEmpty()) OverflowMenu(overflow)
     }
@@ -198,7 +199,7 @@ fun FitTopBar(
 
 /** A 48dp overflow ("more") button that opens [items] as a dropdown. */
 @Composable
-fun OverflowMenu(items: List<MenuAction>, description: String = "More options") {
+fun OverflowMenu(items: List<MenuAction>, description: String = stringResource(R.string.cmn_more_options)) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
