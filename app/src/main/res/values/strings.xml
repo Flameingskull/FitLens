@@ -2266,4 +2266,153 @@
         <item quantity="one">Importing %1$d photo…</item>
         <item quantity="other">Importing %1$d photos…</item>
     </plurals>
+    <!-- Data layer: backups, restore, safety copy and automatic backups (#156) -->
+    <string name="bk_write_failed">Couldn\'t write the backup file.</string>
+    <plurals name="bk_saved">
+        <item quantity="one">Backup saved with %1$d photo.</item>
+        <item quantity="other">Backup saved with %1$d photos.</item>
+    </plurals>
+    <string name="bk_failed">Backup failed: %1$s</string>
+    <plurals name="bk_share_ready">
+        <item quantity="one">Backup ready to share with %1$d photo.</item>
+        <item quantity="other">Backup ready to share with %1$d photos.</item>
+    </plurals>
+    <string name="bk_share_failed">Couldn\'t prepare the backup: %1$s</string>
+    <string name="bk_reason_restore">Before restoring a backup</string>
+    <string name="bk_restored_data">Your previous workouts, measurements and notes are back.</string>
+    <plurals name="bk_restored">
+        <item quantity="one">Backup restored with %1$d photo.</item>
+        <item quantity="other">Backup restored with %1$d photos.</item>
+    </plurals>
+    <string name="bk_way_back_undo">The safety copy taken just before this restore is still here: use Undo in Settings → Backup to put your previous data back.</string>
+    <string name="bk_way_back_check">Check what\'s there before adding anything new; restoring again is safe.</string>
+    <string name="bk_restore_partial">Restore failed part-way: %1$s. Your previous data has already been replaced by this backup. %2$s</string>
+    <string name="bk_restore_failed">Restore failed: %1$s. Your current data wasn\'t changed.</string>
+    <string name="bk_refused_open">Couldn\'t open the backup file.</string>
+    <string name="bk_refused_not_backup">That isn\'t a FitLens backup.</string>
+    <string name="bk_refused_damaged">That backup is damaged or isn\'t from FitLens.</string>
+    <string name="bk_refused_newer">That backup was made by a newer FitLens. Update FitLens first, then restore.</string>
+    <string name="bk_safety_saved">Safety copy saved.</string>
+    <string name="bk_safety_no_room">There isn\'t room on this phone for a safety copy of your current data: about %1$s is needed and %2$s is free. Free some space and try again.</string>
+    <string name="bk_safety_unfinished">Couldn\'t finish the safety copy of your current data.</string>
+    <string name="bk_safety_failed">Couldn\'t save a safety copy of your current data: %1$s</string>
+    <string name="bk_no_safety">There\'s no safety copy to go back to.</string>
+    <string name="bk_safety_unreadable">Couldn\'t read the safety copy.</string>
+    <string name="bk_choose_folder">Choose a backup folder first.</string>
+    <string name="bk_folder_write">Couldn\'t write to the backup folder.</string>
+    <plurals name="bk_auto_saved">
+        <item quantity="one">Automatic backup saved (%1$d photo).</item>
+        <item quantity="other">Automatic backup saved (%1$d photos).</item>
+    </plurals>
+    <string name="bk_folder_lost">FitLens lost access to the backup folder. Choose it again in Settings → Backup.</string>
+    <string name="bk_folder_missing">The backup folder isn\'t available. If it\'s on an SD card, check the card is in; otherwise choose the folder again in Settings → Backup.</string>
+    <string name="bk_auto_failed">Automatic backup failed: %1$s</string>
+    <string name="ab_channel">Backups</string>
+    <string name="ab_channel_desc">Problems with automatic backups</string>
+    <string name="ab_title_folder">FitLens can\'t reach your backup folder</string>
+    <string name="ab_title_failed">Automatic backup didn\'t finish</string>
+    <string name="ab_text_folder">%1$s Tap to open the backup settings.</string>
+    <string name="ab_text_retry">%1$s FitLens will try again.</string>
+    <!-- Data layer: FitNotes import and folder sync (#156) -->
+    <plurals name="imp_sets">
+        <item quantity="one">%1$d set</item>
+        <item quantity="other">%1$d sets</item>
+    </plurals>
+    <plurals name="imp_new_days">
+        <item quantity="one">%1$d new workout day</item>
+        <item quantity="other">%1$d new workout days</item>
+    </plurals>
+    <string name="imp_sets_with_days">%1$s (%2$s)</string>
+    <string name="imp_sets_existing_days">%1$s on days already in FitLens</string>
+    <plurals name="imp_exercises">
+        <item quantity="one">%1$d exercise</item>
+        <item quantity="other">%1$d exercises</item>
+    </plurals>
+    <plurals name="imp_categories">
+        <item quantity="one">%1$d category</item>
+        <item quantity="other">%1$d categories</item>
+    </plurals>
+    <plurals name="imp_comments">
+        <item quantity="one">%1$d workout comment</item>
+        <item quantity="other">%1$d workout comments</item>
+    </plurals>
+    <plurals name="imp_times">
+        <item quantity="one">%1$d workout time</item>
+        <item quantity="other">%1$d workout times</item>
+    </plurals>
+    <plurals name="imp_records">
+        <item quantity="one">%1$d body tracker record</item>
+        <item quantity="other">%1$d body tracker records</item>
+    </plurals>
+    <plurals name="imp_measurements">
+        <item quantity="one">%1$d measurement</item>
+        <item quantity="other">%1$d measurements</item>
+    </plurals>
+    <plurals name="imp_comments_times">
+        <item quantity="one">%1$d workout comment or time</item>
+        <item quantity="other">%1$d workout comments and times</item>
+    </plurals>
+    <plurals name="imp_exercises_deleted">
+        <item quantity="one">%1$d exercise you deleted in FitLens</item>
+        <item quantity="other">%1$d exercises you deleted in FitLens</item>
+    </plurals>
+    <string name="imp_nothing_new">Everything in it was already in FitLens, so nothing changed.</string>
+    <string name="imp_added">Added %1$s.</string>
+    <plurals name="imp_items_skipped">
+        <item quantity="one">%1$d item already in FitLens was skipped.</item>
+        <item quantity="other">%1$d items already in FitLens were skipped.</item>
+    </plurals>
+    <string name="imp_backup_name">backup</string>
+    <string name="imp_cant_open">Couldn\'t open the file.</string>
+    <string name="imp_not_fitnotes">That file isn\'t a FitNotes backup (.fitnotes).</string>
+    <string name="imp_cant_read">Couldn\'t read that backup: %1$s</string>
+    <string name="imp_safety_reason">Before importing %1$s</string>
+    <string name="imp_safety_failed">%1$s The import didn\'t run; nothing in FitLens was changed.</string>
+    <string name="imp_done">Imported %1$s. %2$s</string>
+    <string name="imp_failed">Import failed: %1$s. Nothing in FitLens was changed.</string>
+    <string name="imp_failed_short">Import failed.</string>
+    <string name="imp_csv_not_body">That isn\'t a FitNotes Body Tracker CSV export.</string>
+    <plurals name="imp_csv_added">
+        <item quantity="one">%1$d new record added</item>
+        <item quantity="other">%1$d new records added</item>
+    </plurals>
+    <plurals name="imp_csv_present">
+        <item quantity="one">%1$d already present</item>
+        <item quantity="other">%1$d already present</item>
+    </plurals>
+    <string name="imp_csv_done">CSV: %1$s, %2$s.</string>
+    <string name="imp_csv_failed">CSV import failed: %1$s</string>
+    <string name="imp_choose_folder">Choose your FitNotes backup folder first.</string>
+    <string name="imp_no_backups">No .fitnotes backups found in the chosen folder.</string>
+    <!-- Photo import result (#156) -->
+    <plurals name="pir_added">
+        <item quantity="one">%1$d photo added</item>
+        <item quantity="other">%1$d photos added</item>
+    </plurals>
+    <plurals name="pir_duplicates">
+        <item quantity="one">%1$d already imported</item>
+        <item quantity="other">%1$d already imported</item>
+    </plurals>
+    <plurals name="pir_failed">
+        <item quantity="one">%1$d couldn\'t be read</item>
+        <item quantity="other">%1$d couldn\'t be read</item>
+    </plurals>
+    <plurals name="pir_exif">
+        <item quantity="one">%1$d dated from photo metadata</item>
+        <item quantity="other">%1$d dated from photo metadata</item>
+    </plurals>
+    <plurals name="pir_media">
+        <item quantity="one">%1$d from the media library</item>
+        <item quantity="other">%1$d from the media library</item>
+    </plurals>
+    <plurals name="pir_file_name">
+        <item quantity="one">%1$d from its file name</item>
+        <item quantity="other">%1$d from their file names</item>
+    </plurals>
+    <plurals name="pir_review">
+        <item quantity="one">%1$d needs its date checked</item>
+        <item quantity="other">%1$d need their date checked</item>
+    </plurals>
+    <string name="pir_whole">%1$s.</string>
+    <string name="pir_whole_detail">%1$s. %2$s.</string>
 </resources>

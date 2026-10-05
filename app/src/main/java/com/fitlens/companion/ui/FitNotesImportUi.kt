@@ -124,9 +124,10 @@ fun FitNotesImportHost() {
                     Text(stringResource(R.string.fi_nothing_new), style = MaterialTheme.typography.bodyMedium)
                 } else {
                     SummaryHeading(stringResource(R.string.fi_will_add))
-                    plan.addedLines().forEach { Text(stringResource(R.string.fi_bullet, it), style = MaterialTheme.typography.bodyMedium) }
+                    plan.addedLines(ctx.resources).forEach { Text(stringResource(R.string.fi_bullet, it), style = MaterialTheme.typography.bodyMedium) }
                 }
-                val skipped = plan.skippedLines()
+                val skipped = plan.skippedLines(ctx.resources)
+
                 if (skipped.isNotEmpty()) {
                     SummaryHeading(stringResource(R.string.fi_skipped))
                     skipped.forEach {

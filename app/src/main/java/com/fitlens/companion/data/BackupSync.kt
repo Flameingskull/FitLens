@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
+import com.fitlens.companion.R
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -66,8 +68,9 @@ object BackupSync {
     /** Imports the newest backup if it's newer than the last import. Returns a message or null if nothing to do. */
     suspend fun syncIfNewer(context: Context, force: Boolean = false): ImportSummary? {
         val found = newestBackup(context) ?: return if (force) {
-            if (folder() == null) ImportSummary("Choose your FitNotes backup folder first.", false)
-            else ImportSummary("No .fitnotes backups found in the chosen folder.", false)
+            if (folder() == null) ImportSummary(context.getString(R.string.imp_choose_folder), false)
+            else ImportSummary(context.getString(R.string.imp_no_backups), false)
+
         } else null
         val settings = Settings.current()
         val last = settings.lastImportModified ?: 0L

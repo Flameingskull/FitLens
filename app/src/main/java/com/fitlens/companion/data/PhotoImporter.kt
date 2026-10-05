@@ -24,23 +24,10 @@ data class PhotoImportResult(
     val bySource: Map<String, Int>,
     val newIds: List<Long>
 ) {
+    /** Worded for the screen by `importResultText` in `ui/PhotoText.kt` (#156). */
     val needsReview: Int get() = (bySource[DateSources.FILE] ?: 0) + (bySource[DateSources.NONE] ?: 0)
-
-    fun describe(): String {
-        val parts = mutableListOf("$added photo${if (added == 1) "" else "s"} added")
-        if (duplicates > 0) parts.add("$duplicates already imported")
-        if (failed > 0) parts.add("$failed couldn't be read")
-        val exif = bySource[DateSources.EXIF] ?: 0
-        val media = bySource[DateSources.MEDIA] ?: 0
-        val name = bySource[DateSources.FILENAME] ?: 0
-        val detail = mutableListOf<String>()
-        if (exif > 0) detail.add("$exif dated from photo metadata")
-        if (media > 0) detail.add("$media from media library")
-        if (name > 0) detail.add("$name from file name")
-        if (needsReview > 0) detail.add("$needsReview need their date checked")
-        return parts.joinToString(", ") + if (detail.isNotEmpty()) ". " + detail.joinToString(", ") + "." else "."
-    }
 }
+
 
 object PhotoImporter {
 

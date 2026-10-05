@@ -195,8 +195,8 @@ object AutoBackup {
         ) return
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Backups", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Problems with automatic backups"
+            NotificationChannel(CHANNEL, context.getString(R.string.ab_channel), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = context.getString(R.string.ab_channel_desc)
             }
         )
         val open = Intent(context, MainActivity::class.java).apply {
@@ -204,12 +204,9 @@ object AutoBackup {
             putExtra(EXTRA_OPEN_BACKUPS, true)
         }
         val pending = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val title = if (result.folderProblem) "FitLens can't reach your backup folder" else "Automatic backup didn't finish"
-        val text = if (result.folderProblem) {
-            result.message + " Tap to open the backup settings."
-        } else {
-            result.message + " FitLens will try again."
-        }
+        val title = context.getString(if (result.folderProblem) R.string.ab_title_folder else R.string.ab_title_failed)
+        val text = context.getString(if (result.folderProblem) R.string.ab_text_folder else R.string.ab_text_retry, result.message)
+
         val n = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_warning)
             // The FitLens character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to

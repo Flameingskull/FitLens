@@ -56,7 +56,8 @@ suspend fun runPhotoImport(ctx: Context, uris: List<Uri>, forcedDate: String?, p
     UiEvents.busy.value = ctx.resources.getQuantityString(R.plurals.ia_importing, uris.size, uris.size)
     try {
         val r = PhotoImporter.importUris(ctx, uris, forcedDate, pose) { d, t -> UiEvents.busy.value = ctx.getString(R.string.ia_progress, d, t) }
-        UiEvents.show(r.describe())
+        UiEvents.show(importResultText(ctx.resources, r))
+
         return r
     } finally {
         UiEvents.busy.value = null

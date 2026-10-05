@@ -2,6 +2,8 @@ package com.fitlens.companion.data
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.res.Resources
+import com.fitlens.companion.R
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
@@ -35,29 +37,39 @@ class ImportPlan {
         get() = categoriesAdded + exercisesAdded + setsAdded + commentsAdded + timesAdded + measurementsAdded + recordsAdded == 0
 
     /** What the import adds, one line each. */
-    fun addedLines(): List<String> = buildList {
-        if (setsAdded > 0) add("$setsAdded sets" + if (workoutsAdded > 0) " ($workoutsAdded new workout days)" else " on days already in FitLens")
-        if (exercisesAdded > 0) add("$exercisesAdded exercises")
-        if (categoriesAdded > 0) add("$categoriesAdded categories")
-        if (commentsAdded > 0) add("$commentsAdded workout comments")
-        if (timesAdded > 0) add("$timesAdded workout times")
-        if (recordsAdded > 0) add("$recordsAdded body tracker records")
-        if (measurementsAdded > 0) add("$measurementsAdded measurements")
+    fun addedLines(res: Resources): List<String> = buildList {
+        fun count(id: Int, n: Int) { if (n > 0) add(res.getQuantityString(id, n, n)) }
+        if (setsAdded > 0) {
+            val sets = res.getQuantityString(R.plurals.imp_sets, setsAdded, setsAdded)
+            add(
+                if (workoutsAdded > 0) res.getString(
+                    R.string.imp_sets_with_days, sets, res.getQuantityString(R.plurals.imp_new_days, workoutsAdded, workoutsAdded)
+                )
+                else res.getString(R.string.imp_sets_existing_days, sets)
+            )
+        }
+        count(R.plurals.imp_exercises, exercisesAdded)
+        count(R.plurals.imp_categories, categoriesAdded)
+        count(R.plurals.imp_comments, commentsAdded)
+        count(R.plurals.imp_times, timesAdded)
+        count(R.plurals.imp_records, recordsAdded)
+        count(R.plurals.imp_measurements, measurementsAdded)
     }
 
     /** What the import skips because FitLens already has it (or the user removed it in FitLens). */
-    fun skippedLines(): List<String> = buildList {
-        if (setsSkipped > 0) add("$setsSkipped sets")
-        if (commentsSkipped + timesSkipped > 0) add("${commentsSkipped + timesSkipped} workout comments and times")
-        if (recordsSkipped > 0) add("$recordsSkipped body tracker records")
-        if (exercisesSkipped > 0) add("$exercisesSkipped exercises you deleted in FitLens")
+    fun skippedLines(res: Resources): List<String> = buildList {
+        fun count(id: Int, n: Int) { if (n > 0) add(res.getQuantityString(id, n, n)) }
+        count(R.plurals.imp_sets, setsSkipped)
+        count(R.plurals.imp_comments_times, commentsSkipped + timesSkipped)
+        count(R.plurals.imp_records, recordsSkipped)
+        count(R.plurals.imp_exercises_deleted, exercisesSkipped)
     }
 
-    fun describe(): String {
-        if (nothingNew) return "Everything in it was already in FitLens, so nothing changed."
+    fun describe(res: Resources): String {
+        if (nothingNew) return res.getString(R.string.imp_nothing_new)
         val skipped = setsSkipped + commentsSkipped + timesSkipped + recordsSkipped
-        return "Added " + addedLines().joinToString(", ") + "." +
-            (if (skipped > 0) " $skipped items already in FitLens were skipped." else "")
+        val added = res.getString(R.string.imp_added, addedLines(res).joinToString(", "))
+        return if (skipped > 0) added + " " + res.getQuantityString(R.plurals.imp_items_skipped, skipped, skipped) else added
     }
 }
 
@@ -105,8 +117,8 @@ object FitNotesImporter {
         val name: String,
         val modified: Long,
         val plan: ImportPlan,
-        /** Application context, so [importStaged] can take the safety copy (#47) before merging. */
-        val context: Context? = null
+        /** Application context, so [importStaged] can take the safety copy (#47) before merging and word its result. */
+        val context: Context
     )
 
     /** Result of [prepare]: a staged import, or a message saying why the file can't be imported. */
@@ -124,34 +136,34 @@ object FitNotesImporter {
             val copied = context.contentResolver.openInputStream(uri)?.use { input ->
                 tmp.outputStream().use { input.copyTo(it) }
             }
-            if (copied == null) return@withContext Prepared(null, "Couldn't open the file.")
+            if (copied == null) return@withContext Prepared(null, context.getString(R.string.imp_cant_open))
             val header = ByteArray(16)
             tmp.inputStream().use { it.read(header) }
             if (!String(header, Charsets.ISO_8859_1).startsWith("SQLite format 3")) {
                 deleteStage(tmp)
-                return@withContext Prepared(null, "That file isn't a FitNotes backup (.fitnotes).")
+                return@withContext Prepared(null, context.getString(R.string.imp_not_fitnotes))
             }
             val plan = lock.withLock { runMerge(tmp, apply = false) }
             Prepared(
-                StagedImport(tmp, displayName(context, uri) ?: "backup", sourceModified, plan, context.applicationContext),
+                StagedImport(
+                    tmp, displayName(context, uri) ?: context.getString(R.string.imp_backup_name), sourceModified, plan,
+                    context.applicationContext
+                ),
                 null
             )
         } catch (e: Exception) {
             deleteStage(tmp)
-            Prepared(null, "Couldn't read that backup: ${e.message}")
+            Prepared(null, context.getString(R.string.imp_cant_read, e.message ?: e.javaClass.simpleName))
         }
     }
 
     /** Imports a staged backup (merging it into FitLens) and deletes the staged copy. */
     suspend fun importStaged(staged: StagedImport): ImportSummary = withContext(Dispatchers.IO) {
+        val ctx = staged.context
         try {
             // The way back (#47): a data-only safety copy before the merge. Without one the import doesn't run.
-            staged.context?.let { ctx ->
-                val safety = Backups.safetyCopy(ctx, "Before importing ${staged.name}")
-                if (!safety.ok) return@withContext ImportSummary(
-                    safety.message + " The import didn't run; nothing in FitLens was changed.", false
-                )
-            }
+            val safety = Backups.safetyCopy(ctx, ctx.getString(R.string.imp_safety_reason, staged.name))
+            if (!safety.ok) return@withContext ImportSummary(ctx.getString(R.string.imp_safety_failed, safety.message), false)
             val plan = lock.withLock { runMerge(staged.file, apply = true) }
             Settings.updateDeviceNow {
                 it.copy(
@@ -161,9 +173,9 @@ object FitNotesImporter {
                 )
             }
             Store.reload()
-            ImportSummary("Imported ${staged.name}. " + plan.describe(), true)
+            ImportSummary(ctx.getString(R.string.imp_done, staged.name, plan.describe(ctx.resources)), true)
         } catch (e: Exception) {
-            ImportSummary("Import failed: ${e.message}. Nothing in FitLens was changed.", false)
+            ImportSummary(ctx.getString(R.string.imp_failed, e.message ?: e.javaClass.simpleName), false)
         } finally {
             deleteStage(staged.file)
         }
@@ -182,7 +194,7 @@ object FitNotesImporter {
      */
     suspend fun importBackup(context: Context, uri: Uri, sourceModified: Long = 0L): ImportSummary {
         val p = prepare(context, uri, sourceModified)
-        val staged = p.staged ?: return ImportSummary(p.error ?: "Import failed.", false)
+        val staged = p.staged ?: return ImportSummary(p.error ?: context.getString(R.string.imp_failed_short), false)
         return importStaged(staged)
     }
 
@@ -493,9 +505,9 @@ object FitNotesImporter {
     suspend fun importBodyCsv(context: Context, uri: Uri): ImportSummary = withContext(Dispatchers.IO) {
         try {
             val lines = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readLines() }
-                ?: return@withContext ImportSummary("Couldn't open the file.", false)
+                ?: return@withContext ImportSummary(context.getString(R.string.imp_cant_open), false)
             if (lines.isEmpty() || !lines[0].startsWith("Date,Time,Measurement")) {
-                return@withContext ImportSummary("That isn't a FitNotes Body Tracker CSV export.", false)
+                return@withContext ImportSummary(context.getString(R.string.imp_csv_not_body), false)
             }
             val w = Store.db.writableDatabase
             var added = 0
@@ -532,9 +544,18 @@ object FitNotesImporter {
                 w.endTransaction()
             }
             Store.reload()
-            ImportSummary("CSV: $added new records added, $skipped already present.", true)
+            val res = context.resources
+            ImportSummary(
+                res.getString(
+                    R.string.imp_csv_done,
+                    res.getQuantityString(R.plurals.imp_csv_added, added, added),
+                    res.getQuantityString(R.plurals.imp_csv_present, skipped, skipped)
+                ),
+                true
+            )
         } catch (e: Exception) {
-            ImportSummary("CSV import failed: ${e.message}", false)
+            ImportSummary(context.getString(R.string.imp_csv_failed, e.message ?: e.javaClass.simpleName), false)
+
         }
     }
 

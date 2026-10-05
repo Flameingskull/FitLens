@@ -85,7 +85,7 @@ class BackupsTest {
         Db(app).use { h -> h.writableDatabase.execSQL("DELETE FROM workout_set") }
 
         val u = unpack(saved)
-        assertNull(u.error)
+        assertNull(u.problem)
         assertEquals(1, u.photos)
         assertEquals(false, u.dataOnly)
         assertTrue(File(work, "stage/photos/front.jpg").readBytes().contentEquals(byteArrayOf(1, 2, 3, 4)))
@@ -104,7 +104,7 @@ class BackupsTest {
     fun aSafetyCopyIsMarkedDataOnly() {
         Db(app).use { it.writableDatabase }
         val u = unpack(archive(liveDb, dataOnly = true))
-        assertNull(u.error)
+        assertNull(u.problem)
         assertTrue(u.dataOnly)
         assertEquals(0, u.photos)
     }
@@ -114,7 +114,7 @@ class BackupsTest {
         val old = File(work, "old.db")
         OldSchemas.create(old, 2, OldSchemas.V2) { OldSchemas.fillV2(it) }
         val u = unpack(archive(old))
-        assertNull(u.error)
+        assertNull(u.problem)
         Backups.installDatabase(app, stagedDb)
         Db(app).use { h ->
             val db = h.writableDatabase
@@ -129,7 +129,7 @@ class BackupsTest {
         val newer = File(work, "newer.db")
         OldSchemas.create(newer, Db.VERSION + 1, OldSchemas.V2)
         val u = unpack(archive(newer))
-        assertTrue(u.error.orEmpty().contains("newer FitLens"))
+        assertEquals(Backups.Refusal.NEWER, u.problem)
     }
 
     @Test
@@ -137,11 +137,11 @@ class BackupsTest {
         // A database without FitLens's tables.
         val foreign = File(work, "foreign.db")
         OldSchemas.create(foreign, 1, listOf("CREATE TABLE something(id INTEGER)"))
-        assertTrue(unpack(archive(foreign)).error.orEmpty().contains("damaged"))
+        assertEquals(Backups.Refusal.DAMAGED, unpack(archive(foreign)).problem)
         // A zip with no database in it.
-        assertTrue(unpack(archive(null)).error.orEmpty().contains("isn't a FitLens backup"))
+        assertEquals(Backups.Refusal.NOT_A_BACKUP, unpack(archive(null)).problem)
         // Nothing to read at all.
-        assertTrue(unpack(null).error.orEmpty().contains("Couldn't open"))
+        assertEquals(Backups.Refusal.CANT_OPEN, unpack(null).problem)
     }
 
     @Test
@@ -153,7 +153,8 @@ class BackupsTest {
         val newer = File(work, "newer.db")
         OldSchemas.create(newer, Db.VERSION + 1, OldSchemas.V2)
         val u = unpack(archive(newer))
-        assertTrue(u.error != null)
+        assertTrue(u.problem != null)
+
         // The restore stops at the error, so the live database is never replaced.
         Db(app).use { h -> assertEquals(1, h.writableDatabase.count("SELECT COUNT(*) FROM mrecord WHERE value=77")) }
     }

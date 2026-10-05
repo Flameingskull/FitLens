@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.text.format.Formatter
+import androidx.annotation.StringRes
+import com.fitlens.companion.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -125,10 +127,10 @@ object Backups {
         lock.withLock {
             try {
                 val n = context.contentResolver.openOutputStream(dest, "wt")?.use { write(context, it) }
-                    ?: return@withContext ImportSummary("Couldn't write the backup file.", false)
-                ImportSummary("Backup saved with $n photos.", true)
+                    ?: return@withContext ImportSummary(context.getString(R.string.bk_write_failed), false)
+                ImportSummary(context.resources.getQuantityString(R.plurals.bk_saved, n, n), true)
             } catch (e: Exception) {
-                ImportSummary("Backup failed: ${e.message}", false)
+                ImportSummary(context.getString(R.string.bk_failed, why(e)), false)
             }
         }
     }
@@ -144,9 +146,9 @@ object Backups {
                 dir.listFiles()?.filter { it.name.endsWith(".$EXTENSION") }?.forEach { it.delete() }
                 val file = File(dir, manualFileName())
                 val n = file.outputStream().use { write(context, it) }
-                file to ImportSummary("Backup ready to share with $n photos.", true)
+                file to ImportSummary(context.resources.getQuantityString(R.plurals.bk_share_ready, n, n), true)
             } catch (e: Exception) {
-                null to ImportSummary("Couldn't prepare the backup: ${e.message}", false)
+                null to ImportSummary(context.getString(R.string.bk_share_failed, why(e)), false)
             }
         }
     }
@@ -202,7 +204,7 @@ object Backups {
      * place of the old data and the message has to say so, and point at Undo.
      */
     suspend fun restore(context: Context, src: Uri): ImportSummary =
-        restoreFrom(context, "Before restoring a backup") { context.contentResolver.openInputStream(src) }
+        restoreFrom(context, context.getString(R.string.bk_reason_restore)) { context.contentResolver.openInputStream(src) }
 
     /**
      * The restore itself. [safetyReason] names what the copy is being taken before; null means the caller has
@@ -221,7 +223,7 @@ object Backups {
             var replacing = false
             try {
                 val unpacked = unpack(open(), stageDb, stagePhotos)
-                unpacked.error?.let { return@withContext ImportSummary(it, false) }
+                unpacked.problem?.let { return@withContext ImportSummary(context.getString(it.text), false) }
                 val photos = unpacked.photos
                 val dataOnly = unpacked.dataOnly
 
@@ -255,8 +257,8 @@ object Backups {
                 // An older backup's phone-only rows are never used; clear them rather than carry them on (#98).
                 runCatching { Settings.dropLegacyDeviceRows() }
                 Store.reload()
-                if (dataOnly) ImportSummary("Your previous workouts, measurements and notes are back.", true)
-                else ImportSummary("Backup restored with $photos photos.", true)
+                if (dataOnly) ImportSummary(context.getString(R.string.bk_restored_data), true)
+                else ImportSummary(context.resources.getQuantityString(R.plurals.bk_restored, photos, photos), true)
             } catch (e: Exception) {
                 if (replacing) {
                     // The database was already swapped. Reopen it so the app is never left holding a closed
@@ -267,19 +269,13 @@ object Backups {
                     } catch (reopen: Exception) {
                         // Nothing further can be done here; the message below tells the user what to do next.
                     }
-                    val wayBack = if (runCatching { undoAvailable(context) }.getOrDefault(false)) {
-                        "The safety copy taken just before this restore is still here: use Undo in Settings → Backup " +
-                            "to put your previous data back."
-                    } else {
-                        "Check what's there before adding anything new; restoring again is safe."
-                    }
-                    ImportSummary(
-                        "Restore failed part-way: ${e.message}. Your previous data has already been replaced by " +
-                            "this backup. $wayBack",
-                        false
+                    val wayBack = context.getString(
+                        if (runCatching { undoAvailable(context) }.getOrDefault(false)) R.string.bk_way_back_undo
+                        else R.string.bk_way_back_check
                     )
+                    ImportSummary(context.getString(R.string.bk_restore_partial, why(e), wayBack), false)
                 } else {
-                    ImportSummary("Restore failed: ${e.message}. Your current data wasn't changed.", false)
+                    ImportSummary(context.getString(R.string.bk_restore_failed, why(e)), false)
                 }
             } finally {
                 stage.deleteRecursively()
@@ -287,18 +283,26 @@ object Backups {
         }
     }
 
+    /** Why [unpack] refused an archive; [text] is what the user is told (#156). */
+    enum class Refusal(@StringRes val text: Int) {
+        CANT_OPEN(R.string.bk_refused_open),
+        NOT_A_BACKUP(R.string.bk_refused_not_backup),
+        DAMAGED(R.string.bk_refused_damaged),
+        NEWER(R.string.bk_refused_newer)
+    }
+
     /**
-     * What [unpack] found in an archive: the photo count and whether it's a data-only safety copy, or [error] when it
-     * mustn't be restored.
+     * What [unpack] found in an archive: the photo count and whether it's a data-only safety copy, or [problem] when
+     * it mustn't be restored.
      */
-    internal data class Unpacked(val error: String? = null, val photos: Int = 0, val dataOnly: Boolean = false)
+    internal data class Unpacked(val problem: Refusal? = null, val photos: Int = 0, val dataOnly: Boolean = false)
 
     /**
      * Reads an archive into [stageDb] and [stagePhotos] and checks the database before anything live is touched:
      * refused when it isn't a FitLens backup, is damaged, or was made by a newer FitLens. Tested on its own (#40).
      */
     internal fun unpack(input: InputStream?, stageDb: File, stagePhotos: File): Unpacked {
-        if (input == null) return Unpacked("Couldn't open the backup file.")
+        if (input == null) return Unpacked(Refusal.CANT_OPEN)
         var photos = 0
         // A safety copy taken before a merge import holds no photos and must not empty the photo folder.
         var dataOnly = false
@@ -323,18 +327,18 @@ object Backups {
                 }
             }
         }
-        if (!stageDb.exists()) return Unpacked("That isn't a FitLens backup.")
+        if (!stageDb.exists()) return Unpacked(Refusal.NOT_A_BACKUP)
         val version = SQLiteDatabase.openDatabase(stageDb.path, null, SQLiteDatabase.OPEN_READONLY).use { db ->
             val tables = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null).use { c ->
                 buildSet { while (c.moveToNext()) add(c.getString(0)) }
             }
             if (!tables.containsAll(listOf("photo", "mrecord", "measurement", "workout_set"))) {
-                return Unpacked("That backup is damaged or isn't from FitLens.")
+                return Unpacked(Refusal.DAMAGED)
             }
             db.version
         }
         if (version > Db.VERSION) {
-            return Unpacked("That backup was made by a newer FitLens. Update FitLens first, then restore.")
+            return Unpacked(Refusal.NEWER)
         }
         return Unpacked(photos = photos, dataOnly = dataOnly)
     }
@@ -399,7 +403,7 @@ object Backups {
     suspend fun safetyCopy(context: Context, reason: String, includePhotos: Boolean = false): ImportSummary =
         withContext(Dispatchers.IO) {
             val problem = lock.withLock { writeSafetyCopy(context, reason, includePhotos) }
-            if (problem == null) ImportSummary("Safety copy saved.", true) else ImportSummary(problem, false)
+            if (problem == null) ImportSummary(context.getString(R.string.bk_safety_saved), true) else ImportSummary(problem, false)
         }
 
     /**
@@ -412,9 +416,11 @@ object Backups {
         val room = need + need / 10 + 2L * 1024 * 1024
         val free = runCatching { dir.usableSpace }.getOrDefault(0L)
         if (free > 0 && free < room) {
-            return "There isn't room on this phone for a safety copy of your current data: about " +
-                Formatter.formatShortFileSize(context, room) + " is needed and " +
-                Formatter.formatShortFileSize(context, free) + " is free. Free some space and try again."
+            return context.getString(
+                R.string.bk_safety_no_room,
+                Formatter.formatShortFileSize(context, room),
+                Formatter.formatShortFileSize(context, free)
+            )
         }
         val part = File(dir, SAFETY_FILE + PART)
         val dest = safetyFile(context)
@@ -428,7 +434,7 @@ object Backups {
             if (!part.renameTo(dest)) {
                 if (previous.exists()) previous.renameTo(dest)
                 part.delete()
-                "Couldn't finish the safety copy of your current data."
+                context.getString(R.string.bk_safety_unfinished)
             } else {
                 previous.delete()
                 Settings.updateDevice { it.copy(safetyAt = System.currentTimeMillis(), safetyReason = reason) }
@@ -436,7 +442,7 @@ object Backups {
             }
         } catch (e: Exception) {
             part.delete()
-            "Couldn't save a safety copy of your current data: ${e.message}"
+            context.getString(R.string.bk_safety_failed, why(e))
         }
     }
 
@@ -467,7 +473,7 @@ object Backups {
         val file = safetyFile(context)
         val at = undoAt()
         if (at == null || !file.exists()) {
-            ImportSummary("There's no safety copy to go back to.", false)
+            ImportSummary(context.getString(R.string.bk_no_safety), false)
         } else {
             // Moved out of the safety folder before the restore runs, so the file being read is never the one the
             // restore is rewriting around.
@@ -476,7 +482,7 @@ object Backups {
             val moved = file.renameTo(working) ||
                 runCatching { file.copyTo(working, overwrite = true); true }.getOrDefault(false)
             if (!moved) {
-                ImportSummary("Couldn't read the safety copy.", false)
+                ImportSummary(context.getString(R.string.bk_safety_unreadable), false)
             } else {
                 val reason = undoReason()
                 clearUndo()
@@ -547,7 +553,7 @@ object Backups {
 
     /** Writes a backup into the automatic-backup folder and keeps only the newest [autoKeep] files. */
     suspend fun backupToFolder(context: Context): ImportSummary = withContext(Dispatchers.IO) {
-        val tree = autoFolder() ?: return@withContext ImportSummary("Choose a backup folder first.", false)
+        val tree = autoFolder() ?: return@withContext ImportSummary(context.getString(R.string.bk_choose_folder), false)
         lock.withLock {
             try {
                 val resolver = context.contentResolver
@@ -555,28 +561,29 @@ object Backups {
                 val name = fileName(AUTO_PREFIX)
                 // Written under a temporary name, then renamed, so an interrupted backup is never mistaken for a good one.
                 val doc = DocumentsContract.createDocument(resolver, parent, MIME, name + PART)
-                    ?: return@withContext failed(FOLDER_MISSING, true)
+                    ?: return@withContext failed(context.getString(R.string.bk_folder_missing), true)
                 val photos = resolver.openOutputStream(doc, "wt")?.use { write(context, it) }
-                    ?: return@withContext failed("Couldn't write to the backup folder.", true)
+                    ?: return@withContext failed(context.getString(R.string.bk_folder_write), true)
                 DocumentsContract.renameDocument(resolver, doc, name)
                 Settings.updateDeviceNow { it.copy(autoBackupLast = System.currentTimeMillis(), autoBackupError = null) }
                 AutoBackup.markBackedUp()
                 prune(context, tree)
-                ImportSummary("Automatic backup saved ($photos photos).", true)
+                ImportSummary(context.resources.getQuantityString(R.plurals.bk_auto_saved, photos, photos), true)
             } catch (e: SecurityException) {
-                failed("FitLens lost access to the backup folder. Choose it again in Settings → Backup.", true)
+                failed(context.getString(R.string.bk_folder_lost), true)
             } catch (e: java.io.FileNotFoundException) {
-                failed(FOLDER_MISSING, true)
+                failed(context.getString(R.string.bk_folder_missing), true)
             } catch (e: IllegalArgumentException) {
-                failed(FOLDER_MISSING, true)
+                failed(context.getString(R.string.bk_folder_missing), true)
             } catch (e: Exception) {
-                failed("Automatic backup failed: ${e.message}", false)
+                failed(context.getString(R.string.bk_auto_failed, why(e)), false)
             }
         }
     }
 
-    private const val FOLDER_MISSING =
-        "The backup folder isn't available. If it's on an SD card, check the card is in; otherwise choose the folder again in Settings → Backup."
+    /** An exception's message for a result, or its type when it has none. */
+    private fun why(e: Exception): String = e.message ?: e.javaClass.simpleName
+
 
     private fun prune(context: Context, tree: Uri) {
         val resolver = context.contentResolver
