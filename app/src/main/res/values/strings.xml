@@ -1798,8 +1798,8 @@
     <string name="pv_pose_caps">POSE</string>
     <string name="pv_change_date">Change date</string>
     <string name="pv_body_values">Body values</string>
-    <string name="pv_near_before">  (≈ %1$dd before)</string>
-    <string name="pv_near_after">  (≈ %1$dd after)</string>
+    <string name="pv_near_before">"  (≈ %1$dd before)"</string>
+    <string name="pv_near_after">"  (≈ %1$dd after)"</string>
     <string name="pv_delete_title">Delete this photo?</string>
     <string name="pv_delete_body">It\'s removed from FitLens only — the original on your phone isn\'t touched.</string>
     <string name="pv_compare">Compare</string>
@@ -1851,13 +1851,13 @@
     <string name="ss_no_data">No data</string>
     <string name="ss_photos">Photos</string>
     <string name="ss_photos_summary">%1$s · %2$s to %3$s</string>
-    <string name="ss_one_per_day_suffix"> · one per day</string>
+    <string name="ss_one_per_day_suffix">" · one per day"</string>
     <string name="ss_timing">Timing</string>
     <string name="ss_per_photo">%1$s s per photo</string>
-    <string name="ss_crossfade_suffix"> · cross-fade</string>
+    <string name="ss_crossfade_suffix">" · cross-fade"</string>
     <string name="ss_on_video">On the video</string>
     <string name="ss_video">Video</string>
-    <string name="ss_title_suffix"> · “%1$s”</string>
+    <string name="ss_title_suffix">" · “%1$s”"</string>
     <string name="ss_change_options">Change options</string>
     <string name="ss_creating">Creating video… %1$d%%</string>
     <string name="ss_saved">Video saved to Movies/FitLens</string>
@@ -1865,7 +1865,7 @@
     <string name="ss_create">Create video</string>
     <string name="ss_share">Share video</string>
     <string name="ss_note">Videos are made on your phone and saved to Movies/FitLens. Full HD takes longer to create.</string>
-    <string name="ss_note_remember"> These options are remembered for next time.</string>
+    <string name="ss_note_remember">" These options are remembered for next time."</string>
     <string name="ss_done">Done</string>
     <string name="ss_pose">Pose</string>
     <string name="ss_dates">Dates</string>
@@ -1908,7 +1908,7 @@
     <string name="si_pr">PR</string>
     <string name="si_footer">LOGGED WITH FITLENS</string>
     <string name="vid_day">Day %1$d</string>
-    <string name="vid_week">  ·  Week %1$d</string>
+    <string name="vid_week">"  ·  Week %1$d"</string>
     <string name="vid_near_before">≈ %1$dd before</string>
     <string name="vid_near_after">≈ %1$dd after</string>
     <string name="su_step_welcome">Welcome</string>
@@ -1995,7 +1995,7 @@
     <string name="fi_title">Import FitNotes backup</string>
     <string name="fi_nothing_new">Nothing new: everything in this backup is already in FitLens.</string>
     <string name="fi_will_add">Will be added</string>
-    <string name="fi_bullet">·  %1$s</string>
+    <string name="fi_bullet">"·  %1$s"</string>
     <string name="fi_skipped">Skipped, already in FitLens</string>
     <string name="fi_note">Imports only add to FitLens. Nothing you logged or edited in FitLens is deleted or changed, and FitNotes\' own data isn\'t touched.</string>
     <string name="fi_backup_first">Save a FitLens backup first</string>
@@ -2058,7 +2058,7 @@
     <string name="sc_spoken">%1$s %2$s</string>
     <string name="calc_set_title">Set calculator</string>
     <string name="calc_close">Close</string>
-    <string name="calc_pct_1rm">% of 1RM</string>
+    <string name="calc_pct_1rm" formatted="false">% of 1RM</string>
     <string name="calc_warmup">Warm-up to a target</string>
     <string name="calc_1rm_field">One-rep max (%1$s)</string>
     <string name="calc_target_field">Target weight (%1$s)</string>
@@ -2122,7 +2122,7 @@
     <string name="pdf_change">Change</string>
     <string name="pdf_low">Low</string>
     <string name="pdf_high">High</string>
-    <string name="pdf_value_date">%1$s  ·  %2$s</string>
+    <string name="pdf_value_date">"%1$s  ·  %2$s"</string>
     <string name="pdf_one_entry">One entry in this period</string>
     <string name="pdf_training">Training</string>
     <string name="pdf_no_workouts">No workouts in this period.</string>
@@ -2135,7 +2135,7 @@
     <string name="pdf_daily">Daily log</string>
     <string name="pdf_nothing">Nothing logged in this period.</string>
     <string name="pdf_creating_day">Creating PDF… day %1$d of %2$d</string>
-    <string name="pdf_continued">  (continued)</string>
+    <string name="pdf_continued">"  (continued)"</string>
     <string name="pdf_day_n">DAY %1$d</string>
     <string name="pdf_more">+%1$d more</string>
     <string name="pdf_body_caps">BODY</string>
@@ -2143,7 +2143,7 @@
     <string name="pdf_workout_caps">WORKOUT</string>
     <string name="pdf_duration">Duration %1$s</string>
     <string name="pdf_volume">Volume %1$s %2$s</string>
-    <string name="pdf_pr_suffix"> (PR)</string>
+    <string name="pdf_pr_suffix">" (PR)"</string>
     <string name="pdf_no_photos">Photos on this day aren\'t included (photos per day is set to 0).</string>
     <plurals name="pdf_measurements_n">
         <item quantity="one">%1$d measurement</item>
@@ -2221,7 +2221,7 @@
     <string name="sv_not_done">Not done</string>
     <string name="sv_mark_not_done">Mark not done</string>
     <string name="sv_mark_done">Mark done</string>
-    <string name="sv_effort">  ·  %1$s</string>
+    <string name="sv_effort">"  ·  %1$s"</string>
     <string name="sv_pr">PR</string>
     <string name="sv_edit_ex_comment">Edit exercise comment</string>
     <string name="sv_add_ex_comment">Add exercise comment</string>
@@ -2236,7 +2236,7 @@
     <string name="ch_no_data">No data in this range</string>
     <string name="ch_right_axis">%1$s, right axis</string>
     <string name="ch_with_unit">%1$s (%2$s)</string>
-    <string name="ch_series_name">%1$s: </string>
+    <string name="ch_series_name">"%1$s: "</string>
     <string name="ch_no_trend">No trend: it needs at least %1$d points on different days in view.</string>
     <string name="ch_trend_prefix">Trend %1$s</string>
     <string name="ch_in_progress">The period still in progress isn\'t counted in the trend.</string>
