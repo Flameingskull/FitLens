@@ -33,7 +33,7 @@ custom metrics.
   group per release from 1.0.75 to 1.0.87: the day log and workout drawer, the exercise screen, the library and
   workout editor, the calendar and Body Tracker, Analysis, the photo screens and finally Settings, now FitNotes's
   single list. In 1.0.96 the photo, viewer, compare, slideshow and PDF screens joined the same design system, and in
-  1.0.101 Settings had an accessibility pass and gained Reset settings to defaults. From 1.0.103 to 1.0.106 every
+  1.0.101 Settings had an accessibility pass and gained Reset settings to defaults. From 1.0.103 to 1.0.107 every
   screen's wording moved into the app's string resources, with counts that read correctly for one or many, ready for
   translations ([#94](https://github.com/Flameingskull/FitLens/issues/94); the messages built while saving, importing
   and backing up follow in [#156](https://github.com/Flameingskull/FitLens/issues/156))
