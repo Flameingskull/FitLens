@@ -88,6 +88,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.abs
 import com.fitlens.companion.ui.design.DropdownPill
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.fitlens.companion.R
 
 /**
  * One photo at a time, edge to edge on black (#92). Swipe for the next; tap the photo to hide or show the controls,
@@ -107,6 +110,7 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
     var pickDate by state.saved("pickDate", false)
     var confirmDelete by state.saved("confirmDelete", false)
     var chrome by state.saved("chrome", true)
+    val res = LocalContext.current.resources
 
     fun compare() {
         val other = snap.datedPhotos.firstOrNull { it.pose == current.pose && it.id != current.id }
@@ -122,14 +126,14 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
             val p = photos[page]
             coil.compose.AsyncImage(
                 model = snap.photoFile(p),
-                contentDescription = "Progress photo ${p.date?.let { Dates.long(it) } ?: ""} ${p.pose}".trim(),
+                contentDescription = res.getString(R.string.pv_photo_cd, p.date?.let { Dates.long(it) } ?: "", if (p.pose.isBlank()) "" else poseText(res, p.pose)).trim(),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClickLabel = if (chrome) "Hide controls" else "Show controls"
+                        onClickLabel = if (chrome) stringResource(R.string.pv_hide_controls) else stringResource(R.string.pv_show_controls)
                     ) { chrome = !chrome }
             )
         }
@@ -141,16 +145,16 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
         ) {
             Box(Modifier.fillMaxWidth().background(Brand.Black.copy(alpha = 0.6f))) {
                 FitTopBar(
-                    title = current.date?.let { Dates.long(it) } ?: "No date",
-                    subtitle = "${pager.currentPage + 1} of ${photos.size}",
+                    title = current.date?.let { Dates.long(it) } ?: stringResource(R.string.ph_no_date),
+                    subtitle = stringResource(R.string.pv_n_of, pager.currentPage + 1, photos.size),
                     onBack = { nav.pop() },
                     actions = listOf(
-                        TopBarAction(FitIcons.Compare, "Compare with another photo", enabled = snap.datedPhotos.size > 1) { compare() },
-                        TopBarAction(Icons.Filled.Delete, "Delete photo") { confirmDelete = true }
+                        TopBarAction(FitIcons.Compare, stringResource(R.string.pv_compare_other), enabled = snap.datedPhotos.size > 1) { compare() },
+                        TopBarAction(Icons.Filled.Delete, stringResource(R.string.pv_delete)) { confirmDelete = true }
                     ),
                     overflow = buildList {
-                        add(MenuAction("Change date…") { pickDate = true })
-                        current.date?.let { d -> add(MenuAction("Open this day") { nav.push(Screen.Day(d)) }) }
+                        add(MenuAction(stringResource(R.string.ph_change_date_menu)) { pickDate = true })
+                        current.date?.let { d -> add(MenuAction(res.getString(R.string.pv_open_day)) { nav.push(Screen.Day(d)) }) }
                     }
                 )
             }
@@ -166,11 +170,11 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
                 Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 8.dp)) {
                     // The pose as one compact dropdown (#115), so the photo keeps the screen.
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("POSE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        val labels = Poses.all + "Not set"
+                        Text(stringResource(R.string.pv_pose_caps), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val labels = Poses.all.map { poseText(res, it) } + res.getString(R.string.pose_not_set)
                         val values = Poses.all + Poses.NONE
                         DropdownPill(
-                            label = "Pose",
+                            label = stringResource(R.string.ph_pose),
                             options = labels,
                             selected = values.indexOf(current.pose).let { if (it < 0) labels.lastIndex else it }
                         ) { i ->
@@ -180,10 +184,10 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
                             }
                         }
                         Spacer(Modifier.weight(1f))
-                        TextButton(onClick = { pickDate = true }) { Text("Change date") }
+                        TextButton(onClick = { pickDate = true }) { Text(stringResource(R.string.pv_change_date)) }
                     }
                     Text(
-                        "${DateSources.label(current.dateSource)}${current.takenAt?.let { formatTime(it) }?.let { " · $it" } ?: ""}" +
+                        "${dateSourceText(res, current.dateSource)}${current.takenAt?.let { formatTime(it) }?.let { " · $it" } ?: ""}" +
                             (current.originalName?.let { " · $it" } ?: ""),
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2, overflow = TextOverflow.Ellipsis
@@ -192,17 +196,17 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
                     if (d != null) {
                         val near = snap.usedMeasurements.take(8).mapNotNull { m -> snap.valueNear(m.name, d, 7)?.let { m to it } }
                         if (near.isNotEmpty()) {
-                            SectionLabel("Body values", Modifier.padding(top = 8.dp, bottom = 2.dp))
+                            SectionLabel(stringResource(R.string.pv_body_values), Modifier.padding(top = 8.dp, bottom = 2.dp))
                             near.forEach { (m, hit) ->
                                 val (r, exact) = hit
                                 val note = if (exact) "" else {
                                     val diff = Dates.epochDay(r.date) - Dates.epochDay(d)
-                                    "  (≈ ${abs(diff)}d ${if (diff < 0) "before" else "after"})"
+                                    res.getString(if (diff < 0) R.string.pv_near_before else R.string.pv_near_after, abs(diff).toInt())
                                 }
                                 InfoRow(m.name, "${fmtNum(r.value)} ${r.unit}$note")
                             }
                         }
-                        GlassOutlinedButton(onClick = { nav.push(Screen.Day(d)) }, modifier = Modifier.padding(top = 6.dp)) { Text("Open this day") }
+                        GlassOutlinedButton(onClick = { nav.push(Screen.Day(d)) }, modifier = Modifier.padding(top = 6.dp)) { Text(stringResource(R.string.pv_open_day)) }
                     }
                 }
             }
@@ -212,9 +216,9 @@ fun PhotoViewerScreen(snap: Snapshot, nav: Nav, ids: List<Long>, index: Int) {
         AppScope.scope.launch { Store.setPhotoDate(listOf(current.id), nd) }
     }
     if (confirmDelete) ConfirmSheet(
-        title = "Delete this photo?",
-        message = "It's removed from FitLens only — the original on your phone isn't touched.",
-        confirmLabel = "Delete photo",
+        title = stringResource(R.string.pv_delete_title),
+        message = stringResource(R.string.pv_delete_body),
+        confirmLabel = stringResource(R.string.pv_delete),
         onDismiss = { confirmDelete = false },
         onConfirm = { AppScope.scope.launch { Store.deletePhotos(listOf(current.id)) } }
     )
@@ -233,21 +237,21 @@ fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = "Compare",
+            title = stringResource(R.string.pv_compare),
             onBack = { nav.pop() },
             actions = listOf(
-                TopBarAction(FitIcons.SwapHoriz, "Swap sides") { val t = aId; aId = bId; bId = t },
-                TopBarAction(Icons.Filled.Share, "Share image", enabled = pa != null && pb != null) {
+                TopBarAction(FitIcons.SwapHoriz, stringResource(R.string.pv_swap)) { val t = aId; aId = bId; bId = t },
+                TopBarAction(Icons.Filled.Share, stringResource(R.string.pv_share_image), enabled = pa != null && pb != null) {
                     if (pa != null && pb != null) shareCompare(ctx, snap, pa, pb, save = false)
                 }
             ),
             overflow = if (pa != null && pb != null) listOf(
-                MenuAction("Save image to gallery") { shareCompare(ctx, snap, pa, pb, save = true) }
+                MenuAction(stringResource(R.string.pv_save_gallery_menu)) { shareCompare(ctx, snap, pa, pb, save = true) }
             ) else emptyList()
         )
         if (pa == null || pb == null) {
-            EmptyState("Photo missing", "One of these photos was deleted.") {
-                GlassOutlinedButton(onClick = { nav.pop() }) { Text("Back") }
+            EmptyState(stringResource(R.string.pv_missing), stringResource(R.string.pv_missing_body)) {
+                GlassOutlinedButton(onClick = { nav.pop() }) { Text(stringResource(R.string.pv_back)) }
             }
         } else {
             Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -260,12 +264,12 @@ fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
                             PhotoThumb(
                                 snap, p,
                                 Modifier.fillMaxWidth().aspectRatio(0.75f)
-                                    .clickable(onClickLabel = "Change the ${if (side == 1) "left" else "right"} photo") { picking = side },
+                                    .clickable(onClickLabel = if (side == 1) stringResource(R.string.pv_change_left) else stringResource(R.string.pv_change_right)) { picking = side },
                                 sizePx = 1000, contentScale = ContentScale.Fit
                             )
-                            Text(p.date?.let { Dates.medium(it) } ?: "No date", style = MaterialTheme.typography.titleMedium)
+                            Text(p.date?.let { Dates.medium(it) } ?: stringResource(R.string.ph_no_date), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Tap photo to change" + if (p.pose.isNotBlank()) " · ${p.pose}" else "",
+                                stringResource(R.string.pv_tap_change) + if (p.pose.isNotBlank()) " · ${poseText(LocalContext.current.resources, p.pose)}" else "",
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -277,12 +281,12 @@ fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
                 if (da != null && db != null) {
                     val days = Dates.epochDay(db) - Dates.epochDay(da)
                     Text(
-                        "${abs(days)} days apart (${fmtNum(abs(days) / 7.0, 1)} weeks)",
+                        stringResource(R.string.pv_days_apart, abs(days).toInt(), fmtNum(abs(days) / 7.0, 1)),
                         Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.titleSmall
                     )
                     val rows = compareRows(snap, da, db)
                     if (rows.isNotEmpty()) {
-                        SectionLabel("Body values", Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                        SectionLabel(stringResource(R.string.pv_body_values), Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                         rows.forEach { row ->
                             Row(
                                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
@@ -295,14 +299,14 @@ fun CompareScreen(snap: Snapshot, nav: Nav, a: Long, b: Long) {
                             }
                         }
                         Text(
-                            "≈ means the nearest measurement within 7 days was used.",
+                            stringResource(R.string.pv_nearest_note),
                             Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GoldButton(onClick = { shareCompare(ctx, snap, pa, pb, save = false) }) { Text("Share image") }
-                    GlassOutlinedButton(onClick = { shareCompare(ctx, snap, pa, pb, save = true) }) { Text("Save to gallery") }
+                    GoldButton(onClick = { shareCompare(ctx, snap, pa, pb, save = false) }) { Text(stringResource(R.string.pv_share_image)) }
+                    GlassOutlinedButton(onClick = { shareCompare(ctx, snap, pa, pb, save = true) }) { Text(stringResource(R.string.pv_save_gallery)) }
                 }
             }
         }
@@ -341,7 +345,7 @@ fun PhotoPickerDialog(snap: Snapshot, onDismiss: () -> Unit, onPick: (Long) -> U
             modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)
         ) {
             Column {
-                Text("Choose a photo", Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.pv_choose_photo), Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
                 GoldHairline()
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -351,7 +355,7 @@ fun PhotoPickerDialog(snap: Snapshot, onDismiss: () -> Unit, onPick: (Long) -> U
                     modifier = Modifier.weight(1f, fill = false)
                 ) {
                     items(snap.datedPhotos.reversed(), key = { it.id }) { p ->
-                        Box(Modifier.aspectRatio(0.75f).clip(FitShapes.row).clickable(onClickLabel = "Choose") { onPick(p.id) }) {
+                        Box(Modifier.aspectRatio(0.75f).clip(FitShapes.row).clickable(onClickLabel = stringResource(R.string.pv_choose)) { onPick(p.id) }) {
                             PhotoThumb(snap, p, Modifier.fillMaxSize(), sizePx = 240)
                             Text(
                                 Dates.short(p.date ?: ""), color = Brand.Ivory, style = MaterialTheme.typography.labelSmall,
@@ -360,7 +364,7 @@ fun PhotoPickerDialog(snap: Snapshot, onDismiss: () -> Unit, onPick: (Long) -> U
                         }
                     }
                 }
-                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(8.dp)) { Text("Cancel") }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(8.dp)) { Text(stringResource(R.string.pv_cancel)) }
             }
         }
     }
@@ -368,8 +372,9 @@ fun PhotoPickerDialog(snap: Snapshot, onDismiss: () -> Unit, onPick: (Long) -> U
 
 private fun shareCompare(ctx: Context, snap: Snapshot, pa: Photo, pb: Photo, save: Boolean) {
     val app = ctx.applicationContext
+    val res = app.resources
     AppScope.scope.launch {
-        UiEvents.busy.value = "Creating comparison image…"
+        UiEvents.busy.value = res.getString(R.string.pv_creating_compare)
         try {
             val file = withContext(Dispatchers.Default) {
                 val ba = FrameRenderer.loadBitmap(snap.photoFile(pa), 1000, 1000)
@@ -379,7 +384,7 @@ private fun shareCompare(ctx: Context, snap: Snapshot, pa: Photo, pb: Photo, sav
                 val rows = compareRows(snap, da, db).filter { it.left != "—" || it.right != "—" }.take(6)
                     .map { Triple(it.label, it.left, "${it.right}  ${it.change}".trim()) }
                 val days = abs(Dates.epochDay(db) - Dates.epochDay(da))
-                val out = FrameRenderer.renderCompare(ba, bb, da, db, rows, "$days days · FitLens")
+                val out = FrameRenderer.renderCompare(ba, bb, da, db, rows, res.getString(R.string.pv_compare_footer, days.toInt()))
                 ba?.recycle(); bb?.recycle()
                 if (save) {
                     VideoExporter.saveImageToGallery(app, out, "FitLens_compare_${da}_$db.jpg")
@@ -393,10 +398,10 @@ private fun shareCompare(ctx: Context, snap: Snapshot, pa: Photo, pb: Photo, sav
                     f
                 }
             }
-            if (file == null) UiEvents.show("Saved to Pictures/FitLens")
+            if (file == null) UiEvents.show(res.getString(R.string.pv_saved_pictures))
             else shareFile(ctx, file, "image/jpeg")
         } catch (e: Exception) {
-            UiEvents.show("Couldn't create the image: ${e.message}")
+            UiEvents.show(res.getString(R.string.pv_image_failed, e.message ?: ""))
         } finally {
             UiEvents.busy.value = null
         }
@@ -410,7 +415,7 @@ fun shareFile(ctx: Context, file: File, mime: String) {
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    ctx.startActivity(Intent.createChooser(send, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    ctx.startActivity(Intent.createChooser(send, ctx.getString(R.string.pv_share)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 /** How far from a graph point a progress photo may be and still be shown with it (#56). */
@@ -426,15 +431,15 @@ fun NearestPhotoThumb(snap: Snapshot, nav: Nav, date: String, modifier: Modifier
     val taken = photo.date ?: return
     val days = Dates.epochDay(taken) - Dates.epochDay(date)
     val gap = when {
-        days == 0L -> "same day"
-        days < 0 -> "${-days} day${if (days == -1L) "" else "s"} before"
-        else -> "$days day${if (days == 1L) "" else "s"} after"
+        days == 0L -> stringResource(R.string.pv_same_day)
+        days < 0 -> pluralStringResource(R.plurals.pv_days_before, (-days).toInt(), (-days).toInt())
+        else -> pluralStringResource(R.plurals.pv_days_after, days.toInt(), days.toInt())
     }
     Row(
         modifier
             .fillMaxWidth()
             .clip(FitShapes.row)
-            .clickable(onClickLabel = "Open the photo") {
+            .clickable(onClickLabel = stringResource(R.string.pv_open_photo)) {
                 val ids = snap.datedPhotos.reversed().map { it.id }
                 nav.push(Screen.PhotoViewer(ids, ids.indexOf(photo.id).coerceAtLeast(0)))
             }
@@ -444,9 +449,9 @@ fun NearestPhotoThumb(snap: Snapshot, nav: Nav, date: String, modifier: Modifier
     ) {
         PhotoThumb(snap, photo, Modifier.width(48.dp).aspectRatio(0.75f), sizePx = 160)
         Column(Modifier.padding(start = 12.dp).weight(1f)) {
-            Text("Progress photo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.pv_progress_photo), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Text(
-                "${Dates.medium(taken)} · $gap" + if (photo.pose.isNotBlank()) " · ${photo.pose}" else "",
+                "${Dates.medium(taken)} · $gap" + if (photo.pose.isNotBlank()) " · ${poseText(LocalContext.current.resources, photo.pose)}" else "",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

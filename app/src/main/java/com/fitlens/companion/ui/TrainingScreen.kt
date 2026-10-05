@@ -578,7 +578,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                     goal = goalLine,
                     kind = kind
                 )
-                ShareImages.share(ctx, res.getString(R.string.ex_share_creating), ShareImages.fileName(name, g.label)) { ShareImages.renderGraph(image) }
+                ShareImages.share(ctx, res.getString(R.string.ex_share_creating), ShareImages.fileName(name, g.label)) { ShareImages.renderGraph(res, image) }
             }
             if (loaded == null) {
                 // A first visit to a long history; later visits come from the cache at once.

@@ -28,7 +28,20 @@ data class Slide(val photo: Photo, val date: String, val dayNumber: Long, val li
 /** A measurement shown over the photos, either as a value or as a value with a progress chart. */
 data class Overlay(val name: String, val chart: Boolean)
 
+/**
+ * The words drawn on the frames (#94), read from strings.xml by the screen that builds the options: format strings
+ * for the day and week counter and the "≈ 3d before" note, and each stored pose's display name.
+ */
+data class SlideWords(
+    val day: String,
+    val week: String,
+    val nearBefore: String,
+    val nearAfter: String,
+    val poses: Map<String, String> = emptyMap()
+)
+
 data class SlideOptions(
+    val words: SlideWords,
     val width: Int = 720,
     val height: Int = 1280,
     val secondsPerPhoto: Float = 1.0f,
@@ -71,7 +84,7 @@ object FrameRenderer {
                 val delta = if (abs(rec.value - base) < 1e-9) null else "${fmtSigned(rec.value - base)} ${rec.unit}".trim()
                 val note = if (exact) null else {
                     val diff = Dates.epochDay(rec.date) - Dates.epochDay(date)
-                    "≈ ${abs(diff)}d ${if (diff < 0) "before" else "after"}"
+                    (if (diff < 0) opts.words.nearBefore else opts.words.nearAfter).format(abs(diff))
                 }
                 lines[name] = OverlayLine(name, "${fmtNum(rec.value)} ${rec.unit}".trim(), delta, note)
             }
@@ -152,7 +165,8 @@ object FrameRenderer {
         c.drawRect(0f, 0f, w, topH, Paint().apply {
             shader = LinearGradient(0f, 0f, 0f, topH, 0xE0050505.toInt(), 0x00050505, Shader.TileMode.CLAMP)
         })
-        val poseText = if (opts.showPose && slide.photo.pose.isNotBlank()) slide.photo.pose.uppercase() else null
+        val pose = slide.photo.pose
+        val poseText = if (opts.showPose && pose.isNotBlank()) (opts.words.poses[pose] ?: pose).uppercase() else null
         val poseP = paint(GOLD, 22 * u, bold = true, tracking = 0.2f)
         val poseW = poseText?.let { poseP.measureText(it) + 24 * u } ?: 0f
         var y = 36 * u
@@ -170,7 +184,7 @@ object FrameRenderer {
         if (opts.showDayCount) {
             y += 30 * u
             val weeks = (slide.dayNumber - 1) / 7
-            val txt = "Day ${slide.dayNumber}" + if (weeks >= 1) "  ·  Week ${weeks + 1}" else ""
+            val txt = opts.words.day.format(slide.dayNumber) + if (weeks >= 1) opts.words.week.format(weeks + 1) else ""
             c.drawText(txt, 32 * u, y, paint(MUTED, 26 * u, tracking = 0.05f))
         }
         if (poseText != null) c.drawText(poseText, w - 32 * u - poseP.measureText(poseText), 58 * u, poseP)

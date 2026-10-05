@@ -324,7 +324,7 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
                 ShareImages.share(ctx, res.getString(R.string.wk_share_creating), ShareImages.fileName("workout", date)) {
                     val bmp = photo?.let { FrameRenderer.loadBitmap(it, 1000, 1300) }
                     try {
-                        ShareImages.renderWorkout(ShareImages.WorkoutCard(c.title, c.subtitle, c.exercises, c.comments, bmp))
+                        ShareImages.renderWorkout(res, ShareImages.WorkoutCard(c.title, c.subtitle, c.exercises, c.comments, bmp))
                     } finally {
                         bmp?.recycle()
                     }

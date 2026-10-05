@@ -43,6 +43,9 @@ import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DropdownPill
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.fitlens.companion.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,26 +61,28 @@ fun TimelineScreen(snap: Snapshot, nav: Nav) {
         }
     }
     Column(Modifier.fillMaxSize()) {
-        PlainTopBar("All days") {
+        PlainTopBar(stringResource(R.string.tl_title)) {
             IconButton(onClick = { nav.home() }) {
-                Icon(Icons.Filled.Add, contentDescription = "Log today’s workout")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.tl_log_today))
             }
             LibraryAction(nav)
         }
         if (snap.allDates.isEmpty()) {
             EmptyState(
-                "Let's build your record",
-                "Log your first workout, or import your FitNotes backup and bulk-import your progress photos. " +
-                    "FitLens matches each photo to its date automatically."
+                stringResource(R.string.tl_empty_title),
+                stringResource(R.string.tl_empty_body)
             ) {
-                GoldButton(onClick = { nav.home() }) { Text("Log today’s workout") }
-                TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text("Import from FitNotes") }
-                TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text("Restore from a backup") }
+                GoldButton(onClick = { nav.home() }) { Text(stringResource(R.string.tl_log_today)) }
+                TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Import)) }) { Text(stringResource(R.string.tl_import)) }
+                TextButton(onClick = { nav.push(Screen.SettingsPage(SettingsSection.Backups)) }) { Text(stringResource(R.string.tl_restore)) }
             }
         } else {
         DropdownPill(
-            label = "Show",
-            options = listOf("All days", "Days with photos", "Days with body values", "Days with a workout", "Days with photos and body values"),
+            label = stringResource(R.string.tl_show),
+            options = listOf(
+                stringResource(R.string.tl_f_all), stringResource(R.string.tl_f_photos), stringResource(R.string.tl_f_body),
+                stringResource(R.string.tl_f_workout), stringResource(R.string.tl_f_photos_body)
+            ),
             selected = filter,
             modifier = Modifier.padding(horizontal = 4.dp)
         ) { filter = it }
@@ -107,7 +112,7 @@ fun DayCard(snap: Snapshot, date: String, onClick: () -> Unit) {
                     repeat(maxOf(0, 4 - photos.size)) { Spacer(Modifier.weight(1f)) }
                 }
                 if (photos.size > 4) {
-                    Text("+${photos.size - 4} more", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.tl_more, photos.size - 4), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (records.isNotEmpty()) {
@@ -117,7 +122,7 @@ fun DayCard(snap: Snapshot, date: String, onClick: () -> Unit) {
                 ) {
                     records.groupBy { it.name }.forEach { (name, list) ->
                         val r = list.last()
-                        SuggestionChip(onClick = onClick, label = { Text("$name ${fmtNum(r.value)} ${r.unit}") })
+                        SuggestionChip(onClick = onClick, label = { Text(stringResource(R.string.tl_value, name, fmtNum(r.value), r.unit).trim()) })
                     }
                 }
             }
@@ -125,7 +130,7 @@ fun DayCard(snap: Snapshot, date: String, onClick: () -> Unit) {
                 val byEx = sets.groupBy { it.exerciseId }
                 val cats = byEx.keys.mapNotNull { snap.categoryOf(it) }.distinctBy { it.id }
                 Text(
-                    "${byEx.size} exercise${if (byEx.size == 1) "" else "s"} · ${sets.size} sets",
+                    stringResource(R.string.tl_ex_sets, pluralStringResource(R.plurals.lib_exercises, byEx.size, byEx.size), pluralStringResource(R.plurals.sets_count, sets.size, sets.size)),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 6.dp)
                 )

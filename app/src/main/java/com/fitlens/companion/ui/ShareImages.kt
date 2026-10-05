@@ -16,6 +16,8 @@ import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.res.Resources
+import com.fitlens.companion.R
 
 /**
  * Branded images for the share sheet: a graph (#22) and a workout card (#11). Both are drawn on an Android [Canvas] in
@@ -55,7 +57,7 @@ object ShareImages {
                 }
                 shareFile(app, file, "image/jpeg")
             } catch (e: Exception) {
-                UiEvents.show("Couldn't create the image: ${e.message}")
+                UiEvents.show(app.getString(R.string.si_image_failed, e.message ?: ""))
             } finally {
                 UiEvents.busy.value = null
             }
@@ -84,7 +86,7 @@ object ShareImages {
         val kind: ChartKind = ChartKind.LINE
     )
 
-    fun renderGraph(g: GraphImage): Bitmap {
+    fun renderGraph(res: Resources, g: GraphImage): Bitmap {
         val h = 1350
         val bmp = Bitmap.createBitmap(W, h, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
@@ -103,7 +105,7 @@ object ShareImages {
             c.drawText(line, PAD, y, text(ivory, 40f, serif = true)); y += 54f
         }
         noteLines.forEach { line -> c.drawText(line, PAD, y, note); y += 42f }
-        footer(c, h)
+        footer(res, c, h)
         return bmp
     }
 
@@ -138,7 +140,8 @@ object ShareImages {
 
         g.goal?.let { goal ->
             c.drawLine(r.left, py(goal), r.right, py(goal), stroke(ivory, 3f, dashed = true))
-            c.drawText("Goal", r.right - label.measureText("Goal"), py(goal) - 14f, text(ivory, 28f))
+            val goalWord = res.getString(R.string.si_goal)
+            c.drawText(goalWord, r.right - label.measureText(goalWord), py(goal) - 14f, text(ivory, 28f))
         }
         // The same trend as on screen (#152): the smoothed curve, or the straight fit, kept inside the frame.
         g.trend?.let { t ->
@@ -195,7 +198,7 @@ object ShareImages {
         val photo: Bitmap?
     )
 
-    fun renderWorkout(w: WorkoutCard): Bitmap {
+    fun renderWorkout(res: Resources, w: WorkoutCard): Bitmap {
         val width = W - 2 * PAD
         val name = text(ivory, 46f, serif = true, bold = true)
         val set = text(ivory, 36f)
@@ -234,7 +237,7 @@ object ShareImages {
                 c.drawText(num, PAD, y, text(muted, 32f))
                 val shown = ellipsize(line, set, width - 200f)
                 c.drawText(shown, PAD + 64f, y, set)
-                if (isPr) c.drawText("PR", PAD + 64f + set.measureText(shown) + 24f, y - 2f, pr)
+                if (isPr) c.drawText(res.getString(R.string.si_pr), PAD + 64f + set.measureText(shown) + 24f, y - 2f, pr)
             }
             e.comment?.let {
                 y += 8f
@@ -246,7 +249,7 @@ object ShareImages {
             y += 16f
             wrap("“$it”", note, width).forEach { l -> y += 44f; c.drawText(l, PAD, y, note) }
         }
-        footer(c, h)
+        footer(res, c, h)
         return bmp
     }
 
@@ -276,10 +279,10 @@ object ShareImages {
         return y
     }
 
-    private fun footer(c: Canvas, h: Int) {
+    private fun footer(res: Resources, c: Canvas, h: Int) {
         goldHairline(c, h - 110f)
         val p = text(muted, 28f, tracking = 0.3f)
-        val s = "LOGGED WITH FITLENS"
+        val s = res.getString(R.string.si_footer)
         c.drawText(s, (W - p.measureText(s)) / 2f, h - 56f, p)
     }
 

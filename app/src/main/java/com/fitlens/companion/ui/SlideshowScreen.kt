@@ -82,24 +82,29 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import android.content.res.Resources
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
+import com.fitlens.companion.video.SlideWords
 
-private data class Format(val label: String, val w: Int, val h: Int) {
+private data class Format(@StringRes val label: Int, val w: Int, val h: Int) {
     val key get() = "${w}x$h"
 }
 
 private val FORMATS = listOf(
-    Format("Portrait HD", 720, 1280),
-    Format("Portrait Full HD", 1080, 1920),
-    Format("Square", 1024, 1024)
+    Format(R.string.ss_fmt_hd, 720, 1280),
+    Format(R.string.ss_fmt_fhd, 1080, 1920),
+    Format(R.string.ss_fmt_square, 1024, 1024)
 )
 
 /** The pose filter's choices, as stored in [SlideshowPrefs.pose], and how each reads. */
 private val POSES = listOf(SlideshowPrefs.ALL) + Poses.all + SlideshowPrefs.UNSET
 
-private fun poseLabel(p: String) = when (p) {
-    SlideshowPrefs.ALL -> "All poses"
-    SlideshowPrefs.UNSET -> "Pose not set"
-    else -> p
+private fun poseLabel(res: Resources, p: String) = when (p) {
+    SlideshowPrefs.ALL -> res.getString(R.string.ph_all_poses)
+    SlideshowPrefs.UNSET -> res.getString(R.string.ph_pose_not_set)
+    else -> poseText(res, p)
 }
 
 /**
@@ -111,6 +116,7 @@ private fun poseLabel(p: String) = when (p) {
 @Composable
 fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
     val ctx = LocalContext.current
+    val res = ctx.resources
     val source = remember(snap, ids) {
         if (ids == null) snap.datedPhotos else ids.mapNotNull { snap.photosById[it] }.filter { it.date != null }
     }
@@ -169,7 +175,15 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
             else -> p.pose == pose
         }
     }
+    val words = remember(res) {
+        SlideWords(
+            day = res.getString(R.string.vid_day), week = res.getString(R.string.vid_week),
+            nearBefore = res.getString(R.string.vid_near_before), nearAfter = res.getString(R.string.vid_near_after),
+            poses = Poses.all.associateWith { poseText(res, it) }
+        )
+    }
     val opts = SlideOptions(
+        words = words,
         width = fmt.w, height = fmt.h, secondsPerPhoto = seconds, fade = fade,
         showDate = showDate, showDayCount = showDays, showPose = showPose,
         overlays = overlays.toList(), onePerDay = onePerDay, title = title
@@ -219,9 +233,9 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = "Slideshow & video",
+            title = stringResource(R.string.ss_title),
             onBack = { nav.pop() },
-            actions = listOf(TopBarAction(FitIcons.Tune, "Slideshow and video options") { showOptions = true })
+            actions = listOf(TopBarAction(FitIcons.Tune, stringResource(R.string.ss_options_cd)) { showOptions = true })
         )
         Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
             // The preview, edge to edge on black.
@@ -230,11 +244,11 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
                 contentAlignment = Alignment.Center
             ) {
                 if (slides.isEmpty()) {
-                    Text("No photos match these options", color = Brand.Ivory, style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.ss_no_match), color = Brand.Ivory, style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Crossfade(targetState = preview, animationSpec = tween(if (fade) 300 else 0), label = "preview") { img ->
                         if (img != null) Image(
-                            bitmap = img, contentDescription = "Slideshow preview",
+                            bitmap = img, contentDescription = stringResource(R.string.ss_preview),
                             modifier = Modifier.fillMaxSize().aspectRatio(opts.width.toFloat() / opts.height, matchHeightConstraintsFirst = true)
                         )
                     }
@@ -248,33 +262,33 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(enabled = slides.size > 1, onClick = { index = (index - 1 + slides.size).coerceAtLeast(0) % maxOf(1, slides.size) }) {
-                    Icon(FitIcons.SkipPrevious, contentDescription = "Previous photo")
+                    Icon(FitIcons.SkipPrevious, contentDescription = stringResource(R.string.ss_prev))
                 }
                 IconButton(enabled = slides.size > 1, onClick = { playing = !playing }) {
-                    if (playing) Icon(FitIcons.Pause, contentDescription = "Pause")
-                    else Icon(Icons.Filled.PlayArrow, contentDescription = "Play")
+                    if (playing) Icon(FitIcons.Pause, contentDescription = stringResource(R.string.ss_pause))
+                    else Icon(Icons.Filled.PlayArrow, contentDescription = stringResource(R.string.ss_play))
                 }
                 IconButton(enabled = slides.size > 1, onClick = { index = (index + 1) % maxOf(1, slides.size) }) {
-                    Icon(FitIcons.SkipNext, contentDescription = "Next photo")
+                    Icon(FitIcons.SkipNext, contentDescription = stringResource(R.string.ss_next))
                 }
             }
             Text(
-                if (slides.isEmpty()) "0 photos" else "${index.coerceIn(0, slides.lastIndex) + 1} of ${slides.size} · " +
-                    "${fmtNum(slides.size * seconds.toDouble(), 0)} s video",
+                if (slides.isEmpty()) stringResource(R.string.ss_zero) else stringResource(R.string.ss_position,
+                    index.coerceIn(0, slides.lastIndex) + 1, slides.size, fmtNum(slides.size * seconds.toDouble(), 0)),
                 Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium
             )
 
-            SectionTitle("Options")
+            SectionTitle(stringResource(R.string.ss_options))
             // What the video will use, in one line each; the options sheet changes them.
-            val overlayText = if (overlays.isEmpty()) "No data" else overlays.joinToString { it.name }
-            OptionSummary("Photos", "${poseLabel(pose)} · ${Dates.medium(from)} to ${Dates.medium(to)}" + if (onePerDay) " · one per day" else "")
-            OptionSummary("Timing", "${fmtNum(seconds.toDouble(), 1)} s per photo" + if (fade) " · cross-fade" else "")
-            OptionSummary("On the video", overlayText)
-            OptionSummary("Video", fmt.label + if (title.isNotBlank()) " · \"$title\"" else "")
+            val overlayText = if (overlays.isEmpty()) stringResource(R.string.ss_no_data) else overlays.joinToString { it.name }
+            OptionSummary(stringResource(R.string.ss_photos), stringResource(R.string.ss_photos_summary, poseLabel(res, pose), Dates.medium(from), Dates.medium(to)) + if (onePerDay) stringResource(R.string.ss_one_per_day_suffix) else "")
+            OptionSummary(stringResource(R.string.ss_timing), stringResource(R.string.ss_per_photo, fmtNum(seconds.toDouble(), 1)) + if (fade) stringResource(R.string.ss_crossfade_suffix) else "")
+            OptionSummary(stringResource(R.string.ss_on_video), overlayText)
+            OptionSummary(stringResource(R.string.ss_video), stringResource(R.string.fmt.label) + if (title.isNotBlank()) stringResource(R.string.ss_title_suffix, title) else "")
             GlassOutlinedButton(
                 onClick = { showOptions = true },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            ) { Text("Change options") }
+            ) { Text(stringResource(R.string.ss_change_options)) }
 
             Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GoldButton(enabled = slides.isNotEmpty(), onClick = {
@@ -282,67 +296,66 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
                     val snapSlides = slides
                     val snapOpts = opts
                     AppScope.scope.launch {
-                        UiEvents.busy.value = "Creating video… 0%"
+                        UiEvents.busy.value = res.getString(R.string.ss_creating, 0)
                         try {
                             val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
                             val out = File(File(app.cacheDir, "exports"), "FitLens_progress_$stamp.mp4")
                             VideoExporter.export(snap, snapSlides, snapOpts, out) { p ->
-                                UiEvents.busy.value = "Creating video… ${(p * 100).toInt()}%"
+                                UiEvents.busy.value = res.getString(R.string.ss_creating, (p * 100).toInt())
                             }
                             withContext(Dispatchers.IO) { VideoExporter.saveToGallery(app, out) }
                             lastVideo = out
-                            UiEvents.show("Video saved to Movies/FitLens")
+                            UiEvents.show(res.getString(R.string.ss_saved))
                         } catch (e: Exception) {
-                            UiEvents.show("Video export failed: ${e.message}")
+                            UiEvents.show(res.getString(R.string.ss_failed, e.message ?: ""))
                         } finally {
                             UiEvents.busy.value = null
                         }
                     }
-                }) { Text("Create video") }
+                }) { Text(stringResource(R.string.ss_create)) }
                 lastVideo?.let { f ->
-                    GlassOutlinedButton(onClick = { shareFile(ctx, f, "video/mp4") }) { Text("Share video") }
+                    GlassOutlinedButton(onClick = { shareFile(ctx, f, "video/mp4") }) { Text(stringResource(R.string.ss_share)) }
                 }
             }
             Text(
-                "Videos are made on your phone and saved to Movies/FitLens. Full HD takes longer to create." +
-                    if (remembering) " These options are remembered for next time." else "",
+                stringResource(R.string.ss_note) +
+                    if (remembering) stringResource(R.string.ss_note_remember) else "",
                 Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 
-    if (showOptions) FitSheet(title = "Slideshow and video options", onDismiss = { showOptions = false }, dismissLabel = "Done") {
-        SectionLabel("Photos")
+    if (showOptions) FitSheet(title = stringResource(R.string.ss_options_cd), onDismiss = { showOptions = false }, dismissLabel = stringResource(R.string.ss_done)) {
+        SectionLabel(stringResource(R.string.ss_photos))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Pose", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.ss_pose), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
             DropdownPill(
-                label = "Pose",
-                options = POSES.map { poseLabel(it) },
+                label = stringResource(R.string.ss_pose),
+                options = POSES.map { poseLabel(res, it) },
                 selected = POSES.indexOf(pose).coerceAtLeast(0)
             ) { pose = POSES[it]; index = 0 }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Dates", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            PickerPill("From", Dates.medium(from)) { pickFrom = true }
-            Text("to", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PickerPill("To", Dates.medium(to)) { pickTo = true }
+            Text(stringResource(R.string.ss_dates), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            PickerPill(stringResource(R.string.ss_from), Dates.medium(from)) { pickFrom = true }
+            Text(stringResource(R.string.ss_to_word), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            PickerPill(stringResource(R.string.ss_to), Dates.medium(to)) { pickTo = true }
         }
-        ToggleRow("One photo per day", onePerDay, inset = 0.dp) { onePerDay = it }
+        ToggleRow(stringResource(R.string.ss_one_per_day), onePerDay, inset = 0.dp) { onePerDay = it }
 
-        SectionLabel("Timing")
-        Text("${fmtNum(seconds.toDouble(), 1)} s per photo", style = MaterialTheme.typography.bodyLarge)
+        SectionLabel(stringResource(R.string.ss_timing))
+        Text(stringResource(R.string.ss_per_photo, fmtNum(seconds.toDouble(), 1)), style = MaterialTheme.typography.bodyLarge)
         Slider(value = seconds, onValueChange = { seconds = it }, valueRange = SlideshowPrefs.SECONDS)
-        ToggleRow("Cross-fade between photos", fade, inset = 0.dp) { fade = it }
+        ToggleRow(stringResource(R.string.ss_crossfade), fade, inset = 0.dp) { fade = it }
 
-        SectionLabel("Overlay")
-        ToggleRow("Date", showDate, inset = 0.dp) { showDate = it }
-        ToggleRow("Day / week counter", showDays, inset = 0.dp) { showDays = it }
-        ToggleRow("Pose label", showPose, inset = 0.dp) { showPose = it }
+        SectionLabel(stringResource(R.string.ss_overlay))
+        ToggleRow(stringResource(R.string.ss_date), showDate, inset = 0.dp) { showDate = it }
+        ToggleRow(stringResource(R.string.ss_counter), showDays, inset = 0.dp) { showDays = it }
+        ToggleRow(stringResource(R.string.ss_pose_label), showPose, inset = 0.dp) { showPose = it }
 
-        SectionLabel("Data on the video · ${overlays.size} of ${FrameRenderer.MAX_OVERLAYS}")
+        SectionLabel(stringResource(R.string.ss_data_on_video, overlays.size, FrameRenderer.MAX_OVERLAYS))
         Text(
-            "Choose up to ${FrameRenderer.MAX_OVERLAYS} metrics, including your custom ones. Show each as a value or as a " +
-                "value with a progress chart. Values come from that date, or the nearest within 7 days (marked ≈).",
+            stringResource(R.string.ss_data_help, FrameRenderer.MAX_OVERLAYS),
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -359,31 +372,31 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
         overlays.forEachIndexed { i, o ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("${i + 1}. ${o.name}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                FilterChip(selected = !o.chart, onClick = { overlays[i] = o.copy(chart = false) }, label = { Text("Value") })
+                FilterChip(selected = !o.chart, onClick = { overlays[i] = o.copy(chart = false) }, label = { Text(stringResource(R.string.ss_value)) })
                 Spacer(Modifier.width(6.dp))
-                FilterChip(selected = o.chart, onClick = { overlays[i] = o.copy(chart = true) }, label = { Text("Chart") })
+                FilterChip(selected = o.chart, onClick = { overlays[i] = o.copy(chart = true) }, label = { Text(stringResource(R.string.ss_chart)) })
                 IconButton(enabled = i > 0, onClick = { overlays.add(i - 1, overlays.removeAt(i)) }) {
-                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move ${o.name} up")
+                    Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.ss_move_up, o.name))
                 }
-                IconButton(onClick = { overlays.removeAt(i) }) { Icon(Icons.Filled.Close, contentDescription = "Remove ${o.name}") }
+                IconButton(onClick = { overlays.removeAt(i) }) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.ss_remove, o.name)) }
             }
         }
 
-        SectionLabel("Video")
+        SectionLabel(stringResource(R.string.ss_video))
         OutlinedTextField(
             value = title, onValueChange = { title = it.take(SlideshowPrefs.MAX_TITLE) }, singleLine = true,
-            label = { Text("Title (optional)") }, modifier = Modifier.fillMaxWidth()
+            label = { Text(stringResource(R.string.ss_title_field)) }, modifier = Modifier.fillMaxWidth()
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Size", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-            DropdownPill(label = "Video size", options = FORMATS.map { it.label }, selected = formatIdx) { formatIdx = it }
+            Text(stringResource(R.string.ss_size), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            DropdownPill(label = stringResource(R.string.ss_video_size), options = FORMATS.map { res.getString(it.label) }, selected = formatIdx) { formatIdx = it }
         }
         TextButton(onClick = {
             val d = SlideshowPrefs()
             pose = d.pose; onePerDay = d.onePerDay; seconds = d.seconds; fade = d.fade
             showDate = d.showDate; showDays = d.showDays; showPose = d.showPose; title = d.title; formatIdx = 0
             from = firstDate; to = lastDate; index = 0
-        }) { Text("Reset options") }
+        }) { Text(stringResource(R.string.ss_reset)) }
     }
     if (pickFrom) PickDateDialog(from, onDismiss = { pickFrom = false }) { from = it; index = 0 }
     if (pickTo) PickDateDialog(to, onDismiss = { pickTo = false }) { to = it; index = 0 }

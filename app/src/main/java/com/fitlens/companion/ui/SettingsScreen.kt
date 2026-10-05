@@ -552,20 +552,21 @@ private fun HomePage() {
 @Composable
 private fun MediaPage() {
     val prefs by Settings.portable.collectAsState()
+    val res = LocalContext.current.resources
     SettingsGroup(stringResource(R.string.media_group_photos))
     // Ask each time, then None, then the poses: null, Poses.NONE and the pose names as stored.
     val poses: List<String?> = listOf(null, com.fitlens.companion.data.Poses.NONE) + com.fitlens.companion.data.Poses.all
     val none = stringResource(R.string.media_none)
     SettingsChoiceRow(
         stringResource(R.string.media_pose),
-        listOf(stringResource(R.string.media_pose_ask), none) + com.fitlens.companion.data.Poses.all,
+        listOf(stringResource(R.string.media_pose_ask), none) + com.fitlens.companion.data.Poses.all.map { poseText(res, it) },
         poses.indexOf(prefs.photoDefaultPose).coerceAtLeast(0),
         summary = stringResource(R.string.media_pose_summary)
     ) { i -> Settings.updatePortable { it.copy(photoDefaultPose = poses[i]) } }
     val groups = com.fitlens.companion.data.MediaPrefs.GROUPS
     SettingsChoiceRow(
         stringResource(R.string.media_group),
-        groups.map { com.fitlens.companion.data.MediaPrefs.groupLabel(it) },
+        groups.map { groupText(res, it) },
         groups.indexOf(prefs.photoGroupBy).coerceAtLeast(0),
         summary = stringResource(R.string.media_group_summary)
     ) { i -> Settings.updatePortable { it.copy(photoGroupBy = groups[i]) } }
