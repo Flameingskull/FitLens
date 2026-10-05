@@ -132,3 +132,4 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   in the working tree: a replacement script must read with `newline=""`, match on LF and write back the original
   ending, or every line shows as changed. `GRAPH_*` labels and `metricGraphLabels` are stored keys (pinned graphs,
   chart kinds), so translate them only through a separate display mapping, never by changing the constants.
+- 1.0.105 (#94): Analysis, Stats, Goals, the body tracker and chart controls moved to strings.xml. Data-layer enums keep their `label`; the UI maps them in `ui/AnalysisText.kt`. Making a helper `@Composable` (as `relativeDayLabel`) breaks any plain wrapper that calls it (`WorkoutDrawer.relativeLabel`): grep every caller. A string read with `getString(id)` and no arguments isn't formatted, so `%%` shows literally: use `formatted="false"` and a bare `%`.
