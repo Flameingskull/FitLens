@@ -98,7 +98,7 @@ object ShareImages {
         val noteLines = g.trendNote?.let { wrap(it, note, W - 2 * PAD) }.orEmpty()
         val chart = RectF(PAD + 120f, y + 40f, W - PAD, h - 320f - noteLines.size * 42f)
         c.drawRoundRect(RectF(PAD - 24f, chart.top - 40f, W - PAD + 24f, chart.bottom + 90f), 36f, 36f, fill(card))
-        drawLine(c, g, chart)
+        drawLine(c, g, chart, res.getString(R.string.si_goal))
 
         y = chart.bottom + 170f
         wrap(g.summary, text(ivory, 40f, serif = true), W - 2 * PAD).forEach { line ->
@@ -109,7 +109,7 @@ object ShareImages {
         return bmp
     }
 
-    private fun drawLine(c: Canvas, g: GraphImage, r: RectF) {
+    private fun drawLine(c: Canvas, g: GraphImage, r: RectF, goalWord: String) {
         val pts = g.points
         if (pts.isEmpty()) return
         val x0 = pts.first().x
@@ -140,7 +140,6 @@ object ShareImages {
 
         g.goal?.let { goal ->
             c.drawLine(r.left, py(goal), r.right, py(goal), stroke(ivory, 3f, dashed = true))
-            val goalWord = res.getString(R.string.si_goal)
             c.drawText(goalWord, r.right - label.measureText(goalWord), py(goal) - 14f, text(ivory, 28f))
         }
         // The same trend as on screen (#152): the smoothed curve, or the straight fit, kept inside the frame.

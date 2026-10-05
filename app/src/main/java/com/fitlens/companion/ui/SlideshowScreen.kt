@@ -284,7 +284,7 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
             OptionSummary(stringResource(R.string.ss_photos), stringResource(R.string.ss_photos_summary, poseLabel(res, pose), Dates.medium(from), Dates.medium(to)) + if (onePerDay) stringResource(R.string.ss_one_per_day_suffix) else "")
             OptionSummary(stringResource(R.string.ss_timing), stringResource(R.string.ss_per_photo, fmtNum(seconds.toDouble(), 1)) + if (fade) stringResource(R.string.ss_crossfade_suffix) else "")
             OptionSummary(stringResource(R.string.ss_on_video), overlayText)
-            OptionSummary(stringResource(R.string.ss_video), stringResource(R.string.fmt.label) + if (title.isNotBlank()) stringResource(R.string.ss_title_suffix, title) else "")
+            OptionSummary(stringResource(R.string.ss_video), stringResource(fmt.label) + if (title.isNotBlank()) stringResource(R.string.ss_title_suffix, title) else "")
             GlassOutlinedButton(
                 onClick = { showOptions = true },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)

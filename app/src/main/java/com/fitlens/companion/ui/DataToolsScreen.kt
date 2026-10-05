@@ -126,7 +126,7 @@ private fun RangeRow(state: RangeState) {
     } else stringResource(R.string.data_range_custom)
     SettingsChoiceRow(
         stringResource(R.string.data_range),
-        presets.map { it.label } + customLabel,
+        presets.map { stringResource(it.label) } + customLabel,
         state.preset?.ordinal ?: presets.size
     ) { i -> if (i < presets.size) state.preset = presets[i] else picking = true }
     if (picking) {

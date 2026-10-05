@@ -106,7 +106,7 @@ fun SetupScreen(snap: Snapshot, nav: Nav) {
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
             title = stringResource(R.string.su_title),
-            subtitle = stringResource(R.string.su_step_of, stepIdx + 1, SetupStep.entries.size, stringResource(R.string.step.title)),
+            subtitle = stringResource(R.string.su_step_of, stepIdx + 1, SetupStep.entries.size, stringResource(step.title)),
             centered = false,
             trailing = { TextButton(onClick = { finish() }) { Text(stringResource(R.string.su_skip)) } }
         )
