@@ -1,5 +1,6 @@
 package com.fitlens.companion.ui
 
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -209,7 +210,8 @@ private fun PinnedGraphCard(
     // A Workouts pin (#51) or an exercise graph, with its comparison (#53).
     val totals = totalsOf(pin)
     val avgDuration = totals?.first == Analysis.Metric.Duration && pin.average
-    val title = if (totals != null) "${totalsGraphName(totals.first, totals.second)} · ${filterLabel(snap, pin.totalsFilter)}"
+    val res = LocalContext.current.resources
+    val title = if (totals != null) "${totalsGraphName(res, totals.first, totals.second)} · ${filterLabel(res, snap, pin.totalsFilter)}"
     else "${snap.exercises[pin.exerciseId]?.name ?: "Exercise"} · ${pin.graph}"
     val formula = Records.chosen()
     val series = rememberDerived(
@@ -218,17 +220,17 @@ private fun PinnedGraphCard(
     ) {
         if (totals != null) {
             val pts = totalsPoints(snap, totals.first, totals.second, pin.totalsFilter, rangeFrom(pin.range), avgDuration)
-            listOf(LineSeries(totals.first.label, pts))
+            listOf(LineSeries(totals.first.text(res), pts))
         } else comparedSeries(snap, pin.exerciseId, pin.graph, pin.compare, pin.range, pin.relative)
     }
     val (kind, _) = rememberChartKind(if (totals != null) "analysis:${totals.first.name}" else "exercise:${pin.graph}")
     val unit = when {
-        totals != null -> totalsUnit(snap, totals.first, avgDuration)
+        totals != null -> totalsUnit(res, snap, totals.first, avgDuration)
         pin.relative -> "%"
         else -> graphUnit(snap, pin.exerciseId, pin.graph)
     }
     fun show(v: Double): String =
-        if (totals != null) totalsText(totals.first, avgDuration, unit, v) else graphValueText(pin.graph, v, unit)
+        if (totals != null) totalsText(res, totals.first, avgDuration, unit, v) else graphValueText(pin.graph, v, unit)
     val main = series?.firstOrNull()?.points.orEmpty()
     val summary = when {
         series == null -> "Working it out…"

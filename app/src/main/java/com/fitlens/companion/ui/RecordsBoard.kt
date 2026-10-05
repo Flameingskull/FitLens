@@ -19,7 +19,13 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.content.res.Resources
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +61,7 @@ private data class RecordCell(val kg: Double, val set: SetRow, val direct: Boole
 /** One column: an exercise and its 1RM to 15RM cells (null where there's no record). */
 private class RecordColumn(val exercise: Exercise, val cells: List<RecordCell?>, val lastDate: String)
 
-private enum class BoardSort(val label: String) { Category("Category order"), Name("Name"), Recent("Recently trained") }
+private enum class BoardSort(@StringRes val label: Int) { Category(R.string.rb_sort_category), Name(R.string.rb_sort_name), Recent(R.string.rb_sort_recent) }
 
 /**
  * The records board (#54): 1RM to 15RM for many exercises side by side, exercises as columns. A cell set by a set of
@@ -88,16 +94,16 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             DropdownPill(
-                label = "Records",
-                options = listOf("Actual", "Estimated"),
+                label = stringResource(R.string.ex_tab_records),
+                options = listOf(stringResource(R.string.rb_actual), stringResource(R.string.rb_estimated)),
                 selected = if (estimated) 1 else 0
             ) { estimated = it == 1; selected = null }
             DropdownPill(
-                label = "Exercises",
+                label = stringResource(R.string.an_tab_exercises),
                 options = listOf(
-                    "All exercises",
-                    categoryId?.let { snap.categories[it]?.name } ?: "A category…",
-                    if (chosen.isEmpty()) "Choose exercises…" else "${chosen.size} exercises"
+                    stringResource(R.string.lib_all_exercises),
+                    categoryId?.let { snap.categories[it]?.name } ?: stringResource(R.string.rb_a_category),
+                    if (chosen.isEmpty()) stringResource(R.string.rb_choose_exercises) else pluralStringResource(R.plurals.lib_exercises, chosen.size, chosen.size)
                 ),
                 selected = when {
                     categoryId != null -> 1
@@ -112,19 +118,16 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
                 }
             }
             DropdownPill(
-                label = "Sort",
-                options = BoardSort.entries.map { it.label },
+                label = stringResource(R.string.rb_sort),
+                options = BoardSort.entries.map { stringResource(it.label) },
                 selected = sortIdx
             ) { sortIdx = it }
         }
 
         val cols = columns
         when {
-            cols == null -> AnalysisNote("Working it out…")
-            cols.isEmpty() -> EmptyState(
-                "No records yet",
-                "Records come from sets with both a weight and reps. Try another filter, or log a few sets."
-            )
+            cols == null -> AnalysisNote(stringResource(R.string.ex_working))
+            cols.isEmpty() -> EmptyState(stringResource(R.string.rb_empty_title), stringResource(R.string.rb_empty_body))
             else -> {
                 // The selected cell's set, with a way to its workout.
                 val sel = selected?.let { (exId, r) -> cols.firstOrNull { it.exercise.id == exId }?.let { c -> Triple(c, r, c.cells[r - 1]) } }
@@ -133,12 +136,14 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
                     val (col, r, _) = sel
                     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "${col.exercise.name} · ${r}RM: ${cellText(snap, c)} — " +
-                                "${snap.fmtWeight(c.set.weightKg)} ${snap.weightUnit} × ${c.set.reps}, ${Dates.medium(c.set.date)}",
+                            stringResource(
+                                R.string.rb_selected, col.exercise.name, r, cellText(snap, c),
+                                "${snap.fmtWeight(c.set.weightKg)} ${snap.weightUnit}", c.set.reps, Dates.medium(c.set.date)
+                            ),
                             Modifier.weight(1f),
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        TextButton(onClick = { nav.push(Screen.Day(c.set.date.take(10))) }) { Text("Open workout") }
+                        TextButton(onClick = { nav.push(Screen.Day(c.set.date.take(10))) }) { Text(stringResource(R.string.rb_open_workout)) }
                     }
                 }
                 RecordGrid(snap, cols, estimated, selected) { selected = it }
@@ -153,14 +158,14 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
                 snap.categoriesSorted.filter { it.id in used }.map { PickerItem(it.id, it.name) }
             }
             SearchablePicker(
-                title = "Category",
+                title = stringResource(R.string.lib_category),
                 items = items,
                 onDismiss = { picking = null },
                 onPick = { ids ->
                     ids.firstOrNull()?.let { categoryId = it; chosen = emptySet() }
                     picking = null
                 },
-                searchLabel = "Search categories"
+                searchLabel = stringResource(R.string.an_search_categories)
             )
         }
         "exercises" -> {
@@ -170,7 +175,7 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
                     .map { PickerItem(it.id, it.name, section = snap.categories[it.categoryId]?.name) }
             }
             SearchablePicker(
-                title = "Exercises to compare",
+                title = stringResource(R.string.rb_exercises_to_compare),
                 items = items,
                 onDismiss = { picking = null },
                 onPick = { ids ->
@@ -179,7 +184,7 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
                     picking = null
                 },
                 multiSelect = true,
-                searchLabel = "Search exercises"
+                searchLabel = stringResource(R.string.ex_search_exercises)
             )
         }
     }
@@ -218,7 +223,7 @@ private fun RecordGrid(
             for (r in 1..MAX_REPS) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "${r}RM",
+                        stringResource(R.string.ex_record_rm, r),
                         Modifier.width(LABEL_W).padding(start = 12.dp),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -226,11 +231,7 @@ private fun RecordGrid(
                     GridRow(snap, cols, r, estimated, selected, hScroll, onSelect)
                 }
             }
-            AnalysisNote(
-                if (estimated) "Estimated from each exercise's best set, with the same formula as its Records tab."
-                else "Bright values were set with exactly that many reps. Dimmed values marked ↑ carry over from a " +
-                    "heavier lift at more reps."
-            )
+            AnalysisNote(stringResource(if (estimated) R.string.rb_note_estimated else R.string.rb_note_actual))
         }
     }
 }
@@ -245,15 +246,16 @@ private fun GridRow(
     hScroll: ScrollState,
     onSelect: (Pair<Long, Int>) -> Unit
 ) {
+    val res = LocalContext.current.resources
     Row(Modifier.horizontalScroll(hScroll)) {
         cols.forEach { c ->
             val cell = c.cells[r - 1]
             val isSel = selected == (c.exercise.id to r)
             val description = when {
-                cell == null -> "${c.exercise.name}, $r rep max, none"
-                estimated -> "${c.exercise.name}, $r rep max, estimated ${spokenWeight(snap, cell.kg)}"
-                cell.direct -> "${c.exercise.name}, $r rep max, ${spokenWeight(snap, cell.kg)}, set directly on ${Dates.medium(cell.set.date)}"
-                else -> "${c.exercise.name}, $r rep max, ${spokenWeight(snap, cell.kg)}, carried over from ${cell.set.reps} reps"
+                cell == null -> res.getString(R.string.rb_cd_none, c.exercise.name, r)
+                estimated -> res.getString(R.string.rb_cd_estimated, c.exercise.name, r, spokenWeight(res, snap, cell.kg))
+                cell.direct -> res.getString(R.string.rb_cd_direct, c.exercise.name, r, spokenWeight(res, snap, cell.kg), Dates.medium(cell.set.date))
+                else -> res.getString(R.string.rb_cd_carried, c.exercise.name, r, spokenWeight(res, snap, cell.kg), cell.set.reps)
             }
             Box(
                 Modifier
@@ -282,8 +284,8 @@ private fun GridRow(
 
 private fun cellText(snap: Snapshot, c: RecordCell): String = snap.fmtWeight(c.kg)
 
-private fun spokenWeight(snap: Snapshot, kg: Double): String =
-    "${snap.fmtWeight(kg)} ${if (snap.weightUnit == "lbs") "pounds" else "kilograms"}"
+private fun spokenWeight(res: Resources, snap: Snapshot, kg: Double): String =
+    res.getString(if (snap.weightUnit == "lbs") R.string.rb_pounds else R.string.rb_kilograms, snap.fmtWeight(kg))
 
 private fun buildColumns(
     snap: Snapshot,

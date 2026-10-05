@@ -15,6 +15,10 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +50,7 @@ import kotlin.math.roundToInt
 import com.fitlens.companion.ui.design.PeriodDropdown
 
 /** The periods the Stats tab offers, in days back from today; 0 is all time. Custom follows them (#24). */
-private val STAT_PERIODS = listOf("All time" to 0L, "Last year" to 365L, "Last 3 months" to 91L, "Last month" to 30L)
+private val STAT_PERIODS = listOf(R.string.an_all_time to 0L, R.string.st_last_year to 365L, R.string.st_last_3_months to 91L, R.string.st_last_month to 30L)
 
 /** One Stats tile: its value, a line under it, and the day it happened, which a tap opens (#24). */
 private data class StatItem(val label: String, val value: String, val line: String? = null, val date: String? = null)
@@ -59,6 +63,7 @@ private data class StatItem(val label: String, val value: String, val line: Stri
  */
 @Composable
 fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, timeBased: Boolean) {
+    val res = LocalContext.current.resources
     // -1 is the Custom range, customFrom..customTo, kept while the screen is open.
     var period by rememberSaveable { mutableIntStateOf(0) }
     var customFrom by rememberSaveable { mutableStateOf<String?>(null) }
@@ -79,45 +84,47 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
     val unit = snap.weightUnitOf(exId)
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         PeriodDropdown(
-            label = "Period",
-            options = STAT_PERIODS.map { it.first },
+            label = stringResource(R.string.ex_period),
+            options = STAT_PERIODS.map { stringResource(it.first) },
             selected = period,
             custom = if (from != null && to != null) from to to else null,
             onSelect = { period = it },
             onCustom = { f, t -> customFrom = f; customTo = t; period = -1 }
         )
         if (shown.isEmpty()) {
-            Text("Nothing logged in this period.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.st_nothing), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             return@Column
         }
         val byDay = shown.groupBy { it.date }
         val sessions = byDay.size
         val tiles = ArrayList<StatItem>()
-        fun dated(label: String, value: String, date: String) = StatItem(label, value, Dates.medium(date), date)
+        fun dated(label: Int, value: String, date: String) = StatItem(res.getString(label), value, Dates.medium(date), date)
+        fun item(label: Int, value: String, line: String? = null) = StatItem(res.getString(label), value, line)
+        val perWorkout = res.getString(R.string.st_per_workout, fmtNum(shown.size.toDouble() / max(1, sessions), 1))
         if (timeBased) {
             val longest = shown.maxBy { it.durationSec }
             val farthest = byDay.maxBy { e -> e.value.sumOf { it.distance } }
             val longestDay = byDay.maxBy { e -> e.value.sumOf { it.durationSec } }
-            tiles += dated("Longest set", fmtDuration(longest.durationSec), longest.date)
-            tiles += dated("Longest workout", fmtDuration(longestDay.value.sumOf { it.durationSec }), longestDay.key)
+            tiles += dated(R.string.goal_longest_set, fmtDuration(longest.durationSec), longest.date)
+            tiles += dated(R.string.st_longest_workout, fmtDuration(longestDay.value.sumOf { it.durationSec }), longestDay.key)
             // Distances are in the exercise's unit (#7); pace needs a set with both a distance and a time (#24).
             val dUnit = snap.distanceUnit(exId)
             val farthestSet = shown.maxBy { it.distance }
             if (farthestSet.distance > 0) {
-                tiles += dated("Longest distance", "${fmtNum(farthestSet.distance, 2)} $dUnit", farthestSet.date)
-                tiles += dated("Most distance in a workout", "${fmtNum(farthest.value.sumOf { it.distance }, 2)} $dUnit", farthest.key)
+                tiles += dated(R.string.st_longest_distance, "${fmtNum(farthestSet.distance, 2)} $dUnit", farthestSet.date)
+                tiles += dated(R.string.st_most_distance, "${fmtNum(farthest.value.sumOf { it.distance }, 2)} $dUnit", farthest.key)
             }
             val paced = shown.filter { it.distance > 0 && it.durationSec > 0 }
             if (paced.isNotEmpty()) {
                 val fastest = paced.minBy { it.durationSec / it.distance }
-                tiles += dated("Best pace", pace(fastest.durationSec.toDouble(), fastest.distance, dUnit), fastest.date)
-                tiles += StatItem(
-                    "Average pace",
+                tiles += dated(R.string.st_best_pace, pace(fastest.durationSec.toDouble(), fastest.distance, dUnit), fastest.date)
+                tiles += item(
+                    R.string.st_average_pace,
                     pace(paced.sumOf { it.durationSec }.toDouble(), paced.sumOf { it.distance }, dUnit)
                 )
             }
-            tiles += StatItem("Total time", fmtDuration(shown.sumOf { it.durationSec }))
-            if (farthestSet.distance > 0) tiles += StatItem("Total distance", "${fmtNum(shown.sumOf { it.distance }, 2)} $dUnit")
+            tiles += item(R.string.st_total_time, fmtDuration(shown.sumOf { it.durationSec }))
+            if (farthestSet.distance > 0) tiles += item(R.string.st_total_distance, "${fmtNum(shown.sumOf { it.distance }, 2)} $dUnit")
         } else {
             val heaviest = shown.maxBy { it.weightKg }
             val best1rm = shown.maxBy { Records.oneRepMax(it) }
@@ -126,32 +133,32 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             val bestDay = byDay.maxBy { e -> e.value.sumOf { Analysis.volumeKg(it) } }
             val repsDay = byDay.maxBy { e -> e.value.sumOf { it.reps } }
             // FitNotes's tiles in FitNotes's order (#142): the totals, then each best with its date.
-            tiles += StatItem("Total workouts", "$sessions")
-            tiles += StatItem("Total sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
-            tiles += StatItem("Total reps", "${shown.sumOf { it.reps }}")
-            tiles += StatItem("Total volume", "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit")
-            tiles += dated("Max weight", "${snap.fmtWeight(heaviest.weightKg, exId)} $unit", heaviest.date)
+            tiles += item(R.string.st_total_workouts, "$sessions")
+            tiles += item(R.string.st_total_sets, "${shown.size}", perWorkout)
+            tiles += item(R.string.st_total_reps, "${shown.sumOf { it.reps }}")
+            tiles += item(R.string.st_total_volume, "${fmtNum(snap.weight(shown.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit")
+            tiles += dated(R.string.goal_max_weight, "${snap.fmtWeight(heaviest.weightKg, exId)} $unit", heaviest.date)
             // An estimate from more than 10 reps is marked approximate (#139).
             val approx = if (Records.approximate(best1rm.reps)) "≈ " else ""
-            tiles += dated("Estimated 1RM", "$approx${snap.fmtWeight(Records.oneRepMax(best1rm), exId)} $unit", best1rm.date)
-            tiles += dated("Max reps", "${mostReps.reps}", mostReps.date)
-            tiles += dated("Workout reps", "${repsDay.value.sumOf { it.reps }}", repsDay.key)
-            tiles += dated("Max volume", "${fmtNum(snap.weight(Analysis.volumeKg(bestSet), exId), 0)} $unit", bestSet.date)
-            tiles += dated("Workout volume", "${fmtNum(snap.weight(bestDay.value.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit", bestDay.key)
+            tiles += dated(R.string.goal_e1rm, "$approx${snap.fmtWeight(Records.oneRepMax(best1rm), exId)} $unit", best1rm.date)
+            tiles += dated(R.string.st_max_reps, "${mostReps.reps}", mostReps.date)
+            tiles += dated(R.string.st_workout_reps, "${repsDay.value.sumOf { it.reps }}", repsDay.key)
+            tiles += dated(R.string.st_max_volume, "${fmtNum(snap.weight(Analysis.volumeKg(bestSet), exId), 0)} $unit", bestSet.date)
+            tiles += dated(R.string.st_workout_volume, "${fmtNum(snap.weight(bestDay.value.sumOf { Analysis.volumeKg(it) }, exId), 0)} $unit", bestDay.key)
         }
         if (timeBased) {
-            tiles += StatItem("Workouts", "$sessions")
-            tiles += StatItem("Sets", "${shown.size}", "${fmtNum(shown.size.toDouble() / max(1, sessions), 1)} per workout")
+            tiles += item(R.string.an_metric_workouts, "$sessions")
+            tiles += item(R.string.an_metric_sets, "${shown.size}", perWorkout)
         }
         val first = shown.minOf { it.date }
         val last = shown.maxOf { it.date }
-        tiles += StatItem("First logged", Dates.medium(first), date = first)
-        tiles += StatItem("Last logged", Dates.medium(last), date = last)
+        tiles += StatItem(res.getString(R.string.st_first_logged), Dates.medium(first), date = first)
+        tiles += StatItem(res.getString(R.string.st_last_logged), Dates.medium(last), date = last)
         tiles.chunked(2).forEach { pair ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 pair.forEach { t ->
                     val open = t.date?.let { d ->
-                        Modifier.clickable(onClickLabel = "Open ${Dates.long(d)}") { nav.push(Screen.SetEntry(d, exId)) }
+                        Modifier.clickable(onClickLabel = res.getString(R.string.st_open_day, Dates.long(d))) { nav.push(Screen.SetEntry(d, exId)) }
                     } ?: Modifier
                     StatTile(label = t.label, value = t.value, modifier = Modifier.weight(1f).then(open), dateLine = t.line)
                 }
@@ -179,15 +186,15 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
     val kg = snap.toKg(weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0, exId)
     val r = reps.trim().toIntOrNull() ?: 0
     val oneRm = Records.oneRepMax(kg, r)
-    FitSheet(title = "Estimated 1RM Calculator", onDismiss = onDismiss, dismissLabel = "OK") {
+    FitSheet(title = stringResource(R.string.st_calc_title), onDismiss = onDismiss, dismissLabel = stringResource(R.string.st_ok)) {
         StepperField(
-            label = "Weight ($unit)",
+            label = stringResource(R.string.st_weight_unit, unit),
             value = weight,
             onValue = { weight = it },
             onStep = { d -> weight = fmtNum(max(0.0, (weight.trim().replace(',', '.').toDoubleOrNull() ?: 0.0) + d * step), 2) }
         )
         StepperField(
-            label = "Reps",
+            label = stringResource(R.string.ex_reps),
             value = reps,
             onValue = { reps = it },
             onStep = { d -> reps = max(1, (reps.trim().toIntOrNull() ?: 0) + d).toString() },
@@ -196,7 +203,7 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
         GoldHairline()
         if (oneRm <= 0) {
             Text(
-                "Enter a weight and 1 to ${Records.maxRepsFor()} reps.",
+                stringResource(R.string.st_calc_enter, Records.maxRepsFor()),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -205,7 +212,7 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
                 val w = Records.weightFor(oneRm, n)
                 if (w > 0) RepMaxLine(n, snap.fmtWeight(w, exId), unit, w / oneRm * 100)
             }
-            SectionLabel("Percentages of 1RM")
+            SectionLabel(stringResource(R.string.st_calc_percentages))
             (100 downTo 50 step 5).chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     row.forEach { pct ->
@@ -215,7 +222,7 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
                 }
             }
             Text(
-                "Weights in $unit. Estimates past 10 reps (≈) are less reliable.",
+                stringResource(R.string.st_calc_note, unit),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -227,17 +234,19 @@ fun OneRepMaxSheet(snap: Snapshot, start: SetRow?, onDismiss: () -> Unit) {
 @Composable
 private fun RepMaxLine(reps: Int, weight: String, unit: String, percent: Double) {
     val approx = if (Records.approximate(reps)) "≈ " else ""
+    val spoken = stringResource(
+        if (approx.isEmpty()) R.string.st_rm_spoken else R.string.st_rm_spoken_about, reps, "$weight $unit", fmtNum(percent, 1)
+    )
     Row(
         Modifier
             .fillMaxWidth()
             .padding(vertical = Spacing.xs)
             .semantics(mergeDescendants = true) {
-                contentDescription = "$reps rep max, ${if (approx.isEmpty()) "" else "about "}$weight $unit, " +
-                    "${fmtNum(percent, 1)} percent of one rep max"
+                contentDescription = spoken
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("${reps}RM", Modifier.weight(1f).padding(start = Spacing.lg), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.ex_record_rm, reps), Modifier.weight(1f).padding(start = Spacing.lg), style = MaterialTheme.typography.titleMedium)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text("$approx$weight", style = MaterialTheme.typography.titleLarge, color = Brand.Gold)
@@ -264,27 +273,26 @@ fun EstimatedOneRmSettingsSheet(onDismiss: () -> Unit) {
         onDismiss()
     }
     FitSheet(
-        title = "Estimated 1RM Settings",
+        title = stringResource(R.string.st_e1rm_title),
         onDismiss = onDismiss,
-        confirmLabel = "OK",
+        confirmLabel = stringResource(R.string.st_ok),
         confirmEnabled = valid,
         onConfirm = { save(typed ?: 0) },
-        secondaryLabel = "Reset",
+        secondaryLabel = stringResource(R.string.st_reset),
         onSecondary = { save(0) }
     ) {
         Text(
-            "Sets with a high number of reps can reduce the accuracy of the 1-rep-max calculation. Specify the maximum " +
-                "number of reps you would like to be included in the calculation.",
+            stringResource(R.string.st_e1rm_body),
             style = MaterialTheme.typography.bodyMedium
         )
         Text(
-            "(Recommended: 10–15. Leave it empty for the ${formula.label} formula's limit of ${formula.maxReps}.)",
+            stringResource(R.string.st_e1rm_hint, formula.label, formula.maxReps),
             style = MaterialTheme.typography.bodySmall,
             fontStyle = FontStyle.Italic,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         StepperField(
-            label = "Reps",
+            label = stringResource(R.string.ex_reps),
             value = reps,
             onValue = { reps = it.filter { c -> c.isDigit() }.take(2) },
             onStep = { d ->
@@ -295,7 +303,7 @@ fun EstimatedOneRmSettingsSheet(onDismiss: () -> Unit) {
         )
         if (!valid) {
             Text(
-                "Choose 1 to ${formula.maxReps} reps.",
+                stringResource(R.string.st_e1rm_invalid, formula.maxReps),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )

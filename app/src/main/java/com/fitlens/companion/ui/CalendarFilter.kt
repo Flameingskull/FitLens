@@ -7,7 +7,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,13 +58,13 @@ data class CalendarFilter(
         if (!active) emptySet() else snap.setsByDate.filterValues { sets -> sets.any { matches(snap, it) } }.keys
 
     /** The conditions in words, for the line above the grid: "Bench Press · ≥ 80 kg · ≥ 5 reps". */
-    fun describe(snap: Snapshot): String = listOfNotNull(
-        exerciseId?.let { snap.exercises[it]?.name ?: "A deleted exercise" },
-        categoryId?.let { snap.categories[it]?.name ?: "Uncategorised" },
+    fun describe(res: Resources, snap: Snapshot): String = listOfNotNull(
+        exerciseId?.let { snap.exercises[it]?.name ?: res.getString(R.string.cf_deleted_exercise) },
+        categoryId?.let { snap.categories[it]?.name ?: res.getString(R.string.lib_uncategorised) },
         minWeightKg?.let { "≥ ${snap.fmtWeight(it)} ${snap.weightUnit}" },
         maxWeightKg?.let { "≤ ${snap.fmtWeight(it)} ${snap.weightUnit}" },
-        minReps?.let { "≥ $it reps" },
-        maxReps?.let { "≤ $it reps" },
+        minReps?.let { "≥ ${res.getQuantityString(R.plurals.reps_count, it, it)}" },
+        maxReps?.let { "≤ ${res.getQuantityString(R.plurals.reps_count, it, it)}" },
         minDistance?.let { "≥ ${fmtNum(it)} ${exerciseId?.let { id -> snap.distanceUnit(id) } ?: snap.globalDistanceUnit}" },
         minDurationSec?.let { "≥ ${fmtDuration(it)}" }
     ).joinToString("  ·  ")
@@ -122,38 +125,42 @@ fun CalendarFilterSheet(snap: Snapshot, initial: CalendarFilter, onApply: (Calen
     )
 
     FitSheet(
-        title = "Filter days",
+        title = stringResource(R.string.cf_title),
         onDismiss = onDismiss,
-        confirmLabel = "Apply",
+        confirmLabel = stringResource(R.string.cf_apply),
         onConfirm = { onApply(built()); onDismiss() },
-        secondaryLabel = "Clear",
+        secondaryLabel = stringResource(R.string.cal_clear),
         onSecondary = { onApply(CalendarFilter()); onDismiss() }
     ) {
         Text(
-            "Highlights the days where one set meets every condition. Leave a field empty to ignore it.",
+            stringResource(R.string.cf_intro),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         ListRowWithMenu(
-            title = "Exercise",
-            subtitle = exerciseId?.let { snap.exercises[it]?.name } ?: "Any exercise",
+            title = stringResource(R.string.ex_fallback),
+            subtitle = exerciseId?.let { snap.exercises[it]?.name } ?: stringResource(R.string.cf_any_exercise),
             onClick = { picking = "exercise" }
         )
         ListRowWithMenu(
-            title = "Category",
-            subtitle = categoryId?.let { snap.categories[it]?.name } ?: "Any category",
+            title = stringResource(R.string.lib_category),
+            subtitle = categoryId?.let { snap.categories[it]?.name } ?: stringResource(R.string.cf_any_category),
             onClick = { picking = "category" }
         )
-        NumberPair("Weight at least (${snap.weightUnit})", minW, { minW = it }, "at most", maxW, { maxW = it })
-        NumberPair("Reps at least", minR, { minR = it }, "at most", maxR, { maxR = it }, decimal = false)
+        val atMost = stringResource(R.string.cf_at_most)
+        NumberPair(stringResource(R.string.cf_weight_min, snap.weightUnit), minW, { minW = it }, atMost, maxW, { maxW = it })
+        NumberPair(stringResource(R.string.cf_reps_min), minR, { minR = it }, atMost, maxR, { maxR = it }, decimal = false)
         // Distances are compared as logged, in the chosen exercise's unit or the global one (#7).
-        NumberPair("Distance at least (${exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit})", minD, { minD = it }, "Time at least (min)", minT, { minT = it })
+        NumberPair(
+            stringResource(R.string.cf_distance_min, exerciseId?.let { snap.distanceUnit(it) } ?: snap.globalDistanceUnit), minD, { minD = it },
+            stringResource(R.string.cf_time_min), minT, { minT = it }
+        )
     }
 
     when (picking) {
         "exercise" -> SearchablePicker(
-            title = "Filter by exercise",
-            items = listOf(PickerItem(-1L, "Any exercise")) + exercisePickerItems(snap),
+            title = stringResource(R.string.cf_by_exercise),
+            items = listOf(PickerItem(-1L, stringResource(R.string.cf_any_exercise))) + exercisePickerItems(snap),
             onDismiss = { picking = null },
             onPick = { ids ->
                 val id = ids.firstOrNull()
@@ -162,11 +169,11 @@ fun CalendarFilterSheet(snap: Snapshot, initial: CalendarFilter, onApply: (Calen
                 if (exerciseId != null) categoryId = null
                 picking = null
             },
-            searchLabel = "Search exercises"
+            searchLabel = stringResource(R.string.ex_search_exercises)
         )
         "category" -> SearchablePicker(
-            title = "Filter by category",
-            items = listOf(PickerItem(-1L, "Any category")) + snap.categoriesSorted.map { c ->
+            title = stringResource(R.string.cf_by_category),
+            items = listOf(PickerItem(-1L, stringResource(R.string.cf_any_category))) + snap.categoriesSorted.map { c ->
                 PickerItem(c.id, c.name, color = categoryColour(c.colour))
             },
             onDismiss = { picking = null },
@@ -175,7 +182,7 @@ fun CalendarFilterSheet(snap: Snapshot, initial: CalendarFilter, onApply: (Calen
                 if (categoryId != null) exerciseId = null
                 picking = null
             },
-            searchLabel = "Search categories"
+            searchLabel = stringResource(R.string.an_search_categories)
         )
     }
 }

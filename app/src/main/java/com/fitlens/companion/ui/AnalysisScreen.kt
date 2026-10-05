@@ -48,6 +48,11 @@ import com.fitlens.companion.ui.design.SegmentedSwitch
 import java.time.LocalDate
 import com.fitlens.companion.ui.design.OptionsMenu
 import androidx.compose.foundation.layout.Spacer
+import android.content.res.Resources
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /**
  * Analysis (#90), opened from the day log's menu. FitNotes-style navigation (#79) made it its own destination
@@ -63,15 +68,15 @@ fun AnalysisScreen(snap: Snapshot, nav: Nav) {
     var addingGoal by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = "Analysis",
+            title = stringResource(R.string.an_title),
             onBack = LocalNavBack.current,
             // Goals has + to add a goal for any exercise, as in FitNotes (#90).
             actions = if (tab == TAB_GOALS && snap.sets.isNotEmpty()) {
-                listOf(TopBarAction(Icons.Filled.Add, "Add a goal") { addingGoal = true })
+                listOf(TopBarAction(Icons.Filled.Add, stringResource(R.string.ex_add_goal)) { addingGoal = true })
             } else emptyList()
         )
         if (snap.sets.isEmpty()) {
-            EmptyState("Nothing to analyse yet", "Log a workout, or import a FitNotes backup from Settings, and your training totals, breakdown and records appear here.")
+            EmptyState(stringResource(R.string.an_empty_title), stringResource(R.string.an_empty_body))
         } else {
             AnalysisHub(snap, nav, tab, { tab = it }, addingGoal) { addingGoal = false }
         }
@@ -95,7 +100,11 @@ fun AnalysisHub(snap: Snapshot, nav: Nav, tab: Int, onTab: (Int) -> Unit, adding
     var filter by remember { mutableStateOf(Analysis.Filter()) }
     Column(Modifier.fillMaxSize()) {
         FitTabRow(
-            titles = listOf("Overview", "Workouts", "Breakdown", "Exercises", "Goals", "Records"),
+            titles = listOf(
+                stringResource(R.string.an_tab_overview), stringResource(R.string.an_tab_workouts),
+                stringResource(R.string.an_tab_breakdown), stringResource(R.string.an_tab_exercises),
+                stringResource(R.string.ex_tab_goals), stringResource(R.string.ex_tab_records)
+            ),
             selected = tab,
             onSelect = onTab
         )
@@ -124,15 +133,16 @@ fun AnalysisHub(snap: Snapshot, nav: Nav, tab: Int, onTab: (Int) -> Unit, adding
 }
 
 /** The name of what a filter covers, for chips and summaries. */
-internal fun filterLabel(snap: Snapshot, f: Analysis.Filter): String = when {
-    f.exerciseId != null -> snap.exercises[f.exerciseId]?.name ?: "Exercise"
-    f.categoryId != null -> snap.categories[f.categoryId]?.name ?: "Category"
-    else -> "All training"
+internal fun filterLabel(res: Resources, snap: Snapshot, f: Analysis.Filter): String = when {
+    f.exerciseId != null -> snap.exercises[f.exerciseId]?.name ?: res.getString(R.string.ex_fallback)
+    f.categoryId != null -> snap.categories[f.categoryId]?.name ?: res.getString(R.string.lib_category)
+    else -> res.getString(R.string.an_all_training)
 }
 
 /** All training, one category or one exercise, as one compact dropdown (#115) that opens the searchable picker. */
 @Composable
 internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilter: (Analysis.Filter) -> Unit) {
+    val res = LocalContext.current.resources
     var picking by remember { mutableStateOf<String?>(null) }
     val current = when {
         filter.exerciseId != null -> 2
@@ -140,12 +150,12 @@ internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilt
         else -> 0
     }
     DropdownPill(
-        "Training",
+        stringResource(R.string.an_training),
         // FitNotes's FILTER choices (#145): No Filter, Category, Exercise.
         listOf(
-            "No Filter",
-            if (current == 1) filterLabel(snap, filter) else "Category",
-            if (current == 2) filterLabel(snap, filter) else "Exercise"
+            stringResource(R.string.an_no_filter),
+            if (current == 1) filterLabel(res, snap, filter) else stringResource(R.string.lib_category),
+            if (current == 2) filterLabel(res, snap, filter) else stringResource(R.string.ex_fallback)
         ),
         current
     ) { i ->
@@ -164,14 +174,14 @@ internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilt
                     .map { PickerItem(it.id, it.name, color = if (it.colour == 0) null else Color(it.colour)) }
             }
             SearchablePicker(
-                title = "Category",
+                title = stringResource(R.string.lib_category),
                 items = items,
                 onDismiss = { picking = null },
                 onPick = { ids ->
                     ids.firstOrNull()?.let { onFilter(Analysis.Filter(categoryId = it)) }
                     picking = null
                 },
-                searchLabel = "Search categories"
+                searchLabel = stringResource(R.string.an_search_categories)
             )
         }
         "exercise" -> {
@@ -180,14 +190,14 @@ internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilt
                     .map { PickerItem(it.id, it.name, section = snap.categories[it.categoryId]?.name) }
             }
             SearchablePicker(
-                title = "Exercise",
+                title = stringResource(R.string.ex_fallback),
                 items = items,
                 onDismiss = { picking = null },
                 onPick = { ids ->
                     ids.firstOrNull()?.let { onFilter(Analysis.Filter(exerciseId = it)) }
                     picking = null
                 },
-                searchLabel = "Search exercises"
+                searchLabel = stringResource(R.string.ex_search_exercises)
             )
         }
     }
@@ -223,22 +233,31 @@ internal fun totalsShown(snap: Snapshot, metric: Analysis.Metric, avgDuration: B
 }
 
 /** The unit a Workouts graph shows; empty for counts, which read "12 sets". */
-internal fun totalsUnit(snap: Snapshot, metric: Analysis.Metric, avgDuration: Boolean): String = when {
+internal fun totalsUnit(res: Resources, snap: Snapshot, metric: Analysis.Metric, avgDuration: Boolean): String = when {
     metric == Analysis.Metric.Volume -> snap.weightUnit
-    avgDuration -> "min"
-    metric == Analysis.Metric.Duration -> "h"
+    avgDuration -> res.getString(R.string.an_unit_min)
+    metric == Analysis.Metric.Duration -> res.getString(R.string.an_unit_h)
     else -> ""
 }
 
 /** A shown value with its unit ([totalsUnit], or the count's name): "1,240 kg", "3.5 h", "12 sets". */
-internal fun totalsText(metric: Analysis.Metric, avgDuration: Boolean, unit: String, v: Double): String {
+internal fun totalsText(res: Resources, metric: Analysis.Metric, avgDuration: Boolean, unit: String, v: Double): String {
     val digits = if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0
-    return fmtNum(v, digits) + if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
+    return res.getString(R.string.an_value_unit, fmtNum(v, digits), unit.ifEmpty { metric.word(res) })
 }
 
 /** FitNotes's name for a Workouts graph (#145): "Volume Per Week", "Workout Duration Per Month". */
-internal fun totalsGraphName(metric: Analysis.Metric, period: Analysis.Period): String =
-    "${if (metric == Analysis.Metric.Duration) "Workout Duration" else metric.label} Per ${period.name}"
+internal fun totalsGraphName(res: Resources, metric: Analysis.Metric, period: Analysis.Period): String {
+    val what = if (metric == Analysis.Metric.Duration) res.getString(R.string.an_workout_duration) else metric.text(res)
+    return res.getString(
+        when (period) {
+            Analysis.Period.Week -> R.string.an_per_week
+            Analysis.Period.Month -> R.string.an_per_month
+            Analysis.Period.Year -> R.string.an_per_year
+        },
+        what
+    )
+}
 
 /** A pinned Workouts graph's metric and period (#55), or null when the pin names ones this build doesn't know. */
 internal fun totalsOf(pin: PinnedGraph): Pair<Analysis.Metric, Analysis.Period>? {
@@ -264,6 +283,7 @@ internal fun totalsPoints(
 
 @Composable
 private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFilter: (Analysis.Filter) -> Unit) {
+    val res = LocalContext.current.resources
     // A pinned Workouts graph opened from the Overview (#55) sets the graph, range and option once.
     val opened = remember { TotalsChoice.pin.also { TotalsChoice.pin = null }?.let { p -> totalsOf(p)?.let { p to it } } }
     var periodIdx by rememberSaveable { mutableIntStateOf(opened?.second?.second?.ordinal ?: 0) }
@@ -289,7 +309,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     fun valueOf(t: Analysis.PeriodTotal): Double = totalsValue(t, avgDuration)
     // Volume in the display unit, total duration in hours and average duration in minutes; counts as they are.
     fun shown(v: Double): Double = totalsShown(snap, metric, avgDuration, v)
-    val unit = totalsUnit(snap, metric, avgDuration)
+    val unit = totalsUnit(res, snap, metric, avgDuration)
     // Pinned to the Analysis overview (#55), one pin per graph and filter, kept in step with its range and option.
     val pins = rememberPins()
     val pinNow = PinnedGraph(
@@ -301,18 +321,18 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
         if (pinned) updatePins { list -> list.map { if (it.sameGraph(pinNow) && it != pinNow) pinNow else it } }
     }
     val fmt: (Double) -> String = if (metric == Analysis.Metric.Duration && !avgDuration) { v -> fmtNum(v, 1) } else { v -> fmtNum(v, 0) }
-    fun withUnit(v: Double) = fmt(v) + if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
+    fun withUnit(v: Double) = res.getString(R.string.an_value_unit, fmt(v), unit.ifEmpty { metric.word(res) })
     // One point per period at its first day (#116): a line shows progression over time better than bars.
     val points = remember(totals, metric, snap.weightUnit, avgDuration) {
         totals.orEmpty().map { ChartPoint(it.start.toEpochDay(), shown(valueOf(it)), it.start.format(Dates.ISO)) }
     }
-    val series = remember(points, metric) { listOf(LineSeries(metric.label, points)) }
+    val series = remember(points, metric) { listOf(LineSeries(metric.text(res), points)) }
     val overlayDef = overlayName?.let { n -> snap.allMeasurements.firstOrNull { it.name == n } }
     val overlay = overlayDef?.let { d ->
         remember(snap.bodyKey, d.name, period, from) {
             val avgs = Analysis.periodAverages(snap.dailySeries(d.name), period, from)
             LineSeries(
-                "${d.name} (${period.label.lowercase()} average)",
+                res.getString(R.string.an_overlay_average, d.name, period.word(res)),
                 avgs.map { (start, v) -> ChartPoint(start.toEpochDay(), v, start.format(Dates.ISO)) }
             )
         }
@@ -320,7 +340,7 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
     val overlayUnit = overlayDef?.unit.orEmpty()
     /** The overlay's average in the period starting [start], when it has one. */
     fun overlayIn(start: String): String? = overlay?.let { o ->
-        o.points.firstOrNull { it.date == start }?.let { q -> "${o.label}: ${fmtNum(q.y, 1)} $overlayUnit".trimEnd() }
+        o.points.firstOrNull { it.date == start }?.let { q -> res.getString(R.string.an_label_value, o.label, "${fmtNum(q.y, 1)} $overlayUnit".trimEnd()) }
     }
     val partial = totals?.lastOrNull()?.current == true
     // Line, bar, area or step, remembered for each measure (#137).
@@ -334,8 +354,8 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             val metrics = Analysis.Metric.entries
             val periods = Analysis.Period.entries
             DropdownPill(
-                "Graph",
-                periods.flatMap { p -> metrics.map { m -> totalsGraphName(m, p) } },
+                stringResource(R.string.ex_graph),
+                periods.flatMap { p -> metrics.map { m -> totalsGraphName(res, m, p) } },
                 periodIdx * metrics.size + metricIdx
             ) { i -> periodIdx = i / metrics.size; metricIdx = i % metrics.size }
             AnalysisFilterChips(snap, filter, onFilter)
@@ -345,19 +365,19 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
             showTrend, { showTrend = !showTrend },
             kind = kind, onKind = setKind,
             extra = if (metric == Analysis.Metric.Duration) {
-                listOf(ToggleOption("Average per workout", durationAvg) { durationAvg = !durationAvg })
+                listOf(ToggleOption(stringResource(R.string.an_average_per_workout), durationAvg) { durationAvg = !durationAvg })
             } else emptyList(),
             actions = listOf(
-                MenuAction(if (overlayName == null) "Overlay a body measurement…" else "Change body overlay…") { pickOverlay = true }
+                MenuAction(stringResource(if (overlayName == null) R.string.ex_overlay_add else R.string.ex_overlay_change)) { pickOverlay = true }
             ),
             trailing = {
                 PinGraphButton(pinned) {
                     if (pinned) {
                         updatePins { list -> list.filterNot { it.sameGraph(pinNow) } }
-                        UiEvents.show("Unpinned from the Analysis overview")
+                        UiEvents.show(res.getString(R.string.ex_unpinned))
                     } else {
                         updatePins { list -> list.filterNot { it.sameGraph(pinNow) } + pinNow }
-                        UiEvents.show("Pinned to the Analysis overview")
+                        UiEvents.show(res.getString(R.string.ex_pinned))
                     }
                 }
                 ExpandGraphButton { fullScreen = true }
@@ -365,11 +385,10 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
         )
 
         when {
-            totals == null -> AnalysisNote("Working it out…")
+            totals == null -> AnalysisNote(stringResource(R.string.ex_working))
             totals.all { valueOf(it) <= 0 } -> EmptyState(
-                "Nothing to show",
-                "No ${metric.label.lowercase()} for ${filterLabel(snap, filter).lowercase()} in this range. " +
-                    "Try a longer range or another filter."
+                stringResource(R.string.an_nothing_title),
+                stringResource(R.string.an_nothing_body, metric.word(res), filterLabel(res, snap, filter).lowercase())
             )
             else -> {
                 FitChart(
@@ -388,30 +407,31 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                     overlayUnit = overlayUnit
                 )
                 ChartHint(Modifier.padding(horizontal = 16.dp))
-                if (partial) AnalysisNote("The last point is this ${period.name.lowercase()}, still in progress.")
+                if (partial) AnalysisNote(stringResource(R.string.an_last_partial, period.word(res)))
 
                 // The selected period: its dates, value, change and the workouts in it.
                 val t = sel?.let { totals.getOrNull(it) }
                 if (t != null) {
                     val prev = sel?.let { totals.getOrNull(it - 1) }
-                    val soFar = if (t.current) " (so far)" else ""
                     Text(
-                        Analysis.longLabel(t, period) + soFar,
+                        if (t.current) stringResource(R.string.an_so_far, Analysis.longLabel(t, period)) else Analysis.longLabel(t, period),
                         Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.titleMedium
                     )
                     // The change in the metric's own unit, with the value before, never a bare number (owner, 2026-10-02).
                     val change = prev?.let {
-                        val unitWord = if (unit.isEmpty()) " ${metric.label.lowercase()}" else " $unit"
-                        " · ${fmtSigned(shown(valueOf(t)) - shown(valueOf(it)), if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0)}" +
-                            "$unitWord vs the ${period.name.lowercase()} before (${withUnit(shown(valueOf(it)))})"
+                        val signed = fmtSigned(shown(valueOf(t)) - shown(valueOf(it)), if (metric == Analysis.Metric.Duration && !avgDuration) 1 else 0)
+                        res.getString(
+                            R.string.an_change_vs, res.getString(R.string.an_value_unit, signed, unit.ifEmpty { metric.word(res) }),
+                            period.word(res), withUnit(shown(valueOf(it)))
+                        )
                     } ?: ""
                     val delta = prev?.let { shown(valueOf(t)) - shown(valueOf(it)) } ?: 0.0
                     AnalysisNote(withUnit(shown(valueOf(t))) + change, deltaColour(delta, MaterialTheme.colorScheme.onSurfaceVariant))
-                    if (overlay != null) AnalysisNote(overlayIn(t.start.format(Dates.ISO)) ?: "No ${overlayName} values in this ${period.name.lowercase()}.")
+                    if (overlay != null) AnalysisNote(overlayIn(t.start.format(Dates.ISO)) ?: stringResource(R.string.an_overlay_none, overlayName.orEmpty(), period.word(res)))
                     if (t.days.isNotEmpty()) {
                         TextButton(onClick = { showDays = !showDays }, modifier = Modifier.padding(horizontal = 4.dp)) {
-                            Text(if (showDays) "Hide workouts" else "Open ${t.days.size} ${if (t.days.size == 1) "workout" else "workouts"}")
+                            Text(if (showDays) stringResource(R.string.an_hide_workouts) else pluralStringResource(R.plurals.an_open_workouts, t.days.size, t.days.size))
                         }
                         if (showDays) t.days.reversed().forEach { d ->
                             Text(
@@ -428,38 +448,39 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
                 val avgOver = complete.ifEmpty { totals }
                 val avg = avgOver.sumOf { shown(valueOf(it)) } / avgOver.size
                 val best = totals.maxBy { valueOf(it) }
-                SectionTitle("Summary")
+                SectionTitle(stringResource(R.string.an_summary))
                 AnalysisNote(
-                    "Average ${withUnit(avg)} per ${period.name.lowercase()}" +
-                        (if (complete.size < totals.size) " (not counting this ${period.name.lowercase()}, still in progress)" else "") +
-                        ". Best: ${Analysis.longLabel(best, period)}, ${withUnit(shown(valueOf(best)))}."
+                    stringResource(
+                        if (complete.size < totals.size) R.string.an_summary_partial else R.string.an_summary_line,
+                        withUnit(avg), period.word(res), Analysis.longLabel(best, period), withUnit(shown(valueOf(best)))
+                    )
                 )
                 when (metric) {
                     Analysis.Metric.Volume, Analysis.Metric.Reps ->
-                        AnalysisNote("Time and distance sets aren't counted in ${metric.label.lowercase()}.")
+                        AnalysisNote(stringResource(R.string.an_time_not_counted, metric.word(res)))
                     Analysis.Metric.Duration -> {
                         val all = totals.sumOf { it.days.size }
                         val timed = totals.sumOf { it.timed }
-                        AnalysisNote("Only workouts with a start and finish time count: $timed of $all here.")
+                        AnalysisNote(stringResource(R.string.an_timed_only, timed, all))
                         DurationPerWorkout(snap, nav, filter, from)
                     }
                     else -> {}
                 }
-                if (period == Analysis.Period.Week) AnalysisNote("Weeks start on ${Analysis.weekStartName()}, as set in Units & display.")
+                if (period == Analysis.Period.Week) AnalysisNote(stringResource(R.string.an_week_start, Analysis.weekStartName()))
             }
         }
     }
 
     if (fullScreen && !totals.isNullOrEmpty()) {
         FullScreenChart(
-            "${metric.label} · ${filterLabel(snap, filter)}",
+            res.getString(R.string.an_title_dot, metric.text(res), filterLabel(res, snap, filter)),
             onDismiss = { fullScreen = false },
             controls = { GraphOptionChips(rangeIdx, { rangeIdx = it }, showTrend, { showTrend = !showTrend }, kind = kind, onKind = setKind) },
             valueZoom = kind != ChartKind.BAR,
             footer = {
                 sel?.let { totals.getOrNull(it) }?.let { t ->
                     Text(
-                        "${Analysis.longLabel(t, period)}: ${withUnit(shown(valueOf(t)))}",
+                        res.getString(R.string.an_label_value, Analysis.longLabel(t, period), withUnit(shown(valueOf(t)))),
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -495,6 +516,8 @@ private fun WorkoutsTab(snap: Snapshot, nav: Nav, filter: Analysis.Filter, onFil
  */
 @Composable
 private fun DurationPerWorkout(snap: Snapshot, nav: Nav, filter: Analysis.Filter, from: String?) {
+    val res = LocalContext.current.resources
+    val min = stringResource(R.string.an_unit_min)
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fromZero by rememberSaveable { mutableStateOf(false) }
     var fullScreen by remember { mutableStateOf(false) }
@@ -508,17 +531,17 @@ private fun DurationPerWorkout(snap: Snapshot, nav: Nav, filter: Analysis.Filter
             }
             .sortedBy { it.x }
     } ?: emptyList()
-    val series = listOf(LineSeries("Workout length", points))
+    val series = listOf(LineSeries(stringResource(R.string.an_workout_length), points))
     val (kind, setKind) = rememberChartKind("analysis:workout-length")
-    SectionTitle("Each workout")
+    SectionTitle(stringResource(R.string.an_each_workout))
     Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         // Line, bar, area or step (#137).
-        DropdownPill("Chart type", ChartKind.entries.map { it.label }, kind.ordinal) { i -> setKind(ChartKind.entries[i]) }
+        DropdownPill(stringResource(R.string.an_chart_type), ChartKind.entries.map { it.label }, kind.ordinal) { i -> setKind(ChartKind.entries[i]) }
         Spacer(Modifier.weight(1f))
         OptionsMenu(
             listOf(
-                ToggleOption("Trend", showTrend) { showTrend = !showTrend },
-                ToggleOption("From zero", fromZero) { fromZero = !fromZero }
+                ToggleOption(stringResource(R.string.an_trend), showTrend) { showTrend = !showTrend },
+                ToggleOption(stringResource(R.string.an_from_zero), fromZero) { fromZero = !fromZero }
             )
         )
         ExpandGraphButton { fullScreen = true }
@@ -530,25 +553,25 @@ private fun DurationPerWorkout(snap: Snapshot, nav: Nav, filter: Analysis.Filter
         selected = sel?.let { ChartSelection(0, it) },
         onSelect = { sel = it.index; ChartHints.tapped() },
         yFormat = { fmtNum(it, 0) },
-        unit = "min",
+        unit = min,
         showTrend = showTrend,
         yFromZero = fromZero,
         onExpand = { ChartHints.expanded(); fullScreen = true }
     )
     val picked = sel?.let { points.getOrNull(it) }
     if (picked != null) {
-        AnalysisNote("${Dates.long(picked.date)}: ${fmtDuration((picked.y * 60).toInt())}.")
+        AnalysisNote(stringResource(R.string.an_date_duration, Dates.long(picked.date), fmtDuration((picked.y * 60).toInt())))
         NearestPhotoThumb(snap, nav, picked.date, Modifier.padding(horizontal = 16.dp))
-    } else if (points.isNotEmpty()) AnalysisNote("${points.size} timed workouts, ${fmtDuration((points.sumOf { it.y } / points.size * 60).toInt())} on average.")
+    } else if (points.isNotEmpty()) AnalysisNote(pluralStringResource(R.plurals.an_timed_average, points.size, points.size, fmtDuration((points.sumOf { it.y } / points.size * 60).toInt())))
     if (fullScreen) {
         FullScreenChart(
-            "Workout length · ${filterLabel(snap, filter)}",
+            res.getString(R.string.an_title_dot, res.getString(R.string.an_workout_length), filterLabel(res, snap, filter)),
             onDismiss = { fullScreen = false },
             valueZoom = kind != ChartKind.BAR,
             footer = {
                 sel?.let { points.getOrNull(it) }?.let { p ->
                     Text(
-                        "${Dates.long(p.date)}: ${fmtDuration((p.y * 60).toInt())}",
+                        res.getString(R.string.an_label_value, Dates.long(p.date), fmtDuration((p.y * 60).toInt())),
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         style = MaterialTheme.typography.titleMedium
                     )
@@ -562,7 +585,7 @@ private fun DurationPerWorkout(snap: Snapshot, nav: Nav, filter: Analysis.Filter
                 selected = sel?.let { ChartSelection(0, it) },
                 onSelect = { sel = it.index },
                 yFormat = { fmtNum(it, 0) },
-                unit = "min",
+                unit = min,
                 showTrend = showTrend,
                 yFromZero = fromZero,
                 viewport = vp,

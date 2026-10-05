@@ -19,6 +19,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
+import kotlin.math.abs
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +51,7 @@ import com.fitlens.companion.ui.design.DropdownPill
  */
 @Composable
 fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
+    val res = LocalContext.current.resources
     var measureIdx by rememberSaveable { mutableIntStateOf(0) }
     var groupIdx by rememberSaveable { mutableIntStateOf(0) }
     var spanIdx by rememberSaveable { mutableIntStateOf(Analysis.Span.Month.ordinal) }
@@ -76,7 +82,7 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
     fun shown(v: Double) = if (measure == Analysis.Measure.Volume) snap.weight(v) else v
     fun withUnit(v: Double): String = when (measure) {
         Analysis.Measure.Volume -> "${fmtNum(snap.weight(v), 0)} ${snap.weightUnit}"
-        else -> "${fmtNum(v, 0)} ${if (v == 1.0) measure.unitOne else measure.unitMany}"
+        else -> measure.count(res, fmtNum(v, 0), v)
     }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
@@ -89,15 +95,18 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
             val measures = Analysis.Measure.entries
             val groups = Analysis.GroupBy.entries
             DropdownPill(
-                label = "Breakdown",
+                label = stringResource(R.string.an_tab_breakdown),
                 options = groups.flatMap { g ->
-                    measures.map { m -> (if (m == Analysis.Measure.Volume) "Training Volume" else "Number Of ${m.label}") + " (By ${g.label})" }
+                    measures.map { m ->
+                        if (m == Analysis.Measure.Volume) res.getString(R.string.an_bd_volume, g.text(res))
+                        else res.getString(R.string.an_bd_number, m.text(res), g.text(res))
+                    }
                 },
                 selected = groupIdx * measures.size + measureIdx
             ) { i -> groupIdx = i / measures.size; measureIdx = i % measures.size }
             DropdownPill(
-                label = "Span",
-                options = Analysis.Span.entries.map { it.label },
+                label = stringResource(R.string.an_span),
+                options = Analysis.Span.entries.map { it.text(res) },
                 selected = spanIdx
             ) { i ->
                 spanIdx = i
@@ -109,34 +118,33 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
         // The period: newest first, with only periods that hold training.
         if (span == Analysis.Span.Custom) {
             TextButton(onClick = { pickingCustom = true }, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Text(window?.label ?: "Choose dates")
+                Text(window?.label ?: stringResource(R.string.an_choose_dates))
             }
         } else if (windows.isNotEmpty() && span != Analysis.Span.All) {
             // FitNotes's DATE dropdown (#127): every period that holds training, newest first.
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 DropdownPill(
-                    label = "Date",
-                    options = windows.map { it.label },
+                    label = stringResource(R.string.an_date),
+                    options = windows.map { it.text(res, span) },
                     selected = windowIdx.coerceIn(0, windows.lastIndex)
                 ) { i -> windowIdx = i }
             }
         } else if (window != null) {
-            Text(window.label, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.titleSmall)
+            Text(window.text(res, span), Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.titleSmall)
         }
 
         if (working) {
-            AnalysisNote("Working it out…")
+            AnalysisNote(stringResource(R.string.ex_working))
         } else if (window == null || slices.isEmpty()) {
             EmptyState(
-                "Nothing to break down",
-                if (span == Analysis.Span.Custom && custom == null) "Choose a date range to see how your training splits up."
-                else "No training in this period."
+                stringResource(R.string.an_bd_empty_title),
+                stringResource(if (span == Analysis.Span.Custom && custom == null) R.string.an_bd_choose_range else R.string.an_bd_no_training)
             )
         } else {
             val donut = slices.map { DonutSlice(it.label, shown(it.value)) }
             val donutFormat: (Double) -> String = { v ->
                 if (measure == Analysis.Measure.Volume) "${fmtNum(v, 0)} ${snap.weightUnit}"
-                else "${fmtNum(v, 0)} ${if (v == 1.0) measure.unitOne else measure.unitMany}"
+                else measure.count(res, fmtNum(v, 0), v)
             }
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.End) {
                 ExpandGraphButton { fullScreen = true }
@@ -153,16 +161,16 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
                 )
                 Column(Modifier.padding(end = 4.dp)) {
                     IconButton(onClick = { sel = (sel - 1 + donut.size) % donut.size }, enabled = donut.size > 1) {
-                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Previous slice", tint = Brand.Gold)
+                        Icon(Icons.Filled.KeyboardArrowUp, contentDescription = stringResource(R.string.an_previous_slice), tint = Brand.Gold)
                     }
                     IconButton(onClick = { sel = (sel + 1) % donut.size }, enabled = donut.size > 1) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Next slice", tint = Brand.Gold)
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = stringResource(R.string.an_next_slice), tint = Brand.Gold)
                     }
                 }
             }
             if (fullScreen) {
                 FullScreenDonut(
-                    "${measure.label} by ${group.label.lowercase()} · ${window.label}",
+                    res.getString(R.string.an_bd_full, measure.text(res), group.text(res).lowercase(), window.text(res, span)),
                     donut,
                     selected = sel,
                     onSelect = { sel = it },
@@ -182,13 +190,14 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
                     }
                     val was = Analysis.measure(before, measure)
                     val diff = slice.value - was
-                    val what = if (span == Analysis.Span.Workout) "the workout before" else "the ${span.label.lowercase()} before"
                     fun amount(v: Double, signed: Boolean): String {
                         val n = if (measure == Analysis.Measure.Volume) snap.weight(v) else v
-                        val u = if (measure == Analysis.Measure.Volume) snap.weightUnit else measure.unitMany
-                        return "${if (signed) fmtSigned(n, 0) else fmtNum(n, 0)} $u"
+                        val num = if (signed) fmtSigned(n, 0) else fmtNum(n, 0)
+                        return if (measure == Analysis.Measure.Volume) "$num ${snap.weightUnit}" else measure.count(res, num, abs(n))
                     }
-                    AnalysisNote("${slice.label}: ${amount(slice.value, false)}, ${amount(diff, true)} vs $what (${amount(was, false)}).")
+                    AnalysisNote(
+                        stringResource(R.string.an_bd_compare, slice.label, amount(slice.value, false), amount(diff, true), span.before(res), amount(was, false))
+                    )
                 }
                 Row(Modifier.padding(horizontal = 4.dp)) {
                     TextButton(onClick = {
@@ -196,26 +205,26 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
                             if (group == Analysis.GroupBy.Exercise) Analysis.Filter(exerciseId = slice.id)
                             else Analysis.Filter(categoryId = slice.id)
                         )
-                    }) { Text("Totals for ${slice.label}") }
+                    }) { Text(stringResource(R.string.an_bd_totals_for, slice.label)) }
                     if (group == Analysis.GroupBy.Exercise) {
-                        TextButton(onClick = { nav.push(Screen.SetEntry(Dates.today(), slice.id, page = 2)) }) { Text("Open exercise") }
+                        TextButton(onClick = { nav.push(Screen.SetEntry(Dates.today(), slice.id, page = 2)) }) { Text(stringResource(R.string.an_open_exercise)) }
                     }
                 }
             }
 
             // Totals for the whole period, whatever the grouping.
             val sets = remember(snap.trainingKey, window) { Analysis.setsIn(snap, window.from, window.to) }
-            SectionTitle("This period")
+            SectionTitle(stringResource(R.string.an_this_period))
             Row(Modifier.padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile("Workouts", fmtNum(Analysis.measure(sets, Analysis.Measure.Workouts), 0), Modifier.weight(1f))
-                StatTile("Sets", fmtNum(Analysis.measure(sets, Analysis.Measure.Sets), 0), Modifier.weight(1f))
+                StatTile(stringResource(R.string.an_metric_workouts), fmtNum(Analysis.measure(sets, Analysis.Measure.Workouts), 0), Modifier.weight(1f))
+                StatTile(stringResource(R.string.an_metric_sets), fmtNum(Analysis.measure(sets, Analysis.Measure.Sets), 0), Modifier.weight(1f))
             }
             Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile("Reps", fmtNum(Analysis.measure(sets, Analysis.Measure.Reps), 0), Modifier.weight(1f))
-                StatTile("Volume", withUnit(Analysis.measure(sets, Analysis.Measure.Volume)), Modifier.weight(1f))
+                StatTile(stringResource(R.string.an_metric_reps), fmtNum(Analysis.measure(sets, Analysis.Measure.Reps), 0), Modifier.weight(1f))
+                StatTile(stringResource(R.string.an_metric_volume), withUnit(Analysis.measure(sets, Analysis.Measure.Volume)), Modifier.weight(1f))
             }
-            if (slices.size >= 8) AnalysisNote("The smallest groups are combined as Other.")
-            AnalysisNote("Volume counts sets with both a weight and reps.")
+            if (slices.size >= 8) AnalysisNote(stringResource(R.string.an_bd_other))
+            AnalysisNote(stringResource(R.string.an_bd_volume_note))
         }
     }
 

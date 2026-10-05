@@ -19,7 +19,12 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import android.content.res.Resources
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,10 +55,10 @@ internal fun goalShown(snap: Snapshot, kind: Int, v: Double, exerciseId: Long? =
     else -> v
 }
 
-internal fun goalUnit(snap: Snapshot, kind: Int, exerciseId: Long? = null): String = when {
+internal fun goalUnit(res: Resources, snap: Snapshot, kind: Int, exerciseId: Long? = null): String = when {
     GoalKinds.isWeight(kind) -> snap.weightUnitOf(exerciseId)
-    GoalKinds.isTime(kind) -> "min"
-    kind == GoalKinds.MAX_REPS -> "reps"
+    GoalKinds.isTime(kind) -> res.getString(R.string.an_unit_min)
+    kind == GoalKinds.MAX_REPS -> res.getString(R.string.an_word_reps)
     else -> ""
 }
 
@@ -85,6 +90,7 @@ fun GoalsTab(
     /** The "Add a goal" button, for places without a + in their top bar (the overview sheet). */
     showAddButton: Boolean = true
 ) {
+    val res = LocalContext.current.resources
     val goals = snap.goalsByExercise[exId].orEmpty()
     val sets = snap.statSetsByExercise[exId].orEmpty()
     var editing by remember { mutableStateOf<ExerciseGoal?>(null) }
@@ -110,49 +116,48 @@ fun GoalsTab(
         if (goals.isEmpty()) {
             // FitNotes's words (#142).
             EmptyState(
-                "You haven't created any training goals yet",
-                if (showAddButton) "Set a target, such as a heavier max or a bigger workout, and follow your progress towards it."
-                else "Tap + to set a target, such as a heavier max or a bigger workout, and follow your progress towards it."
+                stringResource(R.string.goals_empty_title),
+                stringResource(if (showAddButton) R.string.goals_empty_body else R.string.goals_empty_body_plus)
             )
         }
         goals.forEachIndexed { i, g ->
             val p = remember(sets, g) { GoalKinds.progress(g.kind, g.target, sets) }
-            val (title, status) = goalText(snap, g, p)
+            val (title, status) = goalText(res, snap, g, p)
             ListRowWithMenu(
                 title = title,
                 subtitle = status,
                 onClick = { editing = g },
                 menu = listOf(
-                    MenuAction("Edit") { editing = g },
-                    MenuAction("Delete") { deleting = g }
+                    MenuAction(stringResource(R.string.lib_edit)) { editing = g },
+                    MenuAction(stringResource(R.string.lib_delete)) { deleting = g }
                 ),
                 onMoveUp = if (i > 0) { { move(i, -1) } } else null,
                 onMoveDown = if (i < goals.lastIndex) { { move(i, 1) } } else null
             )
-            val pct = (p.fraction(g.target) * 100).toInt()
+            val percentText = stringResource(R.string.goals_percent, (p.fraction(g.target) * 100).toInt())
             LinearProgressIndicator(
                 progress = { p.fraction(g.target) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .height(6.dp)
-                    .semantics { contentDescription = "$pct percent of the goal" },
+                    .semantics { contentDescription = percentText },
                 color = Brand.Gold,
                 trackColor = Brand.Hairline
             )
         }
         if (showAddButton) {
-            GoldButton(onClick = { editing = newGoal() }, modifier = Modifier.padding(16.dp)) { Text("Add a goal") }
+            GoldButton(onClick = { editing = newGoal() }, modifier = Modifier.padding(16.dp)) { Text(stringResource(R.string.ex_add_goal)) }
         }
-        if (goals.isNotEmpty()) AnalysisNote("Turn on Goal under a matching graph to see the target as a line.")
+        if (goals.isNotEmpty()) AnalysisNote(stringResource(R.string.goals_line_hint))
     }
 
     editing?.let { g -> GoalEditor(snap, g, timeBased) { editing = null } }
     deleting?.let { g ->
         ConfirmSheet(
-            title = "Delete this goal?",
-            message = "${GoalKinds.label(g.kind)}. Your sets and records aren't affected.",
-            confirmLabel = "Delete goal",
+            title = stringResource(R.string.goals_delete_title),
+            message = stringResource(R.string.goals_delete_body, goalKindText(res, g.kind)),
+            confirmLabel = stringResource(R.string.goals_delete_confirm),
             onDismiss = { deleting = null },
             onConfirm = { AppScope.scope.launch { Goals.delete(g.id) } }
         )
@@ -160,26 +165,27 @@ fun GoalsTab(
 }
 
 /** A goal's title ("Max weight: 120 kg") and where it stands, for the goal lists (#25, #90). */
-internal fun goalText(snap: Snapshot, g: ExerciseGoal, p: GoalProgress): Pair<String, String> {
-    val unit = goalUnit(snap, g.kind, g.exerciseId)
+internal fun goalText(res: Resources, snap: Snapshot, g: ExerciseGoal, p: GoalProgress): Pair<String, String> {
+    val unit = goalUnit(res, snap, g.kind, g.exerciseId)
     val target = "${fmtNum(goalShown(snap, g.kind, g.target, g.exerciseId), 1)} $unit".trim()
     val best = "${fmtNum(goalShown(snap, g.kind, p.best, g.exerciseId), 1)} $unit".trim()
     val status = when {
-        p.achievedDate != null -> "Reached on ${Dates.medium(p.achievedDate)}"
+        p.achievedDate != null -> res.getString(R.string.goals_reached, Dates.medium(p.achievedDate))
         p.bestDate != null -> {
             val left = goalShown(snap, g.kind, g.target, g.exerciseId) - goalShown(snap, g.kind, p.best, g.exerciseId)
-            "Best so far $best on ${Dates.medium(p.bestDate)}" +
-                if (left > 0) " · ${"${fmtNum(left, 1)} $unit".trim()} to go" else ""
+            if (left > 0) res.getString(R.string.goals_best_to_go, best, Dates.medium(p.bestDate), "${fmtNum(left, 1)} $unit".trim())
+            else res.getString(R.string.goals_best, best, Dates.medium(p.bestDate))
         }
-        else -> "Nothing logged towards it yet"
+        else -> res.getString(R.string.goals_nothing_yet)
     }
-    return "${GoalKinds.label(g.kind)}: $target" to status
+    return res.getString(R.string.an_label_value, goalKindText(res, g.kind), target) to status
 }
 
 /** The goal editor (#25): its kind and target. Also opened from Analysis → Goals (#90). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun GoalEditor(snap: Snapshot, goal: ExerciseGoal, timeBased: Boolean, onDismiss: () -> Unit) {
+    val res = LocalContext.current.resources
     val kinds = if (timeBased) GoalKinds.timed else GoalKinds.strength
     var kind by remember { mutableIntStateOf(goal.kind) }
     var text by remember {
@@ -200,21 +206,21 @@ internal fun GoalEditor(snap: Snapshot, goal: ExerciseGoal, timeBased: Boolean, 
     }
 
     FitSheet(
-        title = if (goal.id == 0L) "New goal" else "Edit goal",
+        title = stringResource(if (goal.id == 0L) R.string.goals_new else R.string.goals_edit),
         onDismiss = onDismiss,
-        confirmLabel = "Save goal",
+        confirmLabel = stringResource(R.string.goals_save),
         onConfirm = { save() },
         confirmEnabled = value != null && value > 0
     ) {
-        Text("Goal", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.goal_generic), style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            kinds.forEach { k -> FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(GoalKinds.label(k)) }) }
+            kinds.forEach { k -> FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(goalKindText(res, k)) }) }
         }
-        val unit = goalUnit(snap, kind, goal.exerciseId)
+        val unit = goalUnit(res, snap, kind, goal.exerciseId)
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            label = { Text(if (unit.isBlank()) "Target" else "Target ($unit)") },
+            label = { Text(if (unit.isBlank()) stringResource(R.string.goals_target) else stringResource(R.string.goals_target_unit, unit)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth()

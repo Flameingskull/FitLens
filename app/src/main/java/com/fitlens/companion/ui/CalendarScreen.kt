@@ -219,7 +219,7 @@ fun CalendarScreen(snap: Snapshot, nav: Nav) {
 private fun FilterBar(snap: Snapshot, filter: CalendarFilter, month: YearMonth, matches: Set<String>, onEdit: () -> Unit, onClear: () -> Unit) {
     val prefix = month.toString()
     val inMonth = matches.count { it.startsWith(prefix) }
-    val words = filter.describe(snap)
+    val words = filter.describe(LocalContext.current.resources, snap)
     val changeLabel = stringResource(R.string.cal_change_filter)
     Row(
         Modifier

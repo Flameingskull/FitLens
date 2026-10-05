@@ -13,6 +13,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -59,13 +63,10 @@ fun AnalysisExercisesTab(snap: Snapshot, nav: Nav) {
     val chosen = exId?.takeIf { snap.exercises.containsKey(it) && snap.setsByExercise[it].orEmpty().isNotEmpty() }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-            PickerPill("Exercise", chosen?.let { snap.exercises[it]?.name } ?: "Choose an exercise…") { picking = true }
+            PickerPill(stringResource(R.string.ex_fallback), chosen?.let { snap.exercises[it]?.name } ?: stringResource(R.string.an_choose_exercise)) { picking = true }
         }
         if (chosen == null) {
-            EmptyState(
-                "No exercise chosen",
-                "Choose an exercise to see its graphs: estimated 1RM, max weight, volume, personal records and more."
-            )
+            EmptyState(stringResource(R.string.an_no_exercise_title), stringResource(R.string.an_no_exercise_body))
         } else {
             // A fresh pane per exercise, so it opens on that exercise's own default graph.
             Box(Modifier.weight(1f)) { key(chosen) { ExerciseGraphPane(snap, nav, chosen, initial = pin?.takeIf { it.exerciseId == chosen }) } }
@@ -74,14 +75,14 @@ fun AnalysisExercisesTab(snap: Snapshot, nav: Nav) {
     if (picking) {
         val items = exercisePickerItems(snap).filter { snap.setsByExercise[it.id].orEmpty().isNotEmpty() }
         SearchablePicker(
-            title = "Exercise",
+            title = stringResource(R.string.ex_fallback),
             items = items,
             onDismiss = { picking = false },
             onPick = { ids ->
                 ids.firstOrNull()?.let { exId = it; AnalysisChoice.exerciseId = it }
                 picking = false
             },
-            searchLabel = "Search exercises"
+            searchLabel = stringResource(R.string.ex_search_exercises)
         )
     }
 }
@@ -92,6 +93,7 @@ fun AnalysisExercisesTab(snap: Snapshot, nav: Nav) {
  */
 @Composable
 fun AnalysisGoalsTab(snap: Snapshot, nav: Nav, adding: Boolean, onAddingDone: () -> Unit) {
+    val res = LocalContext.current.resources
     var editing by remember { mutableStateOf<ExerciseGoal?>(null) }
     val byExercise = remember(snap) {
         snap.goals.groupBy { it.exerciseId }.entries
@@ -99,30 +101,31 @@ fun AnalysisGoalsTab(snap: Snapshot, nav: Nav, adding: Boolean, onAddingDone: ()
             .sortedBy { snap.exercises[it.key]?.name?.lowercase() }
     }
     if (byExercise.isEmpty()) {
-        EmptyState("No training goals yet", "Tap + to set a target for any exercise, such as a heavier max or a bigger workout.")
+        EmptyState(stringResource(R.string.an_no_goals_title), stringResource(R.string.an_no_goals_body))
     } else {
         LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
             byExercise.forEach { (exId, goals) ->
                 item(key = "exercise-$exId") {
-                    SectionTitle(snap.exercises[exId]?.name ?: "Exercise")
+                    SectionTitle(snap.exercises[exId]?.name ?: stringResource(R.string.ex_fallback))
                 }
                 items(goals, key = { it.id }) { g ->
                     val sets = snap.statSetsByExercise[exId].orEmpty()
                     val p = remember(sets, g) { GoalKinds.progress(g.kind, g.target, sets) }
-                    val (title, status) = goalText(snap, g, p)
+                    val (title, status) = goalText(res, snap, g, p)
                     ListRowWithMenu(
                         title = title,
                         subtitle = status,
                         onClick = { nav.push(Screen.ExerciseDetail(exId, tab = 2)) }
                     )
                     val fraction = p.fraction(g.target)
+                    val percentText = stringResource(R.string.goals_percent, (fraction * 100).toInt())
                     LinearProgressIndicator(
                         progress = { fraction },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
                             .height(6.dp)
-                            .semantics { contentDescription = "${(fraction * 100).toInt()} percent of the goal" },
+                            .semantics { contentDescription = percentText },
                         color = Brand.Gold,
                         trackColor = Brand.Hairline
                     )
@@ -133,7 +136,7 @@ fun AnalysisGoalsTab(snap: Snapshot, nav: Nav, adding: Boolean, onAddingDone: ()
     if (adding) {
         val items = exercisePickerItems(snap)
         SearchablePicker(
-            title = "Add a goal for",
+            title = stringResource(R.string.an_add_goal_for),
             items = items,
             onDismiss = onAddingDone,
             onPick = { ids ->
@@ -143,7 +146,7 @@ fun AnalysisGoalsTab(snap: Snapshot, nav: Nav, adding: Boolean, onAddingDone: ()
                 }
                 onAddingDone()
             },
-            searchLabel = "Search exercises"
+            searchLabel = stringResource(R.string.ex_search_exercises)
         )
     }
     editing?.let { g ->
