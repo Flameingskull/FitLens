@@ -33,7 +33,10 @@ custom metrics.
   group per release from 1.0.75 to 1.0.87: the day log and workout drawer, the exercise screen, the library and
   workout editor, the calendar and Body Tracker, Analysis, the photo screens and finally Settings, now FitNotes's
   single list. In 1.0.96 the photo, viewer, compare, slideshow and PDF screens joined the same design system, and in
-  1.0.101 Settings had an accessibility pass and gained Reset settings to defaults
+  1.0.101 Settings had an accessibility pass and gained Reset settings to defaults. From 1.0.103 to 1.0.106 every
+  screen's wording moved into the app's string resources, with counts that read correctly for one or many, ready for
+  translations ([#94](https://github.com/Flameingskull/FitLens/issues/94); the messages built while saving, importing
+  and backing up follow in [#156](https://github.com/Flameingskull/FitLens/issues/156))
   ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on the
   [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). Next come the rest of FitNotes parity
   ([#59](https://github.com/Flameingskull/FitLens/issues/59)), the rest of the analysis hub
@@ -127,7 +130,8 @@ custom metrics.
   the exercise screen has a **done tick**, which can start the rest timer. Ticking an exercise's last set shows
   "Done. Next: …" with **Undo** and opens the next exercise of the day a moment later, in the workout's order; after the
   last one, the day log opens with **Workout complete**, offering to stop the workout timer. With **Settings → Mark Sets
-  Complete**, the day log and the workout drawer show how many of each exercise's sets are done.
+  Complete**, the day log and the workout drawer show how many of each exercise's sets are done. Saving or ticking a
+  set gives a short pulse, and a new personal record its own pattern, following the phone's touch feedback setting.
 - **Goals.** Each exercise has a **Goals** tab for targets such as max weight, estimated 1RM, reps, or volume in a
   set or workout, with progress bars and an optional goal line on its graph. Body measurements can have a goal too:
   increase, decrease or a specific value.
@@ -191,7 +195,8 @@ custom metrics.
     deleted on the next import. A safety copy is taken first, so it can be undone.
   - **Reset settings to defaults:** puts units, the rest timer, logging, display, photo and report options back as
     they were when FitLens was new, with **Undo** straight afterwards. Workouts, photos, measurements, backups,
-    backup folders and schedules, pinned graphs and your body fat profile are kept.
+    backup folders and schedules, pinned graphs and your body fat profile are kept. Home Screen Settings, Rest Timer
+    and Progress Photos & Media can also be reset on their own, from **Reset this section** in each page's ⋮ menu.
 - **Getting around:** as in FitNotes, there's no tab bar. The **day log** is home, and its top bar has **Calendar**,
   **+** (the exercise library and workout switcher), the rest countdown while you rest, and a **⋮** menu with the
   day's workout actions, then Analysis, Body tracker, Photos and Settings. Each of those slides in on top of the log,
