@@ -655,7 +655,7 @@ fun SetEntryScreen(
                     SetRowView(
                         index = i + 1,
                         summary = describeSet(res, snap, s.weightKg, s.reps, s.distance, s.durationSec, s.exerciseId, s.metric),
-                        cells = setCells(snap, fields, s),
+                        cells = setCells(res, snap, fields, s),
                         comment = s.comment,
                         isPr = s.isPr,
                         badge = marks.badge,

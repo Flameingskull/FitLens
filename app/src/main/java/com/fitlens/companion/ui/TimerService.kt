@@ -136,8 +136,8 @@ class TimerService : Service() {
                 // stay a plain glyph: Android keeps only its outline.
                 .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_character))
                 .setColor(Brand.Gold.toArgb())
-                .setContentTitle("Rest over")
-                .setContentText("Time for your next set.")
+                .setContentTitle(context.getString(R.string.tn_over_title))
+                .setContentText(context.getString(R.string.tn_over_text))
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(openApp(context))
@@ -158,14 +158,14 @@ class TimerService : Service() {
             val nm = context.getSystemService(NotificationManager::class.java) ?: return
             nm.deleteNotificationChannel(OLD_CHANNEL_ALERT)
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ONGOING, "Timers", NotificationManager.IMPORTANCE_LOW).apply {
-                    description = "The rest timer and workout timer while they run"
+                NotificationChannel(CHANNEL_ONGOING, context.getString(R.string.tn_ch_timers), NotificationManager.IMPORTANCE_LOW).apply {
+                    description = context.getString(R.string.tn_ch_timers_desc)
                     setShowBadge(false)
                 }
             )
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ALERT, "Rest over", NotificationManager.IMPORTANCE_HIGH).apply {
-                    description = "When the rest timer ends. The sound is chosen in the rest timer."
+                NotificationChannel(CHANNEL_ALERT, context.getString(R.string.tn_ch_alert), NotificationManager.IMPORTANCE_HIGH).apply {
+                    description = context.getString(R.string.tn_ch_alert_desc)
                     setSound(null, null)
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0, 400, 200, 400)
@@ -200,37 +200,37 @@ class TimerService : Service() {
                 .setSilent(true)
                 .setCategory(NotificationCompat.CATEGORY_STOPWATCH)
                 .setContentIntent(openApp(context))
-            val workoutLine = workout?.let { "Workout timer running since ${it.drop(11).take(5)}" }
+            val workoutLine = workout?.let { context.getString(R.string.tn_workout_since, it.drop(11).take(5)) }
             when {
                 rest.active && rest.paused -> {
-                    b.setContentTitle("Rest paused · ${fmtDuration(RestTimer.left(rest))} left")
+                    b.setContentTitle(context.getString(R.string.tn_rest_paused, fmtDuration(RestTimer.left(rest))))
                     workoutLine?.let { b.setContentText(it) }
                 }
                 rest.active -> {
-                    b.setContentTitle("Rest")
+                    b.setContentTitle(context.getString(R.string.tn_rest))
                         .setUsesChronometer(true)
                         .setChronometerCountDown(true)
                         .setWhen(rest.endAt)
                         .setShowWhen(true)
-                    b.setContentText(workoutLine ?: "Your next set is coming up")
+                    b.setContentText(workoutLine ?: context.getString(R.string.tn_next_set))
                 }
                 workout != null -> {
                     val startMs = Dates.dateTime(workout)?.atZone(java.time.ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
                         ?: System.currentTimeMillis()
-                    b.setContentTitle("Workout")
+                    b.setContentTitle(context.getString(R.string.tn_workout))
                         .setUsesChronometer(true)
                         .setWhen(startMs)
                         .setShowWhen(true)
-                        .setContentText("Workout timer running")
+                        .setContentText(context.getString(R.string.tn_workout_running))
                 }
-                else -> b.setContentTitle("Timers stopped")
+                else -> b.setContentTitle(context.getString(R.string.tn_stopped))
             }
             if (rest.active) {
-                b.addAction(0, if (rest.paused) "Resume" else "Pause", action(context, ACTION_PAUSE, 1))
-                b.addAction(0, "+15 s", action(context, ACTION_ADD, 2))
-                b.addAction(0, "Stop rest", action(context, ACTION_STOP_REST, 3))
+                b.addAction(0, context.getString(if (rest.paused) R.string.tn_resume else R.string.tn_pause), action(context, ACTION_PAUSE, 1))
+                b.addAction(0, context.getString(R.string.tn_add15), action(context, ACTION_ADD, 2))
+                b.addAction(0, context.getString(R.string.tn_stop_rest), action(context, ACTION_STOP_REST, 3))
             } else if (workout != null) {
-                b.addAction(0, "Stop workout", action(context, ACTION_STOP_WORKOUT, 4))
+                b.addAction(0, context.getString(R.string.tn_stop_workout), action(context, ACTION_STOP_WORKOUT, 4))
             }
             return b.build()
         }

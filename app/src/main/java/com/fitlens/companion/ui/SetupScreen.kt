@@ -54,6 +54,10 @@ import com.fitlens.companion.data.Store
 import com.fitlens.companion.data.StandardMeasurements
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.ui.design.SegmentedSwitch
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.fitlens.companion.R
 
 /**
  * The guided setup (#29): shown once on a fresh install, skippable at every step, and run again from Settings.
@@ -64,13 +68,13 @@ import com.fitlens.companion.ui.design.SegmentedSwitch
  * Choosing to restore a FitLens backup ends setup and hands the file to Settings → Backup, which checks it and asks
  * before replacing anything, because the backup brings its own preferences with it.
  */
-private enum class SetupStep(val title: String) {
-    Welcome("Welcome"),
-    Units("Units"),
-    Backups("Automatic backups"),
-    FitNotes("FitNotes"),
-    Photos("Progress photos"),
-    Exercises("Exercises")
+private enum class SetupStep(@StringRes val title: Int) {
+    Welcome(R.string.su_step_welcome),
+    Units(R.string.su_step_units),
+    Backups(R.string.su_step_backups),
+    FitNotes(R.string.su_step_fitnotes),
+    Photos(R.string.su_step_photos),
+    Exercises(R.string.su_step_exercises)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,10 +105,10 @@ fun SetupScreen(snap: Snapshot, nav: Nav) {
 
     Column(Modifier.fillMaxSize()) {
         FitTopBar(
-            title = "Set up FitLens",
-            subtitle = "Step ${stepIdx + 1} of ${SetupStep.entries.size} · ${step.title}",
+            title = stringResource(R.string.su_title),
+            subtitle = stringResource(R.string.su_step_of, stepIdx + 1, SetupStep.entries.size, stringResource(R.string.step.title)),
             centered = false,
-            trailing = { TextButton(onClick = { finish() }) { Text("Skip setup") } }
+            trailing = { TextButton(onClick = { finish() }) { Text(stringResource(R.string.su_skip)) } }
         )
         GoldHairline()
         Column(
@@ -130,10 +134,10 @@ fun SetupScreen(snap: Snapshot, nav: Nav) {
             Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (stepIdx > 0) TextButton(onClick = { stepIdx-- }) { Text("Back") }
+            if (stepIdx > 0) TextButton(onClick = { stepIdx-- }) { Text(stringResource(R.string.su_back)) }
             Spacer(Modifier.weight(1f))
             GoldButton(onClick = { if (last) finish() else stepIdx++ }) {
-                Text(if (last) "Finish" else if (step == SetupStep.Welcome) "Set up FitLens" else "Next")
+                Text(if (last) stringResource(R.string.su_finish) else if (step == SetupStep.Welcome) stringResource(R.string.su_title) else stringResource(R.string.su_next))
             }
         }
     }
@@ -156,33 +160,27 @@ private fun StepStatus(text: String) {
 
 @Composable
 private fun WelcomeStep(onRestore: () -> Unit) {
-    StepHeading("Your training, photos and measurements, together")
-    StepText(
-        "FitLens logs your workouts and keeps them next to your progress photos and body measurements. " +
-            "Everything stays on this phone: there's no account, and FitLens never goes online."
-    )
-    StepText(
-        "A few quick steps set up your units, automatic backups and imports. Every step can be skipped, and you can " +
-            "run setup again any time from Settings."
-    )
-    SectionTitle("Moving from another phone?")
-    StepText("Restore a FitLens backup (.fitlens) to bring everything back. This replaces setup, so it ends here.")
-    GlassOutlinedButton(onClick = onRestore) { Text("Restore a FitLens backup") }
+    StepHeading(stringResource(R.string.su_welcome_head))
+    StepText(stringResource(R.string.su_welcome_1))
+    StepText(stringResource(R.string.su_welcome_2))
+    SectionTitle(stringResource(R.string.su_moving))
+    StepText(stringResource(R.string.su_moving_body))
+    GlassOutlinedButton(onClick = onRestore) { Text(stringResource(R.string.su_restore)) }
 }
 
 @Composable
 private fun UnitsStep() {
     val prefs by Settings.portable.collectAsState()
-    StepHeading("How do you weigh your lifts?")
+    StepHeading(stringResource(R.string.su_units_head))
     SegmentedSwitch(
-        options = listOf("Kilograms (kg)", "Pounds (lbs)"),
+        options = listOf(stringResource(R.string.su_kg), stringResource(R.string.su_lbs)),
         selected = if (prefs.weightUnit == "lbs") 1 else 0,
         onSelect = { i ->
             val unit = if (i == 1) "lbs" else "kg"
             Settings.updatePortable { it.copy(weightUnit = unit, weightUnitManual = true) }
         }
     )
-    StepText("Weights are stored exactly, so you can switch at any time in Settings → Unit System.")
+    StepText(stringResource(R.string.su_units_body))
     DistanceAndLengthSetting(prefs.distanceUnit, prefs.lengthUnit)
     WeekStartSetting(prefs.weekStart)
 }
@@ -202,24 +200,21 @@ private fun BackupsStep() {
             if (Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
-            runBusy("Saving the first automatic backup…") { Backups.backupToFolder(ctx) }
+            runBusy(ctx.getString(R.string.su_saving_first)) { Backups.backupToFolder(ctx) }
         }
     }
-    StepHeading("Keep a copy of everything, automatically")
-    StepText(
-        "Strongly recommended. Choose a folder outside FitLens, such as Documents or an SD card, and FitLens saves a " +
-            "full backup there in the background. If the phone is lost or FitLens is uninstalled, that backup brings " +
-            "everything back."
-    )
+    StepHeading(stringResource(R.string.su_backups_head))
+    StepText(stringResource(R.string.su_backups_body))
     StepStatus(
-        folder?.let { "Folder: " + (it.lastPathSegment?.substringAfter(':')?.ifBlank { "(root)" } ?: it.toString()) }
-            ?: "No folder chosen yet."
+        folder?.let { f ->
+            stringResource(R.string.su_folder, f.lastPathSegment?.substringAfter(':')?.ifBlank { null } ?: stringResource(R.string.su_root))
+        } ?: stringResource(R.string.su_no_folder)
     )
-    GlassOutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) "Choose backup folder" else "Change folder") }
+    GlassOutlinedButton(onClick = { pickFolder.launch(null) }) { Text(if (folder == null) stringResource(R.string.su_choose_folder) else stringResource(R.string.su_change_folder)) }
     if (folder != null) {
-        StepText("How often")
+        StepText(stringResource(R.string.su_how_often))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(1 to "Daily", 7 to "Weekly").forEach { (d, label) ->
+            listOf(1 to stringResource(R.string.su_daily), 7 to stringResource(R.string.su_weekly)).forEach { (d, label) ->
                 FilterChip(
                     selected = device.autoBackupDays == d,
                     onClick = {
@@ -230,7 +225,7 @@ private fun BackupsStep() {
                 )
             }
         }
-        StepText("How many backups to keep, and backing up after changes, are in Settings → Backup.")
+        StepText(stringResource(R.string.su_backups_more))
     }
 }
 
@@ -242,23 +237,18 @@ private fun FitNotesStep(snap: Snapshot) {
         if (uri != null) when (FitNotesImporter.sniff(ctx, uri)) {
             // The import host shows what the backup adds before anything is imported.
             FileKind.FITNOTES_BACKUP -> FitNotesImports.start(ctx, uri)
-            FileKind.BODY_CSV -> runBusy("Importing…") { FitNotesImporter.importBodyCsv(ctx, uri) }
-            else -> UiEvents.show("That isn't a FitNotes backup (.fitnotes) or Body Tracker CSV.")
+            FileKind.BODY_CSV -> runBusy(ctx.getString(R.string.su_importing)) { FitNotesImporter.importBodyCsv(ctx, uri) }
+            else -> UiEvents.show(ctx.getString(R.string.su_not_fitnotes))
         }
     }
-    StepHeading("Coming from FitNotes?")
-    StepText(
-        "Import a FitNotes backup to bring over your workouts, exercises and body measurements. Make one with " +
-            "FitNotes' own backup option, or share it from FitNotes straight to FitLens. You'll see what will be added first, and importing never changes " +
-            "FitNotes itself."
-    )
+    StepHeading(stringResource(R.string.su_fitnotes_head))
+    StepText(stringResource(R.string.su_fitnotes_body))
     val last = device.lastImportName
-    if (last != null) StepStatus("Imported: $last · ${snap.setsByDate.size} workouts, ${snap.sets.size} sets.")
-    GoldButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text(if (last == null) "Import a FitNotes backup" else "Import another backup") }
-    StepText(
-        "Later imports merge in the same way, from Settings → Import From FitNotes. Syncing a FitNotes backup folder " +
-            "automatically is also there, and is off unless you turn it on."
+    if (last != null) StepStatus(
+        stringResource(R.string.su_imported, last, pluralStringResource(R.plurals.su_workouts, snap.setsByDate.size, snap.setsByDate.size), pluralStringResource(R.plurals.sets_count, snap.sets.size, snap.sets.size))
     )
+    GoldButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text(if (last == null) stringResource(R.string.su_import_backup) else stringResource(R.string.su_import_another)) }
+    StepText(stringResource(R.string.su_fitnotes_later))
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -266,38 +256,34 @@ private fun FitNotesStep(snap: Snapshot) {
 private fun PhotosStep(snap: Snapshot) {
     val importPhotos = rememberPhotoImporter()
     val importFolder = rememberFolderPhotoImporter()
-    StepHeading("Add your progress photos")
-    StepText(
-        "FitLens dates each photo from its camera details and places it on that day, next to the workout and " +
-            "measurements. You'll be asked which pose the photos show."
+    StepHeading(stringResource(R.string.su_photos_head))
+    StepText(stringResource(R.string.su_photos_body))
+    if (snap.photos.isNotEmpty()) StepStatus(
+        stringResource(R.string.su_photos_status, pluralStringResource(R.plurals.su_photos_n, snap.photos.size, snap.photos.size), pluralStringResource(R.plurals.su_days_n, snap.photosByDate.size, snap.photosByDate.size))
     )
-    if (snap.photos.isNotEmpty()) StepStatus("${snap.photos.size} photos on ${snap.photosByDate.size} days so far.")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        GoldButton(onClick = importPhotos) { Text("Choose photos") }
-        GlassOutlinedButton(onClick = importFolder) { Text("Import a folder") }
+        GoldButton(onClick = importPhotos) { Text(stringResource(R.string.su_choose_photos)) }
+        GlassOutlinedButton(onClick = importFolder) { Text(stringResource(R.string.su_import_folder)) }
     }
-    StepText("You can add more at any time with the + on the Photos screen (in the day log's ⋮ menu).")
+    StepText(stringResource(R.string.su_photos_more))
 }
 
 @Composable
 private fun ExercisesStep(snap: Snapshot) {
     var starter by remember { mutableStateOf(false) }
-    StepHeading("Your exercise library")
+    StepHeading(stringResource(R.string.su_ex_head))
     StepText(
-        "Start with ${StarterLibrary.exerciseCount} common exercises in ${StarterLibrary.categories.size} categories, " +
-            "or build your own as you go. Anything already in your library is kept as it is."
+        stringResource(R.string.su_ex_body, pluralStringResource(R.plurals.lib_exercises, StarterLibrary.exerciseCount, StarterLibrary.exerciseCount),
+            pluralStringResource(R.plurals.su_categories_n, StarterLibrary.categories.size, StarterLibrary.categories.size))
     )
-    if (snap.exercises.isNotEmpty()) StepStatus("${snap.exercises.size} exercises in your library.")
-    GoldButton(onClick = { starter = true }) { Text("Add the starter library") }
-    StepText("You can add, rename or delete exercises any time from the Exercise library in the day log's ⋮ menu.")
+    if (snap.exercises.isNotEmpty()) StepStatus(stringResource(R.string.su_ex_status, pluralStringResource(R.plurals.lib_exercises, snap.exercises.size, snap.exercises.size)))
+    GoldButton(onClick = { starter = true }) { Text(stringResource(R.string.su_add_starter)) }
+    StepText(stringResource(R.string.su_ex_more))
     if (starter) StarterLibraryDialog(onDismiss = { starter = false })
     // The standard body measurements (#27), for anyone not bringing them from FitNotes.
     val missing = StandardMeasurements.missing(snap.measurementDefs.map { it.name } + snap.recordsByName.keys)
-    StepHeading("Body measurements")
-    StepText(
-        "Track bodyweight, body fat, height and ${StandardMeasurements.all.size - 3} tape measurements such as waist and arms. " +
-            "Switch off any you don't need, or add your own, from the body tracker's Measurements screen."
-    )
-    if (missing.isEmpty()) StepStatus("The standard measurements are ready in the body tracker.")
-    else GoldButton(onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } }) { Text("Add the standard measurements") }
+    StepHeading(stringResource(R.string.su_body_head))
+    StepText(stringResource(R.string.su_body_body, StandardMeasurements.all.size - 3))
+    if (missing.isEmpty()) StepStatus(stringResource(R.string.su_body_ready))
+    else GoldButton(onClick = { AppScope.scope.launch { Store.addStandardMeasurements() } }) { Text(stringResource(R.string.su_body_add)) }
 }

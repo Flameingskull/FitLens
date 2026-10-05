@@ -187,7 +187,7 @@ object RestTimer {
                 // No vibrator, or vibration not allowed: the message below still says rest is over.
             }
         }
-        UiEvents.show("Rest over. Time for your next set.")
+        ctx?.let { UiEvents.show(it.getString(R.string.rt_over)) }
     }
 }
 
@@ -222,10 +222,10 @@ object RestSound {
 
     /** The sound's name as the phone shows it, for the rest timer sheet. */
     fun title(context: Context, saved: String?): String = try {
-        if (saved == null) "Phone's notification sound"
-        else RingtoneManager.getRingtone(context, Uri.parse(saved))?.getTitle(context) ?: "Chosen sound"
+        if (saved == null) context.getString(R.string.rt_phone_sound)
+        else RingtoneManager.getRingtone(context, Uri.parse(saved))?.getTitle(context) ?: context.getString(R.string.rt_chosen_sound)
     } catch (e: Exception) {
-        "Chosen sound"
+        context.getString(R.string.rt_chosen_sound)
     }
 }
 
@@ -273,9 +273,10 @@ fun rememberRest(): Pair<RestTimer.State, Int> {
 fun RestTimerButton(onOpen: () -> Unit, onlyWhileRunning: Boolean = false) {
     val (st, left) = rememberRest()
     if (onlyWhileRunning && !st.active) return
+    val res = LocalContext.current.resources
     val label = if (st.active) {
-        "Rest timer, ${spokenDuration(left)} left" + if (st.paused) ", paused" else ""
-    } else "Rest timer"
+        res.getString(R.string.rt_cd_running, spokenDuration(res, left)) + if (st.paused) res.getString(R.string.rt_cd_paused) else ""
+    } else stringResource(R.string.rt_cd)
     Box(
         Modifier
             .size(width = 64.dp, height = Spacing.touch)
@@ -305,7 +306,7 @@ fun RestTimerButton(onOpen: () -> Unit, onlyWhileRunning: Boolean = false) {
 fun RestLengthStepper(
     seconds: Int,
     onChange: (Int) -> Unit,
-    label: String = "Rest length (seconds)",
+    label: String? = null,
     isDefault: Boolean = false,
     onDefault: (() -> Unit)? = null
 ) {
@@ -313,7 +314,7 @@ fun RestLengthStepper(
     val typed = text.trim().toIntOrNull()
     val valid = typed != null && typed in REST_MIN..REST_MAX
     StepperField(
-        label = label,
+        label = label ?: stringResource(R.string.rt_length),
         value = text,
         onValue = { t ->
             text = t.filter { it.isDigit() }.take(4)
@@ -328,14 +329,14 @@ fun RestLengthStepper(
         keyboard = KeyboardType.Number
     )
     Text(
-        if (valid) "${fmtDuration(typed ?: seconds)} (m:ss)" else "Enter 1 to 3600 seconds (up to 60 minutes).",
+        if (valid) stringResource(R.string.rt_mss, fmtDuration(typed ?: seconds)) else stringResource(R.string.rt_invalid),
         modifier = if (valid) Modifier else Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         style = MaterialTheme.typography.bodySmall,
         color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
     )
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         if (onDefault != null) {
-            FilterChip(selected = isDefault, onClick = onDefault, label = { Text("Default") })
+            FilterChip(selected = isDefault, onClick = onDefault, label = { Text(stringResource(R.string.rt_default)) })
         }
         REST_CHOICES.forEach { secs ->
             FilterChip(
@@ -435,6 +436,7 @@ internal fun RestAlertOptions() {
 @Composable
 fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
     val ctx = LocalContext.current
+    val res = ctx.resources
     val prefs by Settings.portable.collectAsState()
     val own = exercise?.restSeconds
     val length = own ?: prefs.restSeconds
@@ -463,16 +465,16 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
         commit(chosen)
     }
     DisposableEffect(Unit) { onDispose { if (latest != saved) commit(latest) } }
-    FitSheet(title = "Rest timer", onDismiss = onDismiss, dismissLabel = "Close") {
+    FitSheet(title = stringResource(R.string.rt_title), onDismiss = onDismiss, dismissLabel = stringResource(R.string.rt_close)) {
         RestLengthStepper(
             seconds = chosen,
-            label = if (own != null && exercise != null) "${exercise.name}: rest (seconds)" else "Rest length (seconds)",
+            label = if (own != null && exercise != null) stringResource(R.string.rt_own_length, exercise.name) else stringResource(R.string.rt_length),
             onChange = { secs -> chosen = secs }
         )
         GoldHairline()
         Text(
             fmtDuration(if (st.active) left else chosen),
-            Modifier.fillMaxWidth().semantics { contentDescription = "${spokenDuration(if (st.active) left else chosen)} left" },
+            Modifier.fillMaxWidth().semantics { contentDescription = res.getString(R.string.rt_left, spokenDuration(res, if (st.active) left else chosen)) },
             style = MaterialTheme.typography.displayLarge,
             color = Brand.Gold
         )
@@ -484,26 +486,26 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
                 trackColor = Brand.Hairline
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                GlassOutlinedButton(onClick = { RestTimer.adjust(-15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text("−15 s") }
+                GlassOutlinedButton(onClick = { RestTimer.adjust(-15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text(stringResource(R.string.rt_minus15)) }
                 GoldButton(
                     onClick = { if (st.paused) RestTimer.resume() else RestTimer.pause() },
                     modifier = Modifier.weight(1f).heightIn(min = Spacing.row)
-                ) { Text(if (st.paused) "Resume" else "Pause") }
-                GlassOutlinedButton(onClick = { RestTimer.adjust(15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text("+15 s") }
+                ) { Text(if (st.paused) stringResource(R.string.rt_resume) else stringResource(R.string.rt_pause)) }
+                GlassOutlinedButton(onClick = { RestTimer.adjust(15) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.row)) { Text(stringResource(R.string.rt_plus15)) }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                TextButton(onClick = { RestTimer.start(ctx, chosen) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text("Restart") }
-                TextButton(onClick = { RestTimer.stop() }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text("Stop") }
+                TextButton(onClick = { RestTimer.start(ctx, chosen) }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text(stringResource(R.string.rt_restart)) }
+                TextButton(onClick = { RestTimer.stop() }, modifier = Modifier.weight(1f).heightIn(min = Spacing.touch)) { Text(stringResource(R.string.rt_stop)) }
             }
         } else {
             GoldButton(
                 onClick = { askNotify(); RestTimer.start(ctx, chosen) },
                 modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.row)
-            ) { Text("Start ${fmtDuration(chosen)} rest") }
+            ) { Text(stringResource(R.string.rt_start, fmtDuration(chosen))) }
         }
         if (own != null && exercise != null) {
             Text(
-                "This length is ${exercise.name}'s own. Every other exercise rests ${fmtDuration(prefs.restSeconds)}.",
+                stringResource(R.string.rt_own_note, exercise.name, fmtDuration(prefs.restSeconds)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -514,12 +516,12 @@ fun RestTimerSheet(exercise: Exercise? = null, onDismiss: () -> Unit) {
                     }
                 },
                 modifier = Modifier.heightIn(min = Spacing.touch)
-            ) { Text("Use the default length for ${exercise.name}") }
+            ) { Text(stringResource(R.string.rt_use_default, exercise.name)) }
         }
         GoldHairline()
         RestAlertOptions()
         Text(
-            "The timer keeps running as you move between exercises, and with the screen off, where a notification shows it.",
+            stringResource(R.string.rt_note),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

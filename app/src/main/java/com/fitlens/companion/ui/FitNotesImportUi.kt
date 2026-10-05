@@ -29,6 +29,8 @@ import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.ImportSummary
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.fitlens.companion.R
 
 /**
  * FitNotes imports that go through the pre-import summary (#6): the backup is read and checked first, the user sees
@@ -42,7 +44,7 @@ object FitNotesImports {
 
     fun start(ctx: Context, uri: Uri, modified: Long = 0L) {
         AppScope.scope.launch {
-            UiEvents.busy.value = "Reading the FitNotes backup…"
+            UiEvents.busy.value = ctx.getString(R.string.fi_reading)
             val p = try {
                 FitNotesImporter.prepare(ctx, uri, modified)
             } finally {
@@ -50,7 +52,7 @@ object FitNotesImports {
             }
             val s = p.staged
             if (s == null) {
-                UiEvents.show(p.error ?: "Couldn't read that backup.")
+                UiEvents.show(p.error ?: ctx.getString(R.string.fi_cant_read))
             } else {
                 staged.value?.let { FitNotesImporter.discard(it) }
                 staged.value = s
@@ -61,7 +63,7 @@ object FitNotesImports {
     /** Finds the newest backup in the FitNotes backup folder and shows its summary. */
     fun startFromFolder(ctx: Context) {
         AppScope.scope.launch {
-            UiEvents.busy.value = "Looking for the newest FitNotes backup…"
+            UiEvents.busy.value = ctx.getString(R.string.fi_looking)
             val found = try {
                 BackupSync.newestBackup(ctx)
             } finally {
@@ -69,8 +71,8 @@ object FitNotesImports {
             }
             when {
                 found != null -> start(ctx, found.uri, found.modified)
-                BackupSync.folder() == null -> UiEvents.show("Choose your FitNotes backup folder first.")
-                else -> UiEvents.show("No .fitnotes backups found in the chosen folder.")
+                BackupSync.folder() == null -> UiEvents.show(ctx.getString(R.string.fi_choose_folder))
+                else -> UiEvents.show(ctx.getString(R.string.fi_none_found))
             }
         }
     }
@@ -91,15 +93,15 @@ fun FitNotesImportHost() {
         val s = FitNotesImports.staged.value
         if (uri != null && s != null) {
             FitNotesImports.staged.value = null
-            runBusy("Saving a FitLens backup…") {
+            runBusy(ctx.getString(R.string.fi_saving)) {
                 val b = Backups.export(ctx, uri)
                 if (!b.ok) {
                     FitNotesImports.staged.value = s // back to the summary so the user can decide
                     b
                 } else {
-                    UiEvents.busy.value = "Importing the FitNotes backup…"
+                    UiEvents.busy.value = ctx.getString(R.string.fi_importing)
                     val r = FitNotesImporter.importStaged(s)
-                    ImportSummary("FitLens backup saved. " + r.message, r.ok)
+                    ImportSummary(ctx.getString(R.string.fi_saved_then, r.message), r.ok)
                 }
             }
         }
@@ -114,48 +116,47 @@ fun FitNotesImportHost() {
 
     AlertDialog(
         onDismissRequest = close,
-        title = { Text("Import FitNotes backup") },
+        title = { Text(stringResource(R.string.fi_title)) },
         text = {
             Column(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(s.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (plan.nothingNew) {
-                    Text("Nothing new: everything in this backup is already in FitLens.", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.fi_nothing_new), style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    SummaryHeading("Will be added")
-                    plan.addedLines().forEach { Text("·  $it", style = MaterialTheme.typography.bodyMedium) }
+                    SummaryHeading(stringResource(R.string.fi_will_add))
+                    plan.addedLines().forEach { Text(stringResource(R.string.fi_bullet, it), style = MaterialTheme.typography.bodyMedium) }
                 }
                 val skipped = plan.skippedLines()
                 if (skipped.isNotEmpty()) {
-                    SummaryHeading("Skipped, already in FitLens")
+                    SummaryHeading(stringResource(R.string.fi_skipped))
                     skipped.forEach {
-                        Text("·  $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.fi_bullet, it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 Text(
-                    "Imports only add to FitLens. Nothing you logged or edited in FitLens is deleted or changed, " +
-                        "and FitNotes' own data isn't touched.",
+                    stringResource(R.string.fi_note),
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp)
                 )
                 if (!plan.nothingNew) {
                     GlassOutlinedButton(onClick = { backupFirst.launch(Backups.manualFileName()) }, modifier = Modifier.padding(top = 4.dp)) {
-                        Text("Save a FitLens backup first")
+                        Text(stringResource(R.string.fi_backup_first))
                     }
                 }
             }
         },
         confirmButton = {
             if (plan.nothingNew) {
-                TextButton(onClick = close) { Text("Close") }
+                TextButton(onClick = close) { Text(stringResource(R.string.fi_close)) }
             } else {
                 TextButton(onClick = {
                     FitNotesImports.staged.value = null
-                    runBusy("Importing the FitNotes backup…") { FitNotesImporter.importStaged(s) }
-                }) { Text("Import") }
+                    runBusy(ctx.getString(R.string.fi_importing)) { FitNotesImporter.importStaged(s) }
+                }) { Text(stringResource(R.string.fi_import)) }
             }
         },
         dismissButton = {
-            if (!plan.nothingNew) TextButton(onClick = close) { Text("Cancel") }
+            if (!plan.nothingNew) TextButton(onClick = close) { Text(stringResource(R.string.fi_cancel)) }
         }
     )
 }

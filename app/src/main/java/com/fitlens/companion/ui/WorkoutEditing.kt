@@ -117,7 +117,7 @@ internal fun SetChecklist(snap: Snapshot, date: String, ticked: Set<Long>, onTic
         val fields = setFields(snap, exId, own)
         own.forEachIndexed { i, s ->
             val on = s.id in ticked
-            val cells = setCells(snap, fields, s)
+            val cells = setCells(res, snap, fields, s)
             Row(
                 Modifier
                     .fillMaxWidth()

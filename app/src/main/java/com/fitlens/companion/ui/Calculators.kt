@@ -40,6 +40,9 @@ import com.fitlens.companion.ui.design.StepperField
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.round
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.fitlens.companion.R
 
 /** Rounds [v] to the nearest multiple of [step] (both in the display unit); a step of 0 leaves it as it is. */
 internal fun roundTo(v: Double, step: Double): Double = if (step <= 0) v else round(v / step) * step
@@ -96,26 +99,26 @@ fun SetCalculatorSheet(
         )
     }
     val baseShown = parse(base) ?: 0.0
-    FitSheet(title = "Set calculator", onDismiss = onDismiss, dismissLabel = "Close") {
-        SegmentedSwitch(options = listOf("% of 1RM", "Warm-up to a target"), selected = mode, onSelect = { mode = it })
+    FitSheet(title = stringResource(R.string.calc_set_title), onDismiss = onDismiss, dismissLabel = stringResource(R.string.calc_close)) {
+        SegmentedSwitch(options = listOf(stringResource(R.string.calc_pct_1rm), stringResource(R.string.calc_warmup)), selected = mode, onSelect = { mode = it })
         StepperField(
-            label = if (mode == 0) "One-rep max ($unit)" else "Target weight ($unit)",
+            label = if (mode == 0) stringResource(R.string.calc_1rm_field, unit) else stringResource(R.string.calc_target_field, unit),
             value = base,
             onValue = { base = it },
             onStep = { d -> base = fmtNum(max(0.0, baseShown + d * stepShown), 2) }
         )
         if (baseShown <= 0) {
-            Text("Enter a weight to see the sets.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.calc_enter), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else if (mode == 0) {
             val oneRmKg = snap.toKg(baseShown, exerciseId)
             (100 downTo 50 step 5).forEach { pct ->
                 val w = roundTo(baseShown * pct / 100.0, stepShown)
                 // The most reps that weight should allow, by the chosen formula (#42).
                 val reps = (1..Records.MAX_REPS).lastOrNull { Records.weightFor(oneRmKg, it) >= snap.toKg(w, exerciseId) - 0.01 }
-                CalcRow("$pct%", "${fmtNum(w, 2)} $unit", reps?.let { "about $it reps" }) { onUse(fmtNum(w, 2), null) }
+                CalcRow(stringResource(R.string.calc_pct, pct), stringResource(R.string.calc_weight, fmtNum(w, 2), unit), reps?.let { pluralStringResource(R.plurals.calc_about_reps, it, it) }) { onUse(fmtNum(w, 2), null) }
             }
             Text(
-                "Weights are rounded to ${fmtNum(stepShown, 2)} $unit. Reps are estimated with your 1RM formula.",
+                stringResource(R.string.calc_rounded_1rm, fmtNum(stepShown, 2), unit),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -123,11 +126,11 @@ fun SetCalculatorSheet(
             // A common ramp: lighter sets for more reps, building to the working weight.
             listOf(40 to 8, 60 to 5, 75 to 3, 85 to 2, 100 to 0).forEach { (pct, reps) ->
                 val w = roundTo(baseShown * pct / 100.0, stepShown)
-                val label = if (pct == 100) "Work set" else "$pct%"
-                CalcRow(label, "${fmtNum(w, 2)} $unit", if (reps > 0) "× $reps" else null) { onUse(fmtNum(w, 2), reps.takeIf { it > 0 }) }
+                val label = if (pct == 100) stringResource(R.string.calc_work_set) else stringResource(R.string.calc_pct, pct)
+                CalcRow(label, stringResource(R.string.calc_weight, fmtNum(w, 2), unit), if (reps > 0) stringResource(R.string.calc_times, reps) else null) { onUse(fmtNum(w, 2), reps.takeIf { it > 0 }) }
             }
             Text(
-                "A warm-up ramp to your working weight. Weights are rounded to ${fmtNum(stepShown, 2)} $unit.",
+                stringResource(R.string.calc_rounded_ramp, fmtNum(stepShown, 2), unit),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -137,6 +140,7 @@ fun SetCalculatorSheet(
 
 @Composable
 private fun CalcRow(label: String, value: String, note: String?, onUse: () -> Unit) {
+    val useLabel = stringResource(R.string.calc_use_cd, value)
     Row(
         Modifier.fillMaxWidth().heightIn(min = Spacing.touch).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically
@@ -144,7 +148,7 @@ private fun CalcRow(label: String, value: String, note: String?, onUse: () -> Un
         Text(label, Modifier.width(88.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         if (note != null) Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        TextButton(onClick = onUse, modifier = Modifier.semantics { contentDescription = "Use $value" }) { Text("Use") }
+        TextButton(onClick = onUse, modifier = Modifier.semantics { contentDescription = useLabel }) { Text(stringResource(R.string.calc_use)) }
     }
 }
 
@@ -189,14 +193,14 @@ fun PlateCalculatorSheet(
     }
 
     FitSheet(
-        title = "Plate calculator",
+        title = stringResource(R.string.calc_plate_title),
         onDismiss = { saveSetup(); onDismiss() },
-        dismissLabel = "Close",
-        confirmLabel = if (loaded > 0) "Use ${fmtNum(loaded, 2)} $unit" else null,
+        dismissLabel = stringResource(R.string.calc_close),
+        confirmLabel = if (loaded > 0) stringResource(R.string.calc_use_weight, fmtNum(loaded, 2), unit) else null,
         onConfirm = if (loaded > 0) ({ saveSetup(); onUse(fmtNum(loaded, 2)); onDismiss() }) else null
     ) {
         StepperField(
-            label = "Target weight ($unit)",
+            label = stringResource(R.string.calc_target_field, unit),
             value = target,
             onValue = { target = it },
             onStep = { d -> target = fmtNum(max(0.0, t + d * (plates.minOrNull() ?: 1.0) * 2), 2) }
@@ -204,37 +208,38 @@ fun PlateCalculatorSheet(
         if (t > 0) {
             val perSide = side.groupBy { it }.entries.joinToString(" + ") { (p, l) -> if (l.size == 1) fmtNum(p, 2) else "${l.size} × ${fmtNum(p, 2)}" }
             Text(
-                if (side.isEmpty()) "No plates: the bar alone" else "Each side: $perSide",
+                if (side.isEmpty()) stringResource(R.string.calc_bar_alone) else stringResource(R.string.calc_each_side, perSide),
                 style = MaterialTheme.typography.titleMedium,
                 color = Brand.Gold
             )
             BarEnd(side)
             val gap = t - loaded
             Text(
-                if (gap > 0.01) "That's ${fmtNum(loaded, 2)} $unit. ${fmtNum(gap, 2)} $unit can't be made with these plates."
-                else "Loaded: ${fmtNum(loaded, 2)} $unit" + if (prefs.countBar) ", bar included." else ", not counting the bar.",
+                if (gap > 0.01) stringResource(R.string.calc_gap, fmtNum(loaded, 2), fmtNum(gap, 2), unit)
+                else if (prefs.countBar) stringResource(R.string.calc_loaded_bar, fmtNum(loaded, 2), unit)
+                else stringResource(R.string.calc_loaded_nobar, fmtNum(loaded, 2), unit),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         GoldHairline()
-        Text("YOUR SETUP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.calc_setup), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(
             barText, { barText = it },
             Modifier.fillMaxWidth(),
-            label = { Text("Bar weight ($unit)") },
+            label = { Text(stringResource(R.string.calc_bar_field, unit)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
-        ToggleRow("Count the bar in the target", prefs.countBar) { on -> Settings.updatePortable { it.copy(countBar = on) } }
+        ToggleRow(stringResource(R.string.calc_count_bar), prefs.countBar) { on -> Settings.updatePortable { it.copy(countBar = on) } }
         OutlinedTextField(
             platesText, { platesText = it },
             Modifier.fillMaxWidth(),
-            label = { Text("Plates on hand ($unit), separated by commas") },
+            label = { Text(stringResource(R.string.calc_plates_field, unit)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
         )
         TextButton(onClick = { platesText = defaultPlates(unit).joinToString(", ") { fmtNum(it, 2) }; barText = fmtNum(defaultBar(unit), 2) }) {
-            Text("Reset to standard plates")
+            Text(stringResource(R.string.calc_reset))
         }
     }
 }
@@ -247,12 +252,13 @@ fun parsePlates(text: String): List<Double> =
 @Composable
 private fun BarEnd(side: List<Double>) {
     val heaviest = side.maxOrNull() ?: 1.0
+    val platesLabel = stringResource(R.string.calc_plates_cd, side.joinToString(", ") { fmtNum(it, 2) })
     Row(
         Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(vertical = Spacing.sm)
-            .semantics { contentDescription = "Plates on each side: " + side.joinToString(", ") { fmtNum(it, 2) } },
+            .semantics { contentDescription = platesLabel },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(3.dp)
     ) {
