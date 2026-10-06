@@ -160,3 +160,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   steps and tests do. A dry run inside `Db.transaction { }` rolls back by throwing a private exception that carries
   the result (`FitNotesImporter.DryRun`); Room rethrows a RuntimeException unchanged. Tests call DAO-backed code in
   `runBlocking(Dispatchers.IO)`.
+- 2026-10-06 (1.0.119, #60): any write whose changed sets are known goes through `Workouts.writeSets(kind)`, naming
+  exercises, dates and extra `scope.areas`; if it can move a record it ends with `replayPrs(w, scope.exercises)`. Never
+  call the full `replayPrs(w)` from a per-day or per-exercise write: it reads every weighted set in the history.
+  `replayPrs` takes `countWarmups` so tests can call it without loading `Settings`.

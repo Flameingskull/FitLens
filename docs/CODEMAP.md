@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.118.
+Last updated: 1.0.119.
 
 ## How data flows
 
@@ -29,9 +29,13 @@ Last updated: 1.0.118.
   public properties delegate to them, so screens don't see the split.
 - **Writes:** workout data goes through `data/Workouts.kt`. Its private `write(areas) { w -> }` (`w` is the `WorkoutDao`) runs one Room transaction
   on `Dispatchers.IO`, then `Store.refresh(areas)` re-reads only those areas and shares the rest (default
-  `Area.WORKOUT`; library-only writes pass `LIBRARY`, comments and times `NOTES`). Small set writes that don't replay
-  PRs use `writeSets { w, scope -> }`: name the touched exercises or dates in `scope` (before a delete, while the rows
-  exist) and `Store.refreshSets` re-reads just those and merges them (`mergeSets`). Photo and measurement writes live
+  `Area.WORKOUT`; library-only writes pass `LIBRARY`, comments and times `NOTES`). Every write that changes the sets of
+  known exercises or dates (one set, a logged workout day, swap, merge, copy, move, deleting a workout, and their undos)
+  uses `writeSets(kind) { w, scope -> }`: name the touched exercises or dates in `scope` (before a delete, while the
+  rows exist), plus any other `scope.areas` it changed (`NOTES`, `LIBRARY`); `Store.refreshSets` re-reads just those
+  sets and merges them (`mergeSets`), with those areas, in one update. A write that can move a PR calls
+  `replayPrs(w, scope.exercises)` (only those exercises, `WorkoutDao.prCandidatesOf`); only "Recalculate PRs" and a
+  history delete for every exercise use the plain `write` and replay everything (#60). Photo and measurement writes live
   in `Store` and refresh `PHOTOS` / `BODY`; `Goals` and `Routines` refresh `LIBRARY`; a preference change calls
   `Store.refresh()` (no read). `Store.reload()` (everything, preferences included) is for start-up, imports and restores.
   **A new write must name every area it changes**, or the screen shows stale data.
@@ -194,7 +198,7 @@ Last updated: 1.0.118.
 - **Tests (#40):** JVM unit tests with Robolectric in `app/src/test` (`./gradlew testDebugUnitTest`), run by CI before
   every release build; a failure stops the release and its names land in `errors.txt`. `data/DbMigrationTest.kt`
   builds older databases by hand (v1, v2, v12–v19; schemas in `OldSchemas.kt`, including the full `V20`) and opens them with `Db`; `RoomSchemaTest` opens a fresh install, a full v20 database, a replayed rebuild, a newer file and every older version through Room, which checks each against `Schema.kt`, reads every snapshot area of an upgraded database through the DAOs, and checks a main-thread query is refused (DAO calls in tests go through `offMain`);
-  `WorkoutDaoTest` runs the workout and routine queries on a real database (triggers, history ranges, import rules, moving a day's notes), and `ExportedSchemaTest` uses Room's `MigrationTestHelper` to upgrade a v20 database against the committed `21.json` (`app/schemas` is a debug assets folder, which Robolectric loads; a `test` source set's assets aren't merged); `FitNotesImporterTest` merges a synthetic FitNotes backup through `FitNotesImporter.runMerge` (dry run, body values, custom metrics) and a body CSV through `mergeBodyCsv`; `StoreMergeTest` checks `mergeSets` against a full reload (#60); `ui/ChartViewportTest` covers full-screen zoom; `BackupsTest` covers
+  `WorkoutDaoTest` runs the workout and routine queries on a real database (triggers, history ranges, import rules, moving a day's notes, a scoped PR replay matching the full one), and `ExportedSchemaTest` uses Room's `MigrationTestHelper` to upgrade a v20 database against the committed `21.json` (`app/schemas` is a debug assets folder, which Robolectric loads; a `test` source set's assets aren't merged); `FitNotesImporterTest` merges a synthetic FitNotes backup through `FitNotesImporter.runMerge` (dry run, body values, custom metrics) and a body CSV through `mergeBodyCsv`; `StoreMergeTest` checks `mergeSets` against a full reload (#60); `ui/ChartViewportTest` covers full-screen zoom; `BackupsTest` covers
   `Backups.writeArchive`, `unpack` and `installDatabase`. All use a plain `Application`, so `Store` and `Settings`
   don't start: test seams take a database or file, not the singletons. **Every database change adds an upgrade test**,
   and every change to the importer's rules or the archive format adds a case.
