@@ -1,6 +1,7 @@
 package com.fitlens.companion.ui
 
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.fitlens.companion.ui.design.exerciseTransformKey
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
 import androidx.compose.animation.AnimatedContent
@@ -604,6 +605,8 @@ private fun ExerciseOnDay(
         name = name,
         categoryColor = colour,
         onClick = { nav.push(Screen.SetEntry(date, exId)) },
+        // The card grows into the exercise screen it opens, and shrinks back on Back (#93).
+        transformKey = exerciseTransformKey(date, exId),
         // The exercise's comment in this workout sits under its sets (#107).
         comment = exerciseComment,
         // FitNotes ticks the exercise once all its sets are done ("Mark sets complete", #19).

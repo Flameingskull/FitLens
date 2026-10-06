@@ -587,6 +587,8 @@ fun ExerciseCard(
     setsDone: Int = 0,
     setsTotal: Int? = null,
     menu: List<MenuAction> = emptyList(),
+    /** The key of the screen this card opens, which it grows into ([containerTransform], #93). */
+    transformKey: Any? = null,
     sets: @Composable ColumnScope.() -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -595,6 +597,7 @@ fun ExerciseCard(
             .fillMaxWidth()
             // FitNotes's margins (#141): 16dp either side, 16dp between cards.
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
+            .containerTransform(transformKey)
             .raisedGlass(FitShapes.card)
             .combinedClickable(
                 onClick = onClick,

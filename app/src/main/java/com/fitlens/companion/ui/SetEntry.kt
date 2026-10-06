@@ -5,6 +5,8 @@
 
 package com.fitlens.companion.ui
 
+import com.fitlens.companion.ui.design.containerTransform
+import com.fitlens.companion.ui.design.exerciseTransformKey
 import com.fitlens.companion.ui.design.Haptics
 import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.GoldButton
@@ -438,7 +440,8 @@ fun SetEntryScreen(
             }
         }
     ) {
-    Column(Modifier.fillMaxSize()) {
+    // The day log's card for this exercise grows into this screen (#93).
+    Column(Modifier.fillMaxSize().containerTransform(exerciseTransformKey(date, exerciseId))) {
         FitTopBar(
             title = ex?.name ?: stringResource(R.string.drawer_exercise_fallback),
             centered = false,

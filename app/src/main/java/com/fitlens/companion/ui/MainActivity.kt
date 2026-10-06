@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -15,6 +17,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import com.fitlens.companion.ui.design.UndoSnackbarHost
+import com.fitlens.companion.ui.design.LocalScreenAnimationScope
+import com.fitlens.companion.ui.design.LocalSharedTransitionScope
 import com.fitlens.companion.ui.design.CharacterBackdrop
 import com.fitlens.companion.ui.design.ambientBackdrop
 import androidx.compose.foundation.clickable
@@ -358,7 +362,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AppRoot(nav: Nav, onRetry: () -> Unit) {
     val snap by Store.snapshot.collectAsState()
@@ -438,33 +442,43 @@ fun AppRoot(nav: Nav, onRetry: () -> Unit) {
                 // Screens slide in when opened and back out when closed (#86, #93). Navigation handles Back: a
                 // pushed screen pops, and at the root Back leaves the app as it does in FitNotes. On Android 14+ the
                 // back gesture previews the screen underneath (predictive back, enabled in the manifest).
-                NavHost(
-                    navController = controller,
-                    startDestination = start,
-                    enterTransition = { if (motion) slideIn(if (nav.goingBack) -1 else 1) else EnterTransition.None },
-                    exitTransition = { if (motion) slideOut(if (nav.goingBack) -1 else 1) else ExitTransition.None },
-                    popEnterTransition = { if (motion) slideIn(-1) else EnterTransition.None },
-                    popExitTransition = { if (motion) slideOut(-1) else ExitTransition.None }
-                ) {
-                    composable<Route> { entry ->
-                        // Replacing a screen with one of its own kind updates this entry's saved state in place.
-                        val text by remember(entry) {
-                            entry.savedStateHandle.getStateFlow(Nav.KEY, entry.arguments?.getString(Nav.KEY) ?: "")
-                        }.collectAsState()
-                        val screen = remember(text) { Nav.decode(text) }
-                        val s = snap
-                        val failed = openError
-                        if (s == null && failed != null) {
-                            ErrorState(
-                                title = stringResource(R.string.app_open_failed_title),
-                                body = stringResource(R.string.app_open_failed_body, failed),
-                                actionLabel = stringResource(R.string.app_open_retry),
-                                onAction = onRetry
-                            )
-                        } else if (s == null) {
-                            LoadingState(stringResource(R.string.app_opening_title), stringResource(R.string.app_opening_body))
-                        } else {
-                            ScreenContent(s, nav, screen)
+                // Around the host so a card can grow into the screen it opens (container transform, #93).
+                SharedTransitionLayout(Modifier.fillMaxSize()) {
+                    val sharedScope = if (motion) this else null
+                    NavHost(
+                        navController = controller,
+                        startDestination = start,
+                        enterTransition = { if (motion) slideIn(if (nav.goingBack) -1 else 1) else EnterTransition.None },
+                        exitTransition = { if (motion) slideOut(if (nav.goingBack) -1 else 1) else ExitTransition.None },
+                        popEnterTransition = { if (motion) slideIn(-1) else EnterTransition.None },
+                        popExitTransition = { if (motion) slideOut(-1) else ExitTransition.None }
+                    ) {
+                        composable<Route> { entry ->
+                            val screenScope = if (motion) this else null
+                            CompositionLocalProvider(
+                                LocalSharedTransitionScope provides sharedScope,
+                                LocalScreenAnimationScope provides screenScope
+                            ) {
+                                // Replacing a screen with one of its own kind updates this entry's saved state in place.
+                                val text by remember(entry) {
+                                    entry.savedStateHandle.getStateFlow(Nav.KEY, entry.arguments?.getString(Nav.KEY) ?: "")
+                                }.collectAsState()
+                                val screen = remember(text) { Nav.decode(text) }
+                                val s = snap
+                                val failed = openError
+                                if (s == null && failed != null) {
+                                    ErrorState(
+                                        title = stringResource(R.string.app_open_failed_title),
+                                        body = stringResource(R.string.app_open_failed_body, failed),
+                                        actionLabel = stringResource(R.string.app_open_retry),
+                                        onAction = onRetry
+                                    )
+                                } else if (s == null) {
+                                    LoadingState(stringResource(R.string.app_opening_title), stringResource(R.string.app_opening_body))
+                                } else {
+                                    ScreenContent(s, nav, screen)
+                                }
+                            }
                         }
                     }
                 }
