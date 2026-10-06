@@ -41,10 +41,13 @@ custom metrics.
   and warnings, search that opens the page at the setting, keyboard and switch access) and the motion and polish pass
   closed ([#93](https://github.com/Flameingskull/FitLens/issues/93))
   ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on the
-  [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). Next come accessibility checks on a real
-  phone ([#157](https://github.com/Flameingskull/FitLens/issues/157)), the rest of FitNotes parity
-  ([#59](https://github.com/Flameingskull/FitLens/issues/59)), the rest of the analysis hub
-  ([#58](https://github.com/Flameingskull/FitLens/issues/58)) and the rest of the
+  [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)), along with the FitNotes parity
+  ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and analysis hub
+  ([#58](https://github.com/Flameingskull/FitLens/issues/58)) epics. From 1.0.113 to 1.0.118 the data layer moved to
+  Room, Android's standard database library ([#36](https://github.com/Flameingskull/FitLens/issues/36)): every
+  upgrade is checked against a recorded layout, and every read and save goes through queries checked when the app is
+  built. Next come accessibility checks on a real phone ([#157](https://github.com/Flameingskull/FitLens/issues/157)),
+  measuring save speed on a long history ([#60](https://github.com/Flameingskull/FitLens/issues/60)) and the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 - **FitNotes stays supported** as an import source. You can import during first-run setup or at any time afterwards.
   Imports always merge and never overwrite FitLens data. There's no export back to FitNotes.
@@ -364,7 +367,7 @@ The rules are also documented in the code (`data/Workouts.kt`).
 
 Each release includes the APK, the full source code, SHA-256 checksums and professionally written notes on what
 changed. The version number goes up with every release (`1.0.<build>`). A number can be skipped: a build that fails
-publishes nothing but still uses up its number (as with 1.0.54, 1.0.56 and 1.0.95), and earlier releases skipped some
+publishes nothing but still uses up its number (as with 1.0.54, 1.0.56, 1.0.95, 1.0.115 and 1.0.116), and earlier releases skipped some
 (1.0.8 was followed by 1.0.13) because pull request checks shared the release build counter
 ([#78](https://github.com/Flameingskull/FitLens/issues/78)). A higher number is
 always the newer build.
@@ -404,6 +407,8 @@ The first time FitLens opens, a short guided setup walks through the steps below
 - If a set you already imported is later edited or deleted in FitNotes, the next import adds the changed version as a
   new set.
 - Background backups follow Android's battery rules, so a scheduled backup can run a few hours after it's due.
+- A backup can be restored into the same or a newer FitLens. Backups made with 1.0.113 or later can't be restored
+  into 1.0.112 or earlier, so update the app before restoring.
 - Photos are copied into FitLens, so deleting a photo in your gallery doesn't remove it from FitLens, and the reverse.
   Save a backup, or turn on automatic backups, before changing phones.
 
@@ -422,7 +427,8 @@ GitHub builds a test APK for every pull request.
 
 ## Build it yourself
 
-The app is native Android: **Kotlin** and **Jetpack Compose** (Material 3), with a local SQLite database. It targets
+The app is native Android: **Kotlin** and **Jetpack Compose** (Material 3), with a local SQLite database managed by **Room**. Every query is checked against the
+schema when the app is built, and the schema itself is recorded in `app/schemas/`. It targets
 Android 16 (API 36) and runs on Android 10 (API 29) or newer.
 
 Open the project in **Android Studio** and click **Run**, or run `./gradlew assembleDebug`. Your own builds are signed
@@ -430,7 +436,8 @@ with your debug key, so Android won't install them over the official release. Te
 Alternatively, save a backup first (**Settings → Backups → Save backup**) and uninstall the official app.
 
 Unit tests run on the JVM with Robolectric, no emulator needed: `./gradlew testDebugUnitTest`. They build databases
-the way older FitLens versions left them and check that every upgrade keeps every row, import a made-up FitNotes
+the way older FitLens versions left them and check that every upgrade keeps every row and ends in exactly the
+recorded Room schema, run the database queries on a real database, import a made-up FitNotes
 backup to check the merge rules, save and restore `.fitlens` backups, and check the 1RM formulas and unit
 conversions, graph zoom, the remembered chart types, pinned graphs and comparisons, and the in-memory data
 updates. Screenshot tests draw the shared components at two phone widths and at double text size and compare them

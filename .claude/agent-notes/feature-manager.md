@@ -155,3 +155,8 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   `app/schemas/.../21.json` is committed and is a `debug` assets folder (Robolectric loads debug assets; `test` source-set assets are NOT merged, which cost a CI run); `ExportedSchemaTest` (MigrationTestHelper)
   validates upgrades against it, so a new `Db.VERSION` must commit its new JSON from `ci-logs` in the same build or
   the next. Still open on #36: the FitNotes import and backups (`Backups`, `AutoBackup`, `BackupSync`) on DAOs.
+- 2026-10-06 (1.0.118, #36 closed): the FitNotes import (`ImportDao`) and the backup checkpoint (`MaintenanceDao`)
+  are on DAOs, and `Db.writableDatabase` is `internal`: app code never writes SQL directly any more, only `Db.upgrade`
+  steps and tests do. A dry run inside `Db.transaction { }` rolls back by throwing a private exception that carries
+  the result (`FitNotesImporter.DryRun`); Room rethrows a RuntimeException unchanged. Tests call DAO-backed code in
+  `runBlocking(Dispatchers.IO)`.
