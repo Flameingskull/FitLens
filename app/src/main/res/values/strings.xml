@@ -443,6 +443,7 @@
     <string name="data_exercises_summary">Tap to choose which exercises to delete from.</string>
     <string name="data_every_exercise">every exercise</string>
     <string name="data_use_every">Use every exercise</string>
+    <string name="data_delete_row_summary">Shows what will be removed and asks before deleting. You can undo it from Backup for a few days.</string>
     <string name="data_delete_nothing">Nothing to delete for %1$s.</string>
     <string name="data_pick_title">Exercises to delete from</string>
     <string name="data_pick_search">Search exercises</string>
@@ -505,7 +506,6 @@
     </plurals>
 
     <!-- Settings › Backups (#94) -->
-    <string name="settings_tap_to_change">Tap to change it.</string>
     <string name="settings_folder_root">(root)</string>
     <string name="cancel">Cancel</string>
     <string name="backup_busy_undo">Putting your previous data back…</string>
@@ -526,7 +526,6 @@
     <string name="backup_restore_summary">Shows what the file holds before anything is replaced.</string>
     <string name="backup_timestamp">Add the date and time to file names</string>
     <string name="backup_group_auto">Automatic backups</string>
-    <string name="backup_choose_folder">Choose a backup folder</string>
     <string name="backup_folder">Backup folder</string>
     <string name="backup_choose_folder_summary">Choose a folder outside FitLens, such as Documents or an SD card, so backups survive uninstalling.</string>
     <string name="backup_now">Back up now</string>
@@ -644,7 +643,6 @@
     <string name="import_fitnotes_missing">FitNotes isn\'t installed on this phone.</string>
     <string name="import_group_folder">FitNotes backup folder</string>
     <string name="import_folder_note">For moving over from FitNotes gradually. Choose the folder where FitNotes saves its backups, then tap Sync now to import the newest one.</string>
-    <string name="import_choose_folder">Choose the FitNotes folder</string>
     <string name="import_folder">FitNotes folder</string>
     <string name="import_no_folder">No folder chosen yet.</string>
     <string name="import_sync_now">Sync now</string>
@@ -2488,4 +2486,23 @@
     <string name="du_mi_spoken">miles</string>
     <string name="du_m_spoken">metres</string>
     <string name="formula_auto">Automatic (recommended)</string>
+    <!-- Settings rows, warnings and permissions (#41, sections 5.3, 5.4 and 7) -->
+    <string name="settings_folder_choose">Choose</string>
+    <string name="settings_folder_change">Change</string>
+    <string name="settings_folder_lost">FitLens can no longer reach this folder. Choose it again.</string>
+    <string name="settings_number_decrease">Decrease %1$s</string>
+    <string name="settings_number_increase">Increase %1$s</string>
+    <string name="settings_auto_backup_failed">The last automatic backup failed. Open to see why.</string>
+    <string name="settings_auto_backup_unreachable">FitLens can no longer reach the backup folder. Open to choose it again.</string>
+    <string name="settings_auto_backup_overdue">Automatic backups are overdue. Open to back up now.</string>
+    <string name="settings_auto_backup_off">Off</string>
+    <string name="settings_auto_backup_on">On</string>
+    <string name="notify_ask_title">Allow notifications?</string>
+    <string name="notify_ask_continue">Continue</string>
+    <string name="notify_ask_not_now">Not now</string>
+    <string name="notify_reason_rest">So the rest timer can count down and tell you when your rest is over while FitLens is in the background.</string>
+    <string name="notify_reason_workout">So the workout timer can keep running in the notification bar while you use other apps.</string>
+    <string name="notify_reason_backup">So FitLens can tell you if an automatic backup can\'t reach its folder.</string>
+    <string name="notify_off">Notifications are off for FitLens. Turn them on in your phone\'s settings.</string>
+    <string name="notify_open_settings">Open notification settings</string>
 </resources>

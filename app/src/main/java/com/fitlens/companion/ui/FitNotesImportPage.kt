@@ -3,8 +3,12 @@ package com.fitlens.companion.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -15,6 +19,7 @@ import com.fitlens.companion.data.FitNotesImporter
 import com.fitlens.companion.data.Settings
 import com.fitlens.companion.data.Snapshot
 import com.fitlens.companion.ui.design.SettingsActionRow
+import com.fitlens.companion.ui.design.SettingsFolderRow
 import com.fitlens.companion.ui.design.SettingsGroup
 import com.fitlens.companion.ui.design.SettingsNote
 import com.fitlens.companion.ui.design.SettingsSwitchRow
@@ -77,10 +82,15 @@ fun FitNotesImportPage(snap: Snapshot) {
     SettingsGroup(stringResource(R.string.import_group_folder))
     SettingsNote(stringResource(R.string.import_folder_note))
     val root = stringResource(R.string.settings_folder_root)
-    SettingsActionRow(
-        stringResource(if (folder == null) R.string.import_choose_folder else R.string.import_folder),
-        stringResource(if (folder == null) R.string.import_no_folder else R.string.settings_tap_to_change),
-        value = folder?.let { it.lastPathSegment?.substringAfter(':')?.ifBlank { root } ?: it.toString() }
+    // Checked again whenever the folder changes, so a withdrawn permission shows on the row (#41).
+    var reachable by remember { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(folder) { reachable = BackupSync.folderReachable(ctx) }
+    SettingsFolderRow(
+        stringResource(R.string.import_folder),
+        folder?.let { folderLabel(it, root) },
+        summary = if (folder == null) stringResource(R.string.import_no_folder) else null,
+        lost = reachable == false,
+        lostText = stringResource(R.string.settings_folder_lost)
     ) { pickFolder.launch(null) }
     if (folder != null) {
         SettingsActionRow(stringResource(R.string.import_sync_now), stringResource(R.string.import_sync_now_summary)) {

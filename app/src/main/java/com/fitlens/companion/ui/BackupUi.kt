@@ -7,14 +7,14 @@ import com.fitlens.companion.ui.design.SectionLabel
 import com.fitlens.companion.ui.design.SegmentedSwitch
 import com.fitlens.companion.ui.design.SettingsActionRow
 import com.fitlens.companion.ui.design.SettingsChoiceRow
+import com.fitlens.companion.ui.design.SettingsFolderRow
 import com.fitlens.companion.ui.design.SettingsGroup
 import com.fitlens.companion.ui.design.SettingsNote
+import com.fitlens.companion.ui.design.SettingsStatusCard
 import com.fitlens.companion.ui.design.SettingsSwitchRow
-import android.Manifest
+import com.fitlens.companion.ui.design.StatusLine
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,7 +52,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import com.fitlens.companion.R
 import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.Backups
@@ -93,14 +92,11 @@ fun BackupsPage(snap: Snapshot) {
     LaunchedEffect(autoFolder, busy) {
         if (busy == null) folderStatus = AutoBackup.folderStatus(ctx)
     }
-    // Android 13+ asks for the notification permission the first time automatic backups are set up, so FitLens can
-    // say when the backup folder can't be reached.
-    val askNotify = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    fun ensureNotifyPermission() {
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
-    }
+    // Automatic backups tell the user when the folder can't be reached, so setting them up asks for notifications,
+    // with the reason first (#41).
+    val notify = rememberNotificationAccess()
+    val notifyReason = stringResource(R.string.notify_reason_backup)
+    fun ensureNotifyPermission() = notify.ask(notifyReason)
     fun fmtTime(ms: Long): String =
         Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm"))
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
@@ -176,10 +172,12 @@ fun BackupsPage(snap: Snapshot) {
 
     SettingsGroup(stringResource(R.string.backup_group_auto))
     val root = stringResource(R.string.settings_folder_root)
-    SettingsActionRow(
-        stringResource(if (autoFolder == null) R.string.backup_choose_folder else R.string.backup_folder),
-        stringResource(if (autoFolder == null) R.string.backup_choose_folder_summary else R.string.settings_tap_to_change),
-        value = autoFolder?.let { it.lastPathSegment?.substringAfter(':')?.ifBlank { root } ?: it.toString() }
+    SettingsFolderRow(
+        stringResource(R.string.backup_folder),
+        autoFolder?.let { folderLabel(it, root) },
+        summary = stringResource(R.string.backup_choose_folder_summary),
+        lost = folderStatus?.reachable == false,
+        lostText = stringResource(R.string.settings_folder_lost)
     ) { pickFolder.launch(null) }
     if (autoFolder != null) {
         SettingsActionRow(stringResource(R.string.backup_now), enabled = busy == null) {
@@ -213,27 +211,29 @@ fun BackupsPage(snap: Snapshot) {
             AutoBackup.setAfterChanges(it)
             if (it) ensureNotifyPermission()
         }
+        NotificationsOffNote(notify, afterChanges || autoDays > 0)
 
+        // One status card (#41): each line with a tick, or a warning icon for a problem.
         SettingsGroup(stringResource(R.string.backup_group_status))
-        SettingsNote(lastAuto?.let { stringResource(R.string.backup_last_ok, fmtTime(it)) } ?: stringResource(R.string.backup_none_yet))
-        SettingsNote(
-            nextDue?.let { due ->
-                if (due <= System.currentTimeMillis() + 5 * 60_000L) stringResource(R.string.backup_next_due_now)
-                else stringResource(R.string.backup_next_from, fmtTime(due))
-            } ?: stringResource(R.string.backup_schedule_off)
+        val status = mutableListOf(
+            StatusLine(lastAuto?.let { stringResource(R.string.backup_last_ok, fmtTime(it)) } ?: stringResource(R.string.backup_none_yet)),
+            StatusLine(
+                nextDue?.let { due ->
+                    if (due <= System.currentTimeMillis() + 5 * 60_000L) stringResource(R.string.backup_next_due_now)
+                    else stringResource(R.string.backup_next_from, fmtTime(due))
+                } ?: stringResource(R.string.backup_schedule_off)
+            )
         )
         folderStatus?.let { st ->
-            if (st.reachable) {
-                val free = st.freeBytes
-                SettingsNote(
-                    if (free == null) stringResource(R.string.backup_folder_ok)
-                    else stringResource(R.string.backup_folder_ok_free, Formatter.formatShortFileSize(ctx, free))
-                )
-            } else {
-                SettingsNote(stringResource(R.string.backup_folder_unreachable), error = true)
+            val free = st.freeBytes
+            status += when {
+                !st.reachable -> StatusLine(stringResource(R.string.backup_folder_unreachable), problem = true)
+                free == null -> StatusLine(stringResource(R.string.backup_folder_ok))
+                else -> StatusLine(stringResource(R.string.backup_folder_ok_free, Formatter.formatShortFileSize(ctx, free)))
             }
         }
-        lastError?.let { (at, msg) -> SettingsNote(stringResource(R.string.backup_last_failed, fmtTime(at), msg), error = true) }
+        lastError?.let { (at, msg) -> status += StatusLine(stringResource(R.string.backup_last_failed, fmtTime(at), msg), problem = true) }
+        SettingsStatusCard(status)
     }
 
     if (undoAt != null) {
@@ -437,6 +437,25 @@ private fun ReportDialog(snap: Snapshot, onDismiss: () -> Unit, onCreate: (Repor
     }
     if (pickFrom) PickDateDialog(from, onDismiss = { pickFrom = false }) { from = it }
     if (pickTo) PickDateDialog(to, onDismiss = { pickTo = false }) { to = it }
+}
+
+/** A chosen folder's name as the Settings folder rows show it: the path inside its storage, or [root] for the top. */
+internal fun folderLabel(uri: Uri, root: String): String =
+    uri.lastPathSegment?.substringAfter(':')?.ifBlank { root } ?: uri.toString()
+
+/**
+ * The problem behind automatic backups, for the main list's Automatic Backup row (#41, section 3): the last one
+ * failed, or none has run for a day past its schedule. Null when they're off or fine. The folder itself is checked on
+ * the Backup page, which reads it.
+ */
+internal fun autoBackupProblem(device: com.fitlens.companion.data.DeviceSettings, now: Long = System.currentTimeMillis()): Int? {
+    if (device.autoBackupFolder == null) return null
+    val error = Backups.parseError(device.autoBackupError)
+    val last = device.autoBackupLast
+    if (error != null && (last == null || error.first > last)) return R.string.settings_auto_backup_failed
+    val days = device.autoBackupDays
+    if (days > 0 && last != null && now > last + (days + 1) * 24L * 3600_000L) return R.string.settings_auto_backup_overdue
+    return null
 }
 
 /** Makes a backup and opens the share sheet with it (#30). The busy overlay shows while the archive is written. */

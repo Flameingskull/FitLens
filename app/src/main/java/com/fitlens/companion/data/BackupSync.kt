@@ -33,6 +33,21 @@ object BackupSync {
         Settings.updateDevice { it.copy(backupFolder = uri.toString()) }
     }
 
+    /**
+     * Whether the chosen folder can still be listed (#41): false once the phone has withdrawn FitLens's access or the
+     * storage holding it is gone, null when no folder is chosen. Settings shows a warning on the folder row for false.
+     */
+    suspend fun folderReachable(context: Context): Boolean? = withContext(Dispatchers.IO) {
+        val tree = folder() ?: return@withContext null
+        try {
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+            context.contentResolver.query(children, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID), null, null, null)
+                ?.use { true } ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun autoSyncEnabled(): Boolean = Settings.current().autoSync
     fun setAutoSync(on: Boolean) = Settings.updateDevice { it.copy(autoSync = on) }
 

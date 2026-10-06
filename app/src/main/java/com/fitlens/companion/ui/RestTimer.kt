@@ -357,7 +357,8 @@ internal fun RestAlertOptions() {
     val ctx = LocalContext.current
     val prefs by Settings.portable.collectAsState()
     val device by Settings.device.collectAsState()
-    val askNotify = rememberNotificationAsk()
+    val notify = rememberNotificationAccess()
+    val notifyReason = stringResource(R.string.notify_reason_rest)
     val pickSound = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         if (res.resultCode == Activity.RESULT_OK) {
             val picked: Uri? = if (Build.VERSION.SDK_INT >= 33) {
@@ -371,9 +372,11 @@ internal fun RestAlertOptions() {
         }
     }
         SettingsSwitchRow(stringResource(R.string.rest_auto_start), prefs.restAutoStart) { on ->
-            if (on) askNotify()
+            // Asked when it's switched on, with the reason first (#41).
+            if (on) notify.ask(notifyReason)
             Settings.updatePortable { it.copy(restAutoStart = on) }
         }
+        NotificationsOffNote(notify, prefs.restAutoStart)
         SettingsSwitchRow(stringResource(R.string.rest_vibrate), prefs.restVibrate) { on -> Settings.updatePortable { it.copy(restVibrate = on) } }
         SettingsSwitchRow(stringResource(R.string.rest_sound_switch), prefs.restSound) { on -> Settings.updatePortable { it.copy(restSound = on) } }
         // With the sound off, its options stay in place, dimmed, and say why (#41).

@@ -1,30 +1,37 @@
 ## Overview
 
-This update finishes moving FitLens's wording into the app's own string resources. The last messages that were still
-built in code now read consistently with the rest of the app: why a workout, exercise, category or exercise type
-couldn't be saved, the starter library's result, the exercise and set types, effort marks and distance units, and the
-names of unnamed slices in Analysis. Every message FitLens shows now comes from one place, ready for future
-translations, and counts read properly for one or many.
+This update makes Settings clearer when something needs your attention. Folders, automatic backups and anything that
+deletes data now look and read the same wherever they appear. A setting that needs notifications explains why before
+Android asks. Every Settings row can now be reached and used with a keyboard or switch access.
 
 There's no database change. Everything you've logged, your photos, poses and settings are kept. Install it over the
 current app as usual.
 
+## What's new
+
+- **Automatic Backup status on the Settings list.** The row shows whether automatic backups are On or Off. It shows a
+  warning when the last backup failed, when none has run for more than a day past its schedule, or when FitLens can no
+  longer reach the backup folder. Tap it to go straight to Backup and fix it.
+- **Folder rows.** The backup folder and the FitNotes folder show the folder's name, or Not set, with Choose or Change
+  beside it. If the phone has withdrawn FitLens's access to a folder, the row says so and asks you to choose it again.
+- **Backup status card.** Settings › Backup shows its status in one card: the last backup, when the next is due, the
+  folder and its free space. Each line has a tick, or a warning sign when something is wrong.
+- **Notifications asked for when you need them.** Switching on Start rest timer automatically, the workout timer's
+  automatic start, or automatic backups now gives a one-line reason before Android asks for notifications. If
+  notifications are off, the setting still works in the app, and a note under it offers **Open notification
+  settings**.
+
 ## Improved
 
-- **Saving workouts and exercises.** Messages such as "There's already an exercise called …", "That set no longer
-  exists" and "Enter a name for the category" use the same wording everywhere they appear, including when Undo can't
-  finish.
-- **Exercise types.** The type picker, its examples ("Running, cycling, rowing") and what a custom type records
-  ("Weight, reps and height (cm)").
-- **Set types and effort.** Working, Warm-up, Drop set and To failure in the set editor, and "RPE 8" or "2 RIR" in set
-  lists. TalkBack now says "1 rep in reserve" and "2 reps in reserve" correctly.
-- **Distance units.** Kilometres, Miles and Metres in Settings, first-run setup and the exercise editor, and how
-  TalkBack reads distances.
-- **Starter library.** The result after adding it, for example "Added 1 category", now reads correctly for one or many.
-- **Analysis.** Breakdown slices for an exercise or category that no longer exists, and the "Other" slice.
-- **Estimated 1RM.** The Automatic (recommended) formula's name in Settings and on the exercise's Stats tab.
+- **Delete workout history** is now a clearly marked row with a warning sign. It's dimmed, with the reason shown, when
+  nothing matches. As before, it always asks before deleting and keeps a safety copy you can undo from Backup.
+- **PDF photos per day** (Settings › Progress photos and media) is now set with − and + instead of a list.
+- **Keyboard and switch access.** Every Settings row, choice and button shows a gold outline when it has focus, so you
+  can see where you are without touching the screen.
+- **Warnings never rely on colour alone.** Every problem in Settings has a warning sign and words as well as colour.
 
 ## Known limitations
 
-- Your own names (exercises, measurements, custom metrics, workout days) are shown as you entered them.
-- Exported CSV files keep their English column names, so spreadsheets and other apps can read them as before.
+- A few parts of the Settings design still need checking on a phone: TalkBack through every page, 200% text size and
+  the smallest screens, and focus returning to a row after its sheet closes.
+- Choices that open a list still don't offer typing an exact number.

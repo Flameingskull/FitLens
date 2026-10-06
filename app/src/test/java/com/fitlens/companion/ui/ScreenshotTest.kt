@@ -35,8 +35,13 @@ import com.fitlens.companion.ui.design.SetCell
 import com.fitlens.companion.ui.design.SetRow
 import com.fitlens.companion.ui.design.SettingsActionRow
 import com.fitlens.companion.ui.design.SettingsChoiceRow
+import com.fitlens.companion.ui.design.SettingsDangerRow
+import com.fitlens.companion.ui.design.SettingsFolderRow
 import com.fitlens.companion.ui.design.SettingsGroup
+import com.fitlens.companion.ui.design.SettingsNumberRow
+import com.fitlens.companion.ui.design.SettingsStatusCard
 import com.fitlens.companion.ui.design.SettingsSwitchRow
+import com.fitlens.companion.ui.design.StatusLine
 import com.fitlens.companion.ui.design.StatTile
 import com.fitlens.companion.ui.design.TopBarAction
 import com.fitlens.companion.ui.design.Trend
@@ -153,6 +158,18 @@ class ScreenshotTest {
             SettingsSwitchRow("Count warm-up sets", checked = true, summary = "Include warm-ups in totals and records") {}
             SettingsChoiceRow("Weight unit", options = listOf("kg", "lbs"), selected = 0) {}
             SettingsActionRow("Back up now", summary = "Saves a .fitlens backup to your chosen folder", value = "Today") {}
+        }
+    }
+
+    @Test fun settingsRowVariants() = shoot("settings_row_variants") {
+        Column {
+            SettingsGroup("Automatic backups")
+            SettingsFolderRow("Backup folder", "Documents/FitLens", summary = "Choose a folder outside FitLens") {}
+            SettingsFolderRow("FitNotes folder", "FitNotes", lost = true, lostText = "FitLens can no longer reach this folder. Choose it again.") {}
+            SettingsActionRow("Automatic Backup", value = "On", warning = "The last automatic backup failed. Open to see why.") {}
+            SettingsNumberRow("Photos per day", 2, 0..4, summary = "In the PDF report") {}
+            SettingsStatusCard(listOf(StatusLine("Last backup: 2 Oct 2026, 03:12"), StatusLine("The folder can't be reached", problem = true)))
+            SettingsDangerRow("Delete workout history", "Asks before deleting") {}
         }
     }
 

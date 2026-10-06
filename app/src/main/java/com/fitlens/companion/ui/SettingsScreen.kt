@@ -29,6 +29,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
+import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.Dates
 import com.fitlens.companion.data.DistanceUnits
 import com.fitlens.companion.data.WeightUnits
@@ -50,6 +51,7 @@ import com.fitlens.companion.ui.design.SettingsActionRow
 import com.fitlens.companion.ui.design.SettingsChoiceRow
 import com.fitlens.companion.ui.design.SettingsGroup
 import com.fitlens.companion.ui.design.SettingsNote
+import com.fitlens.companion.ui.design.SettingsNumberRow
 import com.fitlens.companion.ui.design.SettingsSwitchRow
 import java.time.DayOfWeek
 import java.time.format.TextStyle
@@ -199,7 +201,14 @@ fun SettingsScreen(snap: Snapshot, nav: Nav) {
 @Composable
 private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
     val prefs by Settings.portable.collectAsState()
+    val device by Settings.device.collectAsState()
     val ctx = LocalContext.current
+    // Whether the automatic backup folder can still be reached, checked off the main thread when the list opens.
+    var backupFolderLost by remember { mutableStateOf(false) }
+    LaunchedEffect(device.autoBackupFolder) {
+        backupFolderLost = AutoBackup.folderStatus(ctx.applicationContext)?.reachable == false
+    }
+    val askNotify = rememberNotificationAccess()
     var confirmRecalc by remember { mutableStateOf(false) }
     var whatsNew by remember { mutableStateOf(false) }
     var e1rmLimit by remember { mutableStateOf(false) }
@@ -336,9 +345,13 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
             }
         },
         mainRow(s, R.string.settings_timer_auto, R.string.settings_timer_auto_kw) { title ->
+            val why = stringResource(R.string.notify_reason_workout)
             SettingsSwitchRow(title, prefs.workoutTimerAuto, summary = stringResource(R.string.settings_timer_auto_summary)) { on ->
+                // Asked when it's switched on, with the reason first (#41).
+                if (on) askNotify.ask(why)
                 Settings.updatePortable { it.copy(workoutTimerAuto = on) }
             }
+            NotificationsOffNote(askNotify, prefs.workoutTimerAuto)
         },
         mainRow(s, R.string.settings_page_rest, R.string.settings_rest_kw) { title ->
             SettingsActionRow(title, stringResource(R.string.settings_rest_summary), value = fmtDuration(prefs.restSeconds)) {
@@ -367,7 +380,20 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
             SettingsActionRow(title, stringResource(R.string.settings_restore_summary)) { open(SettingsSection.Backups) }
         },
         mainRow(d, R.string.settings_auto_backup, R.string.settings_auto_backup_kw) { title ->
-            SettingsActionRow(title, stringResource(R.string.settings_auto_backup_summary)) { open(SettingsSection.Backups) }
+            // Its state on the list, and a warning when backups are failing (#41, section 3).
+            val problem = when {
+                backupFolderLost -> R.string.settings_auto_backup_unreachable
+                else -> autoBackupProblem(device)
+            }
+            SettingsActionRow(
+                title,
+                stringResource(R.string.settings_auto_backup_summary),
+                value = stringResource(
+                    if (device.autoBackupFolder != null && (device.autoBackupDays > 0 || device.backupAfterChanges)) R.string.settings_auto_backup_on
+                    else R.string.settings_auto_backup_off
+                ),
+                warning = problem?.let { stringResource(it) }
+            ) { open(SettingsSection.Backups) }
         },
         mainRow(d, R.string.settings_csv, R.string.settings_csv_kw) { title ->
             SettingsActionRow(title, stringResource(R.string.settings_csv_summary)) { open(SettingsSection.DataTools) }
@@ -593,12 +619,13 @@ private fun MediaPage() {
         listOf(stringResource(R.string.media_pdf_dark), stringResource(R.string.media_pdf_light)),
         if (prefs.pdfDark) 0 else 1
     ) { i -> Settings.updatePortable { it.copy(pdfDark = i == 0) } }
-    SettingsChoiceRow(
+    SettingsNumberRow(
         stringResource(R.string.media_pdf_photos),
-        (0..4).map { if (it == 0) none else "$it" },
         prefs.pdfPhotosPerDay.coerceIn(0, 4),
-        summary = stringResource(R.string.media_pdf_photos_summary)
-    ) { i -> Settings.updatePortable { it.copy(pdfPhotosPerDay = i) } }
+        0..4,
+        summary = stringResource(R.string.media_pdf_photos_summary),
+        format = { if (it == 0) none else "$it" }
+    ) { n -> Settings.updatePortable { it.copy(pdfPhotosPerDay = n) } }
     SettingsNote(stringResource(R.string.settings_travel_note))
 }
 

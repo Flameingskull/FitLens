@@ -1,17 +1,26 @@
 package com.fitlens.companion.ui.design
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -26,10 +35,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
+import com.fitlens.companion.ui.FitShapes
 import com.fitlens.companion.ui.GoldHairline
 import com.fitlens.companion.ui.Spacing
 
@@ -66,6 +79,7 @@ fun SettingsSwitchRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .focusRing()
             .toggleable(value = checked, enabled = enabled, role = Role.Checkbox, onValueChange = onChange)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
@@ -97,6 +111,7 @@ fun SettingsChoiceRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .focusRing()
             .clickable(onClickLabel = stringResource(R.string.settings_change, title)) { open = true }
             .semantics(mergeDescendants = true) { stateDescription = current }
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
@@ -118,6 +133,7 @@ fun SettingsChoiceRow(
                         Modifier
                             .fillMaxWidth()
                             .heightIn(min = Spacing.row)
+                            .focusRing()
                             .selectable(selected = i == selected, role = Role.RadioButton) {
                                 onSelect(i)
                                 open = false
@@ -137,6 +153,8 @@ fun SettingsChoiceRow(
 /**
  * A row that opens something: a page, a picker or an action. [value] shows the current choice in gold, as on a
  * choice row (a folder, the exercises chosen). A disabled row is dimmed, doesn't respond, and shows [disabledReason].
+ * [warning] marks a problem behind the row (automatic backups failing, #41): a warning icon and the text in the error
+ * colour, in place of the explanation, so it never rests on colour alone.
  */
 @Composable
 fun SettingsActionRow(
@@ -145,18 +163,210 @@ fun SettingsActionRow(
     value: String? = null,
     enabled: Boolean = true,
     disabledReason: String? = null,
+    warning: String? = null,
     onClick: () -> Unit
 ) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .focusRing()
             .clickable(enabled = enabled, onClick = onClick)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RowText(title, if (enabled) summary else disabledReason ?: summary, Modifier.weight(1f), value)
+        Column(Modifier.weight(1f)) {
+            val detail = when {
+                warning != null -> null
+                enabled -> summary
+                else -> disabledReason ?: summary
+            }
+            RowText(title, detail, Modifier, value)
+            if (warning != null) WarningLine(warning)
+        }
+    }
+}
+
+/**
+ * A folder FitLens reads or writes (#41, section 5.3): the title, the folder's name in gold (or Not set), its
+ * explanation, and Choose or Change on the right. When [lost], the phone has withdrawn FitLens's access to the folder,
+ * and [lostText] says so with a warning icon in place of the explanation. Tapping anywhere on the row picks a folder.
+ */
+@Composable
+fun SettingsFolderRow(
+    title: String,
+    folder: String?,
+    summary: String? = null,
+    lost: Boolean = false,
+    lostText: String? = null,
+    onChange: () -> Unit
+) {
+    val warn = lost && lostText != null
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.row)
+            .focusRing()
+            .clickable(onClickLabel = stringResource(R.string.settings_change, title), onClick = onChange)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            RowText(title, if (warn) null else summary, Modifier, folder ?: stringResource(R.string.settings_not_set))
+            if (warn) WarningLine(lostText!!)
+        }
+        Spacer(Modifier.width(Spacing.md))
+        Text(
+            stringResource(if (folder == null) R.string.settings_folder_choose else R.string.settings_folder_change),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+/**
+ * An action that removes data (#41, section 5.3): a warning icon and the title in the error colour, so it reads as
+ * dangerous without relying on colour. The caller always confirms before acting, with the action named on the button.
+ */
+@Composable
+fun SettingsDangerRow(
+    title: String,
+    summary: String? = null,
+    enabled: Boolean = true,
+    disabledReason: String? = null,
+    onClick: () -> Unit
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.row)
+            .focusRing()
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(Spacing.md))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+            val detail = if (enabled) summary else disabledReason ?: summary
+            if (!detail.isNullOrBlank()) {
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/**
+ * A whole number set with − and + (#41, section 5.3): the title and explanation on the left, the value between two
+ * 48dp buttons on the right. [format] words the value (0 as None, for example). Each button says what it does, and
+ * the new value is announced.
+ */
+@Composable
+fun SettingsNumberRow(
+    title: String,
+    value: Int,
+    range: IntRange,
+    summary: String? = null,
+    format: (Int) -> String = { it.toString() },
+    onChange: (Int) -> Unit
+) {
+    val shown = format(value)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Spacing.row)
+            .padding(start = Spacing.lg, end = Spacing.sm, top = Spacing.sm, bottom = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RowText(title, summary, Modifier.weight(1f))
+        Spacer(Modifier.width(Spacing.sm))
+        NumberButton("−", stringResource(R.string.settings_number_decrease, title), value > range.first) {
+            onChange((value - 1).coerceIn(range))
+        }
+        Text(
+            shown,
+            Modifier
+                .widthIn(min = Spacing.touch)
+                .semantics {
+                    contentDescription = title
+                    stateDescription = shown
+                    liveRegion = LiveRegionMode.Polite
+                },
+            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center
+        )
+        NumberButton("+", stringResource(R.string.settings_number_increase, title), value < range.last) {
+            onChange((value + 1).coerceIn(range))
+        }
+    }
+}
+
+@Composable
+private fun NumberButton(symbol: String, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(Spacing.touch)
+            .focusRing(CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description }
+            .alpha(if (enabled) 1f else DISABLED_ALPHA),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(symbol, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+/** One line of a [SettingsStatusCard]: its text, and whether it reports a problem. */
+data class StatusLine(val text: String, val problem: Boolean = false)
+
+/**
+ * The state of something that runs on its own, such as automatic backups (#41, section 5.3): a raised card with each
+ * line beside a tick, or beside a warning icon in the error colour for a problem. TalkBack reads the card as one
+ * block, and announces it when a problem appears.
+ */
+@Composable
+fun SettingsStatusCard(lines: List<StatusLine>) {
+    if (lines.isEmpty()) return
+    val problem = lines.any { it.problem }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
+            .raisedGlass(FitShapes.card, elevation = 2.dp)
+            .semantics(mergeDescendants = true) { if (problem) liveRegion = LiveRegionMode.Polite }
+            .padding(Spacing.md),
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
+    ) {
+        lines.forEach { line ->
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    if (line.problem) Icons.Filled.Warning else Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = if (line.problem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(Spacing.sm))
+                Text(
+                    line.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (line.problem) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+/** A problem under a row's title: a warning icon and the text, in the error colour. */
+@Composable
+private fun WarningLine(text: String) {
+    Row(Modifier.padding(top = Spacing.xxs), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(Spacing.xs))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
     }
 }
 
