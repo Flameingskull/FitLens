@@ -35,10 +35,14 @@ custom metrics.
   single list. In 1.0.96 the photo, viewer, compare, slideshow and PDF screens joined the same design system, and in
   1.0.101 Settings had an accessibility pass and gained Reset settings to defaults. From 1.0.103 to 1.0.107 every
   screen's wording moved into the app's string resources, with counts that read correctly for one or many, ready for
-  translations ([#94](https://github.com/Flameingskull/FitLens/issues/94); the messages built while saving, importing
-  and backing up follow in [#156](https://github.com/Flameingskull/FitLens/issues/156))
+  translations ([#94](https://github.com/Flameingskull/FitLens/issues/94)), and 1.0.108 and 1.0.109 did the same for
+  the messages built while saving, importing and backing up ([#156](https://github.com/Flameingskull/FitLens/issues/156)).
+  From 1.0.110 to 1.0.112 Settings was finished ([#41](https://github.com/Flameingskull/FitLens/issues/41): status
+  and warnings, search that opens the page at the setting, keyboard and switch access) and the motion and polish pass
+  closed ([#93](https://github.com/Flameingskull/FitLens/issues/93))
   ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on the
-  [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). Next come the rest of FitNotes parity
+  [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)). Next come accessibility checks on a real
+  phone ([#157](https://github.com/Flameingskull/FitLens/issues/157)), the rest of FitNotes parity
   ([#59](https://github.com/Flameingskull/FitLens/issues/59)), the rest of the analysis hub
   ([#58](https://github.com/Flameingskull/FitLens/issues/58)) and the rest of the
   [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
@@ -179,8 +183,13 @@ custom metrics.
   Feedback, Change Log (this update's notes, which also appear once after each update), Show Setup Again, Privacy
   Policy and About (version, privacy, licences, and **Save speed**: how long saving a set takes on your phone).
   On/off settings are checkboxes, and the search field filters the list so a setting can be changed right there.
-  TalkBack reads each row as one sentence (its title, value or state, then its explanation), and a setting that
-  can't be used yet stays in place, dimmed, and says why.
+  Matches on the pages Settings opens (Backups, Rest Timer, Progress Photos & Media and so on) are listed below with
+  their current value, and tapping one opens that page at the setting, outlined in gold for a moment. A number
+  setting can be stepped with − and + or typed in exactly. **Automatic Backup** shows On or Off, with a warning sign
+  when a backup failed, is overdue or its folder can't be reached. TalkBack reads each row as one sentence (its title,
+  value or state, then its explanation), a setting that can't be used yet stays in place, dimmed, and says why, and
+  with a keyboard or switch access every row shows a gold outline when it has focus. Warnings always have a sign and
+  words, never colour alone.
   **Unit System** switches weight, distance and body measurements to metric or imperial together, with the separate
   units below it for any mix (stored values never change, and the plate calculator's plates convert too). Any
   exercise can keep its own weight unit, and any body measurement its own unit. Settings that belong to the phone,
@@ -203,7 +212,9 @@ custom metrics.
   and Back returns you to it. Rotating the phone, or Android closing FitLens in the background, keeps your place:
   the screen you were on and the ones under it, with their open sheets, selections and filters. Choices such as a
   period, a pose or a sort order sit in compact dropdowns, so the data gets the screen; the controls you use
-  mid-workout stay in view.
+  mid-workout stay in view. Tapping an exercise card on the day log opens it out into the exercise screen, and Back
+  shrinks it into the card again. With Android's **Remove animations** on, screens change at once. Screens with
+  nothing to show yet say so and offer one way forward, and a photo whose file can't be read shows a warning mark.
 - **Views:**
   - **Day log (home):** laid out as FitNotes's. It opens on today, under a flat ‹ TODAY › bar: swipe or use the
     arrows to move one day at a time, empty days included, tap the day to jump to any date, and long-press it to come
@@ -303,9 +314,10 @@ custom metrics.
     survive uninstalling. You choose how many to keep (the newest 3, 5 or 10). They run in the background through Android's job scheduler,
     even when FitLens is closed, whenever the battery isn't low. Optionally, **Back up after changes** saves a backup
     when you leave FitLens after changing something, at most once an hour.
-  - **Status and alerts:** the Backups section shows the last successful backup, the next scheduled one and the
-    folder's free space. If the folder can't be reached (the SD card was removed or access was lost), a notification
-    explains how to fix it.
+  - **Status and alerts:** a status card shows the last successful backup, the next scheduled one, the folder and
+    its free space, each with a tick or a warning sign. Folder rows show the folder's name, or Not set, with Choose
+    or Change. If the folder can't be reached (the SD card was removed or access was lost), the row says so and a
+    notification explains how to fix it.
   - **Safety copy with Undo:** before a restore, a FitNotes import, merging exercises or deleting workout history, FitLens keeps a copy
     of your current data on the phone. For 7 days, **Settings → Backups → Safety copy → Undo** puts it back.
   - **Phone-to-phone transfer** (Android 12+) carries FitLens data across when you set up a new phone with a cable or
@@ -315,7 +327,8 @@ FitLens only *reads* FitNotes backups and never changes your FitNotes data. FitL
 FitLens only.
 
 **Permissions:** the only one FitLens asks for is notifications (Android 13+), and only when you set up automatic
-backups or first start a timer. It also uses vibration and a foreground service for the timers, which Android grants
+backups or start a timer. Switching on a setting that needs them gives a one-line reason first, and if notifications
+are off, the setting still works in the app and offers a way to turn them on. It also uses vibration and a foreground service for the timers, which Android grants
 without asking. Photos and folders are accessed through Android's file pickers, and only the ones you choose.
 
 ## FitNotes imports and your FitLens data
