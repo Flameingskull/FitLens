@@ -141,3 +141,9 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   Room would create it (same types, NOT NULLs and `defaultValue`s), or Room refuses to open. `RoomSchemaTest` catches
   a mismatch in CI. Keep writing SQL through `Db.writableDatabase`; never call Room's main-thread-checked APIs from
   `getMeta`. Still open on #36: DAOs, committed schema JSON, no queries on the main thread.
+- 2026-10-06 (1.0.114, #36 second slice): DAOs in `data/Daos.kt` now back the snapshot loads, `meta`, body, photo
+  and goal code, so `getMeta`/`setMeta` are Room queries and **must run off the main thread** (Room throws
+  otherwise; tests wrap them in `offMain`). New reads of an existing table belong in a DAO, mapped with `toModel()`;
+  group multi-row edits with `Db.transaction { }`, and chunk id lists by `Db.MAX_IDS`. Room's `@Query` bind names
+  avoid SQL keywords (`order`, `key`, `from`, `to`). Still open on #36: workout writes (`Workouts.kt`, `Routines.save`),
+  imports and backups on DAOs, and committing `app/schemas/.../21.json` (CI now saves it to `ci-logs` under `schemas/`).

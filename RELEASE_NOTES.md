@@ -1,25 +1,27 @@
 ## Overview
 
-This update changes how FitLens stores your data, not what you see. The database that holds your workouts, body
-values, photos and settings is now managed by Room, Android's standard database library. Room checks the database
-every time it's upgraded, so a future update that would damage or mismatch your data stops before it's used, instead
-of failing later. It also lays the groundwork for faster saving and loading in later updates.
+This update continues the move of FitLens's data layer to Room, Android's standard database library. Last time Room
+took over the database file. Now the app reads your data through it and saves your settings, body values, photo
+edits and goals through it. You won't see a new screen, but these saves are now checked more strictly when the app is
+built and are safer when the phone is under pressure.
 
-Install it over the current app as usual. The first time it opens, FitLens upgrades the database in place, which may
-take a moment longer than usual with a long history. Everything you've logged, your photos, poses and settings are
-kept.
+Install it over the current app as usual. There's no database upgrade this time, so it opens as quickly as before,
+with everything you've logged, your photos and your settings kept.
 
 ## Improved
 
-- **A checked database.** Every table is rebuilt once into the exact layout Room expects, keeping every row and
-  value. If anything didn't match, the upgrade stops and leaves your data as it was rather than losing any of it.
-- **Backups.** Restoring a `.fitlens` backup from any earlier version goes through the same upgrade and check.
-- **Installing an older version.** If an older FitLens is ever installed over this one, or this one over a later
-  one, the app still opens with your data instead of closing on start.
+- **Checked reads.** Your workouts, sets, comments, rest times, routines, body values and photos are loaded through
+  queries that are checked against the database when the app is built. A mistake in one now stops the build
+  instead of reaching your phone.
+- **Settings saved in one step.** Changing a preference now saves all of them together in one write. If the app is
+  closed or the phone switches off part-way through, no preference is left half-saved.
+- **Safer body and goal edits.** Adding a body value, setting a measurement goal or unit, reordering measurements,
+  editing a custom metric and reordering goals each save as a single step: all of it is saved or none of it is.
+- **Large photo selections.** Changing the date, pose or confirmation of many photos at once is split into safe
+  batches, so very large selections work on older phones too.
 
 ## Known limitations
 
-- This is the first part of the move to Room. The app still reads and writes its data the same way as before, so
-  there's no speed change yet. Faster per-screen updates come in later builds.
-- Backups made with this version can't be restored into FitLens 1.0.112 or earlier. Update the app first.
+- Workout logging, imports and backups still save through the older code path. They move to Room in a later update.
+- Save speed is unchanged for now. Settings › About › Save speed still shows the timing of each set you save.
 - The TalkBack, 200% font size and small-screen checks still need to be done on a phone.
