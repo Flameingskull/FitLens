@@ -62,9 +62,10 @@ android {
             }
         }
     }
-    // The exported Room schemas (#36) are the unit tests' assets, so MigrationTestHelper checks upgrades against them.
+    // The exported Room schemas (#36) are debug assets, which Robolectric's unit tests load (a `test` source set's
+    // assets aren't merged), so MigrationTestHelper checks upgrades against them. The release APK doesn't carry them.
     sourceSets {
-        getByName("test").assets.srcDir("$projectDir/schemas")
+        getByName("debug").assets.srcDir("$projectDir/schemas")
     }
 }
 
