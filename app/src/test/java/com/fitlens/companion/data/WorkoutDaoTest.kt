@@ -82,6 +82,34 @@ class WorkoutDaoTest {
     }
 
     @Test
+    fun aScopedPrReplayMatchesTheFullReplayForItsExercises() = withDao { _, w ->
+        val bench = w.addExercise("Bench Press", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
+        val squat = w.addExercise("Squat", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
+        val first = w.set(bench, "2026-10-01", 100.0, 5)
+        val record = w.set(bench, "2026-10-02", 110.0, 5)
+        val after = w.set(bench, "2026-10-03", 105.0, 5)
+        val squatSet = w.set(squat, "2026-10-01", 140.0, 5)
+        assertEquals(listOf(bench), w.exercisesOn("2026-10-02"))
+        assertEquals(3, w.prCandidatesOf(listOf(bench)).size)
+        fun pr(id: Long) = w.setById(id)!!.is_pr != 0
+
+        // Only the named exercise is replayed (#60): the bench marks are set, the squat is left alone.
+        assertEquals(2, Workouts.replayPrs(w, listOf(bench), countWarmups = false))
+        assertTrue(pr(first) && pr(record))
+        assertFalse(pr(after))
+        assertFalse(pr(squatSet))
+        // A full replay then only has the squat left to change, so the scoped one reached the same bench marks.
+        assertEquals(1, Workouts.replayPrs(w, null, countWarmups = false))
+        assertTrue(pr(squatSet))
+        assertEquals(0, Workouts.replayPrs(w, emptyList(), countWarmups = false))
+
+        // Deleting the record hands the mark to the next set that beats everything before it.
+        w.deleteSets(listOf(record))
+        assertEquals(1, Workouts.replayPrs(w, listOf(bench), countWarmups = false))
+        assertTrue(pr(after))
+    }
+
+    @Test
     fun aHistoryDeleteHonoursItsRangeAndExercises() = withDao { _, w ->
         val a = w.addExercise("Row", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
         val b = w.addExercise("Curl", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)

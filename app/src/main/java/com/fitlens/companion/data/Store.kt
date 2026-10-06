@@ -341,23 +341,33 @@ object Store {
 
     /**
      * After a small set write (#60): re-reads only the sets of [exerciseIds] and the sets on [dates], and keeps every
-     * other set as it was. A set that moved to another exercise needs both exercises named.
+     * other set as it was. A set that moved to another exercise needs both exercises named. [areas] are re-read in
+     * full in the same update, for a write that also changed the notes or the library; naming [Area.SETS], or more
+     * exercises and dates than one query can bind, re-reads every set instead.
      */
-    suspend fun refreshSets(exerciseIds: Collection<Long> = emptyList(), dates: Collection<String> = emptyList()) =
-        withContext(Dispatchers.IO) {
-            lock.withLock<Unit> {
-                val old = _snapshot.value
-                val ex = exerciseIds.toSet()
-                val ds = dates.map { it.take(10) }.toSet()
-                if (old == null) {
-                    _snapshot.value = build(null, Area.ALL)
-                } else if (ex.isNotEmpty() || ds.isNotEmpty()) {
+    suspend fun refreshSets(
+        exerciseIds: Collection<Long> = emptyList(),
+        dates: Collection<String> = emptyList(),
+        areas: Set<Area> = emptySet()
+    ) = withContext(Dispatchers.IO) {
+        lock.withLock<Unit> {
+            val old = _snapshot.value
+            val ex = exerciseIds.toSet()
+            val ds = dates.map { it.take(10) }.toSet()
+            if (old == null || Area.SETS in areas || ex.size + ds.size > Db.MAX_IDS) {
+                _snapshot.value = build(old, areas + Area.SETS)
+            } else {
+                val base = if (areas.isEmpty()) old else build(old, areas)
+                if (ex.isNotEmpty() || ds.isNotEmpty()) {
                     val fresh = db.snapshotDao.setsFor(ex.toList(), ds.toList()).map { it.toModel() }
-                    val merged = mergeSets(old.sets, fresh) { it.exerciseId in ex || it.date.take(10) in ds }
-                    _snapshot.value = old.replacing(SetPart(merged, Settings.currentPortable().warmupsCount))
+                    val merged = mergeSets(base.sets, fresh) { it.exerciseId in ex || it.date.take(10) in ds }
+                    _snapshot.value = base.replacing(SetPart(merged, Settings.currentPortable().warmupsCount))
+                } else {
+                    _snapshot.value = base
                 }
             }
         }
+    }
 
     /** Builds a snapshot, reading [areas] and reusing every other part of [old] (reading everything when it's null). */
     private fun build(old: Snapshot?, areas: Set<Area>): Snapshot {

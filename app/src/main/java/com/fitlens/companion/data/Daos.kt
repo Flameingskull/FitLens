@@ -498,6 +498,16 @@ interface WorkoutDao {
     )
     fun prCandidates(): List<PrCandidate>
 
+    /** [prCandidates] for these exercises only, so a write replays the PRs it can change and no others (#60). */
+    @Query(
+        "SELECT id, exercise_id, weight, reps, is_pr, set_type FROM workout_set WHERE weight > 0 AND reps > 0 " +
+            "AND exercise_id IN (:exerciseIds) ORDER BY exercise_id, substr(date, 1, 10), id"
+    )
+    fun prCandidatesOf(exerciseIds: List<Long>): List<PrCandidate>
+
+    @Query("SELECT DISTINCT exercise_id FROM workout_set WHERE date = :date")
+    fun exercisesOn(date: String): List<Long>
+
     // ---- Supersets (#18) ----
 
     @Query("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10) = :day")

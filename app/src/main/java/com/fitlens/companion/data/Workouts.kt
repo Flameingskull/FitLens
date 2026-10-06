@@ -133,10 +133,14 @@ object Workouts {
             result
         }
 
-    /** Which sets a small set write changed: those of [exercises] and those on [dates] (#60). */
+    /**
+     * Which sets a write changed: those of [exercises] and those on [dates] (#60), plus any other [areas] of the
+     * snapshot it touched (the notes, the library).
+     */
     private class SetScope {
         val exercises = HashSet<Long>()
         val dates = HashSet<String>()
+        val areas = HashSet<Area>()
 
         /** Names the exercises of the sets with these ids. Call it before a delete, while the rows still exist. */
         fun addSets(w: WorkoutDao, ids: Collection<Long>) {
@@ -145,20 +149,23 @@ object Workouts {
     }
 
     /**
-     * Like [write], for a write that changes a few sets and never replays PRs across the history (#60): only the sets
-     * [block] names in its [SetScope] are re-read, so saving one set doesn't reload the whole database.
+     * Like [write], for a write that changes the sets of a few exercises or dates (#60): only the sets [block] names
+     * in its [SetScope] are re-read, with the other areas it names, so saving one set or logging a workout day doesn't
+     * reload the whole database. PRs are replayed for the scope's exercises only ([replayPrs]). [kind] is how
+     * [WriteTimings] files it: a single set save, or a larger write.
      */
-    private suspend fun <T> writeSets(block: (WorkoutDao, SetScope) -> T): T = withContext(Dispatchers.IO) {
-        val start = System.nanoTime()
-        val db = Store.db
-        val scope = SetScope()
-        val result = db.transaction { block(db.workoutDao, scope) }
-        val written = System.nanoTime()
-        Store.refreshSets(scope.exercises, scope.dates)
-        // How long a set save takes on this phone, shown in Settings › About (#60).
-        WriteTimings.record(WriteTimings.SET, start, written, System.nanoTime(), Store.snapshot.value?.sets?.size ?: 0)
-        result
-    }
+    private suspend fun <T> writeSets(kind: Int = WriteTimings.SET, block: (WorkoutDao, SetScope) -> T): T =
+        withContext(Dispatchers.IO) {
+            val start = System.nanoTime()
+            val db = Store.db
+            val scope = SetScope()
+            val result = db.transaction { block(db.workoutDao, scope) }
+            val written = System.nanoTime()
+            Store.refreshSets(scope.exercises, scope.dates, scope.areas)
+            // How long a set save takes on this phone, shown in Settings › About (#60).
+            WriteTimings.record(kind, start, written, System.nanoTime(), Store.snapshot.value?.sets?.size ?: 0)
+            result
+        }
 
     private val LIBRARY = setOf(Area.LIBRARY)
     private val NOTES = setOf(Area.NOTES)
@@ -205,8 +212,12 @@ object Workouts {
         groups: Map<Long, Int> = emptyMap(),
         /** The rest the workout day prescribes per exercise (#138), kept on the date so later edits don't change it. */
         rests: Map<Long, WorkoutRest> = emptyMap()
-    ): List<Long> = write { w ->
+    ): List<Long> = writeSets(WriteTimings.OTHER) { w, scope ->
         val d = checkDate(date)
+        scope.dates += d
+        scope.exercises += rows.map { it.first }
+        scope.areas += Area.LIBRARY
+        scope.areas += Area.NOTES
         // The workout's groups become new groups on the day, after any the day already has.
         val offset = w.lastGroupOn(d) ?: 0
         if (workoutId > 0L) w.putOrigin(WorkoutOriginRow(d, workoutId, routineDayId))
@@ -219,7 +230,7 @@ object Workouts {
             )
         }
         rests.filterValues { !it.isEmpty }.forEach { (exId, r) -> putRest(w, d, exId, r) }
-        replayPrs(w)
+        replayPrs(w, scope.exercises)
         ids
     }
 
@@ -228,27 +239,33 @@ object Workouts {
      * An imported set that moves leaves a skip rule, so the next import doesn't bring the original back. PR marks are
      * replayed. Returns the moved sets' ids, for [setExerciseOf] to undo it.
      */
-    suspend fun swapExercise(date: String, from: Long, to: Long): List<Long> = write { w ->
+    suspend fun swapExercise(date: String, from: Long, to: Long): List<Long> = writeSets(WriteTimings.OTHER) { w, scope ->
         val d = checkDate(date)
+        scope.areas += Area.NOTES
         // The prescribed rest (#138) belongs to the exercise's place in the workout, so it follows the swap.
         w.swapRest(d, from, to)
-        if (from == to) return@write emptyList()
+        if (from == to) return@writeSets emptyList()
         if (!w.exerciseExists(to)) throw WorkoutDataException(R.string.wde_exercise_gone)
         val sets = w.setsOfExerciseOn(d, from)
         w.skipSets(sets.filter { it.source == Sources.FITNOTES })
         val ids = sets.map { it.id }
         if (ids.isNotEmpty()) {
+            scope.exercises += from
+            scope.exercises += to
+            scope.dates += d
             ids.inChunks { w.moveSetsToExercise(it, to, Sources.FITLENS) }
-            replayPrs(w)
+            replayPrs(w, scope.exercises)
         }
         ids
     }
 
     /** Puts the sets with these ids under [exerciseId], used to undo [swapExercise]. */
-    suspend fun setExerciseOf(ids: Collection<Long>, exerciseId: Long): Unit = write { w ->
-        if (ids.isEmpty()) return@write
+    suspend fun setExerciseOf(ids: Collection<Long>, exerciseId: Long): Unit = writeSets(WriteTimings.OTHER) { w, scope ->
+        if (ids.isEmpty()) return@writeSets
+        scope.addSets(w, ids)
+        scope.exercises += exerciseId
         ids.inChunks { w.setExercise(it, exerciseId) }
-        replayPrs(w)
+        replayPrs(w, scope.exercises)
     }
 
     /**
@@ -395,8 +412,12 @@ object Workouts {
     }
 
     /** Deletes an exercise and every set logged for it. */
-    suspend fun deleteExercise(id: Long): Unit = write { w ->
-        val row = w.exercise(id) ?: return@write
+    suspend fun deleteExercise(id: Long): Unit = writeSets(WriteTimings.OTHER) { w, scope ->
+        val row = w.exercise(id) ?: return@writeSets
+        // Only its own sets go, so no other exercise's PRs change.
+        scope.exercises += id
+        scope.areas += Area.LIBRARY
+        scope.areas += Area.NOTES
         val hadImports = row.fitnotes_id != null || w.hasImportedSets(id) || w.hasLinkTo(RULE_EXERCISE, id)
         w.deleteSetsOf(id)
         w.deleteGoalsOf(id)
@@ -416,8 +437,12 @@ object Workouts {
      * onto [intoId], and skip rules for its deleted imported sets are re-keyed, so nothing comes back as a duplicate.
      * PR marks are replayed, since the joined history can change them. Returns how many sets moved.
      */
-    suspend fun mergeExercises(fromId: Long, intoId: Long): Int = write { w ->
+    suspend fun mergeExercises(fromId: Long, intoId: Long): Int = writeSets(WriteTimings.OTHER) { w, scope ->
         if (fromId == intoId) throw WorkoutDataException(R.string.wde_merge_same)
+        scope.exercises += fromId
+        scope.exercises += intoId
+        scope.areas += Area.LIBRARY
+        scope.areas += Area.NOTES
         val from = w.exerciseToMerge(fromId) ?: throw WorkoutDataException(R.string.wde_exercise_gone)
         val into = w.exerciseToMerge(intoId) ?: throw WorkoutDataException(R.string.wde_exercise_gone)
         val moved = w.countSetsOf(fromId)
@@ -440,7 +465,7 @@ object Workouts {
         w.setLink(RULE_EXERCISE, nameKey(from.name), intoId)
         val prefix = "$fromId|"
         w.rulesLike(RULE_SET, "$prefix%").forEach { w.setRuleKey(it.id, "$intoId|" + it.key.removePrefix(prefix)) }
-        replayPrs(w)
+        replayPrs(w, listOf(intoId))
         moved
     }
 
@@ -533,11 +558,15 @@ object Workouts {
             set.id, set.exerciseId, d, set.weightKg, set.reps, set.distance, set.durationSec, flag(set.isPr),
             set.comment?.takeIf { it.isNotBlank() }, Sources.FITLENS, set.setType, set.rpe, set.metric
         )
+        // A new weight, rep count or date can make or end a record, for this set and those logged after it.
+        replayPrs(w, scope.exercises)
     }
 
     suspend fun deleteSet(id: Long): Unit = writeSets { w, scope ->
         scope.addSets(w, listOf(id))
         deleteSetsById(w, listOf(id))
+        // A deleted record hands its mark to the next set that now beats everything before it.
+        replayPrs(w, scope.exercises)
     }
 
     /**
@@ -555,9 +584,22 @@ object Workouts {
      * back. PR marks are replayed in the same transaction, since the deleted sets may have held records.
      * Returns how many sets were deleted.
      */
-    suspend fun deleteHistory(from: String?, to: String?, exerciseIds: Set<Long>): Int = write { w ->
-        val every = exerciseIds.isEmpty()
-        val batches = if (every) listOf(emptyList()) else exerciseIds.toList().chunked(Db.MAX_IDS)
+    suspend fun deleteHistory(from: String?, to: String?, exerciseIds: Set<Long>): Int =
+        // Every exercise re-reads the whole history; named exercises re-read and replay only their own (#60).
+        if (exerciseIds.isEmpty()) {
+            write { w -> deleteRange(w, from, to, null) }
+        } else {
+            writeSets(WriteTimings.OTHER) { w, scope ->
+                scope.exercises += exerciseIds
+                scope.areas += Area.NOTES
+                deleteRange(w, from, to, exerciseIds)
+            }
+        }
+
+    /** [deleteHistory]'s transaction, for [exerciseIds] or (when null) every exercise. */
+    private fun deleteRange(w: WorkoutDao, from: String?, to: String?, exerciseIds: Set<Long>?): Int {
+        val every = exerciseIds == null
+        val batches = if (exerciseIds == null) listOf(emptyList()) else exerciseIds.toList().chunked(Db.MAX_IDS)
         var count = 0
         batches.forEach { ids ->
             w.skipSets(w.setsInRangeWithSource(from, to, every, ids, Sources.FITNOTES))
@@ -566,17 +608,30 @@ object Workouts {
             w.deleteExerciseCommentsInRange(from, to, every, ids)
             w.deleteRestsInRange(from, to, every, ids)
         }
-        if (count > 0) replayPrs(w)
-        count
+        if (count > 0) replayPrs(w, exerciseIds)
+        return count
     }
 
-    private fun replayPrs(w: WorkoutDao): Int {
+    /**
+     * Replays the PR marks of [exercises], or of every exercise when it's null (#23). A write replays only the
+     * exercises whose sets it changed: no other exercise's records can move, so saving a set stays quick (#60).
+     * Returns how many marks changed. Internal for `WorkoutDaoTest`.
+     */
+    internal fun replayPrs(
+        w: WorkoutDao,
+        exercises: Collection<Long>? = null,
+        countWarmups: Boolean = Settings.currentPortable().warmupsCount
+    ): Int {
+        val candidates = when {
+            exercises == null -> w.prCandidates()
+            exercises.isEmpty() -> return 0
+            else -> exercises.distinct().chunked(Db.MAX_IDS).flatMap { w.prCandidatesOf(it) }
+        }
         val changes = mutableListOf<Pair<Long, Boolean>>()
         var exercise = -1L
         // best[r] = heaviest weight so far for at least r reps, for the exercise being replayed.
         var best = DoubleArray(0)
-        val countWarmups = Settings.currentPortable().warmupsCount
-        w.prCandidates().forEach { s ->
+        candidates.forEach { s ->
             if (s.exercise_id != exercise) { exercise = s.exercise_id; best = DoubleArray(0) }
             // An uncounted warm-up loses any PR mark and doesn't set the bar for later sets (#43).
             if (!countWarmups && s.set_type == SetTypes.WARMUP) {
@@ -610,6 +665,7 @@ object Workouts {
                 w.deleteOneSkip(RULE_SET, setKey(s.exerciseId, s.date, s.weightKg, s.reps, s.distance, s.durationSec))
             }
         }
+        replayPrs(w, scope.exercises)
         rows.size
     }
 
@@ -691,9 +747,16 @@ object Workouts {
         times.forEach { t -> w.addTime(d, t.start.ifBlank { null }, t.end.ifBlank { null }, Sources.FITLENS) }
     }
 
-    /** Deletes the whole workout on [date]: its sets, comment and times. Measurements and photos are kept. */
-    suspend fun deleteWorkout(date: String): Unit = write { w ->
+    /**
+     * Deletes the whole workout on [date]: its sets, comment and times. Measurements and photos are kept. The PR
+     * marks of the exercises it held are replayed, since a record may have gone with it.
+     */
+    suspend fun deleteWorkout(date: String): Unit = writeSets(WriteTimings.OTHER) { w, scope ->
         val d = checkDate(date)
+        scope.dates += d
+        scope.exercises += w.exercisesOn(d)
+        scope.areas += Area.LIBRARY
+        scope.areas += Area.NOTES
         w.skipSets(w.setsOnWithSource(d, Sources.FITNOTES))
         w.deleteSetsOn(d)
         w.skipImportedComments(d)
@@ -703,6 +766,7 @@ object Workouts {
         w.deleteRestsOn(d)
         w.deleteTimesOn(d)
         w.deleteOrigin(d)
+        replayPrs(w, scope.exercises)
     }
 
     /**
@@ -710,67 +774,88 @@ object Workouts {
      * null copies the whole workout.
      *
      * The copies are added to whatever is already on [to] — nothing there is replaced. The originals are left
-     * untouched, so no skip rule is needed. PR flags aren't copied: a copy isn't the day the record was set
-     * (personal records are recalculated by #23). Returns the new sets' ids, so the copy can be undone (#84).
+     * untouched, so no skip rule is needed. PR flags aren't copied but replayed for the exercises copied: a copy on
+     * a later day can beat the best so far, and one on an earlier day can take a record from a later set (#23).
+     * Returns the new sets' ids, so the copy can be undone (#84).
      */
-    suspend fun copyWorkout(from: String, to: String, setIds: Collection<Long>? = null): List<Long> = write { w ->
-        val f = checkDate(from)
-        val t = checkDate(to)
-        if (setIds != null && setIds.isEmpty()) return@write emptyList()
-        val wanted = setIds?.toHashSet()
-        val copies = w.setsOn(f).filter { wanted == null || it.id in wanted }
-        // Supersets come across as new groups on the target day, after any it already has (#18).
-        val offset = w.lastGroupOn(t) ?: 0
-        val ids = copies.map { s ->
-            w.addSet(
-                s.exercise_id, t, s.weight, s.reps, s.distance, s.duration.toInt(), isPr = 0, comment = s.comment,
-                source = Sources.FITLENS, setType = s.set_type, rpe = s.rpe, metric = s.metric, position = 0L,
-                superset = if (s.superset > 0) s.superset + offset else 0, done = 0, restSeconds = s.rest_seconds
-            )
+    suspend fun copyWorkout(from: String, to: String, setIds: Collection<Long>? = null): List<Long> =
+        writeSets(WriteTimings.OTHER) { w, scope ->
+            val f = checkDate(from)
+            val t = checkDate(to)
+            if (setIds != null && setIds.isEmpty()) return@writeSets emptyList()
+            val wanted = setIds?.toHashSet()
+            val copies = w.setsOn(f).filter { wanted == null || it.id in wanted }
+            scope.dates += t
+            scope.exercises += copies.map { it.exercise_id }
+            scope.areas += Area.NOTES
+            // Supersets come across as new groups on the target day, after any it already has (#18).
+            val offset = w.lastGroupOn(t) ?: 0
+            val ids = copies.map { s ->
+                w.addSet(
+                    s.exercise_id, t, s.weight, s.reps, s.distance, s.duration.toInt(), isPr = 0, comment = s.comment,
+                    source = Sources.FITLENS, setType = s.set_type, rpe = s.rpe, metric = s.metric, position = 0L,
+                    superset = if (s.superset > 0) s.superset + offset else 0, done = 0, restSeconds = s.rest_seconds
+                )
+            }
+            // Exercise comments and prescribed rests (#107, #138) come along for the exercises copied, unless the
+            // target day already has its own.
+            val copied = copies.map { it.exercise_id }.toHashSet()
+            if (copied.isNotEmpty()) {
+                w.exerciseCommentsOn(f).filter { it.exercise_id in copied }
+                    .forEach { w.addExerciseCommentIfNone(t, it.exercise_id, it.comment, Sources.FITLENS) }
+                w.restsOn(f).filter { it.exercise_id in copied }.forEach { w.addRestIfNone(it.copy(date = t)) }
+            }
+            replayPrs(w, scope.exercises)
+            ids
         }
-        // Exercise comments and prescribed rests (#107, #138) come along for the exercises copied, unless the target
-        // day already has its own.
-        val copied = copies.map { it.exercise_id }.toHashSet()
-        if (copied.isNotEmpty()) {
-            w.exerciseCommentsOn(f).filter { it.exercise_id in copied }
-                .forEach { w.addExerciseCommentIfNone(t, it.exercise_id, it.comment, Sources.FITLENS) }
-            w.restsOn(f).filter { it.exercise_id in copied }.forEach { w.addRestIfNone(it.copy(date = t)) }
-        }
-        ids
-    }
 
     /**
      * Deletes the sets with these ids in one transaction, used to undo a copy (#84). Imported sets leave a skip rule
      * like any other delete, and PR marks are replayed since a deleted set may have held one.
      */
-    suspend fun deleteSets(ids: Collection<Long>): Int = write { w ->
-        if (ids.isEmpty()) return@write 0
+    suspend fun deleteSets(ids: Collection<Long>): Int = writeSets(WriteTimings.OTHER) { w, scope ->
+        if (ids.isEmpty()) return@writeSets 0
         val pairs = ArrayList<DayExercise>()
         ids.inChunks { pairs += w.daysOfSets(it) }
+        scope.exercises += pairs.map { it.exercise_id }
+        scope.dates += pairs.map { it.day }
+        scope.areas += Area.NOTES
         deleteSetsById(w, ids)
         // Undoing a copy or a logged workout takes the exercise comments it brought along (#107): a comment goes
         // once its exercise has no sets left on that date.
         pairs.distinct().forEach { w.deleteExerciseCommentIfNoSets(it.day, it.exercise_id) }
-        replayPrs(w)
+        replayPrs(w, scope.exercises)
         ids.size
     }
 
-    /** Moves the sets with these ids to [to], keeping them otherwise as they are. Used to undo a move (#84). */
-    suspend fun moveSets(ids: Collection<Long>, to: String): Unit = write { w ->
+    /**
+     * Moves the sets with these ids to [to], keeping them otherwise as they are. Used to undo a move (#84). PR marks
+     * are replayed for their exercises, since the order of their history changed.
+     */
+    suspend fun moveSets(ids: Collection<Long>, to: String): Unit = writeSets(WriteTimings.OTHER) { w, scope ->
         val t = checkDate(to)
-        if (ids.isEmpty()) return@write
+        if (ids.isEmpty()) return@writeSets
+        scope.addSets(w, ids)
+        scope.dates += t
         ids.inChunks { w.moveSetsTo(it, t) }
+        replayPrs(w, scope.exercises)
     }
 
     /**
      * Moves a whole workout (its sets, comment and times) from [from] to [to], merging into anything already
      * there rather than replacing it. Moved rows become FitLens's own, and any FitNotes row that moves leaves a
-     * skip rule behind for its old date so a later import doesn't put the original back. Returns sets moved.
+     * skip rule behind for its old date so a later import doesn't put the original back. PR marks are replayed for
+     * the exercises moved, since a record can change hands when a workout moves past another. Returns sets moved.
      */
-    suspend fun moveWorkout(from: String, to: String): Int = write { w ->
+    suspend fun moveWorkout(from: String, to: String): Int = writeSets(WriteTimings.OTHER) { w, scope ->
         val f = checkDate(from)
         val t = checkDate(to)
-        if (f == t) return@write 0
+        if (f == t) return@writeSets 0
+        scope.exercises += w.exercisesOn(f)
+        scope.dates += f
+        scope.dates += t
+        scope.areas += Area.LIBRARY
+        scope.areas += Area.NOTES
         w.skipSets(w.setsOnWithSource(f, Sources.FITNOTES))
         w.skipImportedComments(f)
         w.skipImportedTimes(f)
@@ -814,11 +899,12 @@ object Workouts {
             w.deleteTimesOn(f)
             w.deleteTimesOn(t)
             if (start != null || finish != null) w.addTime(t, start, finish, Sources.FITLENS)
-            return@write moved
+        } else {
+            // Start and finish are full timestamps that begin with the date, so their day part moves with the workout
+            // and the recorded duration stays the same.
+            w.moveTimes(f, t, Sources.FITLENS)
         }
-        // Start and finish are full timestamps that begin with the date, so their day part moves with the workout
-        // and the recorded duration stays the same.
-        w.moveTimes(f, t, Sources.FITLENS)
+        replayPrs(w, scope.exercises)
         moved
     }
 }
