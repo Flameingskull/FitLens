@@ -252,8 +252,12 @@ fun AboutPage() {
             )
         }
     }
-    SettingsActionRow(stringResource(R.string.about_whats_new), stringResource(R.string.about_whats_new_summary)) { whatsNew = true }
-    SettingsActionRow(stringResource(R.string.licences_title), stringResource(R.string.about_licences_summary)) { licences = true }
+    SettingsActionRow(stringResource(R.string.about_whats_new), stringResource(R.string.about_whats_new_summary), sheetOpen = whatsNew) {
+        whatsNew = true
+    }
+    SettingsActionRow(stringResource(R.string.licences_title), stringResource(R.string.about_licences_summary), sheetOpen = licences) {
+        licences = true
+    }
     SaveSpeed()
     SettingsGroup(stringResource(R.string.about_group_privacy))
     SettingsNote(stringResource(R.string.about_privacy))

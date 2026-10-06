@@ -377,7 +377,8 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
             SettingsActionRow(
                 title,
                 stringResource(R.string.settings_e1rm_summary),
-                value = pluralStringResource(R.plurals.settings_e1rm_value, limit, limit)
+                value = pluralStringResource(R.plurals.settings_e1rm_value, limit, limit),
+                sheetOpen = e1rmLimit
             ) { e1rmLimit = true }
         },
         // FitLens's own: photos, the slideshow and video, and the PDF report (#46).
@@ -414,14 +415,15 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
                 title,
                 stringResource(R.string.settings_recalc_summary),
                 enabled = snap.sets.isNotEmpty(),
-                disabledReason = stringResource(R.string.settings_recalc_disabled)
+                disabledReason = stringResource(R.string.settings_recalc_disabled),
+                sheetOpen = confirmRecalc
             ) { confirmRecalc = true }
         },
         mainRow(d, R.string.settings_delete_history, R.string.settings_delete_history_kw) { title ->
             SettingsActionRow(title, stringResource(R.string.settings_delete_history_summary)) { open(SettingsSection.DataTools) }
         },
         mainRow(d, R.string.settings_reset, R.string.search_reset_kw) { title ->
-            SettingsActionRow(title, stringResource(R.string.settings_reset_summary)) { confirmReset = true }
+            SettingsActionRow(title, stringResource(R.string.settings_reset_summary), sheetOpen = confirmReset) { confirmReset = true }
         },
         mainRow(d, R.string.settings_import, R.string.settings_import_kw) { title ->
             SettingsActionRow(title, stringResource(R.string.settings_import_summary)) { open(SettingsSection.Import) }
@@ -433,7 +435,7 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
             SettingsActionRow(title, stringResource(R.string.settings_feedback_summary)) { browse("$REPO_URL/issues/new/choose") }
         },
         mainRow(o, R.string.settings_change_log, R.string.settings_change_log_kw) { title ->
-            SettingsActionRow(title, stringResource(R.string.settings_change_log_summary)) { whatsNew = true }
+            SettingsActionRow(title, stringResource(R.string.settings_change_log_summary), sheetOpen = whatsNew) { whatsNew = true }
         },
         mainRow(o, R.string.settings_setup, R.string.settings_setup_kw) { title ->
             SettingsActionRow(title, stringResource(R.string.settings_setup_summary)) { nav.push(Screen.Setup) }

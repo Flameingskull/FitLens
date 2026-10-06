@@ -241,7 +241,8 @@ fun BackupsPage(snap: Snapshot) {
         SettingsActionRow(
             stringResource(R.string.undo),
             pluralStringResource(R.plurals.backup_undo_summary, Backups.UNDO_DAYS, Backups.UNDO_DAYS),
-            value = stringResource(R.string.backup_safety_value, undoReason ?: stringResource(R.string.backup_safety_copy), fmtTime(undoAt))
+            value = stringResource(R.string.backup_safety_value, undoReason ?: stringResource(R.string.backup_safety_copy), fmtTime(undoAt)),
+            sheetOpen = confirmUndo
         ) { confirmUndo = true }
     }
 
@@ -255,7 +256,8 @@ fun BackupsPage(snap: Snapshot) {
     SettingsActionRow(
         stringResource(R.string.backup_pdf_create),
         stringResource(if (snap.allDates.isEmpty()) R.string.backup_pdf_empty else R.string.backup_pdf_summary),
-        enabled = snap.allDates.isNotEmpty()
+        enabled = snap.allDates.isNotEmpty(),
+        sheetOpen = showReport
     ) { showReport = true }
 
     val info = restoreInfo

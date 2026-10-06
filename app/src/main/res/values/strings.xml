@@ -2492,6 +2492,10 @@
     <string name="settings_folder_lost">FitLens can no longer reach this folder. Choose it again.</string>
     <string name="settings_number_decrease">Decrease %1$s</string>
     <string name="settings_number_increase">Increase %1$s</string>
+    <string name="settings_number_type">Type a value for %1$s</string>
+    <string name="settings_number_field">Value</string>
+    <string name="settings_number_range">A whole number from %1$d to %2$d.</string>
+    <string name="settings_number_save">Save</string>
     <string name="settings_auto_backup_failed">The last automatic backup failed. Open to see why.</string>
     <string name="settings_auto_backup_unreachable">FitLens can no longer reach the backup folder. Open to choose it again.</string>
     <string name="settings_auto_backup_overdue">Automatic backups are overdue. Open to back up now.</string>

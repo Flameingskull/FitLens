@@ -52,7 +52,9 @@ fun DataToolsPage(snap: Snapshot) {
 private fun ResetSettingsSection() {
     var confirming by remember { mutableStateOf(false) }
     SettingsGroup(stringResource(R.string.reset_group))
-    SettingsActionRow(stringResource(R.string.reset_row), stringResource(R.string.reset_row_summary)) { confirming = true }
+    SettingsActionRow(stringResource(R.string.reset_row), stringResource(R.string.reset_row_summary), sheetOpen = confirming) {
+        confirming = true
+    }
     if (confirming) ResetSettingsSheet { confirming = false }
 }
 
@@ -280,7 +282,8 @@ private fun DeleteHistorySection(snap: Snapshot) {
         stringResource(R.string.data_delete_group),
         stringResource(R.string.data_delete_row_summary),
         enabled = matching.isNotEmpty(),
-        disabledReason = stringResource(R.string.data_delete_nothing, rangeLabel)
+        disabledReason = stringResource(R.string.data_delete_nothing, rangeLabel),
+        sheetOpen = confirming
     ) { confirming = true }
 
     if (picking) {

@@ -16,18 +16,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -48,6 +54,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
@@ -163,6 +171,7 @@ fun SettingsChoiceRow(
             .heightIn(min = Spacing.row)
             .searchTarget(title)
             .focusRing()
+            .returnFocus(open)
             .clickable(onClickLabel = stringResource(R.string.settings_change, title)) { open = true }
             .semantics(mergeDescendants = true) { stateDescription = current }
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
@@ -205,7 +214,8 @@ fun SettingsChoiceRow(
  * A row that opens something: a page, a picker or an action. [value] shows the current choice in gold, as on a
  * choice row (a folder, the exercises chosen). A disabled row is dimmed, doesn't respond, and shows [disabledReason].
  * [warning] marks a problem behind the row (automatic backups failing, #41): a warning icon and the text in the error
- * colour, in place of the explanation, so it never rests on colour alone.
+ * colour, in place of the explanation, so it never rests on colour alone. [sheetOpen] is whether a sheet this row
+ * opened is showing: when it closes, focus comes back to the row (#41).
  */
 @Composable
 fun SettingsActionRow(
@@ -215,6 +225,7 @@ fun SettingsActionRow(
     enabled: Boolean = true,
     disabledReason: String? = null,
     warning: String? = null,
+    sheetOpen: Boolean = false,
     onClick: () -> Unit
 ) {
     Row(
@@ -223,6 +234,7 @@ fun SettingsActionRow(
             .heightIn(min = Spacing.row)
             .searchTarget(title)
             .focusRing()
+            .returnFocus(sheetOpen)
             .clickable(enabled = enabled, onClick = onClick)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
@@ -280,7 +292,8 @@ fun SettingsFolderRow(
 
 /**
  * An action that removes data (#41, section 5.3): a warning icon and the title in the error colour, so it reads as
- * dangerous without relying on colour. The caller always confirms before acting, with the action named on the button.
+ * dangerous without relying on colour. The caller always confirms before acting, with the action named on the button;
+ * [sheetOpen] is whether that confirmation is showing, so focus comes back to the row when it closes.
  */
 @Composable
 fun SettingsDangerRow(
@@ -288,6 +301,7 @@ fun SettingsDangerRow(
     summary: String? = null,
     enabled: Boolean = true,
     disabledReason: String? = null,
+    sheetOpen: Boolean = false,
     onClick: () -> Unit
 ) {
     Row(
@@ -296,6 +310,7 @@ fun SettingsDangerRow(
             .heightIn(min = Spacing.row)
             .searchTarget(title)
             .focusRing()
+            .returnFocus(sheetOpen)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
@@ -316,7 +331,7 @@ fun SettingsDangerRow(
 /**
  * A whole number set with − and + (#41, section 5.3): the title and explanation on the left, the value between two
  * 48dp buttons on the right. [format] words the value (0 as None, for example). Each button says what it does, and
- * the new value is announced.
+ * the new value is announced. Tapping the value opens a sheet to type it exactly (section 5.3).
  */
 @Composable
 fun SettingsNumberRow(
@@ -328,6 +343,7 @@ fun SettingsNumberRow(
     onChange: (Int) -> Unit
 ) {
     val shown = format(value)
+    var typing by remember { mutableStateOf(false) }
     Row(
         Modifier
             .fillMaxWidth()
@@ -345,6 +361,11 @@ fun SettingsNumberRow(
             shown,
             Modifier
                 .widthIn(min = Spacing.touch)
+                .heightIn(min = Spacing.touch)
+                .focusRing()
+                .returnFocus(typing)
+                .clickable(onClickLabel = stringResource(R.string.settings_number_type, title), role = Role.Button) { typing = true }
+                .wrapContentHeight()
                 .semantics {
                     contentDescription = title
                     stateDescription = shown
@@ -357,6 +378,37 @@ fun SettingsNumberRow(
         NumberButton("+", stringResource(R.string.settings_number_increase, title), value < range.last) {
             onChange((value + 1).coerceIn(range))
         }
+    }
+    if (typing) NumberEntrySheet(title, value, range, onDismiss = { typing = false }, onSave = onChange)
+}
+
+/** Typing a [SettingsNumberRow]'s value: a number field that only saves a whole number within [range]. */
+@Composable
+private fun NumberEntrySheet(title: String, value: Int, range: IntRange, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
+    var text by remember { mutableStateOf(value.toString()) }
+    val typed = text.trim().toIntOrNull()
+    val valid = typed != null && typed in range
+    val focus = remember { FocusRequester() }
+    FitSheet(
+        title = title,
+        onDismiss = onDismiss,
+        confirmLabel = stringResource(R.string.settings_number_save),
+        onConfirm = { if (typed != null && valid) { onSave(typed); onDismiss() } },
+        confirmEnabled = valid
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { new -> text = new.filter { it.isDigit() }.take(9) },
+            label = { Text(stringResource(R.string.settings_number_field)) },
+            supportingText = { Text(stringResource(R.string.settings_number_range, range.first, range.last)) },
+            isError = text.isNotEmpty() && !valid,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { if (typed != null && valid) { onSave(typed); onDismiss() } }),
+            modifier = Modifier.fillMaxWidth().focusRequester(focus)
+        )
+        // The keyboard comes up straight away: typing is why the sheet was opened.
+        LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     }
 }
 

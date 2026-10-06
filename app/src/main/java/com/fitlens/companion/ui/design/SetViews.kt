@@ -95,8 +95,7 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
             text.uppercase(),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            // Wraps rather than cutting off at large font sizes or on narrow phones (#41, section 7).
             modifier = Modifier.padding(bottom = Spacing.xxs)
         )
         Box(Modifier.fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
