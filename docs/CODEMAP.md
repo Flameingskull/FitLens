@@ -5,7 +5,7 @@ Source root: `app/src/main/java/com/fitlens/companion/` (paths below are relativ
 **Keep it current:** any build that adds, moves or renames a file, or changes a pattern below, updates this map in the
 same commit.
 
-Last updated: 1.0.119.
+Last updated: 1.0.120.
 
 ## How data flows
 
@@ -66,7 +66,7 @@ Last updated: 1.0.119.
 | `CsvExport.kt` | Workouts and body data as CSV (#31, exercise comment column #107): documented columns, RFC 4180 quoting, counts for previews |
 | `AutoBackup.kt` | Scheduled backups (`BackupWorker`, JobScheduler), status and failure notifications |
 | `BackupSync.kt` | FitNotes backup-folder auto-sync; `folderReachable` (whether the chosen folder can still be listed, for the folder row's warning, #41) |
-| `PhotoImporter.kt` | Photo import, date detection (EXIF, media store, file name, modified), duplicate hashing |
+| `PhotoImporter.kt` | Photo import, date detection (`pickDate`: EXIF capture, media store, file name, EXIF edit time, modified), duplicate hashing |
 | `StarterLibrary.kt` | Optional starter exercise library |
 | `StandardMeasurements.kt` | The standard body measurements (#27) and `missing`; added by `Store.addStandardMeasurements` from setup and the Measurements screen |
 | `BodyFat.kt` | Body fat from measurements (#153), plain Kotlin, tested in `BodyFatTest`: `navy` (US Navy circumference method, metric body-density form, Siri's equation; refuses impossible inputs), `Sex`, `Input` (the formula's measurements and the names they match), `inputs(sex)`, `isBodyFat(name)`, `STALE_DAYS`, `TYPICAL_ERROR`; `Result.Invalid` carries a `Problem` (worded by `ui/BodyFatText.kt`, #94). `Sex.label` and `Input.label` stay English: they name the measurements it creates and matches. `PortableSettings.profileSex` holds the sex |

@@ -55,6 +55,7 @@ internal fun importResultText(res: Resources, r: PhotoImportResult): String {
 internal fun dateSourceText(res: Resources, source: String): String = res.getString(
     when (source) {
         DateSources.EXIF -> R.string.ds_exif
+        DateSources.EXIF_EDITED -> R.string.ds_exif_edited
         DateSources.MEDIA -> R.string.ds_media
         DateSources.FILENAME -> R.string.ds_filename
         DateSources.FILE -> R.string.ds_file

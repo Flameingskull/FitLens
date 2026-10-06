@@ -281,6 +281,7 @@ object Poses {
 
 object DateSources {
     const val EXIF = "exif"          // camera metadata (most reliable)
+    const val EXIF_EDITED = "exif_edited" // EXIF DateTime: when the file was last changed (#162)
     const val MEDIA = "media"        // Android media library "date taken"
     const val FILENAME = "filename"  // parsed from e.g. IMG_20230826_132000.jpg
     const val FILE = "file"          // file modified time (least reliable)
@@ -288,7 +289,7 @@ object DateSources {
     const val NONE = "none"
 
     /** Sources worth a second look by the user. */
-    fun needsReview(s: String) = s == FILE || s == NONE
+    fun needsReview(s: String) = s == FILE || s == NONE || s == EXIF_EDITED
 }
 
 data class Photo(

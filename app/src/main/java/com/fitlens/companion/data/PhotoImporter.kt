@@ -23,8 +23,11 @@ data class PhotoImportResult(
     val newIds: List<Long>
 ) {
     /** Worded for the screen by `importResultText` in `ui/PhotoText.kt` (#156). */
-    val needsReview: Int get() = (bySource[DateSources.FILE] ?: 0) + (bySource[DateSources.NONE] ?: 0)
+    val needsReview: Int get() = bySource.filterKeys { DateSources.needsReview(it) }.values.sum()
 }
+
+/** A photo's EXIF dates (#162): when the camera captured it, and when the file was last changed. */
+data class ExifDates(val captured: LocalDateTime?, val edited: LocalDateTime?)
 
 
 object PhotoImporter {
@@ -112,14 +115,13 @@ object PhotoImporter {
 
                 var takenAt: LocalDateTime? = null
                 var source = DateSources.NONE
+                val exif = exifDates(dest)
                 if (forcedDate != null) {
-                    takenAt = exifDate(dest)
+                    takenAt = exif.captured ?: exif.edited
                     source = DateSources.MANUAL
                 } else {
-                    exifDate(dest)?.let { takenAt = it; source = DateSources.EXIF }
-                    if (takenAt == null) mediaStoreDate(context, uri)?.let { takenAt = it; source = DateSources.MEDIA }
-                    if (takenAt == null) fileNameDate(name)?.let { takenAt = it; source = DateSources.FILENAME }
-                    if (takenAt == null) lastModified(context, uri)?.let { takenAt = it; source = DateSources.FILE }
+                    pickDate(exif, { mediaStoreDate(context, uri) }, { fileNameDate(name) }, { lastModified(context, uri) })
+                        ?.let { (at, from) -> takenAt = at; source = from }
                 }
                 val date = forcedDate ?: takenAt?.toLocalDate()?.format(Dates.ISO)
                 val id = photos.add(
@@ -152,16 +154,44 @@ object PhotoImporter {
         return if (d.year >= 2000 && d.isBefore(now)) d else null
     }
 
-    fun exifDate(file: File): LocalDateTime? = try {
+    fun exifDates(file: File): ExifDates = try {
         val exif = ExifInterface(file.path)
-        val raw = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
-            ?: exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED)
-            ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
+        exifDates(
+            exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL),
+            exif.getAttribute(ExifInterface.TAG_DATETIME_DIGITIZED),
+            exif.getAttribute(ExifInterface.TAG_DATETIME)
+        )
+    } catch (e: Exception) {
+        ExifDates(null, null)
+    }
+
+    /** `DateTimeOriginal`, then `DateTimeDigitized`, is the capture; `DateTime` is the last edit (#162). */
+    fun exifDates(original: String?, digitized: String?, dateTime: String?) =
+        ExifDates(parseExif(original) ?: parseExif(digitized), parseExif(dateTime))
+
+    private fun parseExif(raw: String?): LocalDateTime? = try {
         if (raw == null || raw.length < 19 || raw.startsWith("0000")) null
         else plausible(LocalDateTime.parse(raw.substring(0, 19), exifFormat))
     } catch (e: Exception) {
         null
     }
+
+    /**
+     * Picks an imported photo's date and where it came from (#162): the camera's capture date, the media library's
+     * date taken, the file name, then EXIF's edit time (flagged for review), then the file's modified time.
+     * The later sources are only looked up when the earlier ones are missing.
+     */
+    fun pickDate(
+        exif: ExifDates,
+        media: () -> LocalDateTime?,
+        fileName: () -> LocalDateTime?,
+        modified: () -> LocalDateTime?
+    ): Pair<LocalDateTime, String>? =
+        exif.captured?.let { it to DateSources.EXIF }
+            ?: media()?.let { it to DateSources.MEDIA }
+            ?: fileName()?.let { it to DateSources.FILENAME }
+            ?: exif.edited?.let { it to DateSources.EXIF_EDITED }
+            ?: modified()?.let { it to DateSources.FILE }
 
     private fun mediaStoreDate(context: Context, uri: Uri): LocalDateTime? = try {
         context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DATE_TAKEN), null, null, null)?.use { c ->

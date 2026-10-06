@@ -1755,6 +1755,7 @@
     <string name="grp_year">Year</string>
     <string name="grp_pose">Pose</string>
     <string name="ds_exif">Photo metadata (EXIF)</string>
+    <string name="ds_exif_edited">Photo metadata, last edited (check this)</string>
     <string name="ds_media">Media library date taken</string>
     <string name="ds_filename">Date in file name</string>
     <string name="ds_file">File modified date (check this)</string>
