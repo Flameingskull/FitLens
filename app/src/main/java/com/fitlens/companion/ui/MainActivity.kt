@@ -138,8 +138,9 @@ sealed interface Screen {
     /** The main Settings screen, opened from the day log's menu (#38). */
     @Serializable
     data object SettingsHome : Screen
+    /** A Settings page; [target] is the title resource of the setting a search opened it at (#41), 0 for none. */
     @Serializable
-    data class SettingsPage(val section: SettingsSection) : Screen
+    data class SettingsPage(val section: SettingsSection, val target: Int = 0) : Screen
     /** The guided setup (#29): first run, or again from Settings. */
     @Serializable
     data object Setup : Screen
@@ -524,7 +525,7 @@ private fun ScreenContent(s: Snapshot, nav: Nav, screen: Screen) {
         is Screen.Slideshow -> SlideshowScreen(s, nav, screen.ids)
         Screen.Review -> ReviewScreen(s, nav)
         Screen.SettingsHome -> SettingsScreen(s, nav)
-        is Screen.SettingsPage -> SettingsPageScreen(s, nav, screen.section)
+        is Screen.SettingsPage -> SettingsPageScreen(s, nav, screen.section, screen.target)
         Screen.Setup -> SetupScreen(s, nav)
     }
 }

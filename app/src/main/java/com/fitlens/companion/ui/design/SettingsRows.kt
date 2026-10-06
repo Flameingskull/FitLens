@@ -1,5 +1,9 @@
 package com.fitlens.companion.ui.design
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
@@ -25,6 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -42,9 +51,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
+import com.fitlens.companion.ui.Brand
 import com.fitlens.companion.ui.FitShapes
+import com.fitlens.companion.ui.Motion
 import com.fitlens.companion.ui.GoldHairline
 import com.fitlens.companion.ui.Spacing
+import kotlinx.coroutines.delay
 
 /*
  * The Settings rows (#86, catalogue in #41): every Settings page is built from these, so each setting looks, reads and
@@ -56,10 +68,47 @@ import com.fitlens.companion.ui.Spacing
 /** How much a disabled row is dimmed. */
 private const val DISABLED_ALPHA = 0.45f
 
+/**
+ * The setting a Settings search result opened its page at (#41, section 5.1). The row or group whose title is [title]
+ * scrolls into view and is outlined in gold for a moment, then [onShown] runs, so it happens once per search.
+ */
+class SettingsTarget(val title: String, val onShown: () -> Unit)
+
+/** The setting the page on screen was opened at, or null. Provided by the Settings page, read by every row here. */
+val LocalSettingsTarget = compositionLocalOf<SettingsTarget?> { null }
+
+/** How long the gold outline stays on a searched-for setting before it fades. */
+private const val TARGET_HOLD_MS = 1400L
+
+/**
+ * When this row or group is the [LocalSettingsTarget], scrolls it into view once the page has laid out, then outlines
+ * it in gold and fades the outline away. Elsewhere it changes nothing.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun Modifier.searchTarget(title: String, shape: Shape = FitShapes.row): Modifier {
+    val target = LocalSettingsTarget.current
+    if (target == null || target.title != title) return this
+    val requester = remember { BringIntoViewRequester() }
+    val glow = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        // Let the page finish sliding in first, so the scroll and the outline are seen.
+        delay(Motion.EMPHASIS.toLong())
+        requester.bringIntoView()
+        glow.snapTo(1f)
+        delay(TARGET_HOLD_MS)
+        glow.animateTo(0f, tween(Motion.EMPHASIS * 2))
+        target.onShown()
+    }
+    return this
+        .bringIntoViewRequester(requester)
+        .border(2.dp, Brand.Gold.copy(alpha = glow.value), shape)
+}
+
 /** A Settings group: FitNotes's category heading, the name in capitals over a gold rule (#145). */
 @Composable
 fun SettingsGroup(title: String) {
-    SectionLabel(title, Modifier.padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.xl, bottom = Spacing.xs))
+    SectionLabel(title, Modifier.searchTarget(title).padding(start = Spacing.lg, end = Spacing.lg, top = Spacing.xl, bottom = Spacing.xs))
 }
 
 /**
@@ -79,6 +128,7 @@ fun SettingsSwitchRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .searchTarget(title)
             .focusRing()
             .toggleable(value = checked, enabled = enabled, role = Role.Checkbox, onValueChange = onChange)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
@@ -111,6 +161,7 @@ fun SettingsChoiceRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .searchTarget(title)
             .focusRing()
             .clickable(onClickLabel = stringResource(R.string.settings_change, title)) { open = true }
             .semantics(mergeDescendants = true) { stateDescription = current }
@@ -170,6 +221,7 @@ fun SettingsActionRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .searchTarget(title)
             .focusRing()
             .clickable(enabled = enabled, onClick = onClick)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
@@ -207,6 +259,7 @@ fun SettingsFolderRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .searchTarget(title)
             .focusRing()
             .clickable(onClickLabel = stringResource(R.string.settings_change, title), onClick = onChange)
             .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
@@ -241,6 +294,7 @@ fun SettingsDangerRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .searchTarget(title)
             .focusRing()
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
@@ -278,6 +332,7 @@ fun SettingsNumberRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = Spacing.row)
+            .searchTarget(title)
             .padding(start = Spacing.lg, end = Spacing.sm, top = Spacing.sm, bottom = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {

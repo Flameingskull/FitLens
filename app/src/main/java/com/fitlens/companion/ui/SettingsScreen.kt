@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,6 +46,7 @@ import com.fitlens.companion.data.Workouts
 import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.ConfirmSheet
+import com.fitlens.companion.ui.design.LocalSettingsTarget
 import com.fitlens.companion.ui.design.MenuAction
 import com.fitlens.companion.ui.design.OverflowMenu
 import com.fitlens.companion.ui.design.SettingsActionRow
@@ -53,6 +55,7 @@ import com.fitlens.companion.ui.design.SettingsGroup
 import com.fitlens.companion.ui.design.SettingsNote
 import com.fitlens.companion.ui.design.SettingsNumberRow
 import com.fitlens.companion.ui.design.SettingsSwitchRow
+import com.fitlens.companion.ui.design.SettingsTarget
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
@@ -80,40 +83,48 @@ enum class SettingsSection(@StringRes val title: Int, val group: PreferenceGroup
     About(R.string.settings_page_about)
 }
 
-/** One searchable setting on a page (#86): what it's called, other words people might search for, and the page. */
-private data class SettingEntry(@StringRes val title: Int, val section: SettingsSection, @StringRes val keywords: Int)
+/**
+ * One searchable setting on a page (#86): what it's called, other words people might search for, and the page.
+ * [target] is the title of the row or group on that page it opens at (#41, section 5.1); by default the same as [title].
+ */
+private data class SettingEntry(
+    @StringRes val title: Int,
+    val section: SettingsSection,
+    @StringRes val keywords: Int,
+    @StringRes val target: Int = title
+)
 
 /** Every setting on a page, for search. A row added to a page belongs here too; main-list rows search themselves. */
 private val CATALOGUE = listOf(
-    SettingEntry(R.string.search_backup_file, SettingsSection.Backups, R.string.search_backup_file_kw),
-    SettingEntry(R.string.search_auto_backups, SettingsSection.Backups, R.string.search_auto_backups_kw),
-    SettingEntry(R.string.search_backup_names, SettingsSection.Backups, R.string.search_backup_names_kw),
-    SettingEntry(R.string.search_backup_keep, SettingsSection.Backups, R.string.search_backup_keep_kw),
-    SettingEntry(R.string.search_backup_after, SettingsSection.Backups, R.string.search_backup_after_kw),
-    SettingEntry(R.string.search_safety_copy, SettingsSection.Backups, R.string.search_safety_copy_kw),
-    SettingEntry(R.string.search_pdf_report, SettingsSection.Backups, R.string.search_pdf_report_kw),
-    SettingEntry(R.string.search_import_fitnotes, SettingsSection.Import, R.string.search_import_fitnotes_kw),
-    SettingEntry(R.string.search_fitnotes_sync, SettingsSection.Import, R.string.search_fitnotes_sync_kw),
-    SettingEntry(R.string.search_fitnotes_auto, SettingsSection.Import, R.string.search_fitnotes_auto_kw),
-    SettingEntry(R.string.search_csv, SettingsSection.DataTools, R.string.search_csv_kw),
-    SettingEntry(R.string.search_delete_history, SettingsSection.DataTools, R.string.search_delete_history_kw),
+    SettingEntry(R.string.search_backup_file, SettingsSection.Backups, R.string.search_backup_file_kw, R.string.backup_group_file),
+    SettingEntry(R.string.search_auto_backups, SettingsSection.Backups, R.string.search_auto_backups_kw, R.string.backup_group_auto),
+    SettingEntry(R.string.search_backup_names, SettingsSection.Backups, R.string.search_backup_names_kw, R.string.backup_timestamp),
+    SettingEntry(R.string.search_backup_keep, SettingsSection.Backups, R.string.search_backup_keep_kw, R.string.backup_keep),
+    SettingEntry(R.string.search_backup_after, SettingsSection.Backups, R.string.search_backup_after_kw, R.string.backup_after),
+    SettingEntry(R.string.search_safety_copy, SettingsSection.Backups, R.string.search_safety_copy_kw, R.string.backup_group_safety),
+    SettingEntry(R.string.search_pdf_report, SettingsSection.Backups, R.string.search_pdf_report_kw, R.string.backup_group_pdf),
+    SettingEntry(R.string.search_import_fitnotes, SettingsSection.Import, R.string.search_import_fitnotes_kw, R.string.import_file),
+    SettingEntry(R.string.search_fitnotes_sync, SettingsSection.Import, R.string.search_fitnotes_sync_kw, R.string.import_group_folder),
+    SettingEntry(R.string.search_fitnotes_auto, SettingsSection.Import, R.string.search_fitnotes_auto_kw, R.string.import_sync_auto),
+    SettingEntry(R.string.search_csv, SettingsSection.DataTools, R.string.search_csv_kw, R.string.data_csv_group),
+    SettingEntry(R.string.search_delete_history, SettingsSection.DataTools, R.string.search_delete_history_kw, R.string.data_delete_group),
     SettingEntry(R.string.reset_row, SettingsSection.DataTools, R.string.search_reset_kw),
     SettingEntry(R.string.home_show_categories, SettingsSection.Home, R.string.search_home_categories_kw),
     SettingEntry(R.string.home_sets_shown, SettingsSection.Home, R.string.search_home_sets_kw),
-    SettingEntry(R.string.search_rest_length, SettingsSection.Rest, R.string.search_rest_length_kw),
-    SettingEntry(R.string.search_rest_auto, SettingsSection.Rest, R.string.search_rest_auto_kw),
-    SettingEntry(R.string.search_rest_vibrate, SettingsSection.Rest, R.string.search_rest_vibrate_kw),
-    SettingEntry(R.string.search_rest_sound, SettingsSection.Rest, R.string.search_rest_sound_kw),
+    SettingEntry(R.string.search_rest_length, SettingsSection.Rest, R.string.search_rest_length_kw, R.string.rest_group_length),
+    SettingEntry(R.string.search_rest_auto, SettingsSection.Rest, R.string.search_rest_auto_kw, R.string.rest_auto_start),
+    SettingEntry(R.string.search_rest_vibrate, SettingsSection.Rest, R.string.search_rest_vibrate_kw, R.string.rest_vibrate),
+    SettingEntry(R.string.search_rest_sound, SettingsSection.Rest, R.string.search_rest_sound_kw, R.string.rest_sound_switch),
     SettingEntry(R.string.media_pose, SettingsSection.Media, R.string.search_media_pose_kw),
     SettingEntry(R.string.media_group, SettingsSection.Media, R.string.search_media_group_kw),
     SettingEntry(R.string.media_remember, SettingsSection.Media, R.string.search_media_remember_kw),
     SettingEntry(R.string.media_reset, SettingsSection.Media, R.string.search_media_reset_kw),
     SettingEntry(R.string.media_pdf_pages, SettingsSection.Media, R.string.search_media_pdf_pages_kw),
     SettingEntry(R.string.media_pdf_photos, SettingsSection.Media, R.string.search_media_pdf_photos_kw),
-    SettingEntry(R.string.search_guides, SettingsSection.Help, R.string.search_guides_kw),
-    SettingEntry(R.string.search_version, SettingsSection.About, R.string.search_version_kw),
+    SettingEntry(R.string.search_guides, SettingsSection.Help, R.string.search_guides_kw, R.string.help_group_guides),
+    SettingEntry(R.string.search_version, SettingsSection.About, R.string.search_version_kw, R.string.about_group_app),
     SettingEntry(R.string.speed_title, SettingsSection.About, R.string.search_speed_kw),
-    SettingEntry(R.string.search_licences, SettingsSection.About, R.string.search_licences_kw)
+    SettingEntry(R.string.search_licences, SettingsSection.About, R.string.search_licences_kw, R.string.licences_title)
 )
 
 /** FitNotes's three headings, in its order (#147). */
@@ -189,7 +200,7 @@ fun SettingsScreen(snap: Snapshot, nav: Nav) {
                 SettingsGroup(stringResource(R.string.settings_on_other_pages))
                 onPages.forEach { (e, title, _) ->
                     SettingsActionRow(title, stringResource(R.string.settings_in_page, pages.getValue(e.section))) {
-                        nav.push(Screen.SettingsPage(e.section))
+                        nav.push(Screen.SettingsPage(e.section, e.target))
                     }
                 }
             }
@@ -480,11 +491,18 @@ private fun RecalculateRecordsSheet(onDismiss: () -> Unit) {
     )
 }
 
-/** One Settings sub-screen. Back returns to Settings, then to wherever Settings was opened from. */
+/**
+ * One Settings sub-screen. Back returns to Settings, then to wherever Settings was opened from. [target] is the title
+ * resource of the setting a search opened it at (0 for none): that row scrolls into view and is outlined once (#41).
+ */
 @Composable
-fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
+fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection, target: Int = 0) {
     val group = section.group
     var confirmReset by remember { mutableStateOf(false) }
+    // Cleared once shown, and kept that way when coming back to the page, so the outline appears once per search.
+    var pending by rememberSaveable(target) { mutableIntStateOf(target) }
+    val targetTitle = if (pending != 0) stringResource(pending) else null
+    val searchTarget = remember(targetTitle) { targetTitle?.let { SettingsTarget(it) { pending = 0 } } }
     Column(Modifier.fillMaxSize()) {
         BackTopBar(stringResource(section.title), onBack = { nav.pop() }) {
             if (group != null) {
@@ -508,15 +526,17 @@ fun SettingsPageScreen(snap: Snapshot, nav: Nav, section: SettingsSection) {
         }
         // Every page is built from the settings rows and runs edge to edge, like the main list (#86).
         Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-            when (section) {
-                SettingsSection.Backups -> BackupsPage(snap)
-                SettingsSection.Import -> FitNotesImportPage(snap)
-                SettingsSection.DataTools -> DataToolsPage(snap)
-                SettingsSection.Home -> HomePage()
-                SettingsSection.Rest -> RestPage()
-                SettingsSection.Media -> MediaPage()
-                SettingsSection.Help -> HelpPage()
-                SettingsSection.About -> AboutPage()
+            CompositionLocalProvider(LocalSettingsTarget provides searchTarget) {
+                when (section) {
+                    SettingsSection.Backups -> BackupsPage(snap)
+                    SettingsSection.Import -> FitNotesImportPage(snap)
+                    SettingsSection.DataTools -> DataToolsPage(snap)
+                    SettingsSection.Home -> HomePage()
+                    SettingsSection.Rest -> RestPage()
+                    SettingsSection.Media -> MediaPage()
+                    SettingsSection.Help -> HelpPage()
+                    SettingsSection.About -> AboutPage()
+                }
             }
         }
     }

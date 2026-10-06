@@ -166,7 +166,7 @@
     <!-- Settings: the main list, its pages and search (#94, #147). -->
     <string name="settings_title">Settings</string>
     <string name="settings_search">Search settings</string>
-    <string name="settings_search_none">No setting matches \"%1$s\".</string>
+    <string name="settings_search_none">No settings match \"%1$s\". Try a shorter word, like \"timer\" or \"units\".</string>
     <string name="settings_on_other_pages">On other pages</string>
     <string name="settings_in_page">In %1$s</string>
     <string name="settings_heading_settings">Settings</string>
