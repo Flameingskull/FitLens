@@ -16,7 +16,7 @@ import java.util.concurrent.Callable
 /**
  * FitLens's database, `fitlens.db`, opened through Room (#36). Room creates it on a fresh install from the tables in
  * `Schema.kt`, runs [upgrade] and then [reconcile] on anything older, and checks the result against those tables
- * before the app sees it. Everything but the imports and backups uses the typed queries in `Daos.kt`
+ * before the app sees it. Everything but the FitNotes import and backups uses the typed queries in `Daos.kt`
  * through [snapshotDao] and its neighbours; those two still write SQL through [writableDatabase].
  */
 class Db(context: Context) : Closeable {

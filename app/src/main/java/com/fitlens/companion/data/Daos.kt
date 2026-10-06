@@ -12,7 +12,7 @@ import androidx.room.Transaction
  * properties open the database first, so the downgrade check of #77 always runs before Room's own).
  *
  * Every DAO call runs off the main thread: Room refuses a query on the main thread, and every caller already runs on
- * `Dispatchers.IO`. Only the FitNotes and photo imports and the backups still write SQL through `Db.writableDatabase`.
+ * `Dispatchers.IO`. Only the FitNotes import and the backups still write SQL through `Db.writableDatabase`.
  */
 
 /** Everything the in-memory snapshot is built from (`Store.build`), in the order each area expects. */
@@ -270,34 +270,34 @@ data class DayExercise(val day: String, val exercise_id: Long)
 interface WorkoutDao {
     // ---- Import rules ----
 
-    @Query("DELETE FROM import_rule WHERE kind = :kind AND key = :key")
-    fun deleteRule(kind: String, key: String)
+    @Query("DELETE FROM import_rule WHERE kind = :kind AND key = :ruleKey")
+    fun deleteRule(kind: String, ruleKey: String)
 
-    @Query("INSERT INTO import_rule(kind, key, target_id) VALUES(:kind, :key, :targetId)")
-    fun addRule(kind: String, key: String, targetId: Long?)
+    @Query("INSERT INTO import_rule(kind, key, target_id) VALUES(:kind, :ruleKey, :targetId)")
+    fun addRule(kind: String, ruleKey: String, targetId: Long?)
 
     /** A name the user re-creates stops being skipped by imports. */
-    @Query("DELETE FROM import_rule WHERE kind = :kind AND key = :key AND target_id IS NULL")
-    fun deleteSkips(kind: String, key: String)
+    @Query("DELETE FROM import_rule WHERE kind = :kind AND key = :ruleKey AND target_id IS NULL")
+    fun deleteSkips(kind: String, ruleKey: String)
 
     /** Drops one skip rule with this key, when the row it stood for comes back (#76). */
     @Query(
         "DELETE FROM import_rule WHERE id = (SELECT id FROM import_rule " +
-            "WHERE kind = :kind AND key = :key AND target_id IS NULL LIMIT 1)"
+            "WHERE kind = :kind AND key = :ruleKey AND target_id IS NULL LIMIT 1)"
     )
-    fun deleteOneSkip(kind: String, key: String)
+    fun deleteOneSkip(kind: String, ruleKey: String)
 
     @Query("SELECT EXISTS(SELECT 1 FROM import_rule WHERE kind = :kind AND target_id = :targetId)")
     fun hasLinkTo(kind: String, targetId: Long): Boolean
 
-    @Query("UPDATE import_rule SET target_id = :into WHERE kind = :kind AND target_id = :from")
-    fun relink(kind: String, from: Long, into: Long?)
+    @Query("UPDATE import_rule SET target_id = :intoId WHERE kind = :kind AND target_id = :fromId")
+    fun relink(kind: String, fromId: Long, intoId: Long?)
 
     @Query("SELECT * FROM import_rule WHERE kind = :kind AND key LIKE :pattern")
     fun rulesLike(kind: String, pattern: String): List<ImportRuleRow>
 
-    @Query("UPDATE import_rule SET key = :key WHERE id = :id")
-    fun setRuleKey(id: Long, key: String)
+    @Query("UPDATE import_rule SET key = :ruleKey WHERE id = :id")
+    fun setRuleKey(id: Long, ruleKey: String)
 
     // ---- Categories ----
 
@@ -319,8 +319,8 @@ interface WorkoutDao {
     @Query("UPDATE category SET sort_order = :sortOrder WHERE id = :id")
     fun setCategoryOrder(id: Long, sortOrder: Int)
 
-    @Query("UPDATE exercise SET category_id = :into WHERE category_id = :from")
-    fun moveExercisesToCategory(from: Long, into: Long)
+    @Query("UPDATE exercise SET category_id = :intoId WHERE category_id = :fromId")
+    fun moveExercisesToCategory(fromId: Long, intoId: Long)
 
     @Query("DELETE FROM category WHERE id = :id")
     fun deleteCategory(id: Long)
@@ -383,18 +383,18 @@ interface WorkoutDao {
     @Query("DELETE FROM workout_rest WHERE exercise_id = :exerciseId")
     fun deleteRestsOf(exerciseId: Long)
 
-    @Query("UPDATE workout_set SET exercise_id = :into WHERE exercise_id = :from")
-    fun moveSetsOf(from: Long, into: Long)
+    @Query("UPDATE workout_set SET exercise_id = :intoId WHERE exercise_id = :fromId")
+    fun moveSetsOf(fromId: Long, intoId: Long)
 
-    @Query("UPDATE exercise_goal SET exercise_id = :into WHERE exercise_id = :from")
-    fun moveGoalsOf(from: Long, into: Long)
+    @Query("UPDATE exercise_goal SET exercise_id = :intoId WHERE exercise_id = :fromId")
+    fun moveGoalsOf(fromId: Long, intoId: Long)
 
-    @Query("UPDATE routine_day_exercise SET exercise_id = :into WHERE exercise_id = :from")
-    fun movePlansOf(from: Long, into: Long)
+    @Query("UPDATE routine_day_exercise SET exercise_id = :intoId WHERE exercise_id = :fromId")
+    fun movePlansOf(fromId: Long, intoId: Long)
 
     /** Moves prescribed rests (#138); on a date where both exercises have one, the kept exercise's stays. */
-    @Query("UPDATE OR IGNORE workout_rest SET exercise_id = :into WHERE exercise_id = :from")
-    fun moveRestsOf(from: Long, into: Long)
+    @Query("UPDATE OR IGNORE workout_rest SET exercise_id = :intoId WHERE exercise_id = :fromId")
+    fun moveRestsOf(fromId: Long, intoId: Long)
 
     @Query("SELECT * FROM exercise_comment WHERE exercise_id = :exerciseId")
     fun exerciseCommentsOf(exerciseId: Long): List<ExerciseCommentRow>
@@ -501,43 +501,43 @@ interface WorkoutDao {
     @Query("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10) = :day AND exercise_id IN (:exerciseIds)")
     fun groupOf(day: String, exerciseIds: List<Long>): Int?
 
-    @Query("UPDATE workout_set SET superset = :group WHERE substr(date, 1, 10) = :day AND exercise_id IN (:exerciseIds)")
-    fun setGroup(day: String, exerciseIds: List<Long>, group: Int)
+    @Query("UPDATE workout_set SET superset = :groupNo WHERE substr(date, 1, 10) = :day AND exercise_id IN (:exerciseIds)")
+    fun setGroup(day: String, exerciseIds: List<Long>, groupNo: Int)
 
-    @Query("SELECT COUNT(DISTINCT exercise_id) FROM workout_set WHERE substr(date, 1, 10) = :day AND superset = :group")
-    fun exercisesInGroup(day: String, group: Int): Int
+    @Query("SELECT COUNT(DISTINCT exercise_id) FROM workout_set WHERE substr(date, 1, 10) = :day AND superset = :groupNo")
+    fun exercisesInGroup(day: String, groupNo: Int): Int
 
-    @Query("UPDATE workout_set SET superset = 0 WHERE substr(date, 1, 10) = :day AND superset = :group")
-    fun dissolveGroup(day: String, group: Int)
+    @Query("UPDATE workout_set SET superset = 0 WHERE substr(date, 1, 10) = :day AND superset = :groupNo")
+    fun dissolveGroup(day: String, groupNo: Int)
 
     // ---- Deleting history (#32): [from] and [to] are inclusive dates, null for open-ended ----
 
     @Query(
-        "SELECT * FROM workout_set WHERE (:from IS NULL OR substr(date, 1, 10) >= :from) " +
-            "AND (:to IS NULL OR substr(date, 1, 10) <= :to) AND (:everyExercise OR exercise_id IN (:exerciseIds)) " +
+        "SELECT * FROM workout_set WHERE (:fromDate IS NULL OR substr(date, 1, 10) >= :fromDate) " +
+            "AND (:toDate IS NULL OR substr(date, 1, 10) <= :toDate) AND (:everyExercise OR exercise_id IN (:exerciseIds)) " +
             "AND source = :source"
     )
     fun setsInRangeWithSource(
-        from: String?, to: String?, everyExercise: Boolean, exerciseIds: List<Long>, source: String
+        fromDate: String?, toDate: String?, everyExercise: Boolean, exerciseIds: List<Long>, source: String
     ): List<WorkoutSetRow>
 
     @Query(
-        "DELETE FROM workout_set WHERE (:from IS NULL OR substr(date, 1, 10) >= :from) " +
-            "AND (:to IS NULL OR substr(date, 1, 10) <= :to) AND (:everyExercise OR exercise_id IN (:exerciseIds))"
+        "DELETE FROM workout_set WHERE (:fromDate IS NULL OR substr(date, 1, 10) >= :fromDate) " +
+            "AND (:toDate IS NULL OR substr(date, 1, 10) <= :toDate) AND (:everyExercise OR exercise_id IN (:exerciseIds))"
     )
-    fun deleteSetsInRange(from: String?, to: String?, everyExercise: Boolean, exerciseIds: List<Long>): Int
+    fun deleteSetsInRange(fromDate: String?, toDate: String?, everyExercise: Boolean, exerciseIds: List<Long>): Int
 
     @Query(
-        "DELETE FROM exercise_comment WHERE (:from IS NULL OR date >= :from) AND (:to IS NULL OR date <= :to) " +
+        "DELETE FROM exercise_comment WHERE (:fromDate IS NULL OR date >= :fromDate) AND (:toDate IS NULL OR date <= :toDate) " +
             "AND (:everyExercise OR exercise_id IN (:exerciseIds))"
     )
-    fun deleteExerciseCommentsInRange(from: String?, to: String?, everyExercise: Boolean, exerciseIds: List<Long>)
+    fun deleteExerciseCommentsInRange(fromDate: String?, toDate: String?, everyExercise: Boolean, exerciseIds: List<Long>)
 
     @Query(
-        "DELETE FROM workout_rest WHERE (:from IS NULL OR date >= :from) AND (:to IS NULL OR date <= :to) " +
+        "DELETE FROM workout_rest WHERE (:fromDate IS NULL OR date >= :fromDate) AND (:toDate IS NULL OR date <= :toDate) " +
             "AND (:everyExercise OR exercise_id IN (:exerciseIds))"
     )
-    fun deleteRestsInRange(from: String?, to: String?, everyExercise: Boolean, exerciseIds: List<Long>)
+    fun deleteRestsInRange(fromDate: String?, toDate: String?, everyExercise: Boolean, exerciseIds: List<Long>)
 
     // ---- A whole day's workout ----
 
@@ -553,18 +553,18 @@ interface WorkoutDao {
     @Query("DELETE FROM workout_set WHERE date = :date")
     fun deleteSetsOn(date: String)
 
-    @Query("UPDATE workout_set SET superset = superset + :offset WHERE date = :date AND superset > 0")
-    fun shiftGroupsOn(date: String, offset: Int)
+    @Query("UPDATE workout_set SET superset = superset + :shift WHERE date = :date AND superset > 0")
+    fun shiftGroupsOn(date: String, shift: Int)
 
-    @Query("UPDATE workout_set SET date = :to, source = :source WHERE date = :from")
-    fun moveSetsOn(from: String, to: String, source: String)
+    @Query("UPDATE workout_set SET date = :toDate, source = :source WHERE date = :fromDate")
+    fun moveSetsOn(fromDate: String, toDate: String, source: String)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun putOrigin(row: WorkoutOriginRow)
 
     /** Where the workout came from moves with it (#21), replacing the target day's. */
-    @Query("UPDATE OR REPLACE workout_origin SET date = :to WHERE date = :from")
-    fun moveOrigin(from: String, to: String)
+    @Query("UPDATE OR REPLACE workout_origin SET date = :toDate WHERE date = :fromDate")
+    fun moveOrigin(fromDate: String, toDate: String)
 
     @Query("DELETE FROM workout_origin WHERE date = :date")
     fun deleteOrigin(date: String)
@@ -577,8 +577,8 @@ interface WorkoutDao {
     @Query("INSERT INTO workout_comment(date, comment, source) VALUES(:date, :comment, :source)")
     fun addComment(date: String, comment: String, source: String)
 
-    @Query("UPDATE workout_comment SET date = :to, source = :source WHERE date = :from")
-    fun moveComments(from: String, to: String, source: String)
+    @Query("UPDATE workout_comment SET date = :toDate, source = :source WHERE date = :fromDate")
+    fun moveComments(fromDate: String, toDate: String, source: String)
 
     @Query("DELETE FROM workout_comment WHERE date = :date")
     fun deleteCommentsOn(date: String)
@@ -591,11 +591,11 @@ interface WorkoutDao {
 
     /** Start and finish begin with the date, so their day part moves with the workout and the duration is kept. */
     @Query(
-        "UPDATE workout_time SET date = :to, source = :source, " +
-            "start = CASE WHEN start IS NULL THEN NULL ELSE :to || substr(start, 11) END, " +
-            "finish = CASE WHEN finish IS NULL THEN NULL ELSE :to || substr(finish, 11) END WHERE date = :from"
+        "UPDATE workout_time SET date = :toDate, source = :source, " +
+            "start = CASE WHEN start IS NULL THEN NULL ELSE :toDate || substr(start, 11) END, " +
+            "finish = CASE WHEN finish IS NULL THEN NULL ELSE :toDate || substr(finish, 11) END WHERE date = :fromDate"
     )
-    fun moveTimes(from: String, to: String, source: String)
+    fun moveTimes(fromDate: String, toDate: String, source: String)
 
     @Query("DELETE FROM workout_time WHERE date = :date")
     fun deleteTimesOn(date: String)
@@ -649,12 +649,12 @@ interface WorkoutDao {
     fun deleteRestsOn(date: String)
 
     /** The rest belongs to the exercise's place in the workout, so it follows a swap. */
-    @Query("UPDATE OR REPLACE workout_rest SET exercise_id = :to WHERE date = :date AND exercise_id = :from")
-    fun swapRest(date: String, from: Long, to: Long)
+    @Query("UPDATE OR REPLACE workout_rest SET exercise_id = :toId WHERE date = :date AND exercise_id = :fromId")
+    fun swapRest(date: String, fromId: Long, toId: Long)
 
     /** Rests move with their sets; the target day's own win where both have one. */
-    @Query("UPDATE OR IGNORE workout_rest SET date = :to WHERE date = :from")
-    fun moveRests(from: String, to: String)
+    @Query("UPDATE OR IGNORE workout_rest SET date = :toDate WHERE date = :fromDate")
+    fun moveRests(fromDate: String, toDate: String)
 }
 
 /** User-made workouts and their days (`Routines`, #21, #106). */
