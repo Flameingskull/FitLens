@@ -144,7 +144,7 @@ object Routines {
      * rewritten rather than diffed, and exercises that no longer exist are dropped. Returns the workout's id.
      */
     suspend fun save(routine: Routine): Long = write { r ->
-        val name = routine.name.trim().replace(Regex("\s+"), " ")
+        val name = routine.name.trim().replace(Regex("\\s+"), " ")
         if (name.isEmpty()) throw WorkoutDataException(R.string.wde_name_workout)
 
         val notes = routine.notes?.trim()?.ifBlank { null }
@@ -192,7 +192,7 @@ object Routines {
         writeExercises(r, dayId, exercises, r.exerciseIds().toHashSet())
     }
 
-    private fun dayName(name: String, index: Int) = name.trim().replace(Regex("\s+"), " ").ifBlank { "Day ${index + 1}" }
+    private fun dayName(name: String, index: Int) = name.trim().replace(Regex("\\s+"), " ").ifBlank { "Day ${index + 1}" }
 
     private fun clearExercises(r: RoutineDao, dayId: Long) {
         r.deletePlannedSetsOfDay(dayId)
