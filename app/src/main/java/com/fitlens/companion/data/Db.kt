@@ -11,11 +11,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import java.io.Closeable
+import java.util.concurrent.Callable
 
 /**
  * FitLens's database, `fitlens.db`, opened through Room (#36). Room creates it on a fresh install from the tables in
  * `Schema.kt`, runs [upgrade] and then [reconcile] on anything older, and checks the result against those tables
- * before the app sees it. Everything else in the app still reads and writes with SQL through [writableDatabase].
+ * before the app sees it. The snapshot, settings, body, photo and goal code use the typed queries in `Daos.kt`
+ * through [snapshotDao] and its neighbours; everything else still writes SQL through [writableDatabase].
  */
 class Db(context: Context) : Closeable {
 
@@ -23,6 +25,9 @@ class Db(context: Context) : Closeable {
         const val NAME = "fitlens.db"
         /** 21: Room takes over the file (#36). */
         const val VERSION = 21
+
+        /** The most ids one query binds, inside the 999-variable limit of older phones' SQLite. */
+        const val MAX_IDS = 500
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
@@ -477,34 +482,38 @@ class Db(context: Context) : Closeable {
         }.onFailure { Log.w("FitLens", "Couldn't check the database version before opening it", it) }
     }
 
-    fun getMeta(key: String): String? {
-        readableDatabase.rawQuery("SELECT v FROM meta WHERE k=?", arrayOf(key)).use { c ->
-            return if (c.moveToFirst()) c.getString(0) else null
-        }
+    // ---- Typed queries (#36). Each opens the database first, so the downgrade check above runs before Room's. ----
+
+    val snapshotDao: SnapshotDao get() = opened().snapshotDao()
+    val metaDao: MetaDao get() = opened().metaDao()
+    val bodyDao: BodyDao get() = opened().bodyDao()
+    val photoDao: PhotoDao get() = opened().photoDao()
+    val goalDao: GoalDao get() = opened().goalDao()
+
+    private fun opened(): FitLensDatabase {
+        writableDatabase
+        return room
     }
+
+    /** Runs [block] in one Room transaction: every DAO call inside it lands together, or none does. */
+    fun <T> transaction(block: () -> T): T = opened().runInTransaction(Callable<T> { block() })
+
+    // ---- Preferences (`meta`). Off the main thread only, like every query (#36). ---------------------------------
+
+    fun getMeta(key: String): String? = metaDao.get(key)
 
     /** Deletes the given `meta` rows in one transaction. */
     fun deleteMeta(keys: Collection<String>) {
         if (keys.isEmpty()) return
-        val db = writableDatabase
-        db.beginTransaction()
-        try {
-            keys.forEach { db.delete("meta", "k=?", arrayOf(it)) }
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
+        metaDao.deleteAll(keys.toList())
     }
 
     fun setMeta(key: String, value: String?) {
-        val db = writableDatabase
-        if (value == null) {
-            db.delete("meta", "k=?", arrayOf(key))
-        } else {
-            val cv = ContentValues().apply { put("k", key); put("v", value) }
-            db.insertWithOnConflict("meta", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
-        }
+        if (value == null) metaDao.delete(key) else metaDao.put(MetaRow(key, value))
     }
+
+    /** Stores several `meta` values in one transaction; a null value removes its row. */
+    fun setMetas(values: Map<String, String?>) = metaDao.putAll(values)
 
     override fun close() {
         room.close()

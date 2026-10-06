@@ -3,8 +3,11 @@ package com.fitlens.companion.data
 import android.app.Application
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -36,6 +39,9 @@ class RoomSchemaTest {
     }
 
     private val file get() = app.getDatabasePath(Db.NAME)
+
+    /** Room refuses queries on the main thread, which is the thread Robolectric runs tests on. */
+    private fun <T> offMain(block: () -> T): T = runBlocking(Dispatchers.IO) { block() }
 
     /** A v20 database with a row in every table, as 1.0.112 left it. */
     private fun v20Database() = OldSchemas.create(file, 20, OldSchemas.V20) { db ->
@@ -81,8 +87,11 @@ class RoomSchemaTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE id=$set AND position=$set AND source='fitlens' AND set_type=0"))
             assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Height' AND enabled=1"))
             assertEquals(1, db.count("SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name='set_superset'"))
-            h.setMeta("weight_unit", "lb")
-            assertEquals("lb", h.getMeta("weight_unit"))
+            offMain { h.setMeta("weight_unit", "lb") }
+            assertEquals("lb", offMain { h.getMeta("weight_unit") })
+            offMain { h.setMetas(mapOf("weight_unit" to null, "week_start" to "7")) }
+            assertEquals(null, offMain { h.getMeta("weight_unit") })
+            assertEquals("7", offMain { h.getMeta("week_start") })
         }
     }
 
@@ -103,7 +112,7 @@ class RoomSchemaTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM routine_day_set WHERE metric=1.5"))
             assertEquals(1, db.count("SELECT COUNT(*) FROM workout_origin WHERE routine_day_id=1"))
             assertEquals(1, db.count("SELECT COUNT(*) FROM photo WHERE hash='abc' AND added_at=7"))
-            assertEquals("kg", h.getMeta("weight_unit"))
+            assertEquals("kg", offMain { h.getMeta("weight_unit") })
             listOf("workout_comment", "exercise_comment", "workout_rest", "workout_time", "import_rule", "exercise_goal", "exercise_type")
                 .forEach { assertEquals("$it rows", 1, db.count("SELECT COUNT(*) FROM $it")) }
             // A deleted body value's id isn't reused.
@@ -150,6 +159,55 @@ class RoomSchemaTest {
             assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE name='Deadlift'"))
             db.row("exercise", "name" to "Squat")
             assertEquals(2, db.count("SELECT COUNT(*) FROM exercise"))
+        }
+    }
+
+    @Test
+    fun theTypedQueriesReadEveryAreaOfAnUpgradedDatabase() {
+        v20Database()
+        Db(app).use { h ->
+            offMain {
+                val r = h.snapshotDao
+                val sets = r.sets().map { it.toModel() }
+                assertEquals(listOf(1L, 2L), sets.map { it.id })
+                assertEquals(8.5, sets[0].rpe!!, 0.0)
+                assertEquals("Paused", sets[0].comment)
+                assertEquals(2, r.setsFor(listOf(1L), emptyList()).size)
+                assertEquals(2, r.setsFor(emptyList(), listOf("2026-10-01")).size)
+                assertEquals(0, r.setsFor(emptyList(), emptyList()).size)
+                assertEquals("lbs", r.exercises().single().toModel().weightUnit)
+                assertEquals("Chest", r.categories().single().toModel().name)
+                assertEquals(120.0, r.goals().single().toModel().target, 0.0)
+                assertEquals("Jumps", r.exerciseTypes().single().toModel().name)
+                val routine = Routines.load(r).single()
+                assertEquals("Push Day", routine.days.single().name)
+                val planned = routine.days.single().exercises.single()
+                assertEquals(90, planned.restSeconds)
+                assertEquals(1.5, planned.sets.single().metric!!, 0.0)
+                assertEquals(1L, Routines.loadOrigins(r)["2026-10-01"]?.routineDayId)
+                assertEquals("Good day", r.workoutComments().single().comment)
+                assertEquals(120, r.workoutRests().single().rest_seconds)
+                assertEquals(4, r.records().size)
+                assertEquals(80.0, r.measurements().first { it.name == "Waist" }.toModel().goalValue, 0.0)
+                assertEquals("abc", r.photos().single().hash)
+
+                // A body write through the typed queries keeps the AUTOINCREMENT counter (id 5 was deleted).
+                val body = h.bodyDao
+                h.transaction {
+                    body.ensure("Waist", "cm", 999)
+                    body.addManualRecord("Waist", "cm", "2026-10-06", "", 84.0, null)
+                }
+                assertEquals(listOf(1L, 2L, 3L, 4L, 6L), r.records().map { it.id })
+                assertEquals(80.0, body.definition("Waist")!!.goal_value, 0.0)
+            }
+        }
+    }
+
+    @Test
+    fun aQueryOnTheMainThreadIsRefused() {
+        Db(app).use { h ->
+            h.writableDatabase // opening is allowed; querying isn't
+            assertThrows(IllegalStateException::class.java) { h.getMeta("weight_unit") }
         }
     }
 

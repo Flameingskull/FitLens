@@ -306,47 +306,49 @@ object Settings {
         }
     }
 
+    /** Writes every preference in one transaction, so a change is saved whole or not at all. */
     private fun savePortable(s: PortableSettings) {
-        val db = Store.db
-        db.setMeta(P_WEIGHT_UNIT, s.weightUnit)
-        db.setMeta(P_WEIGHT_UNIT_MANUAL, if (s.weightUnitManual) "1" else null)
-        db.setMeta(P_WEIGHT_INCREMENT, s.weightIncrementKg?.toString())
-        db.setMeta(P_DISTANCE_UNIT, s.distanceUnit.takeIf { it != DistanceUnits.KM })
-        db.setMeta(P_LENGTH_UNIT, s.lengthUnit.takeIf { it != LengthUnits.CM })
-        db.setMeta(P_KEEP_SCREEN_ON, if (s.keepScreenOn) null else "0")
-        db.setMeta(P_CELEBRATE_PRS, if (s.celebratePrs) null else "0")
-        db.setMeta(P_AUTOFILL, s.autofillSource.takeIf { it != PortableSettings.AUTOFILL_LAST })
-        db.setMeta(P_AUTO_SELECT_NEXT, if (s.autoSelectNext) "1" else null)
-        db.setMeta(P_BACKUP_TIMESTAMP, if (s.backupTimestamp) null else "0")
-        db.setMeta(P_WARMUPS_COUNT, if (s.warmupsCount) "1" else null)
-        db.setMeta(P_E1RM_FORMULA, s.e1rmFormula.takeIf { it != "auto" })
-        db.setMeta(P_E1RM_MAX_REPS, s.e1rmMaxReps.takeIf { it > 0 }?.toString())
-        db.setMeta(P_BAR_KG, s.barKg?.toString())
-        db.setMeta(P_COUNT_BAR, if (s.countBar) null else "0")
-        db.setMeta(P_PLATES, s.plates)
-        db.setMeta(P_SHOW_SET_TYPE, if (s.showSetType) null else "0")
-        db.setMeta(P_EFFORT_MODE, s.effortMode.takeIf { it != Effort.OFF })
-        db.setMeta(P_WEEK_START, s.weekStart.takeIf { it != 1 }?.toString())
-        db.setMeta(P_HOME_CATEGORIES, if (s.homeShowCategories) null else "0")
-        db.setMeta(P_HOME_SETS, s.homeSetsShown.takeIf { it != 0 }?.toString())
-        db.setMeta(P_LAST_ROUTINE, s.lastRoutineId.takeIf { it != 0L }?.toString())
-        db.setMeta(P_TIMER_AUTO, if (s.workoutTimerAuto) "1" else null)
-        db.setMeta(P_REST_SECONDS, s.restSeconds.takeIf { it != 90 }?.toString())
-        db.setMeta(P_REST_AUTO, if (s.restAutoStart) "1" else null)
-        db.setMeta(P_REST_VIBRATE, if (s.restVibrate) null else "0")
-        db.setMeta(P_REST_SOUND, if (s.restSound) null else "0")
-        db.setMeta(P_REST_VOLUME, s.restVolume.takeIf { it != 80 }?.toString())
-        db.setMeta(P_MARK_COMPLETE, if (s.markComplete) "1" else null)
-        db.setMeta(P_GRAPH_KINDS, s.graphKinds?.takeIf { it.isNotBlank() })
-        db.setMeta(P_PINNED_GRAPHS, s.pinnedGraphs?.takeIf { it.isNotBlank() })
-        db.setMeta(P_GRAPH_COMPARE, s.graphCompare?.takeIf { it.isNotBlank() })
-        db.setMeta(P_PROFILE_SEX, s.profileSex?.takeIf { it.isNotBlank() })
-        db.setMeta(P_PHOTO_POSE, MediaPrefs.storeDefaultPose(s.photoDefaultPose))
-        db.setMeta(P_PHOTO_GROUP, s.photoGroupBy.takeIf { it != MediaPrefs.GROUP_MONTH })
-        db.setMeta(P_REMEMBER_VIDEO, if (s.rememberVideoOpts) null else "0")
-        db.setMeta(P_VIDEO_OPTS, s.videoOpts?.takeIf { it.isNotBlank() })
-        db.setMeta(P_PDF_STYLE, if (s.pdfDark) null else "light")
-        db.setMeta(P_PDF_PHOTOS, s.pdfPhotosPerDay.takeIf { it != 2 }?.toString())
+        Store.db.setMetas(mapOf(
+            P_WEIGHT_UNIT to s.weightUnit,
+            P_WEIGHT_UNIT_MANUAL to if (s.weightUnitManual) "1" else null,
+            P_WEIGHT_INCREMENT to s.weightIncrementKg?.toString(),
+            P_DISTANCE_UNIT to s.distanceUnit.takeIf { it != DistanceUnits.KM },
+            P_LENGTH_UNIT to s.lengthUnit.takeIf { it != LengthUnits.CM },
+            P_KEEP_SCREEN_ON to if (s.keepScreenOn) null else "0",
+            P_CELEBRATE_PRS to if (s.celebratePrs) null else "0",
+            P_AUTOFILL to s.autofillSource.takeIf { it != PortableSettings.AUTOFILL_LAST },
+            P_AUTO_SELECT_NEXT to if (s.autoSelectNext) "1" else null,
+            P_BACKUP_TIMESTAMP to if (s.backupTimestamp) null else "0",
+            P_WARMUPS_COUNT to if (s.warmupsCount) "1" else null,
+            P_E1RM_FORMULA to s.e1rmFormula.takeIf { it != "auto" },
+            P_E1RM_MAX_REPS to s.e1rmMaxReps.takeIf { it > 0 }?.toString(),
+            P_BAR_KG to s.barKg?.toString(),
+            P_COUNT_BAR to if (s.countBar) null else "0",
+            P_PLATES to s.plates,
+            P_SHOW_SET_TYPE to if (s.showSetType) null else "0",
+            P_EFFORT_MODE to s.effortMode.takeIf { it != Effort.OFF },
+            P_WEEK_START to s.weekStart.takeIf { it != 1 }?.toString(),
+            P_HOME_CATEGORIES to if (s.homeShowCategories) null else "0",
+            P_HOME_SETS to s.homeSetsShown.takeIf { it != 0 }?.toString(),
+            P_LAST_ROUTINE to s.lastRoutineId.takeIf { it != 0L }?.toString(),
+            P_TIMER_AUTO to if (s.workoutTimerAuto) "1" else null,
+            P_REST_SECONDS to s.restSeconds.takeIf { it != 90 }?.toString(),
+            P_REST_AUTO to if (s.restAutoStart) "1" else null,
+            P_REST_VIBRATE to if (s.restVibrate) null else "0",
+            P_REST_SOUND to if (s.restSound) null else "0",
+            P_REST_VOLUME to s.restVolume.takeIf { it != 80 }?.toString(),
+            P_MARK_COMPLETE to if (s.markComplete) "1" else null,
+            P_GRAPH_KINDS to s.graphKinds?.takeIf { it.isNotBlank() },
+            P_PINNED_GRAPHS to s.pinnedGraphs?.takeIf { it.isNotBlank() },
+            P_GRAPH_COMPARE to s.graphCompare?.takeIf { it.isNotBlank() },
+            P_PROFILE_SEX to s.profileSex?.takeIf { it.isNotBlank() },
+            P_PHOTO_POSE to MediaPrefs.storeDefaultPose(s.photoDefaultPose),
+            P_PHOTO_GROUP to s.photoGroupBy.takeIf { it != MediaPrefs.GROUP_MONTH },
+            P_REMEMBER_VIDEO to if (s.rememberVideoOpts) null else "0",
+            P_VIDEO_OPTS to s.videoOpts?.takeIf { it.isNotBlank() },
+            P_PDF_STYLE to if (s.pdfDark) null else "light",
+            P_PDF_PHOTOS to s.pdfPhotosPerDay.takeIf { it != 2 }?.toString()
+        ))
     }
 
     // ---------- Storage keys. The names match the old `meta` keys, so the migration is a straight copy. ----------

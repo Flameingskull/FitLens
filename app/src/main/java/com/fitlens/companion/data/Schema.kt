@@ -29,7 +29,13 @@ import androidx.room.RoomDatabase
         PhotoRow::class, MetaRow::class
     ]
 )
-abstract class FitLensDatabase : RoomDatabase()
+abstract class FitLensDatabase : RoomDatabase() {
+    abstract fun snapshotDao(): SnapshotDao
+    abstract fun metaDao(): MetaDao
+    abstract fun bodyDao(): BodyDao
+    abstract fun photoDao(): PhotoDao
+    abstract fun goalDao(): GoalDao
+}
 
 // ---- Workout data. `source` is 'fitnotes' (imported) or 'fitlens' (made or edited in FitLens) -------------------
 

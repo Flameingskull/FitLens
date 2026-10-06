@@ -1,6 +1,5 @@
 package com.fitlens.companion.data
 
-import android.content.ContentValues
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -64,41 +63,27 @@ object GoalKinds {
     }
 }
 
-/** Writes for exercise goals. Each refreshes the library area of the snapshot (#60). */
+/** Writes for exercise goals, through [GoalDao] (#36). Each refreshes the library area of the snapshot (#60). */
 object Goals {
     suspend fun save(goal: ExerciseGoal): Unit = withContext(Dispatchers.IO) {
-        val w = Store.db.writableDatabase
-        val cv = ContentValues().apply {
-            put("exercise_id", goal.exerciseId); put("kind", goal.kind); put("target", goal.target)
-        }
+        val goals = Store.db.goalDao
         if (goal.id == 0L) {
-            val next = w.rawQuery("SELECT IFNULL(MAX(sort_order), -1) + 1 FROM exercise_goal WHERE exercise_id=?",
-                arrayOf(goal.exerciseId.toString())).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
-            cv.put("sort_order", next)
-            w.insertOrThrow("exercise_goal", null, cv)
+            Store.db.transaction { goals.add(goal.exerciseId, goal.kind, goal.target, goals.nextOrder(goal.exerciseId)) }
         } else {
-            w.update("exercise_goal", cv, "id=?", arrayOf(goal.id.toString()))
+            goals.update(goal.id, goal.exerciseId, goal.kind, goal.target)
         }
         Store.refresh(Area.LIBRARY)
     }
 
     suspend fun delete(id: Long): Unit = withContext(Dispatchers.IO) {
-        Store.db.writableDatabase.delete("exercise_goal", "id=?", arrayOf(id.toString()))
+        Store.db.goalDao.delete(id)
         Store.refresh(Area.LIBRARY)
     }
 
     /** Stores [ordered] as the exercise's goal order, top first. */
     suspend fun reorder(ordered: List<ExerciseGoal>): Unit = withContext(Dispatchers.IO) {
-        val w = Store.db.writableDatabase
-        w.beginTransaction()
-        try {
-            ordered.forEachIndexed { i, g ->
-                w.update("exercise_goal", ContentValues().apply { put("sort_order", i) }, "id=?", arrayOf(g.id.toString()))
-            }
-            w.setTransactionSuccessful()
-        } finally {
-            w.endTransaction()
-        }
+        val goals = Store.db.goalDao
+        Store.db.transaction { ordered.forEachIndexed { i, g -> goals.setOrder(g.id, i) } }
         Store.refresh(Area.LIBRARY)
     }
 }

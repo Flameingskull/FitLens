@@ -1,8 +1,6 @@
 package com.fitlens.companion.data
 
-import android.content.ContentValues
 import android.content.Context
-import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -351,13 +349,10 @@ object Store {
                 val old = _snapshot.value
                 val ex = exerciseIds.toSet()
                 val ds = dates.map { it.take(10) }.toSet()
-                val clauses = ArrayList<String>()
-                if (ex.isNotEmpty()) clauses += "exercise_id IN (${ex.joinToString(",")})"
-                if (ds.isNotEmpty()) clauses += "substr(date, 1, 10) IN (${ds.joinToString(",") { "?" }})"
                 if (old == null) {
                     _snapshot.value = build(null, Area.ALL)
-                } else if (clauses.isNotEmpty()) {
-                    val fresh = loadSets(db.readableDatabase, clauses.joinToString(" OR "), ds.toTypedArray())
+                } else if (ex.isNotEmpty() || ds.isNotEmpty()) {
+                    val fresh = db.snapshotDao.setsFor(ex.toList(), ds.toList()).map { it.toModel() }
                     val merged = mergeSets(old.sets, fresh) { it.exerciseId in ex || it.date.take(10) in ds }
                     _snapshot.value = old.replacing(SetPart(merged, Settings.currentPortable().warmupsCount))
                 }
@@ -366,18 +361,18 @@ object Store {
 
     /** Builds a snapshot, reading [areas] and reusing every other part of [old] (reading everything when it's null). */
     private fun build(old: Snapshot?, areas: Set<Area>): Snapshot {
-        val r = db.readableDatabase
+        val r = db.snapshotDao
         val prefs = Settings.currentPortable()
         // Weekly analysis follows the week-start setting (#7).
         Analysis.weekStart = java.time.DayOfWeek.of(prefs.weekStart)
         return Snapshot(
             library = if (old == null || Area.LIBRARY in areas) loadLibrary(r) else old.library,
-            setPart = if (old == null || Area.SETS in areas) SetPart(loadSets(r, null, emptyArray()), prefs.warmupsCount)
+            setPart = if (old == null || Area.SETS in areas) SetPart(r.sets().map { it.toModel() }, prefs.warmupsCount)
                 else old.setPart.withWarmups(prefs.warmupsCount),
             notes = if (old == null || Area.NOTES in areas) loadNotes(r) else old.notes,
             body = (if (old == null || Area.BODY in areas) loadBody(r, prefs.weightUnit) else old.body)
                 .withUnits(prefs.weightUnit, prefs.lengthUnit),
-            photoPart = if (old == null || Area.PHOTOS in areas) loadPhotos(r) else old.photoPart,
+            photoPart = if (old == null || Area.PHOTOS in areas) PhotoPart(r.photos().map { it.toModel() }) else old.photoPart,
             weightUnit = prefs.weightUnit,
             photoDir = photoDir,
             weekStart = prefs.weekStart,
@@ -385,162 +380,67 @@ object Store {
         )
     }
 
-    private fun loadLibrary(r: SupportSQLiteDatabase): LibraryPart {
-        val categories = HashMap<Long, Category>()
-        r.rawQuery("SELECT id, name, colour, sort_order, source FROM category", null).use { c ->
-            while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
-        }
-        val exercises = HashMap<Long, Exercise>()
-        r.rawQuery("SELECT id, name, category_id, type, notes, source, favourite, weight_step, default_graph, rest_seconds, distance_unit, weight_unit FROM exercise", null).use { c ->
-            while (c.moveToNext()) exercises[c.lng(0)] =
-                Exercise(
-                    c.lng(0), c.strOr(1), c.lng(2), c.int(3), c.str(4), c.strOr(5, Sources.FITLENS), c.int(6) != 0,
-                    if (c.isNull(7)) null else c.getDouble(7), if (c.isNull(8)) -1 else c.getInt(8),
-                    if (c.isNull(9)) null else c.getInt(9), DistanceUnits.of(c.str(10)), WeightUnits.of(c.str(11))
-                )
-        }
+    private fun loadLibrary(r: SnapshotDao): LibraryPart {
+        val categories = HashMap<Long, Category>().apply { r.categories().forEach { put(it.id, it.toModel()) } }
+        val exercises = HashMap<Long, Exercise>().apply { r.exercises().forEach { put(it.id, it.toModel()) } }
         // The user's own exercise types (#14), published to ExerciseTypes so every type check answers for them.
-        val types = HashMap<Int, CustomType>()
-        r.rawQuery("SELECT id, name, uses_weight, uses_reps, uses_distance, uses_time, metric_name, metric_unit FROM exercise_type", null).use { c ->
-            while (c.moveToNext()) types[c.int(0)] = CustomType(
-                c.int(0), c.strOr(1), c.int(2) != 0, c.int(3) != 0, c.int(4) != 0, c.int(5) != 0,
-                c.str(6)?.takeIf { it.isNotBlank() }, c.str(7)?.takeIf { it.isNotBlank() }
-            )
-        }
-        ExerciseTypes.custom = types
-        val goals = ArrayList<ExerciseGoal>()
-        r.rawQuery("SELECT id, exercise_id, kind, target, sort_order FROM exercise_goal ORDER BY exercise_id, sort_order, id", null).use { c ->
-            while (c.moveToNext()) goals.add(ExerciseGoal(c.lng(0), c.lng(1), c.int(2), c.dbl(3), c.int(4)))
-        }
+        ExerciseTypes.custom = HashMap<Int, CustomType>().apply { r.exerciseTypes().forEach { put(it.id.toInt(), it.toModel()) } }
+        val goals = r.goals().map { it.toModel() }
         return LibraryPart(categories, exercises, goals, Routines.load(r), Routines.loadOrigins(r))
     }
 
-    /** The sets matching [where] (every set when it's null), in [SET_ORDER]. */
-    private fun loadSets(r: SupportSQLiteDatabase, where: String?, args: Array<String>): List<SetRow> {
-        val sets = ArrayList<SetRow>()
-        r.rawQuery(
-            "SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done, rest_seconds, metric " +
-                "FROM workout_set " + (if (where != null) "WHERE $where " else "") + "ORDER BY date, position, id",
-            args
-        ).use { c ->
-            while (c.moveToNext()) sets.add(
-                SetRow(
-                    c.lng(0), c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7) != 0, c.str(8),
-                    c.strOr(9, Sources.FITLENS), c.int(10), if (c.isNull(11)) null else c.getDouble(11), c.lng(12), c.int(13), c.int(14) != 0,
-                    if (c.isNull(15)) null else c.getInt(15), if (c.isNull(16)) null else c.getDouble(16)
-                )
-            )
-        }
-        return sets
-    }
-
-    private fun loadNotes(r: SupportSQLiteDatabase): NotesPart {
+    private fun loadNotes(r: SnapshotDao): NotesPart {
         val comments = HashMap<String, MutableList<String>>()
-        r.rawQuery("SELECT date, comment FROM workout_comment ORDER BY id", null).use { c ->
-            while (c.moveToNext()) {
-                val d = c.strOr(0).take(10)
-                val t = c.strOr(1)
-                if (t.isNotBlank()) comments.getOrPut(d) { ArrayList() }.add(t)
-            }
+        r.workoutComments().forEach { row ->
+            if (row.comment.isNotBlank()) comments.getOrPut(row.date.take(10)) { ArrayList() }.add(row.comment)
         }
         val times = HashMap<String, MutableList<WorkoutTime>>()
-        r.rawQuery("SELECT date, start, finish FROM workout_time ORDER BY id", null).use { c ->
-            while (c.moveToNext()) {
-                val d = c.strOr(0).take(10)
-                times.getOrPut(d) { ArrayList() }.add(WorkoutTime(d, c.strOr(1), c.strOr(2)))
-            }
+        r.workoutTimes().forEach { row ->
+            val d = row.date.take(10)
+            times.getOrPut(d) { ArrayList() }.add(WorkoutTime(d, row.start.orEmpty(), row.finish.orEmpty()))
         }
         val exerciseComments = HashMap<String, HashMap<Long, String>>()
-        r.rawQuery("SELECT date, exercise_id, comment FROM exercise_comment", null).use { c ->
-            while (c.moveToNext()) exerciseComments.getOrPut(c.strOr(0)) { HashMap() }[c.lng(1)] = c.strOr(2)
-        }
+        r.exerciseComments().forEach { row -> exerciseComments.getOrPut(row.date) { HashMap() }[row.exercise_id] = row.comment }
         val rests = HashMap<String, HashMap<Long, WorkoutRest>>()
-        r.rawQuery("SELECT date, exercise_id, rest_seconds, rest_after_seconds FROM workout_rest", null).use { c ->
-            while (c.moveToNext()) {
-                val rest = WorkoutRest(if (c.isNull(2)) null else c.getInt(2), if (c.isNull(3)) null else c.getInt(3))
-                if (!rest.isEmpty) rests.getOrPut(c.strOr(0)) { HashMap() }[c.lng(1)] = rest
-            }
+        r.workoutRests().forEach { row ->
+            val rest = WorkoutRest(row.rest_seconds, row.rest_after_seconds)
+            if (!rest.isEmpty) rests.getOrPut(row.date) { HashMap() }[row.exercise_id] = rest
         }
         return NotesPart(comments, times, exerciseComments, rests)
     }
 
-    private fun loadBody(r: SupportSQLiteDatabase, weightUnit: String): BodyPart {
-        val defs = ArrayList<MeasurementDef>()
-        r.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link, display_unit FROM measurement ORDER BY sort_order, name", null).use { c ->
-            while (c.moveToNext()) defs.add(
-                MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7), c.str(8))
-            )
-        }
-        val records = ArrayList<MRecord>()
-        r.rawQuery("SELECT id, name, unit, date, time, value, comment, source FROM mrecord ORDER BY date, time", null).use { c ->
-            while (c.moveToNext()) records.add(
-                MRecord(c.lng(0), c.strOr(1), c.strOr(2), c.strOr(3), c.strOr(4), c.dbl(5), c.str(6), c.strOr(7))
-            )
-        }
-        return BodyPart(defs, records, weightUnit)
-    }
-
-    private fun loadPhotos(r: SupportSQLiteDatabase): PhotoPart {
-        val photos = ArrayList<Photo>()
-        r.rawQuery("SELECT id, file, date, taken_at, date_source, pose, note, original_name FROM photo ORDER BY date, taken_at, id", null).use { c ->
-            while (c.moveToNext()) photos.add(
-                Photo(c.lng(0), c.strOr(1), c.str(2), c.str(3), c.strOr(4, DateSources.NONE), c.strOr(5), c.str(6), c.str(7))
-            )
-        }
-        return PhotoPart(photos)
-    }
+    private fun loadBody(r: SnapshotDao, weightUnit: String): BodyPart =
+        BodyPart(r.measurements().map { it.toModel() }, r.records().map { it.toModel() }, weightUnit)
 
     // ---------- Photo edits ----------
 
     suspend fun setPhotoDate(ids: Collection<Long>, date: String?) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        w.beginTransaction()
-        try {
-            ids.forEach { id ->
-                val cv = ContentValues().apply {
-                    if (date == null) putNull("date") else put("date", date)
-                    put("date_source", if (date == null) DateSources.NONE else DateSources.MANUAL)
-                }
-                w.update("photo", cv, "id=?", arrayOf(id.toString()))
-            }
-            w.setTransactionSuccessful()
-        } finally {
-            w.endTransaction()
-        }
+        val source = if (date == null) DateSources.NONE else DateSources.MANUAL
+        db.transaction { ids.chunked(Db.MAX_IDS).forEach { db.photoDao.setDate(it, date, source) } }
         refresh(Area.PHOTOS)
     }
 
     /** Accept the automatically detected date (removes the "needs review" flag). */
     suspend fun confirmPhotoDates(ids: Collection<Long>) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        ids.forEach { id ->
-            w.execSQL("UPDATE photo SET date_source='${DateSources.MANUAL}' WHERE id=? AND date IS NOT NULL", arrayOf<Any>(id))
-        }
+        db.transaction { ids.chunked(Db.MAX_IDS).forEach { db.photoDao.confirmDates(it, DateSources.MANUAL) } }
         refresh(Area.PHOTOS)
     }
 
     suspend fun setPhotoPose(ids: Collection<Long>, pose: String) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        ids.forEach { id ->
-            val cv = ContentValues().apply { put("pose", pose) }
-            w.update("photo", cv, "id=?", arrayOf(id.toString()))
-        }
+        db.transaction { ids.chunked(Db.MAX_IDS).forEach { db.photoDao.setPose(it, pose) } }
         refresh(Area.PHOTOS)
     }
 
     suspend fun setPhotoNote(id: Long, note: String) = withContext(Dispatchers.IO) {
-        val cv = ContentValues().apply { put("note", note) }
-        db.writableDatabase.update("photo", cv, "id=?", arrayOf(id.toString()))
+        db.photoDao.setNote(id, note)
         refresh(Area.PHOTOS)
     }
 
     suspend fun deletePhotos(ids: Collection<Long>) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        ids.forEach { id ->
-            w.rawQuery("SELECT file FROM photo WHERE id=?", arrayOf(id.toString())).use { c ->
-                if (c.moveToFirst()) File(photoDir, c.getString(0)).delete()
-            }
-            w.delete("photo", "id=?", arrayOf(id.toString()))
+        val photos = db.photoDao
+        ids.chunked(Db.MAX_IDS).forEach { chunk ->
+            photos.files(chunk).forEach { File(photoDir, it).delete() }
+            photos.delete(chunk)
         }
         refresh(Area.PHOTOS)
     }
@@ -549,57 +449,38 @@ object Store {
 
     suspend fun addManualRecord(name: String, unit: String, date: String, time: String, value: Double, comment: String?) =
         withContext(Dispatchers.IO) {
-            val w = db.writableDatabase
+            val body = db.bodyDao
             // A value typed in the display unit is stored in the unit the measurement already uses (#117).
-            val stored = loadDef(w, name)?.unit?.takeIf { MeasureUnits.sameKind(it, unit) }
-            addRecordRow(w, name, stored ?: unit, date, time, MeasureUnits.convert(value, unit, stored ?: unit), comment)
+            val stored = body.definition(name)?.unit?.takeIf { MeasureUnits.sameKind(it, unit) } ?: unit
+            db.transaction {
+                body.ensure(name, stored, 999)
+                body.addManualRecord(name, stored, date, time, MeasureUnits.convert(value, unit, stored), comment)
+            }
             refresh(Area.BODY)
         }
 
-    private fun addRecordRow(
-        w: SupportSQLiteDatabase, name: String, unit: String, date: String, time: String, value: Double, comment: String?
-    ) {
-        val def = ContentValues().apply { put("name", name); put("unit", unit); put("sort_order", 999) }
-        w.insertWithOnConflict("measurement", null, def, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
-        val cv = ContentValues().apply {
-            put("name", name); put("unit", unit); put("date", date); put("time", time)
-            put("value", value); put("comment", comment); put("source", "manual")
-        }
-        w.insert("mrecord", null, cv)
-    }
-
     /** Sets a measurement's goal (#27), and marks it so a FitNotes import keeps the user's choice. */
     suspend fun setMeasurementGoal(name: String, unit: String, type: Int, value: Double) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        ensureMeasurement(w, name, unit, 999)
-        // The goal is typed in the display unit and kept in the measurement's own (#117).
-        val stored = loadDef(w, name)?.unit
-        w.update("measurement", ContentValues().apply {
-            put("goal_type", type); put("goal_value", MeasureUnits.convert(value, unit, stored)); put("edited", 1)
-        }, "name=?", arrayOf(name))
+        val body = db.bodyDao
+        db.transaction {
+            body.ensure(name, unit, 999)
+            // The goal is typed in the display unit and kept in the measurement's own (#117).
+            val stored = body.definition(name)?.unit
+            body.setGoal(name, type, MeasureUnits.convert(value, unit, stored))
+        }
         refresh(Area.BODY)
     }
 
     /** Stores [names] as the measurement order, top first (#27), and marks each as the user's choice. */
     suspend fun reorderMeasurements(names: List<String>, units: Map<String, String>) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        w.beginTransaction()
-        try {
+        val body = db.bodyDao
+        db.transaction {
             names.forEachIndexed { i, n ->
-                ensureMeasurement(w, n, units[n] ?: "", i)
-                w.update("measurement", ContentValues().apply { put("sort_order", i); put("edited", 1) }, "name=?", arrayOf(n))
+                body.ensure(n, units[n] ?: "", i)
+                body.setOrder(n, i)
             }
-            w.setTransactionSuccessful()
-        } finally {
-            w.endTransaction()
         }
         refresh(Area.BODY)
-    }
-
-    /** A measurement seen only in records has no definition row yet; this adds one so it can hold a goal or order. */
-    private fun ensureMeasurement(w: SupportSQLiteDatabase, name: String, unit: String, order: Int) {
-        val def = ContentValues().apply { put("name", name); put("unit", unit); put("sort_order", order) }
-        w.insertWithOnConflict("measurement", null, def, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
     }
 
     // ---------- Custom metrics ----------
@@ -609,58 +490,43 @@ object Store {
      * are moved under it now, and every later backup import fills it in the same way.
      */
     suspend fun saveCustomMetric(original: String?, name: String, unit: String, link: String?) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        w.beginTransaction()
-        try {
-            val old = original?.let { o -> loadDef(w, o) }
+        val body = db.bodyDao
+        db.transaction {
+            val old = original?.let { o -> body.definition(o)?.toModel() }
             if (old != null) {
-                releaseImported(w, old)
+                releaseImported(body, old)
                 if (old.name != name) {
-                    w.execSQL("UPDATE mrecord SET name=? WHERE name=? AND source='manual'", arrayOf(name, old.name))
-                    w.delete("measurement", "name=?", arrayOf(old.name))
+                    body.renameManualRecords(old.name, name)
+                    body.deleteDefinition(old.name)
                 }
             }
-            val existing = loadDef(w, name)
+            val existing = body.definition(name)?.toModel()
             // A weight metric keeps the unit its values are stored in: the editor shows it in the display unit, and
             // saving it there must not relabel kilograms as pounds (#117).
             val keptUnit = (old ?: existing)?.unit?.takeIf { MeasureUnits.sameKind(it, unit) } ?: unit
-            w.insertWithOnConflict("measurement", null, ContentValues().apply {
-                put("name", name); put("unit", keptUnit); put("sort_order", existing?.sortOrder ?: old?.sortOrder ?: 900)
-                put("goal_type", existing?.goalType ?: 0); put("goal_value", existing?.goalValue ?: 0.0)
-                put("enabled", 1); put("custom", 1); put("link", link?.takeIf { it.isNotBlank() })
-                // Keeps the metric's own display unit (#7) while it's still the same kind of unit.
-                put("display_unit", (existing ?: old)?.displayUnit?.takeIf { MeasureUnits.sameKind(it, keptUnit) })
-            }, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE)
-            val key = (link?.takeIf { it.isNotBlank() } ?: name).trim().lowercase()
-            w.execSQL(
-                "UPDATE mrecord SET name=? WHERE source IN ('fitnotes','csv') AND lower(trim(name))=?",
-                arrayOf(name, key)
-            )
-            if (keptUnit.isBlank()) {
-                w.execSQL(
-                    "UPDATE measurement SET unit=IFNULL((SELECT unit FROM mrecord WHERE name=? AND unit<>'' LIMIT 1), '') WHERE name=?",
-                    arrayOf(name, name)
+            body.replaceDefinition(
+                MeasurementRow(
+                    name = name, unit = keptUnit, sort_order = existing?.sortOrder ?: old?.sortOrder ?: 900,
+                    goal_type = existing?.goalType ?: 0, goal_value = existing?.goalValue ?: 0.0,
+                    enabled = 1, custom = 1, link = link?.takeIf { it.isNotBlank() }, edited = 0,
+                    // Keeps the metric's own display unit (#7) while it's still the same kind of unit.
+                    display_unit = (existing ?: old)?.displayUnit?.takeIf { MeasureUnits.sameKind(it, keptUnit) }
                 )
-            }
-            w.execSQL("UPDATE mrecord SET unit=(SELECT unit FROM measurement WHERE name=?) WHERE name=? AND source='manual'", arrayOf(name, name))
-            w.setTransactionSuccessful()
-        } finally {
-            w.endTransaction()
+            )
+            body.claimImportedRecords(name, (link?.takeIf { it.isNotBlank() } ?: name).trim().lowercase())
+            if (keptUnit.isBlank()) body.takeUnitFromRecords(name)
+            body.matchManualUnits(name)
         }
         refresh(Area.BODY)
     }
 
     /** Deletes a custom metric and the values entered by hand. Values from FitNotes go back to their own measurement. */
     suspend fun deleteCustomMetric(name: String) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        w.beginTransaction()
-        try {
-            loadDef(w, name)?.let { releaseImported(w, it) }
-            w.delete("mrecord", "name=? AND source='manual'", arrayOf(name))
-            w.delete("measurement", "name=? AND custom=1", arrayOf(name))
-            w.setTransactionSuccessful()
-        } finally {
-            w.endTransaction()
+        val body = db.bodyDao
+        db.transaction {
+            body.definition(name)?.let { releaseImported(body, it.toModel()) }
+            body.deleteManualRecords(name)
+            body.deleteCustomDefinition(name)
         }
         refresh(Area.BODY)
     }
@@ -670,24 +536,23 @@ object Store {
      * same kind as the stored one is kept; the stored values never change.
      */
     suspend fun setMeasurementDisplayUnit(name: String, unit: String?) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        // A measurement known only from its values gets its row first, in the unit those values use.
-        val stored = loadDef(w, name)?.unit
-            ?: w.rawQuery("SELECT unit FROM mrecord WHERE name=? AND unit<>'' LIMIT 1", arrayOf(name)).use { c ->
-                if (c.moveToFirst()) c.getString(0) else null
-            }?.also { ensureMeasurement(w, name, it, 999) }
-        val keep = unit?.takeIf { MeasureUnits.sameKind(it, stored) }
-        w.update("measurement", ContentValues().apply {
-            if (keep == null) putNull("display_unit") else put("display_unit", keep)
-        }, "name=?", arrayOf(name))
+        val body = db.bodyDao
+        db.transaction {
+            // A measurement known only from its values gets its row first, in the unit those values use.
+            val stored = body.definition(name)?.unit
+                ?: body.recordUnit(name)?.also { body.ensure(name, it, 999) }
+            body.setDisplayUnit(name, unit?.takeIf { MeasureUnits.sameKind(it, stored) })
+        }
         refresh(Area.BODY)
     }
 
     /** Shows or hides a measurement (#27), and marks it so a FitNotes import keeps the choice. */
     suspend fun setMeasurementEnabled(name: String, unit: String, enabled: Boolean) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        ensureMeasurement(w, name, unit, 999)
-        w.update("measurement", ContentValues().apply { put("enabled", if (enabled) 1 else 0); put("edited", 1) }, "name=?", arrayOf(name))
+        val body = db.bodyDao
+        db.transaction {
+            body.ensure(name, unit, 999)
+            body.setEnabled(name, if (enabled) 1 else 0)
+        }
         refresh(Area.BODY)
     }
 
@@ -696,72 +561,41 @@ object Store {
      * existing ones. Existing measurements aren't touched. Returns how many were added.
      */
     suspend fun addStandardMeasurements(): Int = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
-        val names = w.rawQuery("SELECT name FROM measurement", null).use { c ->
-            val out = ArrayList<String>(); while (c.moveToNext()) out += c.strOr(0); out
-        } + w.rawQuery("SELECT DISTINCT name FROM mrecord", null).use { c ->
-            val out = ArrayList<String>(); while (c.moveToNext()) out += c.strOr(0); out
-        }
-        val add = StandardMeasurements.missing(names)
-        var order = w.rawQuery("SELECT IFNULL(MAX(sort_order), 0) FROM measurement WHERE sort_order < 900", null).use { c ->
-            if (c.moveToFirst()) c.getInt(0) else 0
-        }
-        w.beginTransaction()
-        try {
-            add.forEach { (name, unit) ->
-                order++
-                w.insertWithOnConflict("measurement", null, ContentValues().apply {
-                    put("name", name); put("unit", unit); put("sort_order", order)
-                    put("enabled", 1); put("custom", 1); put("edited", 1)
-                }, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
-            }
-            w.setTransactionSuccessful()
-        } finally {
-            w.endTransaction()
+        val body = db.bodyDao
+        val added = db.transaction {
+            val missing = StandardMeasurements.missing(body.definitionNames() + body.recordNames())
+            var order = body.lastOrder()
+            missing.forEach { (name, unit) -> body.addOwn(name, unit, ++order) }
+            missing.size
         }
         refresh(Area.BODY)
-        add.size
+        added
     }
 
     /** Number of values entered by hand for a measurement. */
     fun manualCount(snap: Snapshot, name: String): Int = snap.recordsByName[name]?.count { it.source == "manual" } ?: 0
 
-    private fun loadDef(w: SupportSQLiteDatabase, name: String): MeasurementDef? =
-        w.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link, display_unit FROM measurement WHERE name=?", arrayOf(name)).use { c ->
-            if (c.moveToFirst()) MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7), c.str(8)) else null
-        }
-
     /** Moves imported values held by a custom metric back under the FitNotes measurement they came from. */
-    private fun releaseImported(w: SupportSQLiteDatabase, def: MeasurementDef) {
+    private fun releaseImported(body: BodyDao, def: MeasurementDef) {
         if (!def.custom) return
-        val original = w.rawQuery(
-            "SELECT name FROM measurement WHERE custom=0 AND lower(trim(name))=? LIMIT 1", arrayOf(def.matchKey)
-        ).use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: def.link?.takeIf { it.isNotBlank() } ?: return
-        if (original != def.name) {
-            w.execSQL("UPDATE mrecord SET name=? WHERE name=? AND source IN ('fitnotes','csv')", arrayOf(original, def.name))
-        }
+        val original = body.importedNamed(def.matchKey) ?: def.link?.takeIf { it.isNotBlank() } ?: return
+        if (original != def.name) body.renameImportedRecords(def.name, original)
     }
 
     /** Changes a value entered by hand (#27). Imported values aren't edited: the next import would restore them. */
     suspend fun updateRecord(id: Long, date: String, time: String, value: Double, comment: String?) = withContext(Dispatchers.IO) {
-        val w = db.writableDatabase
+        val body = db.bodyDao
         // The value is edited in the display unit and kept in the record's own (#117).
-        val stored = w.rawQuery("SELECT unit FROM mrecord WHERE id=?", arrayOf(id.toString())).use { c ->
-            if (c.moveToFirst()) c.getString(0) else null
-        }
+        val stored = body.unitOfRecord(id)
         val prefs = Settings.currentPortable()
-        val override = w.rawQuery(
-            "SELECT m.display_unit FROM measurement m JOIN mrecord r ON r.name = m.name WHERE r.id=?", arrayOf(id.toString())
-        ).use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        val override = body.displayUnitOfRecord(id)
         val stores = MeasureUnits.convert(value, MeasureUnits.display(stored, prefs.weightUnit, prefs.lengthUnit, override), stored)
-        w.update("mrecord", ContentValues().apply {
-            put("date", date); put("time", time); put("value", stores); put("comment", comment)
-        }, "id=? AND source='manual'", arrayOf(id.toString()))
+        body.updateManualRecord(id, date, time, stores, comment)
         refresh(Area.BODY)
     }
 
     suspend fun deleteRecord(id: Long) = withContext(Dispatchers.IO) {
-        db.writableDatabase.delete("mrecord", "id=? AND source='manual'", arrayOf(id.toString()))
+        db.bodyDao.deleteManualRecord(id)
         refresh(Area.BODY)
     }
 }

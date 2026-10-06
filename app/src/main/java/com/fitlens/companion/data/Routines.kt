@@ -118,55 +118,25 @@ object Routines {
             "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0, " +
             "rest_seconds INTEGER, metric REAL)"
 
-    private fun android.database.Cursor.intOrNull(i: Int): Int? = if (isNull(i)) null else getInt(i)
-    private fun android.database.Cursor.dblOrNull(i: Int): Double? = if (isNull(i)) null else getDouble(i)
-
-    fun load(r: SupportSQLiteDatabase): List<Routine> {
+    /** Every workout with its days, their exercises and planned sets, in the user's order (#36: typed queries). */
+    fun load(r: SnapshotDao): List<Routine> {
         val sets = HashMap<Long, MutableList<PlannedSet>>()
-        r.rawQuery(
-            "SELECT item_id, weight, reps, distance, duration, set_type, rest_seconds, metric FROM routine_day_set " +
-                "ORDER BY item_id, sort_order, id",
-            null
-        ).use { c ->
-            while (c.moveToNext()) {
-                sets.getOrPut(c.lng(0)) { ArrayList() }.add(PlannedSet(c.dbl(1), c.int(2), c.dbl(3), c.int(4), c.int(5), c.intOrNull(6), c.dblOrNull(7)))
-            }
-        }
+        r.routineDaySets().forEach { sets.getOrPut(it.item_id) { ArrayList() }.add(it.toModel()) }
         val items = HashMap<Long, MutableList<PlannedExercise>>()
-        r.rawQuery(
-            "SELECT id, day_id, exercise_id, fill, superset, rest_seconds, rest_after_seconds FROM routine_day_exercise " +
-                "ORDER BY day_id, sort_order, id",
-            null
-        ).use { c ->
-            while (c.moveToNext()) {
-                items.getOrPut(c.lng(1)) { ArrayList() }
-                    .add(PlannedExercise(c.lng(2), c.int(3), sets[c.lng(0)].orEmpty(), c.int(4), c.intOrNull(5), c.intOrNull(6)))
-            }
+        r.routineDayExercises().forEach {
+            items.getOrPut(it.day_id) { ArrayList() }.add(
+                PlannedExercise(it.exercise_id, it.fill, sets[it.id].orEmpty(), it.superset, it.rest_seconds, it.rest_after_seconds)
+            )
         }
         val days = HashMap<Long, MutableList<RoutineDay>>()
-        r.rawQuery("SELECT id, routine_id, name FROM routine_day ORDER BY routine_id, sort_order, id", null).use { c ->
-            while (c.moveToNext()) {
-                val id = c.lng(0)
-                days.getOrPut(c.lng(1)) { ArrayList() }.add(RoutineDay(id, c.strOr(2), items[id].orEmpty()))
-            }
-        }
-        val out = ArrayList<Routine>()
-        r.rawQuery("SELECT id, name, notes, sort_order FROM routine ORDER BY sort_order, id", null).use { c ->
-            while (c.moveToNext()) out.add(Routine(c.lng(0), c.strOr(1), c.str(2), c.int(3), days[c.lng(0)].orEmpty()))
-        }
-        return out
+        r.routineDays().forEach { days.getOrPut(it.routine_id) { ArrayList() }.add(RoutineDay(it.id, it.name, items[it.id].orEmpty())) }
+        return r.routines().map { Routine(it.id, it.name, it.notes, it.sort_order, days[it.id].orEmpty()) }
     }
 
-    fun loadOrigins(r: SupportSQLiteDatabase): Map<String, WorkoutOrigin> {
-        val out = HashMap<String, WorkoutOrigin>()
-        r.rawQuery("SELECT date, workout_id, routine_day_id FROM workout_origin", null).use { c ->
-            while (c.moveToNext()) {
-                val d = c.strOr(0)
-                out[d] = WorkoutOrigin(d, c.lng(1), if (c.isNull(2)) null else c.getLong(2))
-            }
+    fun loadOrigins(r: SnapshotDao): Map<String, WorkoutOrigin> =
+        HashMap<String, WorkoutOrigin>().apply {
+            r.workoutOrigins().forEach { put(it.date, WorkoutOrigin(it.date, it.workout_id, it.routine_day_id)) }
         }
-        return out
-    }
 
     /**
      * Creates the workout (id 0) or updates it. Days keep their ids when they're kept (a day with id 0 is new), so a
