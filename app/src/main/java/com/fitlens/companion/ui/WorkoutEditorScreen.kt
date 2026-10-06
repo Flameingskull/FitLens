@@ -48,6 +48,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
@@ -407,11 +408,16 @@ private fun DayCard(
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(Brand.Gold.copy(alpha = 0.7f)))
         if (slots.isEmpty()) {
-            Text(
-                stringResource(R.string.workout_day_empty),
-                Modifier.padding(Spacing.lg),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(Modifier.fillMaxWidth().padding(Spacing.lg), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    stringResource(R.string.workout_day_empty),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                GlassOutlinedButton(onClick = onAdd, modifier = Modifier.padding(top = Spacing.sm)) {
+                    Text(stringResource(R.string.day_add_exercise))
+                }
+            }
         }
         val groups = slots.map { it.planned.superset }.filter { it > 0 }.distinct()
         slots.forEachIndexed { i, slot ->

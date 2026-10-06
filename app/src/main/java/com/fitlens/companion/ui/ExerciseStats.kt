@@ -43,6 +43,7 @@ import com.fitlens.companion.data.fmtDuration
 import com.fitlens.companion.data.fmtNum
 import com.fitlens.companion.ui.design.DateRangePickerDialog
 import com.fitlens.companion.ui.design.FitSheet
+import com.fitlens.companion.ui.design.GlassOutlinedButton
 import com.fitlens.companion.ui.design.StatTile
 import com.fitlens.companion.ui.design.StepperField
 import kotlin.math.max
@@ -92,7 +93,13 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
             onCustom = { f, t -> customFrom = f; customTo = t; period = -1 }
         )
         if (shown.isEmpty()) {
-            Text(stringResource(R.string.st_nothing), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (sets.isEmpty()) {
+                EmptyState(stringResource(R.string.ex_history_empty_title), stringResource(R.string.st_empty_body))
+            } else {
+                EmptyState(stringResource(R.string.st_empty_period_title), stringResource(R.string.st_nothing)) {
+                    GlassOutlinedButton(onClick = { period = 0 }) { Text(stringResource(R.string.st_show_all_time)) }
+                }
+            }
             return@Column
         }
         val byDay = shown.groupBy { it.date }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
 import com.fitlens.companion.ui.design.FitTopBar
 import com.fitlens.companion.data.Dates
@@ -165,15 +171,31 @@ fun PlainTopBar(title: String, actions: @Composable () -> Unit = {}) {
     FitTopBar(title = title, onBack = LocalNavBack.current, trailing = { actions() })
 }
 
+/**
+ * A photo, loaded off the main thread. When its file is missing or can't be read (#93), the tile keeps its size and
+ * shows a warning mark, announced by TalkBack, instead of staying blank.
+ */
 @Composable
 fun PhotoThumb(snap: Snapshot, photo: Photo, modifier: Modifier = Modifier, sizePx: Int = 360, contentScale: ContentScale = ContentScale.Crop) {
     val ctx = LocalContext.current
-    AsyncImage(
-        model = ImageRequest.Builder(ctx).data(snap.photoFile(photo)).size(sizePx).crossfade(true).build(),
-        contentDescription = stringResource(R.string.cmn_photo_cd, photo.date ?: "", if (photo.pose.isBlank()) "" else poseText(ctx.resources, photo.pose)).trim(),
-        contentScale = contentScale,
-        modifier = modifier.clip(FitShapes.row).background(MaterialTheme.colorScheme.surfaceVariant)
-    )
+    var failed by remember(photo.id) { mutableStateOf(false) }
+    // The tile's caller sets its size; propagateMinConstraints passes that on to the image as before.
+    Box(modifier.clip(FitShapes.row).background(MaterialTheme.colorScheme.surfaceVariant), propagateMinConstraints = true) {
+        AsyncImage(
+            model = ImageRequest.Builder(ctx).data(snap.photoFile(photo)).size(sizePx).crossfade(true).build(),
+            contentDescription = stringResource(R.string.cmn_photo_cd, photo.date ?: "", if (photo.pose.isBlank()) "" else poseText(ctx.resources, photo.pose)).trim(),
+            contentScale = contentScale,
+            onState = { failed = it is AsyncImagePainter.State.Error }
+        )
+        if (failed) {
+            Icon(
+                Icons.Filled.Warning,
+                contentDescription = stringResource(R.string.cmn_photo_unreadable),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.wrapContentSize().size(Spacing.xl)
+            )
+        }
+    }
 }
 
 @Composable

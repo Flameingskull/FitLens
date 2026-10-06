@@ -1446,6 +1446,9 @@
     <string name="st_last_3_months">Last 3 months</string>
     <string name="st_last_month">Last month</string>
     <string name="st_nothing">Nothing logged in this period.</string>
+    <string name="st_empty_body">Log a set of this exercise and its stats appear here.</string>
+    <string name="st_empty_period_title">Nothing in this period</string>
+    <string name="st_show_all_time">Show all time</string>
     <string name="st_per_workout">%1$s per workout</string>
     <string name="st_longest_workout">Longest workout</string>
     <string name="st_longest_distance">Longest distance</string>
@@ -1825,6 +1828,7 @@
     <string name="ss_title">Slideshow &amp; video</string>
     <string name="ss_options_cd">Slideshow and video options</string>
     <string name="ss_no_match">No photos match these options</string>
+    <string name="ss_no_match_body">Change the options below to include more photos, such as a wider date range or another pose.</string>
     <string name="ss_preview">Slideshow preview</string>
     <string name="ss_prev">Previous photo</string>
     <string name="ss_pause">Pause</string>
@@ -2186,6 +2190,7 @@
     <string name="cmn_range">%1$s – %2$s</string>
     <string name="cmn_no_match">Nothing matches that search.</string>
     <string name="cmn_photo_cd">Progress photo %1$s %2$s</string>
+    <string name="cmn_photo_unreadable">This photo can\'t be opened</string>
     <string name="cmn_failed">That didn\'t work</string>
     <string name="cmn_worth_knowing">Worth knowing</string>
     <string name="rp_month">Last month</string>

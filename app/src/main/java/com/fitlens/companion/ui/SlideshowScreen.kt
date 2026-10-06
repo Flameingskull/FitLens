@@ -244,7 +244,7 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
                 contentAlignment = Alignment.Center
             ) {
                 if (slides.isEmpty()) {
-                    Text(stringResource(R.string.ss_no_match), color = Brand.Ivory, style = MaterialTheme.typography.bodyMedium)
+                    EmptyState(stringResource(R.string.ss_no_match), stringResource(R.string.ss_no_match_body))
                 } else {
                     Crossfade(targetState = preview, animationSpec = tween(if (fade) 300 else 0), label = "preview") { img ->
                         if (img != null) Image(
