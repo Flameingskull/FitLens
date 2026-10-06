@@ -1,27 +1,27 @@
 ## Overview
 
-This update continues the move of FitLens's data layer to Room, Android's standard database library. Last time Room
-took over the database file. Now the app reads your data through it and saves your settings, body values, photo
-edits and goals through it. You won't see a new screen, but these saves are now checked more strictly when the app is
-built and are safer when the phone is under pressure.
+This update takes the move of FitLens's data layer to Room, Android's standard database library, most of the way
+there. Everything you do while logging now saves through Room: sets, comments, rest times, supersets, your exercise
+library and your workouts. You won't see a new screen. What changes is that every one of these saves is now checked
+against the database when the app is built, so a mistake stops the build instead of reaching your phone.
 
-Install it over the current app as usual. There's no database upgrade this time, so it opens as quickly as before,
-with everything you've logged, your photos and your settings kept.
+Install it over the current app as usual. There's no database upgrade this time, so the app opens as quickly as
+before, with everything you've logged, your photos and your settings kept.
 
 ## Improved
 
-- **Checked reads.** Your workouts, sets, comments, rest times, routines, body values and photos are loaded through
-  queries that are checked against the database when the app is built. A mistake in one now stops the build
-  instead of reaching your phone.
-- **Settings saved in one step.** Changing a preference now saves all of them together in one write. If the app is
-  closed or the phone switches off part-way through, no preference is left half-saved.
-- **Safer body and goal edits.** Adding a body value, setting a measurement goal or unit, reordering measurements,
-  editing a custom metric and reordering goals each save as a single step: all of it is saved or none of it is.
-- **Large photo selections.** Changing the date, pose or confirmation of many photos at once is split into safe
-  batches, so very large selections work on older phones too.
+- **Checked workout saves.** Adding, editing, ticking, commenting on, reordering and deleting sets all go through
+  queries that are checked when the app is built. So do supersets, copying or moving a workout, swapping an exercise,
+  logging a whole workout day, deleting history and recalculating records.
+- **Checked library and workout edits.** Categories, exercises, exercise types, merging two exercises, the starter
+  library, and creating, copying and editing workouts and their days are covered in the same way.
+- **Photo imports** add each photo through the same checked queries, and still skip duplicates.
+- **Stronger upgrade checks.** The database layout is now recorded in the source code. Every build checks that an
+  older FitLens database upgrades to exactly that layout, so later versions can be checked against it too.
 
 ## Known limitations
 
-- Workout logging, imports and backups still save through the older code path. They move to Room in a later update.
+- The FitNotes import still saves through the older code path, and backups still work on the database file
+  directly. Both move to Room in a later update.
 - Save speed is unchanged for now. Settings › About › Save speed still shows the timing of each set you save.
 - The TalkBack, 200% font size and small-screen checks still need to be done on a phone.

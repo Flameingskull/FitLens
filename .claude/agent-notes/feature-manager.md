@@ -147,3 +147,11 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   group multi-row edits with `Db.transaction { }`, and chunk id lists by `Db.MAX_IDS`. Room's `@Query` bind names
   avoid SQL keywords (`order`, `key`, `from`, `to`). Still open on #36: workout writes (`Workouts.kt`, `Routines.save`),
   imports and backups on DAOs, and committing `app/schemas/.../21.json` (CI now saves it to `ci-logs` under `schemas/`).
+- 2026-10-06 (1.0.115, #36 third slice): `Workouts.kt` and `Routines.kt` write only through `WorkoutDao` and
+  `RoutineDao`; their `write { w -> }` blocks get the DAO, not a database. A new workout query goes in `WorkoutDao`.
+  `workout_set` and the other non-autogenerate tables are inserted with explicit-column `@Query("INSERT ...")`
+  returning `Long` (an `@Insert` of the entity would write id 0); position/superset 0 still lets the triggers decide.
+  An optional range or list is one query with `(:fromDate IS NULL OR ...)` and `(:everyExercise OR x IN (:ids))`.
+  `app/schemas/.../21.json` is committed and is the unit tests' asset dir; `ExportedSchemaTest` (MigrationTestHelper)
+  validates upgrades against it, so a new `Db.VERSION` must commit its new JSON from `ci-logs` in the same build or
+  the next. Still open on #36: the FitNotes import and backups (`Backups`, `AutoBackup`, `BackupSync`) on DAOs.
