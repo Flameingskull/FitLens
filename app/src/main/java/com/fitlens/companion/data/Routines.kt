@@ -143,45 +143,33 @@ object Routines {
      * logged date still knows which day it was; removed days are deleted. Each day's exercises are small, so they are
      * rewritten rather than diffed, and exercises that no longer exist are dropped. Returns the workout's id.
      */
-    suspend fun save(routine: Routine): Long = write { w ->
-        val name = routine.name.trim().replace(Regex("\\s+"), " ")
+    suspend fun save(routine: Routine): Long = write { r ->
+        val name = routine.name.trim().replace(Regex("\s+"), " ")
         if (name.isEmpty()) throw WorkoutDataException(R.string.wde_name_workout)
 
-        val cv = ContentValues().apply { put("name", name); put("notes", routine.notes?.trim()?.ifBlank { null }) }
+        val notes = routine.notes?.trim()?.ifBlank { null }
         val id = if (routine.id == 0L) {
-            val next = w.rawQuery("SELECT IFNULL(MAX(sort_order), -1) + 1 FROM routine", null)
-                .use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
-            cv.put("sort_order", next)
-            w.insertOrThrow("routine", null, cv)
+            r.addRoutine(RoutineRow(0L, name, notes, r.nextRoutineOrder()))
         } else {
-            w.update("routine", cv, "id=?", arrayOf(routine.id.toString()))
+            r.updateRoutine(routine.id, name, notes)
             routine.id
         }
         val kept = routine.days.map { it.id }.filter { it > 0 }
-        val gone = w.rawQuery("SELECT id FROM routine_day WHERE routine_id=?", arrayOf(id.toString())).use { c ->
-            ArrayList<Long>().apply { while (c.moveToNext()) c.getLong(0).takeIf { it !in kept }?.let { add(it) } }
-        }
-        gone.forEach { deleteDayRows(w, it) }
-        val known = knownExercises(w)
+        r.dayIds(id).filter { it !in kept }.forEach { deleteDayRows(r, it) }
+        val known = r.exerciseIds().toHashSet()
         routine.days.forEachIndexed { i, d ->
-            val dv = ContentValues().apply {
-                put("routine_id", id); put("name", dayName(d.name, i)); put("sort_order", i)
-            }
             val dayId = if (d.id > 0) {
-                w.update("routine_day", dv, "id=?", arrayOf(d.id.toString()))
+                r.updateDay(d.id, id, dayName(d.name, i), i)
                 d.id
-            } else w.insertOrThrow("routine_day", null, dv)
-            writeExercises(w, dayId, d.exercises, known)
+            } else r.addDay(id, dayName(d.name, i), i)
+            writeExercises(r, dayId, d.exercises, known)
         }
         id
     }
 
-    suspend fun delete(id: Long): Unit = write { w ->
-        val days = w.rawQuery("SELECT id FROM routine_day WHERE routine_id=?", arrayOf(id.toString())).use { c ->
-            ArrayList<Long>().apply { while (c.moveToNext()) add(c.getLong(0)) }
-        }
-        days.forEach { deleteDayRows(w, it) }
-        w.delete("routine", "id=?", arrayOf(id.toString()))
+    suspend fun delete(id: Long): Unit = write { r ->
+        r.dayIds(id).forEach { deleteDayRows(r, it) }
+        r.deleteRoutine(id)
     }
 
     /** A copy of [routine] with new ids, named [name]. Returns the new id. */
@@ -189,70 +177,53 @@ object Routines {
         save(routine.copy(id = 0L, name = name, days = routine.days.map { it.copy(id = 0L) }))
 
     /** Adds a day holding [exercises] to the end of workout [routineId]. Returns the new day's id. */
-    suspend fun addDay(routineId: Long, name: String, exercises: List<PlannedExercise>): Long = write { w ->
-        val next = w.rawQuery("SELECT IFNULL(MAX(sort_order), -1) + 1 FROM routine_day WHERE routine_id=?", arrayOf(routineId.toString()))
-            .use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
-        val dayId = w.insertOrThrow("routine_day", null, ContentValues().apply {
-            put("routine_id", routineId); put("name", dayName(name, next)); put("sort_order", next)
-        })
-        writeExercises(w, dayId, exercises, knownExercises(w))
+    suspend fun addDay(routineId: Long, name: String, exercises: List<PlannedExercise>): Long = write { r ->
+        val next = r.nextDayOrder(routineId)
+        val dayId = r.addDay(routineId, dayName(name, next), next)
+        writeExercises(r, dayId, exercises, r.exerciseIds().toHashSet())
         dayId
     }
 
     /** Removes one day, used to undo [addDay]. */
-    suspend fun deleteDay(dayId: Long): Unit = write { w -> deleteDayRows(w, dayId) }
+    suspend fun deleteDay(dayId: Long): Unit = write { r -> deleteDayRows(r, dayId) }
 
     /** Replaces day [dayId]'s exercises with [exercises] ("Save as a workout day" into an existing day). */
-    suspend fun setDayExercises(dayId: Long, exercises: List<PlannedExercise>): Unit = write { w ->
-        writeExercises(w, dayId, exercises, knownExercises(w))
+    suspend fun setDayExercises(dayId: Long, exercises: List<PlannedExercise>): Unit = write { r ->
+        writeExercises(r, dayId, exercises, r.exerciseIds().toHashSet())
     }
 
-    private fun dayName(name: String, index: Int) = name.trim().replace(Regex("\\s+"), " ").ifBlank { "Day ${index + 1}" }
+    private fun dayName(name: String, index: Int) = name.trim().replace(Regex("\s+"), " ").ifBlank { "Day ${index + 1}" }
 
-    private fun knownExercises(w: SupportSQLiteDatabase): Set<Long> = w.rawQuery("SELECT id FROM exercise", null).use { c ->
-        HashSet<Long>().apply { while (c.moveToNext()) add(c.getLong(0)) }
+    private fun clearExercises(r: RoutineDao, dayId: Long) {
+        r.deletePlannedSetsOfDay(dayId)
+        r.deleteItemsOfDay(dayId)
     }
 
-    private fun clearExercises(w: SupportSQLiteDatabase, dayId: Long) {
-        w.execSQL(
-            "DELETE FROM routine_day_set WHERE item_id IN (SELECT id FROM routine_day_exercise WHERE day_id=?)",
-            arrayOf<Any>(dayId)
-        )
-        w.delete("routine_day_exercise", "day_id=?", arrayOf(dayId.toString()))
+    private fun deleteDayRows(r: RoutineDao, dayId: Long) {
+        clearExercises(r, dayId)
+        r.deleteDay(dayId)
     }
 
-    private fun deleteDayRows(w: SupportSQLiteDatabase, dayId: Long) {
-        clearExercises(w, dayId)
-        w.delete("routine_day", "id=?", arrayOf(dayId.toString()))
-    }
-
-    private fun writeExercises(w: SupportSQLiteDatabase, dayId: Long, exercises: List<PlannedExercise>, known: Set<Long>) {
-        clearExercises(w, dayId)
+    private fun writeExercises(r: RoutineDao, dayId: Long, exercises: List<PlannedExercise>, known: Set<Long>) {
+        clearExercises(r, dayId)
         exercises.filter { it.exerciseId in known }.forEachIndexed { i, p ->
-            val itemId = w.insertOrThrow("routine_day_exercise", null, ContentValues().apply {
-                put("day_id", dayId); put("exercise_id", p.exerciseId); put("sort_order", i); put("fill", p.fill)
-                put("superset", p.superset)
-                if (p.restSeconds == null) putNull("rest_seconds") else put("rest_seconds", p.restSeconds)
-                if (p.restAfterSeconds == null) putNull("rest_after_seconds") else put("rest_after_seconds", p.restAfterSeconds)
-            })
+            val itemId = r.addItem(
+                RoutineDayExerciseRow(0L, dayId, p.exerciseId, i, p.fill, p.superset, p.restSeconds, p.restAfterSeconds)
+            )
             p.sets.forEachIndexed { j, s ->
-                w.insertOrThrow("routine_day_set", null, ContentValues().apply {
-                    put("item_id", itemId); put("sort_order", j); put("weight", s.weightKg); put("reps", s.reps)
-                    put("distance", s.distance); put("duration", s.durationSec); put("set_type", s.setType)
-                    if (s.restSeconds == null) putNull("rest_seconds") else put("rest_seconds", s.restSeconds)
-                    if (s.metric == null) putNull("metric") else put("metric", s.metric)
-                })
+                r.addPlannedSet(
+                    RoutineDaySetRow(
+                        0L, itemId, j, s.weightKg, s.reps, s.distance, s.durationSec.toLong(), s.setType, s.restSeconds, s.metric
+                    )
+                )
             }
         }
     }
 
-    /** Removes an exercise from every workout day, when the exercise itself is deleted. */
-    internal fun forgetExercise(w: SupportSQLiteDatabase, exerciseId: Long) {
-        w.execSQL(
-            "DELETE FROM routine_day_set WHERE item_id IN (SELECT id FROM routine_day_exercise WHERE exercise_id=?)",
-            arrayOf<Any>(exerciseId)
-        )
-        w.delete("routine_day_exercise", "exercise_id=?", arrayOf(exerciseId.toString()))
+    /** Removes an exercise from every workout day, when the exercise itself is deleted (inside that write). */
+    internal fun forgetExercise(r: RoutineDao, exerciseId: Long) {
+        r.deletePlannedSetsOfExercise(exerciseId)
+        r.deleteItemsOfExercise(exerciseId)
     }
 
     /**
@@ -410,14 +381,9 @@ object Routines {
         db.execSQL("DELETE FROM saved_workout")
     }
 
-    private suspend fun <T> write(block: (SupportSQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
-        val w = Store.db.writableDatabase
-        w.beginTransaction()
-        val result = try {
-            block(w).also { w.setTransactionSuccessful() }
-        } finally {
-            w.endTransaction()
-        }
+    private suspend fun <T> write(block: (RoutineDao) -> T): T = withContext(Dispatchers.IO) {
+        val db = Store.db
+        val result = db.transaction { block(db.routineDao) }
         // Workouts live in the library area; logged sets aren't touched (#60).
         Store.refresh(Area.LIBRARY)
         result

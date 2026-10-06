@@ -1,11 +1,8 @@
 package com.fitlens.companion.data
 
-import android.content.ContentValues
 import android.content.res.Resources
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
-import android.database.sqlite.SQLiteDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fitlens.companion.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -81,18 +78,32 @@ object Workouts {
         date.take(10) + "|" + (start ?: "") + "|" + (finish ?: "")
 
     /** Remembers that a FitNotes name now maps to [targetId], or is skipped on import when [targetId] is null. */
-    internal fun setLink(w: SupportSQLiteDatabase, kind: String, key: String, targetId: Long?) {
-        w.delete("import_rule", "kind=? AND key=?", arrayOf(kind, key))
-        w.insert("import_rule", null, ContentValues().apply {
-            put("kind", kind); put("key", key)
-            if (targetId == null) putNull("target_id") else put("target_id", targetId)
-        })
+    private fun WorkoutDao.setLink(kind: String, key: String, targetId: Long?) {
+        deleteRule(kind, key)
+        addRule(kind, key, targetId)
     }
 
     /** One imported row with this key is skipped by later imports. */
-    internal fun addSkip(w: SupportSQLiteDatabase, kind: String, key: String) {
-        w.insert("import_rule", null, ContentValues().apply { put("kind", kind); put("key", key); putNull("target_id") })
-    }
+    private fun WorkoutDao.addSkip(kind: String, key: String) = addRule(kind, key, null)
+
+    /** A name the user re-creates stops being skipped by imports (see conflict rule 5). */
+    private fun WorkoutDao.clearDeletedLink(kind: String, name: String) = deleteSkips(kind, nameKey(name))
+
+    private fun WorkoutSetRow.key(): String = setKey(exercise_id, date, weight, reps, distance, duration.toInt())
+
+    /** Imported sets leave a skip rule when they're deleted, moved or changed, so the next import doesn't restore them. */
+    private fun WorkoutDao.skipSets(rows: List<WorkoutSetRow>) = rows.forEach { addSkip(RULE_SET, it.key()) }
+
+    private fun WorkoutDao.skipImportedComments(d: String) =
+        commentsOn(d).filter { it.source == Sources.FITNOTES }.forEach { addSkip(RULE_COMMENT, commentKey(d, it.comment)) }
+
+    private fun WorkoutDao.skipImportedTimes(d: String) =
+        timesOn(d).filter { it.source == Sources.FITNOTES }.forEach { addSkip(RULE_TIME, timeKey(d, it.start, it.finish)) }
+
+    /** Runs [block] once per [Db.MAX_IDS] ids, the most one query takes. */
+    private fun Collection<Long>.inChunks(block: (List<Long>) -> Unit) = toList().chunked(Db.MAX_IDS).forEach(block)
+
+    private fun flag(on: Boolean) = if (on) 1 else 0
 
     /** [missing] is what the user is told when the name is blank. */
     private fun cleanName(name: String, @StringRes missing: Int): String {
@@ -108,19 +119,14 @@ object Workouts {
     }
 
     /**
-     * Runs [block] in one transaction, then re-reads the [areas] of the snapshot it changed (#60). The default covers
-     * everything a workout write can touch; writes that only change the library or the notes say so.
+     * Runs [block] in one Room transaction, then re-reads the [areas] of the snapshot it changed (#60). The default
+     * covers everything a workout write can touch; writes that only change the library or the notes say so.
      */
-    private suspend fun <T> write(areas: Set<Area> = Area.WORKOUT, block: (SupportSQLiteDatabase) -> T): T =
+    private suspend fun <T> write(areas: Set<Area> = Area.WORKOUT, block: (WorkoutDao) -> T): T =
         withContext(Dispatchers.IO) {
             val start = System.nanoTime()
-            val w = Store.db.writableDatabase
-            w.beginTransaction()
-            val result = try {
-                block(w).also { w.setTransactionSuccessful() }
-            } finally {
-                w.endTransaction()
-            }
+            val db = Store.db
+            val result = db.transaction { block(db.workoutDao) }
             val written = System.nanoTime()
             Store.refresh(*areas.toTypedArray())
             WriteTimings.record(WriteTimings.OTHER, start, written, System.nanoTime(), Store.snapshot.value?.sets?.size ?: 0)
@@ -133,11 +139,8 @@ object Workouts {
         val dates = HashSet<String>()
 
         /** Names the exercises of the sets with these ids. Call it before a delete, while the rows still exist. */
-        fun addSets(w: SupportSQLiteDatabase, ids: Collection<Long>) {
-            if (ids.isEmpty()) return
-            w.rawQuery("SELECT DISTINCT exercise_id FROM workout_set WHERE id IN (${ids.joinToString(",")})", null).use { c ->
-                while (c.moveToNext()) exercises += c.getLong(0)
-            }
+        fun addSets(w: WorkoutDao, ids: Collection<Long>) {
+            ids.toList().chunked(Db.MAX_IDS).forEach { exercises += w.exercisesOfSets(it) }
         }
     }
 
@@ -145,16 +148,11 @@ object Workouts {
      * Like [write], for a write that changes a few sets and never replays PRs across the history (#60): only the sets
      * [block] names in its [SetScope] are re-read, so saving one set doesn't reload the whole database.
      */
-    private suspend fun <T> writeSets(block: (SupportSQLiteDatabase, SetScope) -> T): T = withContext(Dispatchers.IO) {
+    private suspend fun <T> writeSets(block: (WorkoutDao, SetScope) -> T): T = withContext(Dispatchers.IO) {
         val start = System.nanoTime()
-        val w = Store.db.writableDatabase
+        val db = Store.db
         val scope = SetScope()
-        w.beginTransaction()
-        val result = try {
-            block(w, scope).also { w.setTransactionSuccessful() }
-        } finally {
-            w.endTransaction()
-        }
+        val result = db.transaction { block(db.workoutDao, scope) }
         val written = System.nanoTime()
         Store.refreshSets(scope.exercises, scope.dates)
         // How long a set save takes on this phone, shown in Settings › About (#60).
@@ -165,50 +163,31 @@ object Workouts {
     private val LIBRARY = setOf(Area.LIBRARY)
     private val NOTES = setOf(Area.NOTES)
 
-    private fun SupportSQLiteDatabase.longOrNull(sql: String, vararg args: String): Long? =
-        rawQuery(sql, args).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else null }
-
-    /** Id of another row in [table] with this name (ignoring case), if any. */
-    private fun sameName(w: SupportSQLiteDatabase, table: String, name: String, exceptId: Long = -1L): Long? {
+    /** Id of another row in [rows] with this name (ignoring case), if any. */
+    private fun sameName(rows: List<IdName>, name: String, exceptId: Long = -1L): Long? {
         val key = nameKey(name)
-        w.rawQuery("SELECT id, name FROM $table", null).use { c ->
-            while (c.moveToNext()) {
-                if (c.getLong(0) != exceptId && nameKey(c.strOr(1)) == key) return c.getLong(0)
-            }
-        }
-        return null
-    }
-
-    /** A name the user re-creates stops being skipped by imports (see conflict rule 5). */
-    private fun clearDeletedLink(w: SupportSQLiteDatabase, kind: String, name: String) {
-        w.delete("import_rule", "kind=? AND key=? AND target_id IS NULL", arrayOf(kind, nameKey(name)))
+        return rows.firstOrNull { it.id != exceptId && nameKey(it.name) == key }?.id
     }
 
     // ---------- Categories ----------
 
     suspend fun createCategory(name: String, colour: Int = 0): Long = write(LIBRARY) { w ->
         val n = cleanName(name, R.string.wde_name_category)
-        if (sameName(w, "category", n) != null) throw WorkoutDataException(R.string.wde_category_exists, n)
-        val order = w.longOrNull("SELECT IFNULL(MAX(sort_order), 0) + 1 FROM category") ?: 1L
-        clearDeletedLink(w, RULE_CATEGORY, n)
-        w.insertOrThrow("category", null, ContentValues().apply {
-            put("name", n); put("colour", colour); put("sort_order", order); put("source", Sources.FITLENS)
-        })
+        if (sameName(w.categoryNames(), n) != null) throw WorkoutDataException(R.string.wde_category_exists, n)
+        val order = w.lastCategoryOrder() + 1
+        w.clearDeletedLink(RULE_CATEGORY, n)
+        w.addCategory(n, colour, order, Sources.FITLENS)
     }
 
     suspend fun updateCategory(id: Long, name: String, colour: Int): Unit = write(LIBRARY) { w ->
         val n = cleanName(name, R.string.wde_name_category)
-        val old = w.rawQuery("SELECT name FROM category WHERE id=?", arrayOf(id.toString())).use { c ->
-            if (c.moveToFirst()) c.strOr(0) else null
-        } ?: throw WorkoutDataException(R.string.wde_category_gone)
-        if (sameName(w, "category", n, exceptId = id) != null) throw WorkoutDataException(R.string.wde_category_exists, n)
+        val old = w.category(id)?.name ?: throw WorkoutDataException(R.string.wde_category_gone)
+        if (sameName(w.categoryNames(), n, exceptId = id) != null) throw WorkoutDataException(R.string.wde_category_exists, n)
         if (nameKey(old) != nameKey(n)) {
-            setLink(w, RULE_CATEGORY, nameKey(old), id)
-            clearDeletedLink(w, RULE_CATEGORY, n)
+            w.setLink(RULE_CATEGORY, nameKey(old), id)
+            w.clearDeletedLink(RULE_CATEGORY, n)
         }
-        w.update("category", ContentValues().apply {
-            put("name", n); put("colour", colour); put("source", Sources.FITLENS)
-        }, "id=?", arrayOf(id.toString()))
+        w.updateCategory(id, n, colour, Sources.FITLENS)
     }
 
     /**
@@ -229,22 +208,15 @@ object Workouts {
     ): List<Long> = write { w ->
         val d = checkDate(date)
         // The workout's groups become new groups on the day, after any the day already has.
-        val offset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", d) ?: 0L).toInt()
-        if (workoutId > 0L) {
-            w.insertWithOnConflict("workout_origin", null, ContentValues().apply {
-                put("date", d); put("workout_id", workoutId)
-                if (routineDayId == null) putNull("routine_day_id") else put("routine_day_id", routineDayId)
-            }, SQLiteDatabase.CONFLICT_REPLACE)
-        }
+        val offset = w.lastGroupOn(d) ?: 0
+        if (workoutId > 0L) w.putOrigin(WorkoutOriginRow(d, workoutId, routineDayId))
         val ids = rows.map { (exId, s) ->
-            w.insertOrThrow("workout_set", null, ContentValues().apply {
-                put("exercise_id", exId); put("date", d); put("weight", s.weightKg); put("reps", s.reps)
-                put("distance", s.distance); put("duration", s.durationSec); put("is_pr", 0)
-                put("source", Sources.FITLENS); put("set_type", s.setType); putNull("rpe"); putMetric(s.metric)
-                val g = groups[exId] ?: 0
-                if (g > 0) put("superset", g + offset)
-                if (s.restSeconds != null) put("rest_seconds", s.restSeconds)
-            })
+            val g = groups[exId] ?: 0
+            w.addSet(
+                exId, d, s.weightKg, s.reps, s.distance, s.durationSec, isPr = 0, comment = null, source = Sources.FITLENS,
+                setType = s.setType, rpe = null, metric = s.metric, position = 0L, superset = if (g > 0) g + offset else 0,
+                done = 0, restSeconds = s.restSeconds
+            )
         }
         rests.filterValues { !it.isEmpty }.forEach { (exId, r) -> putRest(w, d, exId, r) }
         replayPrs(w)
@@ -259,28 +231,14 @@ object Workouts {
     suspend fun swapExercise(date: String, from: Long, to: Long): List<Long> = write { w ->
         val d = checkDate(date)
         // The prescribed rest (#138) belongs to the exercise's place in the workout, so it follows the swap.
-        w.execSQL("UPDATE OR REPLACE workout_rest SET exercise_id=? WHERE date=? AND exercise_id=?", arrayOf<Any>(to, d, from))
+        w.swapRest(d, from, to)
         if (from == to) return@write emptyList()
-        w.longOrNull("SELECT id FROM exercise WHERE id=?", to.toString())
-            ?: throw WorkoutDataException(R.string.wde_exercise_gone)
-        val ids = ArrayList<Long>()
-        w.rawQuery(
-            "SELECT id, exercise_id, date, weight, reps, distance, duration, source FROM workout_set " +
-                "WHERE substr(date, 1, 10)=? AND exercise_id=?",
-            arrayOf(d, from.toString())
-        ).use { c ->
-            while (c.moveToNext()) {
-                ids.add(c.lng(0))
-                if (c.strOr(7) == Sources.FITNOTES) {
-                    addSkip(w, RULE_SET, setKey(c.lng(1), c.strOr(2), c.dbl(3), c.int(4), c.dbl(5), c.int(6)))
-                }
-            }
-        }
+        if (!w.exerciseExists(to)) throw WorkoutDataException(R.string.wde_exercise_gone)
+        val sets = w.setsOfExerciseOn(d, from)
+        w.skipSets(sets.filter { it.source == Sources.FITNOTES })
+        val ids = sets.map { it.id }
         if (ids.isNotEmpty()) {
-            w.execSQL(
-                "UPDATE workout_set SET exercise_id=?, source=? WHERE id IN (${ids.joinToString(",")})",
-                arrayOf<Any>(to, Sources.FITLENS)
-            )
+            ids.inChunks { w.moveSetsToExercise(it, to, Sources.FITLENS) }
             replayPrs(w)
         }
         ids
@@ -289,7 +247,7 @@ object Workouts {
     /** Puts the sets with these ids under [exerciseId], used to undo [swapExercise]. */
     suspend fun setExerciseOf(ids: Collection<Long>, exerciseId: Long): Unit = write { w ->
         if (ids.isEmpty()) return@write
-        w.update("workout_set", ContentValues().apply { put("exercise_id", exerciseId) }, "id IN (${ids.joinToString(",")})", null)
+        ids.inChunks { w.setExercise(it, exerciseId) }
         replayPrs(w)
     }
 
@@ -299,16 +257,14 @@ object Workouts {
      */
     suspend fun setComment(id: Long, comment: String?): Unit = writeSets { w, scope ->
         scope.addSets(w, listOf(id))
-        val changed = w.update("workout_set", ContentValues().apply {
-            put("comment", comment?.trim()?.takeIf { it.isNotEmpty() }); put("source", Sources.FITLENS)
-        }, "id=?", arrayOf(id.toString()))
+        val changed = w.setComment(id, comment?.trim()?.takeIf { it.isNotEmpty() }, Sources.FITLENS)
         if (changed == 0) throw WorkoutDataException(R.string.wde_set_gone)
     }
 
     /** Ticks a set off, or clears the tick (#19). Nothing else about the set changes. */
     suspend fun setDone(id: Long, done: Boolean): Unit = writeSets { w, scope ->
         scope.addSets(w, listOf(id))
-        w.update("workout_set", ContentValues().apply { put("done", if (done) 1 else 0) }, "id=?", arrayOf(id.toString()))
+        w.setDone(id, flag(done))
     }
 
     /**
@@ -318,16 +274,10 @@ object Workouts {
     suspend fun groupExercises(date: String, exIds: Collection<Long>): Int = writeSets { w, scope ->
         val d = checkDate(date)
         scope.dates += d
-        val inList = exIds.joinToString(",")
-        val existing = w.longOrNull(
-            "SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id IN ($inList)", d
-        )?.toInt() ?: 0
-        val group = if (existing > 0) existing else
-            ((w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", d) ?: 0L) + 1).toInt()
-        w.execSQL(
-            "UPDATE workout_set SET superset=? WHERE substr(date, 1, 10)=? AND exercise_id IN ($inList)",
-            arrayOf<Any>(group, d)
-        )
+        val list = exIds.toList()
+        val existing = w.groupOf(d, list) ?: 0
+        val group = if (existing > 0) existing else (w.lastGroupOn(d) ?: 0) + 1
+        w.setGroup(d, list, group)
         group
     }
 
@@ -337,15 +287,10 @@ object Workouts {
     suspend fun ungroupExercise(date: String, exId: Long): Unit = writeSets { w, scope ->
         val d = checkDate(date)
         scope.dates += d
-        val group = (w.longOrNull(
-            "SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id=?", d, exId.toString()
-        ) ?: 0L).toInt()
+        val group = w.groupOf(d, listOf(exId)) ?: 0
         if (group == 0) return@writeSets
-        w.execSQL("UPDATE workout_set SET superset=0 WHERE substr(date, 1, 10)=? AND exercise_id=?", arrayOf<Any>(d, exId))
-        val left = w.longOrNull(
-            "SELECT COUNT(DISTINCT exercise_id) FROM workout_set WHERE substr(date, 1, 10)=? AND superset=?", d, group.toString()
-        ) ?: 0L
-        if (left < 2) w.execSQL("UPDATE workout_set SET superset=0 WHERE substr(date, 1, 10)=? AND superset=?", arrayOf<Any>(d, group))
+        w.setGroup(d, listOf(exId), 0)
+        if (w.exercisesInGroup(d, group) < 2) w.dissolveGroup(d, group)
     }
 
     /**
@@ -354,9 +299,7 @@ object Workouts {
      */
     suspend fun reorderDay(orderedIds: List<Long>): Unit = writeSets { w, scope ->
         scope.addSets(w, orderedIds)
-        orderedIds.forEachIndexed { i, id ->
-            w.update("workout_set", ContentValues().apply { put("position", i + 1) }, "id=?", arrayOf(id.toString()))
-        }
+        orderedIds.forEachIndexed { i, id -> w.setPosition(id, i + 1L) }
     }
 
     /**
@@ -364,21 +307,17 @@ object Workouts {
      * one that exists, so the order chosen here is kept.
      */
     suspend fun reorderCategories(ids: List<Long>): Unit = write(LIBRARY) { w ->
-        ids.forEachIndexed { i, id ->
-            w.update("category", ContentValues().apply { put("sort_order", i + 1) }, "id=?", arrayOf(id.toString()))
-        }
+        ids.forEachIndexed { i, id -> w.setCategoryOrder(id, i + 1) }
     }
 
     /** Deletes a category. Its exercises and their history are kept and become uncategorised. */
     suspend fun deleteCategory(id: Long): Unit = write(LIBRARY) { w ->
-        val row = w.rawQuery("SELECT name, fitnotes_id FROM category WHERE id=?", arrayOf(id.toString())).use { c ->
-            if (c.moveToFirst()) c.strOr(0) to !c.isNull(1) else null
-        } ?: return@write
-        val linked = w.longOrNull("SELECT 1 FROM import_rule WHERE kind=? AND target_id=? LIMIT 1", RULE_CATEGORY, id.toString()) != null
-        w.execSQL("UPDATE exercise SET category_id=? WHERE category_id=?", arrayOf<Any>(UNCATEGORISED, id))
-        w.delete("category", "id=?", arrayOf(id.toString()))
-        w.execSQL("UPDATE import_rule SET target_id=NULL WHERE kind=? AND target_id=?", arrayOf<Any>(RULE_CATEGORY, id))
-        if (row.second || linked) setLink(w, RULE_CATEGORY, nameKey(row.first), null)
+        val row = w.category(id) ?: return@write
+        val linked = w.hasLinkTo(RULE_CATEGORY, id)
+        w.moveExercisesToCategory(id, UNCATEGORISED)
+        w.deleteCategory(id)
+        w.relink(RULE_CATEGORY, id, null)
+        if (row.fitnotes_id != null || linked) w.setLink(RULE_CATEGORY, nameKey(row.name), null)
     }
 
     // ---------- Exercises ----------
@@ -386,28 +325,20 @@ object Workouts {
     /** [type] is one of [ExerciseTypes]. */
     suspend fun createExercise(name: String, categoryId: Long, type: Int = 0, notes: String? = null): Long = write(LIBRARY) { w ->
         val n = cleanName(name, R.string.wde_name_exercise)
-        if (sameName(w, "exercise", n) != null) throw WorkoutDataException(R.string.wde_exercise_exists, n)
-        clearDeletedLink(w, RULE_EXERCISE, n)
-        w.insertOrThrow("exercise", null, ContentValues().apply {
-            put("name", n); put("category_id", categoryId); put("type", type)
-            put("notes", notes?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
-        })
+        if (sameName(w.exerciseNames(), n) != null) throw WorkoutDataException(R.string.wde_exercise_exists, n)
+        w.clearDeletedLink(RULE_EXERCISE, n)
+        w.addExercise(n, categoryId, type, notes?.takeIf { it.isNotBlank() }, Sources.FITLENS)
     }
 
     suspend fun updateExercise(id: Long, name: String, categoryId: Long, type: Int, notes: String?): Unit = write(LIBRARY) { w ->
         val n = cleanName(name, R.string.wde_name_exercise)
-        val old = w.rawQuery("SELECT name FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
-            if (c.moveToFirst()) c.strOr(0) else null
-        } ?: throw WorkoutDataException(R.string.wde_exercise_gone)
-        if (sameName(w, "exercise", n, exceptId = id) != null) throw WorkoutDataException(R.string.wde_exercise_exists, n)
+        val old = w.exercise(id)?.name ?: throw WorkoutDataException(R.string.wde_exercise_gone)
+        if (sameName(w.exerciseNames(), n, exceptId = id) != null) throw WorkoutDataException(R.string.wde_exercise_exists, n)
         if (nameKey(old) != nameKey(n)) {
-            setLink(w, RULE_EXERCISE, nameKey(old), id)
-            clearDeletedLink(w, RULE_EXERCISE, n)
+            w.setLink(RULE_EXERCISE, nameKey(old), id)
+            w.clearDeletedLink(RULE_EXERCISE, n)
         }
-        w.update("exercise", ContentValues().apply {
-            put("name", n); put("category_id", categoryId); put("type", type)
-            put("notes", notes?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
-        }, "id=?", arrayOf(id.toString()))
+        w.updateExercise(id, n, categoryId, type, notes?.takeIf { it.isNotBlank() }, Sources.FITLENS)
     }
 
     /**
@@ -418,15 +349,9 @@ object Workouts {
     suspend fun setExerciseDefaults(
         id: Long, weightStepKg: Double?, defaultGraph: Int, restSeconds: Int?, distanceUnit: String?, weightUnit: String?
     ): Unit = write(LIBRARY) { w ->
-        w.update("exercise", ContentValues().apply {
-            if (weightStepKg == null) putNull("weight_step") else put("weight_step", weightStepKg)
-            put("default_graph", defaultGraph)
-            if (restSeconds == null) putNull("rest_seconds") else put("rest_seconds", restSeconds)
-            val unit = DistanceUnits.of(distanceUnit)
-            if (unit == null) putNull("distance_unit") else put("distance_unit", unit)
-            val wUnit = WeightUnits.of(weightUnit)
-            if (wUnit == null) putNull("weight_unit") else put("weight_unit", wUnit)
-        }, "id=?", arrayOf(id.toString()))
+        w.setExerciseDefaults(
+            id, weightStepKg, defaultGraph, restSeconds, DistanceUnits.of(distanceUnit), WeightUnits.of(weightUnit)
+        )
     }
 
     // ---------- Exercise types (#14) ----------
@@ -446,49 +371,41 @@ object Workouts {
         if (metric != null && nameKey(metric) in setOf("weight", "reps", "distance", "time")) {
             throw WorkoutDataException(R.string.wde_type_metric_builtin, metric)
         }
-        val clash = (ExerciseTypes.all.map { ExerciseTypes.label(it) } +
-            w.rawQuery("SELECT name FROM exercise_type WHERE id<>?", arrayOf(t.id.toString())).use { c ->
-                buildList { while (c.moveToNext()) add(c.strOr(0)) }
-            }).any { nameKey(it) == nameKey(n) }
+        val clash = (ExerciseTypes.all.map { ExerciseTypes.label(it) } + w.typeNamesExcept(t.id.toLong()))
+            .any { nameKey(it) == nameKey(n) }
         if (clash) throw WorkoutDataException(R.string.wde_type_exists, n)
         val id = if (t.id >= ExerciseTypes.CUSTOM_BASE) t.id else
-            ((w.longOrNull("SELECT MAX(id) FROM exercise_type")?.toInt() ?: 0) + 1).coerceAtLeast(ExerciseTypes.CUSTOM_BASE)
-        w.insertWithOnConflict("exercise_type", null, ContentValues().apply {
-            put("id", id); put("name", n)
-            put("uses_weight", if (t.weight) 1 else 0); put("uses_reps", if (t.reps) 1 else 0)
-            put("uses_distance", if (t.distance) 1 else 0); put("uses_time", if (t.time) 1 else 0)
-            if (metric == null) putNull("metric_name") else put("metric_name", metric)
-            val unit = t.metricUnit?.trim()?.takeIf { it.isNotEmpty() && metric != null }
-            if (unit == null) putNull("metric_unit") else put("metric_unit", unit)
-        }, SQLiteDatabase.CONFLICT_REPLACE)
+            ((w.lastTypeId()?.toInt() ?: 0) + 1).coerceAtLeast(ExerciseTypes.CUSTOM_BASE)
+        val unit = t.metricUnit?.trim()?.takeIf { it.isNotEmpty() && metric != null }
+        w.putType(
+            ExerciseTypeRow(
+                id.toLong(), n, flag(t.weight), flag(t.reps), flag(t.distance), flag(t.time), metric, unit
+            )
+        )
         id
     }
 
     /** Deletes a user-defined type. One still used by an exercise can't go, so no exercise is left without a type. */
     suspend fun deleteExerciseType(id: Int): Unit = write(LIBRARY) { w ->
-        val users = w.longOrNull("SELECT COUNT(*) FROM exercise WHERE type=?", id.toString()) ?: 0L
+        val users = w.countExercisesOfType(id)
         if (users > 0) {
-            throw WorkoutDataException.counted(R.plurals.wde_type_in_use, users.toInt())
+            throw WorkoutDataException.counted(R.plurals.wde_type_in_use, users)
         }
-        w.delete("exercise_type", "id=?", arrayOf(id.toString()))
+        w.deleteType(id.toLong())
     }
 
     /** Deletes an exercise and every set logged for it. */
     suspend fun deleteExercise(id: Long): Unit = write { w ->
-        val row = w.rawQuery("SELECT name, fitnotes_id FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
-            if (c.moveToFirst()) c.strOr(0) to !c.isNull(1) else null
-        } ?: return@write
-        val hadImports = row.second ||
-            w.longOrNull("SELECT 1 FROM workout_set WHERE exercise_id=? AND fitnotes_id IS NOT NULL LIMIT 1", id.toString()) != null ||
-            w.longOrNull("SELECT 1 FROM import_rule WHERE kind=? AND target_id=? LIMIT 1", RULE_EXERCISE, id.toString()) != null
-        w.delete("workout_set", "exercise_id=?", arrayOf(id.toString()))
-        w.delete("exercise_goal", "exercise_id=?", arrayOf(id.toString()))
-        Routines.forgetExercise(w, id)
-        w.delete("exercise_comment", "exercise_id=?", arrayOf(id.toString()))
-        w.delete("workout_rest", "exercise_id=?", arrayOf(id.toString()))
-        w.delete("exercise", "id=?", arrayOf(id.toString()))
-        w.execSQL("UPDATE import_rule SET target_id=NULL WHERE kind=? AND target_id=?", arrayOf<Any>(RULE_EXERCISE, id))
-        if (hadImports) setLink(w, RULE_EXERCISE, nameKey(row.first), null)
+        val row = w.exercise(id) ?: return@write
+        val hadImports = row.fitnotes_id != null || w.hasImportedSets(id) || w.hasLinkTo(RULE_EXERCISE, id)
+        w.deleteSetsOf(id)
+        w.deleteGoalsOf(id)
+        Routines.forgetExercise(Store.db.routineDao, id)
+        w.deleteExerciseCommentsOf(id)
+        w.deleteRestsOf(id)
+        w.deleteExercise(id)
+        w.relink(RULE_EXERCISE, id, null)
+        if (hadImports) w.setLink(RULE_EXERCISE, nameKey(row.name), null)
     }
 
     /**
@@ -501,49 +418,35 @@ object Workouts {
      */
     suspend fun mergeExercises(fromId: Long, intoId: Long): Int = write { w ->
         if (fromId == intoId) throw WorkoutDataException(R.string.wde_merge_same)
-
-        data class Row(val name: String, val notes: String?, val favourite: Boolean)
-        fun row(id: Long) = w.rawQuery("SELECT name, notes, favourite FROM exercise WHERE id=?", arrayOf(id.toString())).use { c ->
-            if (c.moveToFirst()) Row(c.strOr(0), c.str(1), c.int(2) != 0) else null
-        } ?: throw WorkoutDataException(R.string.wde_exercise_gone)
-        val from = row(fromId)
-        val into = row(intoId)
-        val fromArg = arrayOf(fromId.toString())
-        val moved = w.rawQuery("SELECT COUNT(*) FROM workout_set WHERE exercise_id=?", fromArg).use { c ->
-            if (c.moveToFirst()) c.getInt(0) else 0
-        }
-        val target = ContentValues().apply { put("exercise_id", intoId) }
-        w.update("workout_set", target, "exercise_id=?", fromArg)
-        w.update("exercise_goal", target, "exercise_id=?", fromArg)
-        w.update("routine_day_exercise", target, "exercise_id=?", fromArg)
+        val from = w.exerciseToMerge(fromId) ?: throw WorkoutDataException(R.string.wde_exercise_gone)
+        val into = w.exerciseToMerge(intoId) ?: throw WorkoutDataException(R.string.wde_exercise_gone)
+        val moved = w.countSetsOf(fromId)
+        w.moveSetsOf(fromId, intoId)
+        w.moveGoalsOf(fromId, intoId)
+        w.movePlansOf(fromId, intoId)
         mergeExerciseComments(w, fromId, intoId)
         // Prescribed rests (#138) move too; on a date where both had one, the kept exercise's stays.
-        w.execSQL("UPDATE OR IGNORE workout_rest SET exercise_id=? WHERE exercise_id=?", arrayOf<Any>(intoId, fromId))
-        w.delete("workout_rest", "exercise_id=?", fromArg)
-        w.update("exercise", ContentValues().apply {
-            if (into.notes.isNullOrBlank() && !from.notes.isNullOrBlank()) put("notes", from.notes)
-            if (from.favourite) put("favourite", 1)
-            put("source", Sources.FITLENS)
-        }, "id=?", arrayOf(intoId.toString()))
-        w.delete("exercise", "id=?", fromArg)
+        w.moveRestsOf(fromId, intoId)
+        w.deleteRestsOf(fromId)
+        w.setMergedExercise(
+            intoId,
+            notes = if (into.notes.isNullOrBlank() && !from.notes.isNullOrBlank()) from.notes else into.notes,
+            favourite = if (from.favourite != 0) 1 else into.favourite,
+            source = Sources.FITLENS
+        )
+        w.deleteExercise(fromId)
         // Imports: names that led to the old exercise now lead to the kept one, and its skipped sets stay skipped.
-        w.execSQL("UPDATE import_rule SET target_id=? WHERE kind=? AND target_id=?", arrayOf<Any>(intoId, RULE_EXERCISE, fromId))
-        setLink(w, RULE_EXERCISE, nameKey(from.name), intoId)
+        w.relink(RULE_EXERCISE, fromId, intoId)
+        w.setLink(RULE_EXERCISE, nameKey(from.name), intoId)
         val prefix = "$fromId|"
-        val rekey = mutableListOf<Pair<Long, String>>()
-        w.rawQuery("SELECT rowid, key FROM import_rule WHERE kind=? AND key LIKE ?", arrayOf(RULE_SET, "$prefix%")).use { c ->
-            while (c.moveToNext()) rekey += c.getLong(0) to "$intoId|" + c.strOr(1).removePrefix(prefix)
-        }
-        rekey.forEach { (rowid, key) ->
-            w.update("import_rule", ContentValues().apply { put("key", key) }, "rowid=?", arrayOf(rowid.toString()))
-        }
+        w.rulesLike(RULE_SET, "$prefix%").forEach { w.setRuleKey(it.id, "$intoId|" + it.key.removePrefix(prefix)) }
         replayPrs(w)
         moved
     }
 
     /** Stars or unstars an exercise. Favourites are listed first when choosing an exercise. */
     suspend fun setFavourite(id: Long, favourite: Boolean): Unit = write(LIBRARY) { w ->
-        w.update("exercise", ContentValues().apply { put("favourite", if (favourite) 1 else 0) }, "id=?", arrayOf(id.toString()))
+        w.setFavourite(id, flag(favourite))
     }
 
     /**
@@ -558,28 +461,24 @@ object Workouts {
         var categoriesAdded = 0
         var exercisesAdded = 0
         var skipped = 0
-        var order = w.longOrNull("SELECT IFNULL(MAX(sort_order), 0) FROM category") ?: 0L
+        var order = w.lastCategoryOrder()
+        val categories = w.categoryNames().toMutableList()
+        val exercises = w.exerciseNames().toMutableList()
         StarterLibrary.categories.forEachIndexed { i, sc ->
-            val categoryId = sameName(w, "category", sc.name) ?: run {
+            val categoryId = sameName(categories, sc.name) ?: run {
                 order += 1
                 categoriesAdded += 1
-                clearDeletedLink(w, RULE_CATEGORY, sc.name)
-                w.insertOrThrow("category", null, ContentValues().apply {
-                    put("name", sc.name)
-                    put("colour", if (palette.isEmpty()) 0 else palette[i % palette.size])
-                    put("sort_order", order)
-                    put("source", Sources.FITLENS)
-                })
+                w.clearDeletedLink(RULE_CATEGORY, sc.name)
+                val colour = if (palette.isEmpty()) 0 else palette[i % palette.size]
+                w.addCategory(sc.name, colour, order, Sources.FITLENS).also { categories += IdName(it, sc.name) }
             }
             sc.exercises.forEach { se ->
-                if (sameName(w, "exercise", se.name) != null) {
+                if (sameName(exercises, se.name) != null) {
                     skipped += 1
                 } else {
-                    clearDeletedLink(w, RULE_EXERCISE, se.name)
-                    w.insertOrThrow("exercise", null, ContentValues().apply {
-                        put("name", se.name); put("category_id", categoryId); put("type", se.type)
-                        put("source", Sources.FITLENS)
-                    })
+                    w.clearDeletedLink(RULE_EXERCISE, se.name)
+                    val id = w.addExercise(se.name, categoryId, se.type, null, Sources.FITLENS)
+                    exercises += IdName(id, se.name)
                     exercisesAdded += 1
                 }
             }
@@ -608,62 +507,37 @@ object Workouts {
         metric: Double? = null
     ): Long = writeSets { w, scope ->
         val d = checkDate(date)
-        w.longOrNull("SELECT id FROM exercise WHERE id=?", exerciseId.toString())
-            ?: throw WorkoutDataException(R.string.wde_exercise_gone)
+        if (!w.exerciseExists(exerciseId)) throw WorkoutDataException(R.string.wde_exercise_gone)
         // Its PR mark is decided here against earlier sets, so no other set changes and only this exercise is re-read.
         scope.exercises += exerciseId
         val countWarmups = Settings.currentPortable().warmupsCount
         // A warm-up is never a record unless warm-ups count, and uncounted warm-ups never set the bar (#43).
         val pr = if (setType == SetTypes.WARMUP && !countWarmups) false else isPr ?: Records.isNewRecord(
-            weightKg, reps,
-            w.rawQuery(
-                "SELECT MAX(weight) FROM workout_set WHERE exercise_id=? AND reps>=? AND weight>0 AND substr(date, 1, 10)<=?" +
-                    if (countWarmups) "" else " AND set_type<>${SetTypes.WARMUP}",
-                arrayOf(exerciseId.toString(), reps.toString(), d)
-            ).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getDouble(0) else null }
+            weightKg, reps, w.bestBefore(exerciseId, reps, d, countWarmups, SetTypes.WARMUP)
         )
-        w.insertOrThrow("workout_set", null, ContentValues().apply {
-            put("exercise_id", exerciseId); put("date", d); put("weight", weightKg); put("reps", reps)
-            put("distance", distance); put("duration", durationSec); put("is_pr", if (pr) 1 else 0)
-            put("comment", comment?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
-            put("set_type", setType); putRpe(rpe); putMetric(metric)
-        })
-    }
-
-    private fun ContentValues.putRpe(rpe: Double?) {
-        if (rpe == null) putNull("rpe") else put("rpe", rpe)
-    }
-
-    private fun ContentValues.putMetric(metric: Double?) {
-        if (metric == null) putNull("metric") else put("metric", metric)
+        w.addSet(
+            exerciseId, d, weightKg, reps, distance, durationSec, flag(pr), comment?.takeIf { it.isNotBlank() },
+            Sources.FITLENS, setType, rpe, metric, position = 0L, superset = 0, done = 0, restSeconds = null
+        )
     }
 
     /** Saves changes to a set (matched by [SetRow.id]). An edited imported set becomes FitLens's own. */
     suspend fun updateSet(set: SetRow): Unit = writeSets { w, scope ->
         val d = checkDate(set.date)
-        val old = w.rawQuery(
-            "SELECT exercise_id, date, weight, reps, distance, duration, source FROM workout_set WHERE id=?",
-            arrayOf(set.id.toString())
-        ).use { c ->
-            if (c.moveToFirst()) {
-                scope.exercises += c.lng(0)
-                c.strOr(6) to setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5))
-            } else null
-        } ?: throw WorkoutDataException(R.string.wde_set_gone)
+        val old = w.setById(set.id) ?: throw WorkoutDataException(R.string.wde_set_gone)
+        scope.exercises += old.exercise_id
         scope.exercises += set.exerciseId
         val newKey = setKey(set.exerciseId, d, set.weightKg, set.reps, set.distance, set.durationSec)
-        if (old.first == Sources.FITNOTES && old.second != newKey) addSkip(w, RULE_SET, old.second)
-        w.update("workout_set", ContentValues().apply {
-            put("exercise_id", set.exerciseId); put("date", d); put("weight", set.weightKg); put("reps", set.reps)
-            put("distance", set.distance); put("duration", set.durationSec); put("is_pr", if (set.isPr) 1 else 0)
-            put("comment", set.comment?.takeIf { it.isNotBlank() }); put("source", Sources.FITLENS)
-            put("set_type", set.setType); putRpe(set.rpe); putMetric(set.metric)
-        }, "id=?", arrayOf(set.id.toString()))
+        if (old.source == Sources.FITNOTES && old.key() != newKey) w.addSkip(RULE_SET, old.key())
+        w.updateSet(
+            set.id, set.exerciseId, d, set.weightKg, set.reps, set.distance, set.durationSec, flag(set.isPr),
+            set.comment?.takeIf { it.isNotBlank() }, Sources.FITLENS, set.setType, set.rpe, set.metric
+        )
     }
 
     suspend fun deleteSet(id: Long): Unit = writeSets { w, scope ->
         scope.addSets(w, listOf(id))
-        deleteSetsWhere(w, "id=?", arrayOf(id.toString()))
+        deleteSetsById(w, listOf(id))
     }
 
     /**
@@ -682,55 +556,39 @@ object Workouts {
      * Returns how many sets were deleted.
      */
     suspend fun deleteHistory(from: String?, to: String?, exerciseIds: Set<Long>): Int = write { w ->
-        val clauses = mutableListOf<String>()
-        val args = mutableListOf<String>()
-        if (from != null) { clauses += "substr(date, 1, 10) >= ?"; args += from }
-        if (to != null) { clauses += "substr(date, 1, 10) <= ?"; args += to }
-        if (exerciseIds.isNotEmpty()) clauses += "exercise_id IN (${exerciseIds.joinToString(",")})"
-        val where = clauses.ifEmpty { listOf("1=1") }.joinToString(" AND ")
-        val count = w.rawQuery("SELECT COUNT(*) FROM workout_set WHERE $where", args.toTypedArray()).use { c ->
-            if (c.moveToFirst()) c.getInt(0) else 0
+        val every = exerciseIds.isEmpty()
+        val batches = if (every) listOf(emptyList()) else exerciseIds.toList().chunked(Db.MAX_IDS)
+        var count = 0
+        batches.forEach { ids ->
+            w.skipSets(w.setsInRangeWithSource(from, to, every, ids, Sources.FITNOTES))
+            count += w.deleteSetsInRange(from, to, every, ids)
+            // Exercise comments belong to the exercise in that day's workout, so they go with its sets (#107).
+            w.deleteExerciseCommentsInRange(from, to, every, ids)
+            w.deleteRestsInRange(from, to, every, ids)
         }
-        if (count > 0) {
-            deleteSetsWhere(w, where, args.toTypedArray())
-            replayPrs(w)
-        }
-        // Exercise comments belong to the exercise in that day's workout, so they go with its sets (#107).
-        w.delete("exercise_comment", where.replace("substr(date, 1, 10)", "date"), args.toTypedArray())
-        w.delete("workout_rest", where.replace("substr(date, 1, 10)", "date"), args.toTypedArray())
+        if (count > 0) replayPrs(w)
         count
     }
 
-    private fun replayPrs(w: SupportSQLiteDatabase): Int {
+    private fun replayPrs(w: WorkoutDao): Int {
         val changes = mutableListOf<Pair<Long, Boolean>>()
         var exercise = -1L
         // best[r] = heaviest weight so far for at least r reps, for the exercise being replayed.
         var best = DoubleArray(0)
         val countWarmups = Settings.currentPortable().warmupsCount
-        w.rawQuery(
-            "SELECT id, exercise_id, weight, reps, is_pr, set_type FROM workout_set WHERE weight>0 AND reps>0 " +
-                "ORDER BY exercise_id, substr(date, 1, 10), id",
-            null
-        ).use { c ->
-            while (c.moveToNext()) {
-                val exId = c.lng(1)
-                if (exId != exercise) { exercise = exId; best = DoubleArray(0) }
-                // An uncounted warm-up loses any PR mark and doesn't set the bar for later sets (#43).
-                if (!countWarmups && c.int(5) == SetTypes.WARMUP) {
-                    if (c.int(4) != 0) changes += c.lng(0) to false
-                    continue
-                }
-                val weight = c.dbl(2)
-                val reps = c.int(3)
-                if (best.size <= reps) best = best.copyOf(reps + 1)
-                val pr = Records.isNewRecord(weight, reps, best[reps].takeIf { it > 0 })
-                for (r in 1..reps) if (weight > best[r]) best[r] = weight
-                if (pr != (c.int(4) != 0)) changes += c.lng(0) to pr
+        w.prCandidates().forEach { s ->
+            if (s.exercise_id != exercise) { exercise = s.exercise_id; best = DoubleArray(0) }
+            // An uncounted warm-up loses any PR mark and doesn't set the bar for later sets (#43).
+            if (!countWarmups && s.set_type == SetTypes.WARMUP) {
+                if (s.is_pr != 0) changes += s.id to false
+                return@forEach
             }
+            if (best.size <= s.reps) best = best.copyOf(s.reps + 1)
+            val pr = Records.isNewRecord(s.weight, s.reps, best[s.reps].takeIf { it > 0 })
+            for (r in 1..s.reps) if (s.weight > best[r]) best[r] = s.weight
+            if (pr != (s.is_pr != 0)) changes += s.id to pr
         }
-        changes.forEach { (id, pr) ->
-            w.update("workout_set", ContentValues().apply { put("is_pr", if (pr) 1 else 0) }, "id=?", arrayOf(id.toString()))
-        }
+        changes.forEach { (id, pr) -> w.setPr(id, flag(pr)) }
         return changes.size
     }
 
@@ -741,33 +599,24 @@ object Workouts {
     suspend fun addSets(rows: List<SetRow>): Int = writeSets { w, scope ->
         scope.exercises += rows.map { it.exerciseId }
         rows.forEach { s ->
-            w.insertOrThrow("workout_set", null, ContentValues().apply {
-                put("exercise_id", s.exerciseId); put("date", s.date.take(10)); put("weight", s.weightKg)
-                put("reps", s.reps); put("distance", s.distance); put("duration", s.durationSec)
-                put("is_pr", if (s.isPr) 1 else 0); put("comment", s.comment?.takeIf { it.isNotBlank() })
-                put("source", Sources.FITLENS); put("set_type", s.setType); putRpe(s.rpe); putMetric(s.metric)
-                // Back in its old place (#70), group (#18) and tick (#19); 0 lets the triggers decide.
-                put("position", s.position); put("superset", s.superset); put("done", if (s.done) 1 else 0)
-                if (s.restSeconds != null) put("rest_seconds", s.restSeconds)
-            })
+            // Back in its old place (#70), group (#18) and tick (#19); 0 lets the triggers decide.
+            w.addSet(
+                s.exerciseId, s.date.take(10), s.weightKg, s.reps, s.distance, s.durationSec, flag(s.isPr),
+                s.comment?.takeIf { it.isNotBlank() }, Sources.FITLENS, s.setType, s.rpe, s.metric, s.position,
+                s.superset, flag(s.done), s.restSeconds
+            )
             // Deleting an imported set left one skip rule; the set is back, so drop one matching rule too (#76).
             if (s.imported) {
-                w.execSQL(
-                    "DELETE FROM import_rule WHERE rowid = (SELECT rowid FROM import_rule " +
-                        "WHERE kind=? AND key=? AND target_id IS NULL LIMIT 1)",
-                    arrayOf<Any>(RULE_SET, setKey(s.exerciseId, s.date, s.weightKg, s.reps, s.distance, s.durationSec))
-                )
+                w.deleteOneSkip(RULE_SET, setKey(s.exerciseId, s.date, s.weightKg, s.reps, s.distance, s.durationSec))
             }
         }
         rows.size
     }
 
-    private fun deleteSetsWhere(w: SupportSQLiteDatabase, where: String, args: Array<String>) {
-        w.rawQuery("SELECT exercise_id, date, weight, reps, distance, duration FROM workout_set WHERE ($where) AND source=?",
-            args + Sources.FITNOTES).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_SET, setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5)))
-        }
-        w.delete("workout_set", where, args)
+    /** Deletes the sets with these ids; imported ones leave a skip rule. */
+    private fun deleteSetsById(w: WorkoutDao, ids: Collection<Long>) = ids.inChunks { chunk ->
+        w.skipSets(w.setsWithSource(chunk, Sources.FITNOTES))
+        w.deleteSets(chunk)
     }
 
     // ---------- Workouts (everything on one date) ----------
@@ -775,14 +624,10 @@ object Workouts {
     /** Replaces the workout comment for [date]. A blank comment removes it. */
     suspend fun setWorkoutComment(date: String, comment: String?): Unit = write(NOTES) { w ->
         val d = checkDate(date)
-        w.rawQuery("SELECT comment FROM workout_comment WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_COMMENT, commentKey(d, c.strOr(0)))
-        }
-        w.delete("workout_comment", "date=?", arrayOf(d))
+        w.skipImportedComments(d)
+        w.deleteCommentsOn(d)
         val text = comment?.trim()
-        if (!text.isNullOrEmpty()) {
-            w.insert("workout_comment", null, ContentValues().apply { put("date", d); put("comment", text); put("source", Sources.FITLENS) })
-        }
+        if (!text.isNullOrEmpty()) w.addComment(d, text, Sources.FITLENS)
     }
 
     /** Replaces the comment on exercise [exerciseId] in [date]'s workout (#107). A blank comment removes it. */
@@ -793,43 +638,32 @@ object Workouts {
     /** Puts [date]'s exercise comments back exactly as [comments] (exercise id to text), for Undo (#107). */
     suspend fun setExerciseComments(date: String, comments: Map<Long, String>): Unit = write(NOTES) { w ->
         val d = checkDate(date)
-        w.delete("exercise_comment", "date=?", arrayOf(d))
+        w.deleteExerciseCommentsOn(d)
         comments.forEach { (ex, text) -> writeExerciseComment(w, d, ex, text) }
     }
 
-    private fun writeExerciseComment(w: SupportSQLiteDatabase, d: String, exerciseId: Long, comment: String?) {
-        w.delete("exercise_comment", "date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
+    private fun writeExerciseComment(w: WorkoutDao, d: String, exerciseId: Long, comment: String?) {
+        w.deleteExerciseComment(d, exerciseId)
         val text = comment?.trim()
-        if (!text.isNullOrEmpty()) {
-            w.insertOrThrow("exercise_comment", null, ContentValues().apply {
-                put("date", d); put("exercise_id", exerciseId); put("comment", text); put("source", Sources.FITLENS)
-            })
-        }
+        if (!text.isNullOrEmpty()) w.addExerciseComment(d, exerciseId, text, Sources.FITLENS)
     }
 
     /** Moves exercise comments from exercise [fromId] to [intoId]; on a date where both have one, they're joined. */
-    private fun mergeExerciseComments(w: SupportSQLiteDatabase, fromId: Long, intoId: Long) {
-        val moving = w.rawQuery("SELECT date, comment FROM exercise_comment WHERE exercise_id=?", arrayOf(fromId.toString()))
-            .use { c -> ArrayList<Pair<String, String>>().apply { while (c.moveToNext()) add(c.strOr(0) to c.strOr(1)) } }
-        w.delete("exercise_comment", "exercise_id=?", arrayOf(fromId.toString()))
-        moving.forEach { (d, text) -> joinExerciseComment(w, d, intoId, text) }
+    private fun mergeExerciseComments(w: WorkoutDao, fromId: Long, intoId: Long) {
+        val moving = w.exerciseCommentsOf(fromId)
+        w.deleteExerciseCommentsOf(fromId)
+        moving.forEach { joinExerciseComment(w, it.date, intoId, it.comment) }
     }
 
     /** Stores the rest [r] prescribed for [exerciseId] on [d] (#138), or removes it when [r] is empty. */
-    private fun putRest(w: SupportSQLiteDatabase, d: String, exerciseId: Long, r: WorkoutRest) {
-        w.delete("workout_rest", "date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
-        if (r.isEmpty) return
-        w.insertOrThrow("workout_rest", null, ContentValues().apply {
-            put("date", d); put("exercise_id", exerciseId)
-            if (r.restSeconds == null) putNull("rest_seconds") else put("rest_seconds", r.restSeconds)
-            if (r.restAfterSeconds == null) putNull("rest_after_seconds") else put("rest_after_seconds", r.restAfterSeconds)
-        })
+    private fun putRest(w: WorkoutDao, d: String, exerciseId: Long, r: WorkoutRest) {
+        if (r.isEmpty) w.deleteRest(d, exerciseId)
+        else w.putRest(WorkoutRestRow(d, exerciseId, r.restSeconds, r.restAfterSeconds))
     }
 
     /** Adds [text] to exercise [exerciseId]'s comment on [d], after any comment already there. */
-    private fun joinExerciseComment(w: SupportSQLiteDatabase, d: String, exerciseId: Long, text: String) {
-        val existing = w.rawQuery("SELECT comment FROM exercise_comment WHERE date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
-            .use { c -> if (c.moveToFirst()) c.strOr(0) else null }
+    private fun joinExerciseComment(w: WorkoutDao, d: String, exerciseId: Long, text: String) {
+        val existing = w.exerciseComment(d, exerciseId)
         val joined = listOfNotNull(existing, text).map { it.trim() }.filter { it.isNotEmpty() }.distinct().joinToString("\n\n")
         writeExerciseComment(w, d, exerciseId, joined)
     }
@@ -840,15 +674,9 @@ object Workouts {
      */
     suspend fun setWorkoutTime(date: String, start: String?, finish: String?): Unit = write(NOTES) { w ->
         val d = checkDate(date)
-        w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(d, c.str(0), c.str(1)))
-        }
-        w.delete("workout_time", "date=?", arrayOf(d))
-        if (start != null || finish != null) {
-            w.insert("workout_time", null, ContentValues().apply {
-                put("date", d); put("start", start); put("finish", finish); put("source", Sources.FITLENS)
-            })
-        }
+        w.skipImportedTimes(d)
+        w.deleteTimesOn(d)
+        if (start != null || finish != null) w.addTime(d, start, finish, Sources.FITLENS)
     }
 
     /**
@@ -858,33 +686,23 @@ object Workouts {
      */
     suspend fun setWorkoutTimes(date: String, times: List<WorkoutTime>): Unit = write(NOTES) { w ->
         val d = checkDate(date)
-        w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(d, c.str(0), c.str(1)))
-        }
-        w.delete("workout_time", "date=?", arrayOf(d))
-        times.forEach { t ->
-            w.insert("workout_time", null, ContentValues().apply {
-                put("date", d); put("start", t.start.ifBlank { null }); put("finish", t.end.ifBlank { null })
-                put("source", Sources.FITLENS)
-            })
-        }
+        w.skipImportedTimes(d)
+        w.deleteTimesOn(d)
+        times.forEach { t -> w.addTime(d, t.start.ifBlank { null }, t.end.ifBlank { null }, Sources.FITLENS) }
     }
 
     /** Deletes the whole workout on [date]: its sets, comment and times. Measurements and photos are kept. */
     suspend fun deleteWorkout(date: String): Unit = write { w ->
         val d = checkDate(date)
-        deleteSetsWhere(w, "date=?", arrayOf(d))
-        w.rawQuery("SELECT comment FROM workout_comment WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_COMMENT, commentKey(d, c.strOr(0)))
-        }
-        w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(d, Sources.FITNOTES)).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(d, c.str(0), c.str(1)))
-        }
-        w.delete("workout_comment", "date=?", arrayOf(d))
-        w.delete("exercise_comment", "date=?", arrayOf(d))
-        w.delete("workout_rest", "date=?", arrayOf(d))
-        w.delete("workout_time", "date=?", arrayOf(d))
-        w.delete("workout_origin", "date=?", arrayOf(d))
+        w.skipSets(w.setsOnWithSource(d, Sources.FITNOTES))
+        w.deleteSetsOn(d)
+        w.skipImportedComments(d)
+        w.skipImportedTimes(d)
+        w.deleteCommentsOn(d)
+        w.deleteExerciseCommentsOn(d)
+        w.deleteRestsOn(d)
+        w.deleteTimesOn(d)
+        w.deleteOrigin(d)
     }
 
     /**
@@ -899,41 +717,24 @@ object Workouts {
         val f = checkDate(from)
         val t = checkDate(to)
         if (setIds != null && setIds.isEmpty()) return@write emptyList()
-        val where = if (setIds == null) "date=?" else "date=? AND id IN (${setIds.joinToString(",")})"
-        val copies = ArrayList<ContentValues>()
+        val wanted = setIds?.toHashSet()
+        val copies = w.setsOn(f).filter { wanted == null || it.id in wanted }
         // Supersets come across as new groups on the target day, after any it already has (#18).
-        val offset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", t) ?: 0L).toInt()
-        w.rawQuery(
-            "SELECT exercise_id, weight, reps, distance, duration, comment, set_type, rpe, superset, rest_seconds, metric FROM workout_set WHERE $where ORDER BY position, id",
-            arrayOf(f)
-        ).use { c ->
-            while (c.moveToNext()) {
-                copies.add(ContentValues().apply {
-                    put("exercise_id", c.lng(0)); put("date", t); put("weight", c.dbl(1)); put("reps", c.int(2))
-                    put("distance", c.dbl(3)); put("duration", c.int(4)); put("is_pr", 0)
-                    put("comment", c.str(5)); put("source", Sources.FITLENS)
-                    put("set_type", c.int(6)); if (c.isNull(7)) putNull("rpe") else put("rpe", c.getDouble(7))
-                    if (c.int(8) > 0) put("superset", c.int(8) + offset)
-                    if (!c.isNull(9)) put("rest_seconds", c.getInt(9))
-                    if (!c.isNull(10)) put("metric", c.getDouble(10))
-                })
-            }
+        val offset = w.lastGroupOn(t) ?: 0
+        val ids = copies.map { s ->
+            w.addSet(
+                s.exercise_id, t, s.weight, s.reps, s.distance, s.duration.toInt(), isPr = 0, comment = s.comment,
+                source = Sources.FITLENS, setType = s.set_type, rpe = s.rpe, metric = s.metric, position = 0L,
+                superset = if (s.superset > 0) s.superset + offset else 0, done = 0, restSeconds = s.rest_seconds
+            )
         }
-        val ids = copies.map { w.insertOrThrow("workout_set", null, it) }
-        // Exercise comments come along for the exercises copied, unless the target day already has its own (#107).
-        val copied = copies.map { it.getAsLong("exercise_id") }.distinct()
+        // Exercise comments and prescribed rests (#107, #138) come along for the exercises copied, unless the target
+        // day already has its own.
+        val copied = copies.map { it.exercise_id }.toHashSet()
         if (copied.isNotEmpty()) {
-            w.execSQL(
-                "INSERT OR IGNORE INTO exercise_comment(date, exercise_id, comment, source) " +
-                    "SELECT ?, exercise_id, comment, ? FROM exercise_comment WHERE date=? AND exercise_id IN (${copied.joinToString(",")})",
-                arrayOf<Any>(t, Sources.FITLENS, f)
-            )
-            // So does their prescribed rest (#138), unless the target day already has its own.
-            w.execSQL(
-                "INSERT OR IGNORE INTO workout_rest(date, exercise_id, rest_seconds, rest_after_seconds) " +
-                    "SELECT ?, exercise_id, rest_seconds, rest_after_seconds FROM workout_rest WHERE date=? AND exercise_id IN (${copied.joinToString(",")})",
-                arrayOf<Any>(t, f)
-            )
+            w.exerciseCommentsOn(f).filter { it.exercise_id in copied }
+                .forEach { w.addExerciseCommentIfNone(t, it.exercise_id, it.comment, Sources.FITLENS) }
+            w.restsOn(f).filter { it.exercise_id in copied }.forEach { w.addRestIfNone(it.copy(date = t)) }
         }
         ids
     }
@@ -944,18 +745,12 @@ object Workouts {
      */
     suspend fun deleteSets(ids: Collection<Long>): Int = write { w ->
         if (ids.isEmpty()) return@write 0
-        val pairs = w.rawQuery("SELECT DISTINCT substr(date, 1, 10), exercise_id FROM workout_set WHERE id IN (${ids.joinToString(",")})", null)
-            .use { c -> ArrayList<Pair<String, Long>>().apply { while (c.moveToNext()) add(c.strOr(0) to c.lng(1)) } }
-        deleteSetsWhere(w, "id IN (${ids.joinToString(",")})", emptyArray())
+        val pairs = ArrayList<DayExercise>()
+        ids.inChunks { pairs += w.daysOfSets(it) }
+        deleteSetsById(w, ids)
         // Undoing a copy or a logged workout takes the exercise comments it brought along (#107): a comment goes
         // once its exercise has no sets left on that date.
-        pairs.forEach { (d, ex) ->
-            w.execSQL(
-                "DELETE FROM exercise_comment WHERE date=? AND exercise_id=? AND NOT EXISTS " +
-                    "(SELECT 1 FROM workout_set WHERE substr(date, 1, 10)=? AND exercise_id=?)",
-                arrayOf<Any>(d, ex, d, ex)
-            )
-        }
+        pairs.distinct().forEach { w.deleteExerciseCommentIfNoSets(it.day, it.exercise_id) }
         replayPrs(w)
         ids.size
     }
@@ -964,7 +759,7 @@ object Workouts {
     suspend fun moveSets(ids: Collection<Long>, to: String): Unit = write { w ->
         val t = checkDate(to)
         if (ids.isEmpty()) return@write
-        w.update("workout_set", ContentValues().apply { put("date", t) }, "id IN (${ids.joinToString(",")})", null)
+        ids.inChunks { w.moveSetsTo(it, t) }
     }
 
     /**
@@ -976,93 +771,54 @@ object Workouts {
         val f = checkDate(from)
         val t = checkDate(to)
         if (f == t) return@write 0
-        w.rawQuery(
-            "SELECT exercise_id, date, weight, reps, distance, duration FROM workout_set WHERE date=? AND source=?",
-            arrayOf(f, Sources.FITNOTES)
-        ).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_SET, setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5)))
-        }
-        w.rawQuery("SELECT comment FROM workout_comment WHERE date=? AND source=?", arrayOf(f, Sources.FITNOTES)).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_COMMENT, commentKey(f, c.strOr(0)))
-        }
-        w.rawQuery("SELECT start, finish FROM workout_time WHERE date=? AND source=?", arrayOf(f, Sources.FITNOTES)).use { c ->
-            while (c.moveToNext()) addSkip(w, RULE_TIME, timeKey(f, c.str(0), c.str(1)))
-        }
-        val moved = (w.longOrNull("SELECT COUNT(*) FROM workout_set WHERE date=?", f) ?: 0L).toInt()
+        w.skipSets(w.setsOnWithSource(f, Sources.FITNOTES))
+        w.skipImportedComments(f)
+        w.skipImportedTimes(f)
+        val moved = w.countSetsOn(f)
         // Moved supersets keep their groups, numbered after the target day's own so the two never merge (#18).
-        val ssOffset = (w.longOrNull("SELECT MAX(superset) FROM workout_set WHERE substr(date, 1, 10)=?", t) ?: 0L).toInt()
-        if (ssOffset > 0) w.execSQL("UPDATE workout_set SET superset = superset + ? WHERE date=? AND superset > 0", arrayOf<Any>(ssOffset, f))
+        val ssOffset = w.lastGroupOn(t) ?: 0
+        if (ssOffset > 0) w.shiftGroupsOn(f, ssOffset)
         // Where the workout came from moves with it (#21), replacing the target day's.
-        w.execSQL("UPDATE OR REPLACE workout_origin SET date=? WHERE date=?", arrayOf<Any>(t, f))
-        val values = ContentValues().apply { put("date", t); put("source", Sources.FITLENS) }
-        w.update("workout_set", values, "date=?", arrayOf(f))
+        w.moveOrigin(f, t)
+        w.moveSetsOn(f, t, Sources.FITLENS)
         // Prescribed rests (#138) move with their sets; the target day's own win where both have one.
-        w.execSQL("UPDATE OR IGNORE workout_rest SET date=? WHERE date=?", arrayOf<Any>(t, f))
-        w.delete("workout_rest", "date=?", arrayOf(f))
+        w.moveRests(f, t)
+        w.deleteRestsOn(f)
         // Exercise comments move too; one landing on an exercise that already has a comment there is joined (#107).
-        val movingComments = w.rawQuery("SELECT exercise_id, comment FROM exercise_comment WHERE date=?", arrayOf(f))
-            .use { c -> ArrayList<Pair<Long, String>>().apply { while (c.moveToNext()) add(c.lng(0) to c.strOr(1)) } }
-        w.delete("exercise_comment", "date=?", arrayOf(f))
-        movingComments.forEach { (ex, text) -> joinExerciseComment(w, t, ex, text) }
+        val movingComments = w.exerciseCommentsOn(f)
+        w.deleteExerciseCommentsOn(f)
+        movingComments.forEach { joinExerciseComment(w, t, it.exercise_id, it.comment) }
 
         // Comments: if both days have one, merge into a single FitLens row (destination first) (#76).
-        val movedComments = readComments(w, f)
-        val destComments = readComments(w, t)
+        val movedComments = w.commentsOn(f)
+        val destComments = w.commentsOn(t)
         if (movedComments.isNotEmpty() && destComments.isNotEmpty()) {
-            destComments.filter { it.second == Sources.FITNOTES }.forEach { addSkip(w, RULE_COMMENT, commentKey(t, it.first)) }
-            val merged = (destComments + movedComments).map { it.first.trim() }.filter { it.isNotEmpty() }.joinToString("\n\n")
-            w.delete("workout_comment", "date=? OR date=?", arrayOf(f, t))
-            if (merged.isNotEmpty()) {
-                w.insert("workout_comment", null, ContentValues().apply { put("date", t); put("comment", merged); put("source", Sources.FITLENS) })
-            }
+            destComments.filter { it.source == Sources.FITNOTES }.forEach { w.addSkip(RULE_COMMENT, commentKey(t, it.comment)) }
+            val merged = (destComments + movedComments).map { it.comment.trim() }.filter { it.isNotEmpty() }.joinToString("\n\n")
+            w.deleteCommentsOn(f)
+            w.deleteCommentsOn(t)
+            if (merged.isNotEmpty()) w.addComment(t, merged, Sources.FITLENS)
         } else {
-            w.update("workout_comment", values, "date=?", arrayOf(f))
+            w.moveComments(f, t, Sources.FITLENS)
         }
 
         // Times: if both days have them, keep one row from the earliest start to the latest finish (#76).
         // Timestamps are `yyyy-MM-dd HH:mm:ss`, so they compare correctly as text.
-        val movedTimes = readTimes(w, f).map { (s, e, src) -> Triple(s?.let { t + it.drop(10) }, e?.let { t + it.drop(10) }, src) }
-        val destTimes = readTimes(w, t)
+        val movedTimes = w.timesOn(f).map { it.copy(start = it.start?.let { s -> t + s.drop(10) }, finish = it.finish?.let { e -> t + e.drop(10) }) }
+        val destTimes = w.timesOn(t)
         if (movedTimes.isNotEmpty() && destTimes.isNotEmpty()) {
-            destTimes.filter { it.third == Sources.FITNOTES }.forEach { addSkip(w, RULE_TIME, timeKey(t, it.first, it.second)) }
+            destTimes.filter { it.source == Sources.FITNOTES }.forEach { w.addSkip(RULE_TIME, timeKey(t, it.start, it.finish)) }
             val all = destTimes + movedTimes
-            val start = all.mapNotNull { it.first }.minOrNull()
-            val finish = all.mapNotNull { it.second }.maxOrNull()
-            w.delete("workout_time", "date=? OR date=?", arrayOf(f, t))
-            if (start != null || finish != null) {
-                w.insert("workout_time", null, ContentValues().apply {
-                    put("date", t); put("start", start); put("finish", finish); put("source", Sources.FITLENS)
-                })
-            }
+            val start = all.mapNotNull { it.start }.minOrNull()
+            val finish = all.mapNotNull { it.finish }.maxOrNull()
+            w.deleteTimesOn(f)
+            w.deleteTimesOn(t)
+            if (start != null || finish != null) w.addTime(t, start, finish, Sources.FITLENS)
             return@write moved
         }
         // Start and finish are full timestamps that begin with the date, so their day part moves with the workout
         // and the recorded duration stays the same.
-        w.execSQL(
-            "UPDATE workout_time SET date=?, source=?, " +
-                "start = CASE WHEN start IS NULL THEN NULL ELSE ? || substr(start, 11) END, " +
-                "finish = CASE WHEN finish IS NULL THEN NULL ELSE ? || substr(finish, 11) END " +
-                "WHERE date=?",
-            arrayOf<Any>(t, Sources.FITLENS, t, t, f)
-        )
+        w.moveTimes(f, t, Sources.FITLENS)
         moved
-    }
-
-    /** The comment rows on [date] as (text, source). */
-    private fun readComments(w: SupportSQLiteDatabase, date: String): List<Pair<String, String>> {
-        val out = ArrayList<Pair<String, String>>()
-        w.rawQuery("SELECT comment, source FROM workout_comment WHERE date=? ORDER BY rowid", arrayOf(date)).use { c ->
-            while (c.moveToNext()) out.add(c.strOr(0) to c.strOr(1))
-        }
-        return out
-    }
-
-    /** The time rows on [date] as (start, finish, source). */
-    private fun readTimes(w: SupportSQLiteDatabase, date: String): List<Triple<String?, String?, String>> {
-        val out = ArrayList<Triple<String?, String?, String>>()
-        w.rawQuery("SELECT start, finish, source FROM workout_time WHERE date=? ORDER BY rowid", arrayOf(date)).use { c ->
-            while (c.moveToNext()) out.add(Triple(c.str(0), c.str(1), c.strOr(2)))
-        }
-        return out
     }
 }

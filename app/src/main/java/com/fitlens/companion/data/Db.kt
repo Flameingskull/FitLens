@@ -16,8 +16,8 @@ import java.util.concurrent.Callable
 /**
  * FitLens's database, `fitlens.db`, opened through Room (#36). Room creates it on a fresh install from the tables in
  * `Schema.kt`, runs [upgrade] and then [reconcile] on anything older, and checks the result against those tables
- * before the app sees it. The snapshot, settings, body, photo and goal code use the typed queries in `Daos.kt`
- * through [snapshotDao] and its neighbours; everything else still writes SQL through [writableDatabase].
+ * before the app sees it. Everything but the imports and backups uses the typed queries in `Daos.kt`
+ * through [snapshotDao] and its neighbours; those two still write SQL through [writableDatabase].
  */
 class Db(context: Context) : Closeable {
 
@@ -489,6 +489,8 @@ class Db(context: Context) : Closeable {
     val bodyDao: BodyDao get() = opened().bodyDao()
     val photoDao: PhotoDao get() = opened().photoDao()
     val goalDao: GoalDao get() = opened().goalDao()
+    val workoutDao: WorkoutDao get() = opened().workoutDao()
+    val routineDao: RoutineDao get() = opened().routineDao()
 
     private fun opened(): FitLensDatabase {
         writableDatabase
