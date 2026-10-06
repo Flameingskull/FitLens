@@ -2,6 +2,8 @@ package com.fitlens.companion.ui
 
 import com.fitlens.companion.ui.design.SearchFieldIcon
 
+import android.content.res.Resources
+import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,12 +34,14 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
 import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.Dates
+import com.fitlens.companion.data.DeviceSettings
 import com.fitlens.companion.data.DistanceUnits
 import com.fitlens.companion.data.WeightUnits
 import com.fitlens.companion.data.Effort
 import com.fitlens.companion.data.ImportSummary
 import com.fitlens.companion.data.LengthUnits
 import com.fitlens.companion.data.PortableSettings
+import com.fitlens.companion.data.Poses
 import com.fitlens.companion.data.PreferenceGroup
 import com.fitlens.companion.data.Records
 import com.fitlens.companion.data.Settings
@@ -91,36 +95,67 @@ private data class SettingEntry(
     @StringRes val title: Int,
     val section: SettingsSection,
     @StringRes val keywords: Int,
-    @StringRes val target: Int = title
+    @StringRes val target: Int = title,
+    /** The setting's current value as its page shows it (#158); null for actions such as Save a backup. */
+    val value: (SettingValues.() -> String)? = null
 )
+
+/** What a search result reads its value from (#158): the same settings and wording as the page row. */
+private class SettingValues(val res: Resources, val prefs: PortableSettings, val device: DeviceSettings) {
+    fun onOff(on: Boolean): String = res.getString(if (on) R.string.settings_value_on else R.string.settings_value_off)
+}
 
 /** Every setting on a page, for search. A row added to a page belongs here too; main-list rows search themselves. */
 private val CATALOGUE = listOf(
     SettingEntry(R.string.search_backup_file, SettingsSection.Backups, R.string.search_backup_file_kw, R.string.backup_group_file),
-    SettingEntry(R.string.search_auto_backups, SettingsSection.Backups, R.string.search_auto_backups_kw, R.string.backup_group_auto),
-    SettingEntry(R.string.search_backup_names, SettingsSection.Backups, R.string.search_backup_names_kw, R.string.backup_timestamp),
-    SettingEntry(R.string.search_backup_keep, SettingsSection.Backups, R.string.search_backup_keep_kw, R.string.backup_keep),
-    SettingEntry(R.string.search_backup_after, SettingsSection.Backups, R.string.search_backup_after_kw, R.string.backup_after),
+    SettingEntry(R.string.search_auto_backups, SettingsSection.Backups, R.string.search_auto_backups_kw, R.string.backup_group_auto) {
+        when {
+            device.autoBackupFolder == null -> onOff(false)
+            device.autoBackupDays == 1 -> res.getString(R.string.backup_daily)
+            device.autoBackupDays == 7 -> res.getString(R.string.backup_weekly)
+            else -> onOff(device.backupAfterChanges)
+        }
+    },
+    SettingEntry(R.string.search_backup_names, SettingsSection.Backups, R.string.search_backup_names_kw, R.string.backup_timestamp) { onOff(prefs.backupTimestamp) },
+    SettingEntry(R.string.search_backup_keep, SettingsSection.Backups, R.string.search_backup_keep_kw, R.string.backup_keep) {
+        res.getQuantityString(R.plurals.backup_keep_count, device.autoBackupKeep, device.autoBackupKeep)
+    },
+    SettingEntry(R.string.search_backup_after, SettingsSection.Backups, R.string.search_backup_after_kw, R.string.backup_after) { onOff(device.backupAfterChanges) },
     SettingEntry(R.string.search_safety_copy, SettingsSection.Backups, R.string.search_safety_copy_kw, R.string.backup_group_safety),
     SettingEntry(R.string.search_pdf_report, SettingsSection.Backups, R.string.search_pdf_report_kw, R.string.backup_group_pdf),
     SettingEntry(R.string.search_import_fitnotes, SettingsSection.Import, R.string.search_import_fitnotes_kw, R.string.import_file),
-    SettingEntry(R.string.search_fitnotes_sync, SettingsSection.Import, R.string.search_fitnotes_sync_kw, R.string.import_group_folder),
-    SettingEntry(R.string.search_fitnotes_auto, SettingsSection.Import, R.string.search_fitnotes_auto_kw, R.string.import_sync_auto),
+    SettingEntry(R.string.search_fitnotes_sync, SettingsSection.Import, R.string.search_fitnotes_sync_kw, R.string.import_group_folder) {
+        device.backupFolder?.let { folderLabel(Uri.parse(it), res.getString(R.string.settings_folder_root)) }
+            ?: res.getString(R.string.settings_not_set)
+    },
+    SettingEntry(R.string.search_fitnotes_auto, SettingsSection.Import, R.string.search_fitnotes_auto_kw, R.string.import_sync_auto) { onOff(device.autoSync) },
     SettingEntry(R.string.search_csv, SettingsSection.DataTools, R.string.search_csv_kw, R.string.data_csv_group),
     SettingEntry(R.string.search_delete_history, SettingsSection.DataTools, R.string.search_delete_history_kw, R.string.data_delete_group),
     SettingEntry(R.string.reset_row, SettingsSection.DataTools, R.string.search_reset_kw),
-    SettingEntry(R.string.home_show_categories, SettingsSection.Home, R.string.search_home_categories_kw),
-    SettingEntry(R.string.home_sets_shown, SettingsSection.Home, R.string.search_home_sets_kw),
-    SettingEntry(R.string.search_rest_length, SettingsSection.Rest, R.string.search_rest_length_kw, R.string.rest_group_length),
-    SettingEntry(R.string.search_rest_auto, SettingsSection.Rest, R.string.search_rest_auto_kw, R.string.rest_auto_start),
-    SettingEntry(R.string.search_rest_vibrate, SettingsSection.Rest, R.string.search_rest_vibrate_kw, R.string.rest_vibrate),
-    SettingEntry(R.string.search_rest_sound, SettingsSection.Rest, R.string.search_rest_sound_kw, R.string.rest_sound_switch),
-    SettingEntry(R.string.media_pose, SettingsSection.Media, R.string.search_media_pose_kw),
-    SettingEntry(R.string.media_group, SettingsSection.Media, R.string.search_media_group_kw),
-    SettingEntry(R.string.media_remember, SettingsSection.Media, R.string.search_media_remember_kw),
+    SettingEntry(R.string.home_show_categories, SettingsSection.Home, R.string.search_home_categories_kw) { onOff(prefs.homeShowCategories) },
+    SettingEntry(R.string.home_sets_shown, SettingsSection.Home, R.string.search_home_sets_kw) {
+        if (prefs.homeSetsShown == 0) res.getString(R.string.home_sets_all) else "${prefs.homeSetsShown}"
+    },
+    SettingEntry(R.string.search_rest_length, SettingsSection.Rest, R.string.search_rest_length_kw, R.string.rest_group_length) { fmtDuration(prefs.restSeconds) },
+    SettingEntry(R.string.search_rest_auto, SettingsSection.Rest, R.string.search_rest_auto_kw, R.string.rest_auto_start) { onOff(prefs.restAutoStart) },
+    SettingEntry(R.string.search_rest_vibrate, SettingsSection.Rest, R.string.search_rest_vibrate_kw, R.string.rest_vibrate) { onOff(prefs.restVibrate) },
+    SettingEntry(R.string.search_rest_sound, SettingsSection.Rest, R.string.search_rest_sound_kw, R.string.rest_sound_switch) { onOff(prefs.restSound) },
+    SettingEntry(R.string.media_pose, SettingsSection.Media, R.string.search_media_pose_kw) {
+        when (val pose = prefs.photoDefaultPose) {
+            null -> res.getString(R.string.media_pose_ask)
+            Poses.NONE -> res.getString(R.string.media_none)
+            else -> poseText(res, pose)
+        }
+    },
+    SettingEntry(R.string.media_group, SettingsSection.Media, R.string.search_media_group_kw) { groupText(res, prefs.photoGroupBy) },
+    SettingEntry(R.string.media_remember, SettingsSection.Media, R.string.search_media_remember_kw) { onOff(prefs.rememberVideoOpts) },
     SettingEntry(R.string.media_reset, SettingsSection.Media, R.string.search_media_reset_kw),
-    SettingEntry(R.string.media_pdf_pages, SettingsSection.Media, R.string.search_media_pdf_pages_kw),
-    SettingEntry(R.string.media_pdf_photos, SettingsSection.Media, R.string.search_media_pdf_photos_kw),
+    SettingEntry(R.string.media_pdf_pages, SettingsSection.Media, R.string.search_media_pdf_pages_kw) {
+        res.getString(if (prefs.pdfDark) R.string.media_pdf_dark else R.string.media_pdf_light)
+    },
+    SettingEntry(R.string.media_pdf_photos, SettingsSection.Media, R.string.search_media_pdf_photos_kw) {
+        prefs.pdfPhotosPerDay.coerceIn(0, 4).let { if (it == 0) res.getString(R.string.media_none) else "$it" }
+    },
     SettingEntry(R.string.search_guides, SettingsSection.Help, R.string.search_guides_kw, R.string.help_group_guides),
     SettingEntry(R.string.search_version, SettingsSection.About, R.string.search_version_kw, R.string.about_group_app),
     SettingEntry(R.string.speed_title, SettingsSection.About, R.string.search_speed_kw),
@@ -173,6 +208,9 @@ fun SettingsScreen(snap: Snapshot, nav: Nav) {
     val catalogue = CATALOGUE.map { e ->
         Triple(e, stringResource(e.title), "${stringResource(e.keywords)} ${pages.getValue(e.section)}")
     }
+    val prefs by Settings.portable.collectAsState()
+    val device by Settings.device.collectAsState()
+    val values = SettingValues(LocalContext.current.resources, prefs, device)
     Column(Modifier.fillMaxSize()) {
         BackTopBar(stringResource(R.string.settings_title), onBack = { nav.pop() })
         OutlinedTextField(
@@ -199,9 +237,12 @@ fun SettingsScreen(snap: Snapshot, nav: Nav) {
             if (onPages.isNotEmpty()) {
                 SettingsGroup(stringResource(R.string.settings_on_other_pages))
                 onPages.forEach { (e, title, _) ->
-                    SettingsActionRow(title, stringResource(R.string.settings_in_page, pages.getValue(e.section))) {
-                        nav.push(Screen.SettingsPage(e.section, e.target))
-                    }
+                    // Title, then the value in gold, then the page, which is also the order TalkBack reads them.
+                    SettingsActionRow(
+                        title,
+                        stringResource(R.string.settings_in_page, pages.getValue(e.section)),
+                        value = e.value?.invoke(values)
+                    ) { nav.push(Screen.SettingsPage(e.section, e.target)) }
                 }
             }
         }
