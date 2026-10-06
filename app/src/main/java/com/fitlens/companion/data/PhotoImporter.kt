@@ -1,13 +1,10 @@
 package com.fitlens.companion.data
 
-import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
-import android.database.sqlite.SQLiteDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -81,7 +78,7 @@ object PhotoImporter {
         val bySource = HashMap<String, Int>()
         val newIds = ArrayList<Long>()
         val dir = Store.photoDir
-        val w = Store.db.writableDatabase
+        val photos = Store.db.photoDao
         uris.forEachIndexed { index, uri ->
             onProgress(index, uris.size)
             try {
@@ -100,8 +97,7 @@ object PhotoImporter {
                     }
                 } ?: throw IllegalStateException("cannot open")
                 val hash = md.digest().joinToString("") { "%02x".format(it) }
-                val exists = w.rawQuery("SELECT 1 FROM photo WHERE hash=?", arrayOf(hash)).use { it.moveToFirst() }
-                if (exists) {
+                if (photos.hasHash(hash)) {
                     tmp.delete()
                     dup++
                     return@forEachIndexed
@@ -126,17 +122,13 @@ object PhotoImporter {
                     if (takenAt == null) lastModified(context, uri)?.let { takenAt = it; source = DateSources.FILE }
                 }
                 val date = forcedDate ?: takenAt?.toLocalDate()?.format(Dates.ISO)
-                val cv = ContentValues().apply {
-                    put("file", fileName)
-                    if (date == null) putNull("date") else put("date", date)
-                    put("taken_at", takenAt?.toString())
-                    put("date_source", if (date == null) DateSources.NONE else source)
-                    put("pose", pose)
-                    put("original_name", name)
-                    put("hash", hash)
-                    put("added_at", System.currentTimeMillis())
-                }
-                val id = w.insertWithOnConflict("photo", null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+                val id = photos.add(
+                    PhotoRow(
+                        id = 0L, file = fileName, date = date, taken_at = takenAt?.toString(),
+                        date_source = if (date == null) DateSources.NONE else source, pose = pose, note = null,
+                        original_name = name, hash = hash, added_at = System.currentTimeMillis()
+                    )
+                )
                 if (id > 0) {
                     newIds.add(id)
                     added++

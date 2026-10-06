@@ -197,7 +197,7 @@ interface BodyDao {
     fun matchManualUnits(name: String)
 }
 
-/** Progress photo edits (`Store`). Callers pass at most [Db.MAX_IDS] ids at a time. */
+/** Progress photos: the import (`PhotoImporter`) and edits (`Store`). Callers pass at most [Db.MAX_IDS] ids at a time. */
 @Dao
 interface PhotoDao {
     @Query("UPDATE photo SET date = :date, date_source = :dateSource WHERE id IN (:ids)")
@@ -218,6 +218,13 @@ interface PhotoDao {
 
     @Query("DELETE FROM photo WHERE id IN (:ids)")
     fun delete(ids: List<Long>)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM photo WHERE hash = :hash)")
+    fun hasHash(hash: String): Boolean
+
+    /** Adds an imported photo; returns -1 when one with the same hash is already there. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    fun add(row: PhotoRow): Long
 }
 
 /** Exercise goals (#25). */
