@@ -2,7 +2,7 @@ package com.fitlens.companion.data
 
 import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -385,7 +385,7 @@ object Store {
         )
     }
 
-    private fun loadLibrary(r: SQLiteDatabase): LibraryPart {
+    private fun loadLibrary(r: SupportSQLiteDatabase): LibraryPart {
         val categories = HashMap<Long, Category>()
         r.rawQuery("SELECT id, name, colour, sort_order, source FROM category", null).use { c ->
             while (c.moveToNext()) categories[c.lng(0)] = Category(c.lng(0), c.strOr(1), c.int(2), c.int(3), c.strOr(4, Sources.FITLENS))
@@ -416,7 +416,7 @@ object Store {
     }
 
     /** The sets matching [where] (every set when it's null), in [SET_ORDER]. */
-    private fun loadSets(r: SQLiteDatabase, where: String?, args: Array<String>): List<SetRow> {
+    private fun loadSets(r: SupportSQLiteDatabase, where: String?, args: Array<String>): List<SetRow> {
         val sets = ArrayList<SetRow>()
         r.rawQuery(
             "SELECT id, exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, set_type, rpe, position, superset, done, rest_seconds, metric " +
@@ -434,7 +434,7 @@ object Store {
         return sets
     }
 
-    private fun loadNotes(r: SQLiteDatabase): NotesPart {
+    private fun loadNotes(r: SupportSQLiteDatabase): NotesPart {
         val comments = HashMap<String, MutableList<String>>()
         r.rawQuery("SELECT date, comment FROM workout_comment ORDER BY id", null).use { c ->
             while (c.moveToNext()) {
@@ -464,7 +464,7 @@ object Store {
         return NotesPart(comments, times, exerciseComments, rests)
     }
 
-    private fun loadBody(r: SQLiteDatabase, weightUnit: String): BodyPart {
+    private fun loadBody(r: SupportSQLiteDatabase, weightUnit: String): BodyPart {
         val defs = ArrayList<MeasurementDef>()
         r.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link, display_unit FROM measurement ORDER BY sort_order, name", null).use { c ->
             while (c.moveToNext()) defs.add(
@@ -480,7 +480,7 @@ object Store {
         return BodyPart(defs, records, weightUnit)
     }
 
-    private fun loadPhotos(r: SQLiteDatabase): PhotoPart {
+    private fun loadPhotos(r: SupportSQLiteDatabase): PhotoPart {
         val photos = ArrayList<Photo>()
         r.rawQuery("SELECT id, file, date, taken_at, date_source, pose, note, original_name FROM photo ORDER BY date, taken_at, id", null).use { c ->
             while (c.moveToNext()) photos.add(
@@ -557,7 +557,7 @@ object Store {
         }
 
     private fun addRecordRow(
-        w: SQLiteDatabase, name: String, unit: String, date: String, time: String, value: Double, comment: String?
+        w: SupportSQLiteDatabase, name: String, unit: String, date: String, time: String, value: Double, comment: String?
     ) {
         val def = ContentValues().apply { put("name", name); put("unit", unit); put("sort_order", 999) }
         w.insertWithOnConflict("measurement", null, def, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
@@ -597,7 +597,7 @@ object Store {
     }
 
     /** A measurement seen only in records has no definition row yet; this adds one so it can hold a goal or order. */
-    private fun ensureMeasurement(w: android.database.sqlite.SQLiteDatabase, name: String, unit: String, order: Int) {
+    private fun ensureMeasurement(w: SupportSQLiteDatabase, name: String, unit: String, order: Int) {
         val def = ContentValues().apply { put("name", name); put("unit", unit); put("sort_order", order) }
         w.insertWithOnConflict("measurement", null, def, android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
     }
@@ -726,13 +726,13 @@ object Store {
     /** Number of values entered by hand for a measurement. */
     fun manualCount(snap: Snapshot, name: String): Int = snap.recordsByName[name]?.count { it.source == "manual" } ?: 0
 
-    private fun loadDef(w: android.database.sqlite.SQLiteDatabase, name: String): MeasurementDef? =
+    private fun loadDef(w: SupportSQLiteDatabase, name: String): MeasurementDef? =
         w.rawQuery("SELECT name, unit, sort_order, goal_type, goal_value, enabled, custom, link, display_unit FROM measurement WHERE name=?", arrayOf(name)).use { c ->
             if (c.moveToFirst()) MeasurementDef(c.strOr(0), c.strOr(1), c.int(2), c.int(3), c.dbl(4), c.int(5) != 0, c.int(6) != 0, c.str(7), c.str(8)) else null
         }
 
     /** Moves imported values held by a custom metric back under the FitNotes measurement they came from. */
-    private fun releaseImported(w: android.database.sqlite.SQLiteDatabase, def: MeasurementDef) {
+    private fun releaseImported(w: SupportSQLiteDatabase, def: MeasurementDef) {
         if (!def.custom) return
         val original = w.rawQuery(
             "SELECT name FROM measurement WHERE custom=0 AND lower(trim(name))=? LIMIT 1", arrayOf(def.matchKey)

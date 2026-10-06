@@ -2,7 +2,7 @@ package com.fitlens.companion.data
 
 import android.content.ContentValues
 import android.content.res.Resources
-import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fitlens.companion.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -121,7 +121,7 @@ object Routines {
     private fun android.database.Cursor.intOrNull(i: Int): Int? = if (isNull(i)) null else getInt(i)
     private fun android.database.Cursor.dblOrNull(i: Int): Double? = if (isNull(i)) null else getDouble(i)
 
-    fun load(r: SQLiteDatabase): List<Routine> {
+    fun load(r: SupportSQLiteDatabase): List<Routine> {
         val sets = HashMap<Long, MutableList<PlannedSet>>()
         r.rawQuery(
             "SELECT item_id, weight, reps, distance, duration, set_type, rest_seconds, metric FROM routine_day_set " +
@@ -157,7 +157,7 @@ object Routines {
         return out
     }
 
-    fun loadOrigins(r: SQLiteDatabase): Map<String, WorkoutOrigin> {
+    fun loadOrigins(r: SupportSQLiteDatabase): Map<String, WorkoutOrigin> {
         val out = HashMap<String, WorkoutOrigin>()
         r.rawQuery("SELECT date, workout_id, routine_day_id FROM workout_origin", null).use { c ->
             while (c.moveToNext()) {
@@ -239,11 +239,11 @@ object Routines {
 
     private fun dayName(name: String, index: Int) = name.trim().replace(Regex("\\s+"), " ").ifBlank { "Day ${index + 1}" }
 
-    private fun knownExercises(w: SQLiteDatabase): Set<Long> = w.rawQuery("SELECT id FROM exercise", null).use { c ->
+    private fun knownExercises(w: SupportSQLiteDatabase): Set<Long> = w.rawQuery("SELECT id FROM exercise", null).use { c ->
         HashSet<Long>().apply { while (c.moveToNext()) add(c.getLong(0)) }
     }
 
-    private fun clearExercises(w: SQLiteDatabase, dayId: Long) {
+    private fun clearExercises(w: SupportSQLiteDatabase, dayId: Long) {
         w.execSQL(
             "DELETE FROM routine_day_set WHERE item_id IN (SELECT id FROM routine_day_exercise WHERE day_id=?)",
             arrayOf<Any>(dayId)
@@ -251,12 +251,12 @@ object Routines {
         w.delete("routine_day_exercise", "day_id=?", arrayOf(dayId.toString()))
     }
 
-    private fun deleteDayRows(w: SQLiteDatabase, dayId: Long) {
+    private fun deleteDayRows(w: SupportSQLiteDatabase, dayId: Long) {
         clearExercises(w, dayId)
         w.delete("routine_day", "id=?", arrayOf(dayId.toString()))
     }
 
-    private fun writeExercises(w: SQLiteDatabase, dayId: Long, exercises: List<PlannedExercise>, known: Set<Long>) {
+    private fun writeExercises(w: SupportSQLiteDatabase, dayId: Long, exercises: List<PlannedExercise>, known: Set<Long>) {
         clearExercises(w, dayId)
         exercises.filter { it.exerciseId in known }.forEachIndexed { i, p ->
             val itemId = w.insertOrThrow("routine_day_exercise", null, ContentValues().apply {
@@ -277,7 +277,7 @@ object Routines {
     }
 
     /** Removes an exercise from every workout day, when the exercise itself is deleted. */
-    internal fun forgetExercise(w: SQLiteDatabase, exerciseId: Long) {
+    internal fun forgetExercise(w: SupportSQLiteDatabase, exerciseId: Long) {
         w.execSQL(
             "DELETE FROM routine_day_set WHERE item_id IN (SELECT id FROM routine_day_exercise WHERE exercise_id=?)",
             arrayOf<Any>(exerciseId)
@@ -372,7 +372,7 @@ object Routines {
      * empty tables stay so an older FitLens can still open the database (#77). Replays safely: a day already copied
      * has `workout_id` 0, and a saved workout already copied is gone.
      */
-    internal fun migrateSavedWorkouts(db: SQLiteDatabase) {
+    internal fun migrateSavedWorkouts(db: SupportSQLiteDatabase) {
         listOf(CREATE_EXERCISE, CREATE_SET).forEach { db.execSQL(it.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS")) }
         data class Saved(val id: Long, val name: String, val notes: String?)
         val saved = db.rawQuery("SELECT id, name, notes FROM saved_workout ORDER BY sort_order, id", null).use { c ->
@@ -440,7 +440,7 @@ object Routines {
         db.execSQL("DELETE FROM saved_workout")
     }
 
-    private suspend fun <T> write(block: (SQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
+    private suspend fun <T> write(block: (SupportSQLiteDatabase) -> T): T = withContext(Dispatchers.IO) {
         val w = Store.db.writableDatabase
         w.beginTransaction()
         val result = try {

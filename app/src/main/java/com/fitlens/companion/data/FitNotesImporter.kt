@@ -5,9 +5,10 @@ import android.content.Context
 import android.content.res.Resources
 import com.fitlens.companion.R
 import android.database.Cursor
-import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -228,7 +229,7 @@ object FitNotesImporter {
 
     private const val SKIP = -1L
 
-    private fun loadOwned(w: SQLiteDatabase, table: String): MutableList<Owned> {
+    private fun loadOwned(w: SupportSQLiteDatabase, table: String): MutableList<Owned> {
         val out = ArrayList<Owned>()
         w.rawQuery("SELECT id, name, source, fitnotes_id FROM $table ORDER BY id", null).use { c ->
             while (c.moveToNext()) {
@@ -257,7 +258,7 @@ object FitNotesImporter {
      * Merges a FitNotes backup into FitLens following the conflict rules in [Workouts]: only adds rows, matches
      * categories and exercises by name, and skips sets, comments, times and body records that are already present.
      */
-    internal fun merge(src: SQLiteDatabase, w: SQLiteDatabase): ImportPlan {
+    internal fun merge(src: SQLiteDatabase, w: SupportSQLiteDatabase): ImportPlan {
         val plan = ImportPlan()
 
         // What the user changed in FitLens (see Workouts, conflict rule 5).
@@ -560,7 +561,7 @@ object FitNotesImporter {
     }
 
     /** Lower-case FitNotes measurement name → custom metric that takes its values. */
-    private fun customAliases(w: SQLiteDatabase): Map<String, String> {
+    private fun customAliases(w: SupportSQLiteDatabase): Map<String, String> {
         val out = HashMap<String, String>()
         w.rawQuery("SELECT name, link FROM measurement WHERE custom=1", null).use { c ->
             while (c.moveToNext()) {

@@ -2,9 +2,10 @@ package com.fitlens.companion.data
 
 import android.content.ContentValues
 import android.content.res.Resources
-import android.database.sqlite.SQLiteDatabase
 import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
+import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.fitlens.companion.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -80,7 +81,7 @@ object Workouts {
         date.take(10) + "|" + (start ?: "") + "|" + (finish ?: "")
 
     /** Remembers that a FitNotes name now maps to [targetId], or is skipped on import when [targetId] is null. */
-    internal fun setLink(w: SQLiteDatabase, kind: String, key: String, targetId: Long?) {
+    internal fun setLink(w: SupportSQLiteDatabase, kind: String, key: String, targetId: Long?) {
         w.delete("import_rule", "kind=? AND key=?", arrayOf(kind, key))
         w.insert("import_rule", null, ContentValues().apply {
             put("kind", kind); put("key", key)
@@ -89,7 +90,7 @@ object Workouts {
     }
 
     /** One imported row with this key is skipped by later imports. */
-    internal fun addSkip(w: SQLiteDatabase, kind: String, key: String) {
+    internal fun addSkip(w: SupportSQLiteDatabase, kind: String, key: String) {
         w.insert("import_rule", null, ContentValues().apply { put("kind", kind); put("key", key); putNull("target_id") })
     }
 
@@ -110,7 +111,7 @@ object Workouts {
      * Runs [block] in one transaction, then re-reads the [areas] of the snapshot it changed (#60). The default covers
      * everything a workout write can touch; writes that only change the library or the notes say so.
      */
-    private suspend fun <T> write(areas: Set<Area> = Area.WORKOUT, block: (SQLiteDatabase) -> T): T =
+    private suspend fun <T> write(areas: Set<Area> = Area.WORKOUT, block: (SupportSQLiteDatabase) -> T): T =
         withContext(Dispatchers.IO) {
             val start = System.nanoTime()
             val w = Store.db.writableDatabase
@@ -132,7 +133,7 @@ object Workouts {
         val dates = HashSet<String>()
 
         /** Names the exercises of the sets with these ids. Call it before a delete, while the rows still exist. */
-        fun addSets(w: SQLiteDatabase, ids: Collection<Long>) {
+        fun addSets(w: SupportSQLiteDatabase, ids: Collection<Long>) {
             if (ids.isEmpty()) return
             w.rawQuery("SELECT DISTINCT exercise_id FROM workout_set WHERE id IN (${ids.joinToString(",")})", null).use { c ->
                 while (c.moveToNext()) exercises += c.getLong(0)
@@ -144,7 +145,7 @@ object Workouts {
      * Like [write], for a write that changes a few sets and never replays PRs across the history (#60): only the sets
      * [block] names in its [SetScope] are re-read, so saving one set doesn't reload the whole database.
      */
-    private suspend fun <T> writeSets(block: (SQLiteDatabase, SetScope) -> T): T = withContext(Dispatchers.IO) {
+    private suspend fun <T> writeSets(block: (SupportSQLiteDatabase, SetScope) -> T): T = withContext(Dispatchers.IO) {
         val start = System.nanoTime()
         val w = Store.db.writableDatabase
         val scope = SetScope()
@@ -164,11 +165,11 @@ object Workouts {
     private val LIBRARY = setOf(Area.LIBRARY)
     private val NOTES = setOf(Area.NOTES)
 
-    private fun SQLiteDatabase.longOrNull(sql: String, vararg args: String): Long? =
+    private fun SupportSQLiteDatabase.longOrNull(sql: String, vararg args: String): Long? =
         rawQuery(sql, args).use { c -> if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else null }
 
     /** Id of another row in [table] with this name (ignoring case), if any. */
-    private fun sameName(w: SQLiteDatabase, table: String, name: String, exceptId: Long = -1L): Long? {
+    private fun sameName(w: SupportSQLiteDatabase, table: String, name: String, exceptId: Long = -1L): Long? {
         val key = nameKey(name)
         w.rawQuery("SELECT id, name FROM $table", null).use { c ->
             while (c.moveToNext()) {
@@ -179,7 +180,7 @@ object Workouts {
     }
 
     /** A name the user re-creates stops being skipped by imports (see conflict rule 5). */
-    private fun clearDeletedLink(w: SQLiteDatabase, kind: String, name: String) {
+    private fun clearDeletedLink(w: SupportSQLiteDatabase, kind: String, name: String) {
         w.delete("import_rule", "kind=? AND key=? AND target_id IS NULL", arrayOf(kind, nameKey(name)))
     }
 
@@ -700,7 +701,7 @@ object Workouts {
         count
     }
 
-    private fun replayPrs(w: SQLiteDatabase): Int {
+    private fun replayPrs(w: SupportSQLiteDatabase): Int {
         val changes = mutableListOf<Pair<Long, Boolean>>()
         var exercise = -1L
         // best[r] = heaviest weight so far for at least r reps, for the exercise being replayed.
@@ -761,7 +762,7 @@ object Workouts {
         rows.size
     }
 
-    private fun deleteSetsWhere(w: SQLiteDatabase, where: String, args: Array<String>) {
+    private fun deleteSetsWhere(w: SupportSQLiteDatabase, where: String, args: Array<String>) {
         w.rawQuery("SELECT exercise_id, date, weight, reps, distance, duration FROM workout_set WHERE ($where) AND source=?",
             args + Sources.FITNOTES).use { c ->
             while (c.moveToNext()) addSkip(w, RULE_SET, setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5)))
@@ -796,7 +797,7 @@ object Workouts {
         comments.forEach { (ex, text) -> writeExerciseComment(w, d, ex, text) }
     }
 
-    private fun writeExerciseComment(w: SQLiteDatabase, d: String, exerciseId: Long, comment: String?) {
+    private fun writeExerciseComment(w: SupportSQLiteDatabase, d: String, exerciseId: Long, comment: String?) {
         w.delete("exercise_comment", "date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
         val text = comment?.trim()
         if (!text.isNullOrEmpty()) {
@@ -807,7 +808,7 @@ object Workouts {
     }
 
     /** Moves exercise comments from exercise [fromId] to [intoId]; on a date where both have one, they're joined. */
-    private fun mergeExerciseComments(w: SQLiteDatabase, fromId: Long, intoId: Long) {
+    private fun mergeExerciseComments(w: SupportSQLiteDatabase, fromId: Long, intoId: Long) {
         val moving = w.rawQuery("SELECT date, comment FROM exercise_comment WHERE exercise_id=?", arrayOf(fromId.toString()))
             .use { c -> ArrayList<Pair<String, String>>().apply { while (c.moveToNext()) add(c.strOr(0) to c.strOr(1)) } }
         w.delete("exercise_comment", "exercise_id=?", arrayOf(fromId.toString()))
@@ -815,7 +816,7 @@ object Workouts {
     }
 
     /** Stores the rest [r] prescribed for [exerciseId] on [d] (#138), or removes it when [r] is empty. */
-    private fun putRest(w: SQLiteDatabase, d: String, exerciseId: Long, r: WorkoutRest) {
+    private fun putRest(w: SupportSQLiteDatabase, d: String, exerciseId: Long, r: WorkoutRest) {
         w.delete("workout_rest", "date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
         if (r.isEmpty) return
         w.insertOrThrow("workout_rest", null, ContentValues().apply {
@@ -826,7 +827,7 @@ object Workouts {
     }
 
     /** Adds [text] to exercise [exerciseId]'s comment on [d], after any comment already there. */
-    private fun joinExerciseComment(w: SQLiteDatabase, d: String, exerciseId: Long, text: String) {
+    private fun joinExerciseComment(w: SupportSQLiteDatabase, d: String, exerciseId: Long, text: String) {
         val existing = w.rawQuery("SELECT comment FROM exercise_comment WHERE date=? AND exercise_id=?", arrayOf(d, exerciseId.toString()))
             .use { c -> if (c.moveToFirst()) c.strOr(0) else null }
         val joined = listOfNotNull(existing, text).map { it.trim() }.filter { it.isNotEmpty() }.distinct().joinToString("\n\n")
@@ -1048,7 +1049,7 @@ object Workouts {
     }
 
     /** The comment rows on [date] as (text, source). */
-    private fun readComments(w: SQLiteDatabase, date: String): List<Pair<String, String>> {
+    private fun readComments(w: SupportSQLiteDatabase, date: String): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
         w.rawQuery("SELECT comment, source FROM workout_comment WHERE date=? ORDER BY rowid", arrayOf(date)).use { c ->
             while (c.moveToNext()) out.add(c.strOr(0) to c.strOr(1))
@@ -1057,7 +1058,7 @@ object Workouts {
     }
 
     /** The time rows on [date] as (start, finish, source). */
-    private fun readTimes(w: SQLiteDatabase, date: String): List<Triple<String?, String?, String>> {
+    private fun readTimes(w: SupportSQLiteDatabase, date: String): List<Triple<String?, String?, String>> {
         val out = ArrayList<Triple<String?, String?, String>>()
         w.rawQuery("SELECT start, finish, source FROM workout_time WHERE date=? ORDER BY rowid", arrayOf(date)).use { c ->
             while (c.moveToNext()) out.add(Triple(c.str(0), c.str(1), c.strOr(2)))

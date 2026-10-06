@@ -2,6 +2,7 @@ package com.fitlens.companion.data
 
 import android.app.Application
 import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import org.junit.After
@@ -91,7 +92,7 @@ class FitNotesImporterTest {
         }
     }
 
-    private val db: SQLiteDatabase get() = fitlens.writableDatabase
+    private val db: SupportSQLiteDatabase get() = fitlens.writableDatabase
 
     @Test
     fun importIntoAnEmptyFitLensAddsEverything() {
