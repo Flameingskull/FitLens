@@ -1,37 +1,33 @@
 ## Overview
 
-This update makes Settings clearer when something needs your attention. Folders, automatic backups and anything that
-deletes data now look and read the same wherever they appear. A setting that needs notifications explains why before
-Android asks. Every Settings row can now be reached and used with a keyboard or switch access.
+This update finishes the work on Settings. Searching now takes you straight to the setting you were looking for,
+number settings can be typed in exactly, and keyboard and switch-access users keep their place when a sheet closes.
+The day log also gets a smoother way into an exercise: its card opens out into the exercise screen.
 
 There's no database change. Everything you've logged, your photos, poses and settings are kept. Install it over the
 current app as usual.
 
 ## What's new
 
-- **Automatic Backup status on the Settings list.** The row shows whether automatic backups are On or Off. It shows a
-  warning when the last backup failed, when none has run for more than a day past its schedule, or when FitLens can no
-  longer reach the backup folder. Tap it to go straight to Backup and fix it.
-- **Folder rows.** The backup folder and the FitNotes folder show the folder's name, or Not set, with Choose or Change
-  beside it. If the phone has withdrawn FitLens's access to a folder, the row says so and asks you to choose it again.
-- **Backup status card.** Settings › Backup shows its status in one card: the last backup, when the next is due, the
-  folder and its free space. Each line has a tick, or a warning sign when something is wrong.
-- **Notifications asked for when you need them.** Switching on Start rest timer automatically, the workout timer's
-  automatic start, or automatic backups now gives a one-line reason before Android asks for notifications. If
-  notifications are off, the setting still works in the app, and a note under it offers **Open notification
-  settings**.
+- **Search takes you to the setting.** When a Settings search finds something on another page (Backup, Rest timer,
+  Progress photos and media, Data tools and so on), tapping it opens that page scrolled to the setting, and outlines
+  it in gold for a moment so you can see which one it is.
+- **Type a number exactly.** On a number setting such as PDF photos per day, tap the number between − and + to type
+  the value. Only a whole number in the allowed range can be saved, and the range is shown under the field.
+- **The exercise card opens into the exercise screen.** On the day log, tapping an exercise's card grows it into the
+  exercise screen, and Back shrinks it into the card again. If your phone's Remove animations setting is on, screens
+  change at once as before.
 
 ## Improved
 
-- **Delete workout history** is now a clearly marked row with a warning sign. It's dimmed, with the reason shown, when
-  nothing matches. As before, it always asks before deleting and keeps a safety copy you can undo from Backup.
-- **PDF photos per day** (Settings › Progress photos and media) is now set with − and + instead of a list.
-- **Keyboard and switch access.** Every Settings row, choice and button shows a gold outline when it has focus, so you
-  can see where you are without touching the screen.
-- **Warnings never rely on colour alone.** Every problem in Settings has a warning sign and words as well as colour.
+- **Focus comes back to where you were.** With a keyboard or switch access, closing a choice, a number entry or a
+  confirmation now returns focus to the row that opened it, instead of the top of the page.
+- **Section headings wrap.** At large font sizes or on narrow phones, headings such as those in Settings now wrap onto
+  a second line instead of being cut off.
+- **Clearer empty search.** When nothing matches, Settings suggests trying a shorter word, like "timer" or "units".
 
 ## Known limitations
 
-- A few parts of the Settings design still need checking on a phone: TalkBack through every page, 200% text size and
-  the smallest screens, and focus returning to a row after its sheet closes.
-- Choices that open a list still don't offer typing an exact number.
+- Search results from other pages don't show the setting's current value yet. That's planned.
+- The TalkBack, 200% font size and small-screen checks still need to be done on a phone.
+- The opening animation is only on the day log's exercise cards. Other screens still slide in and out.
