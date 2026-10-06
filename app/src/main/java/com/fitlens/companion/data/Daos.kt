@@ -4,7 +4,9 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Transaction
+import androidx.sqlite.db.SupportSQLiteQuery
 
 /**
  * Typed, compile-checked queries on `fitlens.db` (#36). Room checks every query here against `Schema.kt` when the
@@ -12,7 +14,7 @@ import androidx.room.Transaction
  * properties open the database first, so the downgrade check of #77 always runs before Room's own).
  *
  * Every DAO call runs off the main thread: Room refuses a query on the main thread, and every caller already runs on
- * `Dispatchers.IO`. Only the FitNotes import and the backups still write SQL through `Db.writableDatabase`.
+ * `Dispatchers.IO`. Nothing in the app writes SQL to `fitlens.db` any other way; only the upgrades in `Db` do.
  */
 
 /** Everything the in-memory snapshot is built from (`Store.build`), in the order each area expects. */
@@ -86,6 +88,9 @@ abstract class MetaDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract fun put(row: MetaRow)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM meta WHERE k = :k)")
+    abstract fun has(k: String): Boolean
 
     @Query("DELETE FROM meta WHERE k = :k")
     abstract fun delete(k: String)
@@ -655,6 +660,100 @@ interface WorkoutDao {
     /** Rests move with their sets; the target day's own win where both have one. */
     @Query("UPDATE OR IGNORE workout_rest SET date = :toDate WHERE date = :fromDate")
     fun moveRests(fromDate: String, toDate: String)
+}
+
+/** A category or exercise already in FitLens, as a FitNotes import matches against it. */
+data class LibraryOrigin(val id: Long, val name: String, val source: String, val fitnotes_id: Long?)
+
+/** The values that tell one logged set from another (`Workouts.setKey`). */
+data class SetValues(val exercise_id: Long, val date: String, val weight: Double, val reps: Int, val distance: Double, val duration: Long)
+
+/** A custom metric and the FitNotes measurement name it takes values from. */
+data class NameLink(val name: String, val link: String?)
+
+/**
+ * The FitNotes import (`FitNotesImporter`): what it matches against and the rows it adds. It only adds, apart from
+ * refreshing the unit, order and goal of measurements that came from FitNotes. Every call runs inside the import's
+ * own transaction.
+ */
+@Dao
+interface ImportDao {
+    @Query("SELECT * FROM import_rule ORDER BY id")
+    fun rules(): List<ImportRuleRow>
+
+    @Query("SELECT id, name, source, fitnotes_id FROM category ORDER BY id")
+    fun categories(): List<LibraryOrigin>
+
+    @Query("SELECT id, name, source, fitnotes_id FROM exercise ORDER BY id")
+    fun exercises(): List<LibraryOrigin>
+
+    @Query(
+        "INSERT INTO category(name, colour, sort_order, source, fitnotes_id) " +
+            "VALUES(:name, :colour, :sortOrder, :source, :fitnotesId)"
+    )
+    fun addCategory(name: String, colour: Int, sortOrder: Int, source: String, fitnotesId: Long): Long
+
+    @Query(
+        "INSERT INTO exercise(name, category_id, type, notes, source, fitnotes_id) " +
+            "VALUES(:name, :categoryId, :type, :notes, :source, :fitnotesId)"
+    )
+    fun addExercise(name: String, categoryId: Long, type: Int, notes: String?, source: String, fitnotesId: Long): Long
+
+    @Query("SELECT exercise_id, date, weight, reps, distance, duration FROM workout_set")
+    fun setValues(): List<SetValues>
+
+    /** An imported set. Its position and superset are 0, so the database's triggers place it (#70, #18). */
+    @Query(
+        "INSERT INTO workout_set(exercise_id, date, weight, reps, distance, duration, is_pr, comment, source, fitnotes_id) " +
+            "VALUES(:exerciseId, :date, :weight, :reps, :distance, :duration, :isPr, :comment, :source, :fitnotesId)"
+    )
+    fun addSet(
+        exerciseId: Long, date: String, weight: Double, reps: Int, distance: Double, duration: Int, isPr: Int,
+        comment: String?, source: String, fitnotesId: Long
+    ): Long
+
+    @Query("SELECT name, link FROM measurement WHERE custom = 1")
+    fun customMetrics(): List<NameLink>
+
+    /** A custom metric with no unit takes the unit of the FitNotes measurement it matches. */
+    @Query("UPDATE measurement SET unit = :unit WHERE name = :name AND unit = ''")
+    fun setUnitIfNone(name: String, unit: String)
+
+    @Query(
+        "INSERT INTO measurement(name, unit, sort_order, goal_type, goal_value, enabled) " +
+            "VALUES(:name, :unit, :sortOrder, :goalType, :goalValue, :enabled)"
+    )
+    fun addMeasurement(name: String, unit: String, sortOrder: Int, goalType: Int, goalValue: Double, enabled: Int)
+
+    @Query(
+        "UPDATE measurement SET unit = :unit, sort_order = :sortOrder, goal_type = :goalType, goal_value = :goalValue, " +
+            "enabled = :enabled WHERE name = :name"
+    )
+    fun refreshMeasurement(name: String, unit: String, sortOrder: Int, goalType: Int, goalValue: Double, enabled: Int)
+
+    @Query("UPDATE measurement SET unit = :unit WHERE name = :name")
+    fun setMeasurementUnit(name: String, unit: String)
+
+    @Query(
+        "INSERT INTO mrecord(name, unit, date, time, value, comment, source) " +
+            "VALUES(:name, :unit, :date, :time, :value, :comment, :source)"
+    )
+    fun addRecord(name: String, unit: String, date: String, time: String, value: Double, comment: String?, source: String): Long
+
+    /** A value already there: the same measurement, day and value, at the same time or entered by hand. */
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM mrecord WHERE name = :name AND date = :date AND abs(value - :value) < 0.001 " +
+            "AND (time = :time OR source = 'manual'))"
+    )
+    fun hasRecord(name: String, date: String, time: String, value: Double): Boolean
+}
+
+/** Upkeep on the database file itself (`Backups`). */
+@Dao
+interface MaintenanceDao {
+    /** Runs a PRAGMA that returns rows, such as `wal_checkpoint`, and gives its first column. */
+    @RawQuery
+    fun pragma(query: SupportSQLiteQuery): Int
 }
 
 /** User-made workouts and their days (`Routines`, #21, #106). */

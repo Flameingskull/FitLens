@@ -5,6 +5,8 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -76,21 +78,12 @@ class FitNotesImporterTest {
         db.row("WorkoutTime", "_id" to 1L, "workout_date" to "2026-01-10", "start_date_time" to "2026-01-10 17:00:00", "end_date_time" to "2026-01-10 18:15:00")
     }
 
-    /** Merges the backup in one transaction, as the app does. */
-    private fun import(): ImportPlan {
-        val src = SQLiteDatabase.openDatabase(backup.path, null, SQLiteDatabase.OPEN_READONLY)
-        try {
-            val w = fitlens.writableDatabase
-            w.beginTransaction()
-            try {
-                return FitNotesImporter.merge(src, w).also { w.setTransactionSuccessful() }
-            } finally {
-                w.endTransaction()
-            }
-        } finally {
-            src.close()
-        }
-    }
+    /**
+     * Merges the backup in one transaction, as the app does ([apply] = false is the dry run behind the summary).
+     * Off the main thread, because Room refuses queries on it and Robolectric runs tests there.
+     */
+    private fun import(apply: Boolean = true): ImportPlan =
+        runBlocking(Dispatchers.IO) { FitNotesImporter.runMerge(backup, apply, fitlens) }
 
     private val db: SupportSQLiteDatabase get() = fitlens.writableDatabase
 
@@ -165,5 +158,86 @@ class FitNotesImporterTest {
         assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE name='Face Pull'"))
         assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=? AND source='fitlens'", mine.toString()))
         assertEquals(1, db.count("SELECT COUNT(*) FROM mrecord WHERE value=81 AND source='fitlens'"))
+    }
+
+    @Test
+    fun theDryRunWorksOutThePlanButKeepsNothing() {
+        val plan = import(apply = false)
+        assertEquals(4, plan.setsAdded)
+        assertEquals(2, plan.exercisesAdded)
+        assertEquals(0, db.count("SELECT COUNT(*) FROM workout_set"))
+        assertEquals(0, db.count("SELECT COUNT(*) FROM exercise"))
+        assertEquals(0, db.count("SELECT COUNT(*) FROM workout_comment"))
+        // The real import afterwards finds the same plan.
+        assertEquals(4, import().setsAdded)
+    }
+
+    /** The FitNotes body tables: Bodyweight in kg (two values) and Waist in cm (one). */
+    private fun withMeasurements() {
+        backup.delete()
+        val schema = fitNotesSchema + listOf(
+            "CREATE TABLE MeasurementUnit(_id INTEGER PRIMARY KEY, short_name TEXT)",
+            "CREATE TABLE Measurement(_id INTEGER PRIMARY KEY, name TEXT, unit_id INTEGER, sort_order INTEGER, " +
+                "goal_type INTEGER, goal_value REAL, enabled INTEGER)",
+            "CREATE TABLE MeasurementRecord(_id INTEGER PRIMARY KEY, measurement_id INTEGER, date TEXT, time TEXT, " +
+                "value REAL, comment TEXT)"
+        )
+        OldSchemas.create(backup, 1, schema) { b ->
+            fillBackup(b)
+            b.row("MeasurementUnit", "_id" to 1L, "short_name" to "kg")
+            b.row("MeasurementUnit", "_id" to 2L, "short_name" to "cm")
+            b.row("Measurement", "_id" to 1L, "name" to "Bodyweight", "unit_id" to 1L, "sort_order" to 1, "goal_type" to 0, "goal_value" to 0.0, "enabled" to 1)
+            b.row("Measurement", "_id" to 2L, "name" to "Waist", "unit_id" to 2L, "sort_order" to 2, "goal_type" to 2, "goal_value" to 80.0, "enabled" to 1)
+            b.row("MeasurementRecord", "measurement_id" to 1L, "date" to "2026-01-10", "time" to "07:00:00", "value" to 82.0)
+            b.row("MeasurementRecord", "measurement_id" to 1L, "date" to "2026-01-11", "time" to "07:00:00", "value" to 81.5)
+            b.row("MeasurementRecord", "measurement_id" to 2L, "date" to "2026-01-10", "time" to "07:00:00", "value" to 84.0)
+        }
+    }
+
+    @Test
+    fun bodyValuesAreAddedOnceAndUserEditsToADefinitionWin() {
+        withMeasurements()
+        // The user reordered Waist and set its goal in FitLens, and logged the same Bodyweight value by hand.
+        db.execSQL("DELETE FROM measurement WHERE name='Waist'")
+        db.row("measurement", "name" to "Waist", "unit" to "in", "sort_order" to 7, "goal_type" to 1, "goal_value" to 30.0, "edited" to 1)
+        db.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-01-11", "time" to "12:00:00", "value" to 81.5, "source" to "manual")
+
+        val plan = import()
+        assertEquals(2, plan.recordsAdded)
+        assertEquals(1, plan.recordsSkipped)
+        assertEquals(2, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Bodyweight'"))
+        // The unit follows FitNotes; the order and goal set in FitLens are kept.
+        assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Waist' AND unit='cm' AND sort_order=7 AND goal_type=1 AND goal_value=30"))
+
+        val again = import()
+        assertEquals(0, again.recordsAdded)
+        assertEquals(3, db.count("SELECT COUNT(*) FROM mrecord"))
+    }
+
+    @Test
+    fun valuesForACustomMetricGoIntoIt() {
+        withMeasurements()
+        db.row("measurement", "name" to "Weight", "unit" to "", "custom" to 1, "link" to "bodyweight", "edited" to 1)
+        import()
+        assertEquals(2, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Weight' AND unit='kg'"))
+        assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Weight' AND unit='kg' AND custom=1"))
+    }
+
+    @Test
+    fun aBodyTrackerCsvAddsEachValueOnce() {
+        val lines = listOf(
+            "Date,Time,Measurement,Value,Unit,Comment",
+            "2026-01-10,07:00:00,Bodyweight,82.0,kg,",
+            "2026-01-11,07:00:00,Bodyweight,81.5,kg,\"Light, after cardio\"",
+            "2026-01-11,07:00:00,Chest,not a number,cm,",
+            ""
+        )
+        val first = runBlocking(Dispatchers.IO) { FitNotesImporter.mergeBodyCsv(lines, fitlens) }
+        assertEquals(2 to 0, first)
+        assertEquals(1, db.count("SELECT COUNT(*) FROM mrecord WHERE comment='Light, after cardio' AND source='csv'"))
+        assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Bodyweight'"))
+        val again = runBlocking(Dispatchers.IO) { FitNotesImporter.mergeBodyCsv(lines, fitlens) }
+        assertEquals(0 to 2, again)
+        assertEquals(2, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Bodyweight'"))
     }
 }

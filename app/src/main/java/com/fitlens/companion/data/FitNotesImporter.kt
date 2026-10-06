@@ -1,6 +1,5 @@
 package com.fitlens.companion.data
 
-import android.content.ContentValues
 import android.content.Context
 import android.content.res.Resources
 import com.fitlens.companion.R
@@ -8,7 +7,6 @@ import android.database.Cursor
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.database.sqlite.SQLiteDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -199,18 +197,24 @@ object FitNotesImporter {
         return importStaged(staged)
     }
 
-    /** Opens the staged backup and merges it. With [apply] = false every change is rolled back (a dry run). */
-    private fun runMerge(file: File, apply: Boolean): ImportPlan {
+    /** Rolls back a dry run's transaction, carrying the plan it worked out. */
+    private class DryRun(val plan: ImportPlan) : RuntimeException()
+
+    /**
+     * Opens the staged backup and merges it into [db] in one transaction. With [apply] = false every change is rolled
+     * back (a dry run), so the plan is exactly what a real import would do.
+     */
+    internal fun runMerge(file: File, apply: Boolean, db: Db = Store.db): ImportPlan {
         val src = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
         try {
-            val w = Store.db.writableDatabase
-            w.beginTransaction()
-            try {
-                val plan = merge(src, w)
-                if (apply) w.setTransactionSuccessful()
-                return plan
-            } finally {
-                w.endTransaction()
+            return try {
+                db.transaction {
+                    val plan = merge(src, db)
+                    if (!apply) throw DryRun(plan)
+                    plan
+                }
+            } catch (dry: DryRun) {
+                dry.plan
             }
         } finally {
             src.close()
@@ -229,15 +233,8 @@ object FitNotesImporter {
 
     private const val SKIP = -1L
 
-    private fun loadOwned(w: SupportSQLiteDatabase, table: String): MutableList<Owned> {
-        val out = ArrayList<Owned>()
-        w.rawQuery("SELECT id, name, source, fitnotes_id FROM $table ORDER BY id", null).use { c ->
-            while (c.moveToNext()) {
-                out.add(Owned(c.lng(0), Workouts.nameKey(c.strOr(1)), c.strOr(2, Sources.FITLENS), if (c.isNull(3)) null else c.getLong(3)))
-            }
-        }
-        return out
-    }
+    private fun owned(rows: List<LibraryOrigin>): MutableList<Owned> =
+        rows.mapTo(ArrayList()) { Owned(it.id, Workouts.nameKey(it.name), it.source, it.fitnotes_id) }
 
     /**
      * FitLens id for a FitNotes category or exercise: a rename or delete the user made in FitLens first ([SKIP] when
@@ -257,22 +254,23 @@ object FitNotesImporter {
     /**
      * Merges a FitNotes backup into FitLens following the conflict rules in [Workouts]: only adds rows, matches
      * categories and exercises by name, and skips sets, comments, times and body records that are already present.
+     * The caller runs it inside one transaction on [db], off the main thread.
      */
-    internal fun merge(src: SQLiteDatabase, w: SupportSQLiteDatabase): ImportPlan {
+    internal fun merge(src: SQLiteDatabase, db: Db): ImportPlan {
         val plan = ImportPlan()
+        val w = db.importDao
+        val workouts = db.workoutDao
+        val all = db.snapshotDao
 
         // What the user changed in FitLens (see Workouts, conflict rule 5).
         val links = HashMap<String, Long?>()
         val skips = HashMap<String, Int>()
-        w.rawQuery("SELECT kind, key, target_id FROM import_rule ORDER BY id", null).use { c ->
-            while (c.moveToNext()) {
-                val kind = c.strOr(0)
-                val k = kind + "|" + c.strOr(1)
-                if (kind == Workouts.RULE_CATEGORY || kind == Workouts.RULE_EXERCISE) {
-                    links[k] = if (c.isNull(2)) null else c.getLong(2)
-                } else {
-                    skips[k] = (skips[k] ?: 0) + 1
-                }
+        for (rule in w.rules()) {
+            val k = rule.kind + "|" + rule.key
+            if (rule.kind == Workouts.RULE_CATEGORY || rule.kind == Workouts.RULE_EXERCISE) {
+                links[k] = rule.target_id
+            } else {
+                skips[k] = (skips[k] ?: 0) + 1
             }
         }
         fun consumeSkip(kind: String, key: String): Boolean {
@@ -284,9 +282,9 @@ object FitNotesImporter {
         }
 
         // ---------- Categories ----------
-        val categories = loadOwned(w, "category")
+        val categories = owned(w.categories())
         val catMap = HashMap<Long, Long>()
-        var catOrder = w.rawQuery("SELECT IFNULL(MAX(sort_order), 0) FROM category", null).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        var catOrder = workouts.lastCategoryOrder()
         src.each("SELECT _id, name, colour, sort_order FROM Category ORDER BY sort_order, _id") { c ->
             val fnId = c.lng(0)
             val name = c.strOr(1).trim()
@@ -295,10 +293,7 @@ object FitNotesImporter {
             val found = resolve(Workouts.RULE_CATEGORY, fnId, key, categories, links)
             if (found == null) {
                 catOrder++
-                val id = w.insertOrThrow("category", null, ContentValues().apply {
-                    put("name", name); put("colour", c.int(2)); put("sort_order", catOrder)
-                    put("source", Sources.FITNOTES); put("fitnotes_id", fnId)
-                })
+                val id = w.addCategory(name, c.int(2), catOrder, Sources.FITNOTES, fnId)
                 categories.add(Owned(id, key, Sources.FITNOTES, fnId))
                 catMap[fnId] = id
                 plan.categoriesAdded++
@@ -308,7 +303,7 @@ object FitNotesImporter {
         }
 
         // ---------- Exercises ----------
-        val exercises = loadOwned(w, "exercise")
+        val exercises = owned(w.exercises())
         val exMap = HashMap<Long, Long>()
         src.each("SELECT _id, name, category_id, exercise_type_id, notes FROM exercise ORDER BY _id") { c ->
             val fnId = c.lng(0)
@@ -318,10 +313,7 @@ object FitNotesImporter {
             val found = resolve(Workouts.RULE_EXERCISE, fnId, key, exercises, links)
             if (found == null) {
                 val cat = catMap[c.lng(2)]?.takeIf { it != SKIP } ?: Workouts.UNCATEGORISED
-                val id = w.insertOrThrow("exercise", null, ContentValues().apply {
-                    put("name", name); put("category_id", cat); put("type", c.int(3)); put("notes", c.str(4))
-                    put("source", Sources.FITNOTES); put("fitnotes_id", fnId)
-                })
+                val id = w.addExercise(name, cat, c.int(3), c.str(4), Sources.FITNOTES, fnId)
                 exercises.add(Owned(id, key, Sources.FITNOTES, fnId))
                 exMap[fnId] = id
                 plan.exercisesAdded++
@@ -335,12 +327,10 @@ object FitNotesImporter {
         // Sets already in FitLens, counted by date, exercise and values (identical sets are common, e.g. 3 x 5 x 100 kg).
         val present = HashMap<String, Int>()
         val workoutDates = HashSet<String>()
-        w.rawQuery("SELECT exercise_id, date, weight, reps, distance, duration FROM workout_set", null).use { c ->
-            while (c.moveToNext()) {
-                val k = Workouts.setKey(c.lng(0), c.strOr(1), c.dbl(2), c.int(3), c.dbl(4), c.int(5))
-                present[k] = (present[k] ?: 0) + 1
-                workoutDates.add(c.strOr(1).take(10))
-            }
+        for (s in w.setValues()) {
+            val k = Workouts.setKey(s.exercise_id, s.date, s.weight, s.reps, s.distance, s.duration.toInt())
+            present[k] = (present[k] ?: 0) + 1
+            workoutDates.add(s.date.take(10))
         }
         val setSqlWithComments = """
             SELECT t._id, t.exercise_id, t.date, t.metric_weight, t.reps, t.distance, t.duration_seconds, t.is_personal_record,
@@ -366,12 +356,7 @@ object FitNotesImporter {
                 plan.setsSkipped++
                 return@mergeSet
             }
-            w.insertOrThrow("workout_set", null, ContentValues().apply {
-                put("exercise_id", exId); put("date", date)
-                put("weight", c.dbl(3)); put("reps", c.int(4)); put("distance", c.dbl(5))
-                put("duration", c.int(6)); put("is_pr", c.int(7)); put("comment", c.str(8))
-                put("source", Sources.FITNOTES); put("fitnotes_id", c.lng(0))
-            })
+            w.addSet(exId, date, c.dbl(3), c.int(4), c.dbl(5), c.int(6), c.int(7), c.str(8), Sources.FITNOTES, c.lng(0))
             plan.setsAdded++
             if (workoutDates.add(date)) plan.workoutsAdded++
         }
@@ -380,9 +365,7 @@ object FitNotesImporter {
 
         // ---------- Workout comments and times ----------
         val comments = HashSet<String>()
-        w.rawQuery("SELECT date, comment FROM workout_comment", null).use { c ->
-            while (c.moveToNext()) comments.add(Workouts.commentKey(c.strOr(0), c.strOr(1)))
-        }
+        for (row in all.workoutComments()) comments.add(Workouts.commentKey(row.date, row.comment))
         src.each("SELECT date, comment FROM WorkoutComment") { c ->
             val date = c.strOr(0).take(10)
             val text = c.strOr(1).trim()
@@ -392,16 +375,12 @@ object FitNotesImporter {
                 plan.commentsSkipped++
                 return@each
             }
-            w.insertOrThrow("workout_comment", null, ContentValues().apply {
-                put("date", date); put("comment", text); put("source", Sources.FITNOTES)
-            })
+            workouts.addComment(date, text, Sources.FITNOTES)
             comments.add(k)
             plan.commentsAdded++
         }
         val times = HashSet<String>()
-        w.rawQuery("SELECT date, start, finish FROM workout_time", null).use { c ->
-            while (c.moveToNext()) times.add(Workouts.timeKey(c.strOr(0), c.str(1), c.str(2)))
-        }
+        for (row in all.workoutTimes()) times.add(Workouts.timeKey(row.date, row.start, row.finish))
         src.each("SELECT workout_date, start_date_time, end_date_time FROM WorkoutTime") { c ->
             val date = c.strOr(0).take(10)
             val k = Workouts.timeKey(date, c.str(1), c.str(2))
@@ -409,9 +388,7 @@ object FitNotesImporter {
                 plan.timesSkipped++
                 return@each
             }
-            w.insertOrThrow("workout_time", null, ContentValues().apply {
-                put("date", date); put("start", c.str(1)); put("finish", c.str(2)); put("source", Sources.FITNOTES)
-            })
+            workouts.addTime(date, c.str(1), c.str(2), Sources.FITNOTES)
             times.add(k)
             plan.timesAdded++
         }
@@ -419,26 +396,22 @@ object FitNotesImporter {
         // ---------- Measurements ----------
         // Values for a measurement matching a custom metric go into that metric.
         val aliases = customAliases(w)
+        val body = db.bodyDao
         fun target(name: String) = aliases[name.trim().lowercase()] ?: name
         val recordKeys = HashSet<String>()
         val manualKeys = HashSet<String>()
         fun rk(name: String, date: String, time: String, value: Double) = name + "|" + date + "|" + time + "|" + fmtNum(value, 3)
         fun mk(name: String, date: String, value: Double) = name + "|" + date + "|" + fmtNum(value, 3)
-        w.rawQuery("SELECT name, date, time, value, source FROM mrecord", null).use { c ->
-            while (c.moveToNext()) {
-                recordKeys.add(rk(c.strOr(0), c.strOr(1), c.strOr(2), c.dbl(3)))
-                if (c.strOr(4) == "manual") manualKeys.add(mk(c.strOr(0), c.strOr(1), c.dbl(3)))
-            }
+        for (r in all.records()) {
+            recordKeys.add(rk(r.name, r.date, r.time, r.value))
+            if (r.source == "manual") manualKeys.add(mk(r.name, r.date, r.value))
         }
         fun addRecord(name: String, unit: String, date: String, time: String, value: Double, comment: String?) {
             if (rk(name, date, time, value) in recordKeys || mk(name, date, value) in manualKeys) {
                 plan.recordsSkipped++
                 return
             }
-            w.insertOrThrow("mrecord", null, ContentValues().apply {
-                put("name", name); put("unit", unit); put("date", date); put("time", time)
-                put("value", value); put("comment", comment); put("source", "fitnotes")
-            })
+            w.addRecord(name, unit, date, time, value, comment, "fitnotes")
             recordKeys.add(rk(name, date, time, value))
             plan.recordsAdded++
         }
@@ -452,30 +425,20 @@ object FitNotesImporter {
             val custom = aliases[name.trim().lowercase()]
             defs[c.lng(0)] = (custom ?: name) to unit
             if (custom != null) {
-                w.execSQL("UPDATE measurement SET unit=? WHERE name=? AND unit=''", arrayOf(unit, custom))
+                w.setUnitIfNone(custom, unit)
                 return@each
             }
             // Measurement definitions imported from FitNotes (not custom metrics) follow FitNotes: their unit, order
             // and goal are refreshed. Custom metrics made in FitLens are never changed.
-            val isCustom = w.rawQuery("SELECT custom FROM measurement WHERE name=?", arrayOf(name)).use { q ->
-                if (q.moveToFirst()) q.getInt(0) else null
-            }
-            val edited = w.rawQuery("SELECT edited FROM measurement WHERE name=?", arrayOf(name)).use { q ->
-                q.moveToFirst() && q.getInt(0) != 0
-            }
-            val cv = ContentValues().apply {
-                put("unit", unit); put("sort_order", c.int(3)); put("goal_type", c.int(4))
-                put("goal_value", c.dbl(5)); put("enabled", c.int(6))
-            }
-            if (isCustom == null) {
-                cv.put("name", name)
-                w.insertOrThrow("measurement", null, cv)
+            val existing = body.definition(name)
+            if (existing == null) {
+                w.addMeasurement(name, unit, c.int(3), c.int(4), c.dbl(5), c.int(6))
                 plan.measurementsAdded++
-            } else if (isCustom == 0) {
+            } else if (existing.custom == 0) {
                 // A goal or order the user set in FitLens wins over FitNotes's (#27); the unit still follows FitNotes.
                 // So does switching it on or off on the Measurements screen.
-                if (edited) { cv.remove("sort_order"); cv.remove("goal_type"); cv.remove("goal_value"); cv.remove("enabled") }
-                w.update("measurement", cv, "name=?", arrayOf(name))
+                if (existing.edited != 0) w.setMeasurementUnit(name, unit)
+                else w.refreshMeasurement(name, unit, c.int(3), c.int(4), c.dbl(5), c.int(6))
             }
         }
         src.each("SELECT measurement_id, date, time, value, comment FROM MeasurementRecord") { c ->
@@ -491,13 +454,10 @@ object FitNotesImporter {
         }
 
         // FitNotes's weight unit is used for display unless the user has picked one in FitLens.
-        val unitChosen = w.rawQuery("SELECT 1 FROM meta WHERE k='weight_unit_manual'", null).use { it.moveToFirst() }
-        if (!unitChosen) {
+        if (!db.metaDao.has("weight_unit_manual")) {
             var metric = 1
             src.each("SELECT metric FROM settings LIMIT 1") { c -> metric = c.int(0) }
-            w.insertWithOnConflict("meta", null, ContentValues().apply {
-                put("k", "weight_unit"); put("v", if (metric == 0) "lbs" else "kg")
-            }, SQLiteDatabase.CONFLICT_REPLACE)
+            db.metaDao.put(MetaRow("weight_unit", if (metric == 0) "lbs" else "kg"))
         }
         return plan
     }
@@ -510,40 +470,7 @@ object FitNotesImporter {
             if (lines.isEmpty() || !lines[0].startsWith("Date,Time,Measurement")) {
                 return@withContext ImportSummary(context.getString(R.string.imp_csv_not_body), false)
             }
-            val w = Store.db.writableDatabase
-            var added = 0
-            var skipped = 0
-            w.beginTransaction()
-            try {
-                val aliases = customAliases(w)
-                for (line in lines.drop(1)) {
-                    if (line.isBlank()) continue
-                    val f = parseCsvLine(line)
-                    if (f.size < 4) continue
-                    val date = f[0].take(10)
-                    val time = f[1]
-                    val name = aliases[f[2].trim().lowercase()] ?: f[2]
-                    val value = f[3].toDoubleOrNull() ?: continue
-                    val unit = f.getOrElse(4) { "" }
-                    val comment = f.getOrElse(5) { "" }
-                    val exists = w.rawQuery(
-                        "SELECT 1 FROM mrecord WHERE name=? AND date=? AND abs(value-?) < 0.001 AND (time=? OR source='manual') LIMIT 1",
-                        arrayOf(name, date, value.toString(), time)
-                    ).use { it.moveToFirst() }
-                    if (exists) { skipped++; continue }
-                    w.insertWithOnConflict("measurement", null, ContentValues().apply {
-                        put("name", name); put("unit", unit); put("sort_order", 999)
-                    }, SQLiteDatabase.CONFLICT_IGNORE)
-                    w.insert("mrecord", null, ContentValues().apply {
-                        put("name", name); put("unit", unit); put("date", date); put("time", time)
-                        put("value", value); put("comment", comment); put("source", "csv")
-                    })
-                    added++
-                }
-                w.setTransactionSuccessful()
-            } finally {
-                w.endTransaction()
-            }
+            val (added, skipped) = mergeBodyCsv(lines, Store.db)
             Store.reload()
             val res = context.resources
             ImportSummary(
@@ -560,15 +487,39 @@ object FitNotesImporter {
         }
     }
 
+    /**
+     * Adds the values of a Body Tracker CSV ([lines], header first) to [db] in one transaction, skipping those already
+     * there. Returns how many were added and how many skipped. Off the main thread.
+     */
+    internal fun mergeBodyCsv(lines: List<String>, db: Db): Pair<Int, Int> = db.transaction {
+        val w = db.importDao
+        var added = 0
+        var skipped = 0
+        val aliases = customAliases(w)
+        for (line in lines.drop(1)) {
+            if (line.isBlank()) continue
+            val f = parseCsvLine(line)
+            if (f.size < 4) continue
+            val date = f[0].take(10)
+            val time = f[1]
+            val name = aliases[f[2].trim().lowercase()] ?: f[2]
+            val value = f[3].toDoubleOrNull() ?: continue
+            val unit = f.getOrElse(4) { "" }
+            val comment = f.getOrElse(5) { "" }
+            if (w.hasRecord(name, date, time, value)) { skipped++; continue }
+            db.bodyDao.ensure(name, unit, 999)
+            w.addRecord(name, unit, date, time, value, comment, "csv")
+            added++
+        }
+        added to skipped
+    }
+
     /** Lower-case FitNotes measurement name → custom metric that takes its values. */
-    private fun customAliases(w: SupportSQLiteDatabase): Map<String, String> {
+    private fun customAliases(w: ImportDao): Map<String, String> {
         val out = HashMap<String, String>()
-        w.rawQuery("SELECT name, link FROM measurement WHERE custom=1", null).use { c ->
-            while (c.moveToNext()) {
-                val name = c.strOr(0)
-                val key = (c.str(1)?.takeIf { it.isNotBlank() } ?: name).trim().lowercase()
-                out[key] = name
-            }
+        for (m in w.customMetrics()) {
+            val key = (m.link?.takeIf { it.isNotBlank() } ?: m.name).trim().lowercase()
+            out[key] = m.name
         }
         return out
     }

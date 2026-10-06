@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteDatabase
 import java.io.Closeable
 import java.util.concurrent.Callable
@@ -16,8 +17,8 @@ import java.util.concurrent.Callable
 /**
  * FitLens's database, `fitlens.db`, opened through Room (#36). Room creates it on a fresh install from the tables in
  * `Schema.kt`, runs [upgrade] and then [reconcile] on anything older, and checks the result against those tables
- * before the app sees it. Everything but the FitNotes import and backups uses the typed queries in `Daos.kt`
- * through [snapshotDao] and its neighbours; those two still write SQL through [writableDatabase].
+ * before the app sees it. The app reads and writes only through the typed queries in `Daos.kt`, reached through
+ * [snapshotDao] and its neighbours; raw SQL is left to the upgrades below and to tests ([writableDatabase]).
  */
 class Db(context: Context) : Closeable {
 
@@ -434,8 +435,11 @@ class Db(context: Context) : Closeable {
     @Volatile
     private var downgradeChecked = false
 
-    /** The open database. The first call opens it, running any upgrade; later calls return the same connection. */
-    val writableDatabase: SupportSQLiteDatabase
+    /**
+     * The open database. The first call opens it, running any upgrade; later calls return the same connection.
+     * Internal: the app goes through the DAOs below; tests use it to set up and check rows.
+     */
+    internal val writableDatabase: SupportSQLiteDatabase
         get() {
             if (!downgradeChecked) {
                 synchronized(this) {
@@ -448,7 +452,7 @@ class Db(context: Context) : Closeable {
             return room.openHelper.writableDatabase
         }
 
-    val readableDatabase: SupportSQLiteDatabase get() = writableDatabase
+    internal val readableDatabase: SupportSQLiteDatabase get() = writableDatabase
 
     /**
      * Installing an older FitLens over a newer one used to be fatal: opening the newer file threw during
@@ -491,10 +495,20 @@ class Db(context: Context) : Closeable {
     val goalDao: GoalDao get() = opened().goalDao()
     val workoutDao: WorkoutDao get() = opened().workoutDao()
     val routineDao: RoutineDao get() = opened().routineDao()
+    val importDao: ImportDao get() = opened().importDao()
+    val maintenanceDao: MaintenanceDao get() = opened().maintenanceDao()
 
     private fun opened(): FitLensDatabase {
         writableDatabase
         return room
+    }
+
+    /**
+     * Writes any write-ahead log back into the database file, so a backup copying that one file has everything.
+     * The journal is TRUNCATE (no log), so today this only guards a file left in WAL mode by an older build.
+     */
+    fun checkpoint() {
+        maintenanceDao.pragma(SimpleSQLiteQuery("PRAGMA wal_checkpoint(FULL)"))
     }
 
     /** Runs [block] in one Room transaction: every DAO call inside it lands together, or none does. */

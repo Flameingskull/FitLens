@@ -37,6 +37,8 @@ abstract class FitLensDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun workoutDao(): WorkoutDao
     abstract fun routineDao(): RoutineDao
+    abstract fun importDao(): ImportDao
+    abstract fun maintenanceDao(): MaintenanceDao
 }
 
 // ---- Workout data. `source` is 'fitnotes' (imported) or 'fitlens' (made or edited in FitLens) -------------------

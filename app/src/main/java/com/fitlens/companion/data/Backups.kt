@@ -80,7 +80,7 @@ object Backups {
      */
     private fun write(context: Context, os: OutputStream, includePhotos: Boolean = true): Int {
         val dbFile = context.getDatabasePath(Db.NAME)
-        Store.db.writableDatabase.rawQuery("PRAGMA wal_checkpoint(FULL)", null).use { it.moveToFirst() }
+        Store.db.checkpoint()
         val snap = Store.snapshot.value
         val photos = if (!includePhotos) emptyList()
         else Store.photoDir.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") } ?: emptyList()
