@@ -62,6 +62,10 @@ android {
             }
         }
     }
+    // The exported Room schemas (#36) are the unit tests' assets, so MigrationTestHelper checks upgrades against them.
+    sourceSets {
+        getByName("test").assets.srcDir("$projectDir/schemas")
+    }
 }
 
 // The Kotlin side of the toolchain. `kotlinOptions { jvmTarget = "17" }` was removed in Kotlin 2.4 and is now a
@@ -110,6 +114,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.room:room-testing:2.6.1")
     // Screenshot tests (#95): Compose rendered by Robolectric's native graphics and compared by Roborazzi.
     // ui-test-manifest only adds the empty test activity to debug builds; the release APK never contains it.
     testImplementation(composeBom)

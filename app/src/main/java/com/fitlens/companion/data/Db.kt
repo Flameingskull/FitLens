@@ -523,7 +523,7 @@ class Db(context: Context) : Closeable {
 }
 
 /** One upgrade from [from] straight to [Db.VERSION]: the hand-written steps, then the v21 rebuild for Room. */
-private class Upgrade(private val context: Context, from: Int) : Migration(from, Db.VERSION) {
+internal class Upgrade(private val context: Context, from: Int) : Migration(from, Db.VERSION) {
     override fun migrate(db: SupportSQLiteDatabase) {
         Db.upgrade(db, startVersion)
         Db.reconcile(context, db)
