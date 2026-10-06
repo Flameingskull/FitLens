@@ -199,5 +199,7 @@ jobs:
             grep -E "^e: |error:|FAILURE|What went wrong|BUILD (SUCCESSFUL|FAILED)|AAPT|Execution failed| FAILED$|AssertionError|Exception at|Caused by" "$GITHUB_WORKSPACE/build.log" | head -300 > errors.txt || true
             tail -400 "$GITHUB_WORKSPACE/build.log" > build-tail.log
           fi
+          # The Room schema the build exported (#36), so it can be reviewed and committed with app/schemas/.
+          if [ -d "$GITHUB_WORKSPACE/app/schemas" ]; then cp -r "$GITHUB_WORKSPACE/app/schemas" schemas; fi
           git add -A && git commit -qm "CI run ${{ github.run_number }}: $RESULT"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:ci-logs

@@ -15,11 +15,11 @@ import androidx.room.RoomDatabase
  * Column names are the property names, exactly as the SQL in the rest of the app uses them. Every column the app has
  * ever had is here: the v21 rebuild ([Db.reconcile]) refuses to drop a column it doesn't know, so a column left out
  * of this file stops the upgrade instead of losing data. Adding a column means a new [Db.VERSION] and an upgrade
- * step, the same as before.
+ * step, the same as before. Room exports this schema to `app/schemas/` on every build (`room.schemaLocation`).
  */
 @Database(
     version = Db.VERSION,
-    exportSchema = false,
+    exportSchema = true,
     entities = [
         CategoryRow::class, ExerciseRow::class, WorkoutSetRow::class, MeasurementRow::class, MeasurementRecordRow::class,
         WorkoutCommentRow::class, ExerciseCommentRow::class, WorkoutRestRow::class, WorkoutTimeRow::class,

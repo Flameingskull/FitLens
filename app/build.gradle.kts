@@ -73,6 +73,12 @@ kotlin {
     }
 }
 
+// Room writes the database schema it checks to app/schemas/ on every build (#36), so each version has a reviewable
+// record. CI copies the generated file to the ci-logs branch, from where it is committed.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
