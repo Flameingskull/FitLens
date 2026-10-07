@@ -1,29 +1,22 @@
 ## Overview
 
-This update lets you fix the dates of photos you imported before 1.0.120, and makes the app do less work behind the
-scenes while you log a workout.
+This is a behind-the-scenes update that makes FitLens smoother when something changes in the background. Each
+screen now redraws only when the data it actually shows changes.
 
 Install it over the current app as usual. There's no database upgrade, and everything you've logged, your photos and
 your settings are kept.
 
-## What's new
-
-- **Re-read photo dates.** On the Photos screen, the ⋮ menu has a new **Re-read photo dates** action. It goes through
-  the photos you've already imported and dates each one the way new imports are dated: the camera's capture date
-  first, then the date in the original file name, then the photo's "last edited" time (flagged for you to check).
-  It tells you how many photos changed, and you can undo it straight away.
-- **Your own dates are safe.** A date you set or confirmed by hand is never changed, and a date that came from your
-  phone's gallery is only replaced by the camera's own capture date.
-
 ## Improved
 
-- **Less work after every change.** Lists, pickers and graphs now recalculate only when the data they show changes.
-  Saving a set no longer redoes the work behind the photo gallery, the body tracker or the exercise library, and
-  adding a photo or a body value no longer redoes the work behind your workout screens.
+- **Screens redraw only when their data changes.** FitLens now notices which kinds of data each screen uses (your
+  exercises and workouts, logged sets, workout notes, body values or photos). When something else changes, the
+  screen is left as it is. For example, a photo import finishing in the background no longer redraws the exercise
+  screen you're logging on, and a body value saved elsewhere no longer redraws your workout. This builds on 1.0.121,
+  which stopped the calculations behind those screens from being redone.
+- **Always up to date.** A unit or week-start change still redraws every screen straight away, and so does any change
+  to the data a screen shows.
 
 ## Known limitations
 
-- Re-reading dates can only use what FitLens keeps: the photo's own metadata and its original file name. The gallery
-  date and file date your phone had at import time aren't stored, so a photo with neither a capture date nor a dated
-  file name keeps its current date.
-- Every screen is still redrawn after a change, even when its numbers are reused. Splitting that further is planned.
+- Saving a set still redraws the screens that show your sets, which is expected. How long a save takes on a phone
+  with years of history is still being measured. Settings › About › Save speed shows the figures.
