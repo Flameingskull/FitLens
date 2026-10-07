@@ -1704,10 +1704,10 @@
     <string name="ph_media_settings">Photo and media settings</string>
     <string name="ph_redate_menu">Re-read photo dates</string>
     <string name="ph_redate_busy">Re-reading photo dates…</string>
-    <string name="ph_redate_none">Every photo date already matches its metadata. Dates you set by hand weren't checked.</string>
+    <string name="ph_redate_none">Every photo date already matches its metadata. Dates you set by hand weren\'t checked.</string>
     <plurals name="ph_redated">
-        <item quantity="one">%1$d photo date updated from its metadata. Dates you set by hand weren't changed.</item>
-        <item quantity="other">%1$d photo dates updated from their metadata. Dates you set by hand weren't changed.</item>
+        <item quantity="one">%1$d photo date updated from its metadata. Dates you set by hand weren\'t changed.</item>
+        <item quantity="other">%1$d photo dates updated from their metadata. Dates you set by hand weren\'t changed.</item>
     </plurals>
     <string name="ph_selected">%1$d selected</string>
     <string name="ph_clear_selection">Clear selection</string>
