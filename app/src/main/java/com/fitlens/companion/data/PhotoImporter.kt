@@ -29,6 +29,9 @@ data class PhotoImportResult(
 /** A photo's EXIF dates (#162): when the camera captured it, and when the file was last changed. */
 data class ExifDates(val captured: LocalDateTime?, val edited: LocalDateTime?)
 
+/** A photo's new date from [PhotoImporter.redate] (#163): the day, the full time and where it came from. */
+data class Redate(val id: Long, val date: String, val takenAt: String, val source: String)
+
 
 object PhotoImporter {
 
@@ -192,6 +195,24 @@ object PhotoImporter {
             ?: fileName()?.let { it to DateSources.FILENAME }
             ?: exif.edited?.let { it to DateSources.EXIF_EDITED }
             ?: modified()?.let { it to DateSources.FILE }
+
+    /**
+     * Re-dates a photo that was imported earlier with the import's date order (#163), from what FitLens keeps: the
+     * stored copy's EXIF and the original file name (the media library's date and the file's modified time aren't
+     * kept). Returns null to leave the photo as it is: its date was set by hand, nothing was found, its media library
+     * date would give way to a weaker source, or nothing would change.
+     */
+    fun redate(photo: Photo, exif: ExifDates): Redate? {
+        if (photo.dateSource == DateSources.MANUAL) return null
+        val (at, source) = exif.captured?.let { it to DateSources.EXIF }
+            ?: (if (photo.dateSource == DateSources.MEDIA) null
+                else photo.originalName?.let { fileNameDate(it) }?.let { it to DateSources.FILENAME }
+                    ?: exif.edited?.let { it to DateSources.EXIF_EDITED })
+            ?: return null
+        val date = at.toLocalDate().format(Dates.ISO)
+        if (date == photo.date && source == photo.dateSource && at.toString() == photo.takenAt) return null
+        return Redate(photo.id, date, at.toString(), source)
+    }
 
     private fun mediaStoreDate(context: Context, uri: Uri): LocalDateTime? = try {
         context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DATE_TAKEN), null, null, null)?.use { c ->

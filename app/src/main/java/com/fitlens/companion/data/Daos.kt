@@ -212,6 +212,10 @@ interface PhotoDao {
     @Query("UPDATE photo SET date_source = :dateSource WHERE id IN (:ids) AND date IS NOT NULL")
     fun confirmDates(ids: List<Long>, dateSource: String)
 
+    /** Re-dates one photo (#163), or puts its old date back on Undo. A date set by hand in the meantime stays. */
+    @Query("UPDATE photo SET date = :date, taken_at = :takenAt, date_source = :dateSource WHERE id = :id AND date_source != 'manual'")
+    fun redate(id: Long, date: String?, takenAt: String?, dateSource: String)
+
     @Query("UPDATE photo SET pose = :pose WHERE id IN (:ids)")
     fun setPose(ids: List<Long>, pose: String)
 

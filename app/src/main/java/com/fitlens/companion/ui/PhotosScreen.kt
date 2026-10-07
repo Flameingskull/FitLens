@@ -100,6 +100,28 @@ private fun sectionTitle(res: Resources, start: LocalDate, group: String): Strin
 }
 
 /**
+ * Re-reads every photo's date from its metadata (#163) behind the busy bar, then says how many moved, with Undo.
+ * Photos dated by hand are left alone.
+ */
+private fun redatePhotos(res: Resources) {
+    AppScope.scope.launch {
+        UiEvents.busy.value = res.getString(R.string.ph_redate_busy)
+        try {
+            val before = Store.redatePhotos()
+            if (before.isEmpty()) UiEvents.show(res.getString(R.string.ph_redate_none))
+            else UiEvents.show(
+                res.getQuantityString(R.plurals.ph_redated, before.size, before.size), ResultLevel.Success,
+                res.getString(R.string.undo)
+            ) { AppScope.scope.launch { Store.restorePhotoDates(before) } }
+        } catch (e: Exception) {
+            UiEvents.show(AppScope.failure(e.message.orEmpty()), ResultLevel.Failure)
+        } finally {
+            UiEvents.busy.value = null
+        }
+    }
+}
+
+/**
  * The Photos gallery (#92): the FitLens top bar with icon actions and an overflow menu, which becomes a selection bar
  * with the count while photos are selected. Sections follow "Group photos by" (#46), remembered in Settings.
  */
@@ -167,6 +189,7 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
                     if (snap.reviewPhotos.isNotEmpty()) {
                         add(MenuAction(stringResource(R.string.ph_check_dates_n, snap.reviewPhotos.size)) { nav.push(Screen.Review) })
                     }
+                    if (snap.photos.isNotEmpty()) add(MenuAction(stringResource(R.string.ph_redate_menu)) { redatePhotos(res) })
                     add(MenuAction(stringResource(R.string.ph_media_settings)) { nav.push(Screen.SettingsPage(SettingsSection.Media)) })
                 }
             )

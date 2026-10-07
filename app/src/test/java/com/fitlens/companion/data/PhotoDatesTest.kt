@@ -65,4 +65,44 @@ class PhotoDatesTest {
         assertEquals(modified to DateSources.FILE, pick(ExifDates(null, null), modified = modified))
         assertNull(pick(ExifDates(null, null)))
     }
+
+    private fun photo(source: String, date: String? = "2026-09-30", takenAt: String? = "2026-09-30T21:05", name: String? = "photo.jpg") =
+        Photo(7L, "abc.jpg", date, takenAt, source, Poses.NONE, null, name)
+
+    @Test
+    fun redateNeverTouchesDatesSetByHand() {
+        val exif = PhotoImporter.exifDates("2026:08:26 13:20:00", null, null)
+        assertNull(PhotoImporter.redate(photo(DateSources.MANUAL), exif))
+    }
+
+    @Test
+    fun redateMovesAnEditDayPhotoToItsCaptureDate() {
+        val exif = PhotoImporter.exifDates("2026:08:26 13:20:00", null, "2026:09:30 21:05:00")
+        assertEquals(Redate(7L, "2026-08-26", shot.toString(), DateSources.EXIF), PhotoImporter.redate(photo(DateSources.EXIF), exif))
+        assertEquals(Redate(7L, "2026-08-26", shot.toString(), DateSources.EXIF), PhotoImporter.redate(photo(DateSources.FILE), exif))
+    }
+
+    @Test
+    fun redateUsesTheFileNameBeforeTheEditTime() {
+        val exif = PhotoImporter.exifDates(null, null, "2026:09:30 21:05:00")
+        val named = photo(DateSources.EXIF, name = "IMG_20260826_132002.jpg")
+        assertEquals(Redate(7L, "2026-08-26", this.named.toString(), DateSources.FILENAME), PhotoImporter.redate(named, exif))
+        // An old import dated by the edit time is flagged for review, with the same date.
+        assertEquals(Redate(7L, "2026-09-30", edited.toString(), DateSources.EXIF_EDITED), PhotoImporter.redate(photo(DateSources.EXIF), exif))
+    }
+
+    @Test
+    fun redateKeepsTheMediaLibraryDateOverWeakerSources() {
+        val exif = PhotoImporter.exifDates(null, null, "2026:09:30 21:05:00")
+        assertNull(PhotoImporter.redate(photo(DateSources.MEDIA, name = "IMG_20260826_132002.jpg"), exif))
+        val captured = PhotoImporter.exifDates("2026:08:26 13:20:00", null, null)
+        assertEquals(DateSources.EXIF, PhotoImporter.redate(photo(DateSources.MEDIA), captured)?.source)
+    }
+
+    @Test
+    fun redateLeavesUnchangedAndUnreadablePhotosAlone() {
+        val exif = PhotoImporter.exifDates("2026:08:26 13:20:00", null, null)
+        assertNull(PhotoImporter.redate(photo(DateSources.EXIF, "2026-08-26", shot.toString()), exif))
+        assertNull(PhotoImporter.redate(photo(DateSources.FILE), ExifDates(null, null)))
+    }
 }

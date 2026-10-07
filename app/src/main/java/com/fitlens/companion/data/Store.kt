@@ -436,6 +436,32 @@ object Store {
         refresh(Area.PHOTOS)
     }
 
+    /**
+     * Re-reads the date of every photo not dated by hand from its stored copy and original file name (#163), with
+     * [PhotoImporter.redate]. Returns the photos as they were before, for Undo ([restorePhotoDates]).
+     */
+    suspend fun redatePhotos(): List<Photo> = withContext(Dispatchers.IO) {
+        val before = ArrayList<Photo>()
+        val changes = ArrayList<Redate>()
+        _snapshot.value?.photos.orEmpty().forEach { p ->
+            if (p.dateSource == DateSources.MANUAL) return@forEach
+            val file = File(photoDir, p.file)
+            if (!file.exists()) return@forEach
+            PhotoImporter.redate(p, PhotoImporter.exifDates(file))?.let { changes += it; before += p }
+        }
+        if (changes.isNotEmpty()) {
+            db.transaction { changes.forEach { db.photoDao.redate(it.id, it.date, it.takenAt, it.source) } }
+            refresh(Area.PHOTOS)
+        }
+        before
+    }
+
+    /** Undo for [redatePhotos]: puts each photo's earlier date back, unless it has been set by hand since. */
+    suspend fun restorePhotoDates(before: List<Photo>) = withContext(Dispatchers.IO) {
+        db.transaction { before.forEach { db.photoDao.redate(it.id, it.date, it.takenAt, it.dateSource) } }
+        refresh(Area.PHOTOS)
+    }
+
     suspend fun setPhotoPose(ids: Collection<Long>, pose: String) = withContext(Dispatchers.IO) {
         db.transaction { ids.chunked(Db.MAX_IDS).forEach { db.photoDao.setPose(it, pose) } }
         refresh(Area.PHOTOS)
