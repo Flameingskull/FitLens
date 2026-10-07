@@ -262,7 +262,7 @@ private fun ReviewWorkoutSheet(
     onDismiss: () -> Unit
 ) {
     val exercises = choice.day.exercises
-    val resolved = remember(snap, choice, date) { exercises.map { Routines.resolve(snap, it, date) } }
+    val resolved = remember(snap.trainingKey, choice, date) { exercises.map { Routines.resolve(snap, it, date) } }
     var ticked by remember(choice) { mutableStateOf(exercises.indices.toSet()) }
     val isNew = choice.workout == null
     var saveIt by remember(choice) { mutableStateOf(false) }
@@ -361,7 +361,7 @@ fun SaveAsWorkoutSheet(snap: Snapshot, nav: Nav, date: String, onDismiss: () -> 
     val weekday = weekdayOf(date)
     val res = LocalContext.current.resources
     var ticked by remember(date) { mutableStateOf(snap.setsByDate[date].orEmpty().map { it.id }.toSet()) }
-    val exercises = remember(snap, date, ticked) { Routines.fromDate(snap, date, Routines.FILL_PLANNED, ticked) }
+    val exercises = remember(snap.trainingKey, date, ticked) { Routines.fromDate(snap, date, Routines.FILL_PLANNED, ticked) }
     var fill by remember { mutableStateOf(Routines.FILL_PLANNED) }
     // 0 saves a new workout; otherwise the workout the day joins, as a new day (dayId 0) or in place of a day.
     var routineId by remember { mutableStateOf(0L) }

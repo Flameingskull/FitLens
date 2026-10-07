@@ -248,7 +248,7 @@ fun SetEntryScreen(
 ) {
     val ex = snap.exercises[exerciseId]
     val allSets = snap.setsByExercise[exerciseId] ?: emptyList()
-    val sets = remember(snap, date, exerciseId) { allSets.filter { it.date == date } }
+    val sets = remember(allSets, date) { allSets.filter { it.date == date } }
     val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
 
     // Which fields to show. The exercise type decides, but anything already logged for this exercise is always
@@ -267,7 +267,7 @@ fun SetEntryScreen(
     // Auto-fill: what was last logged today, otherwise the first set of the previous workout for this exercise.
     // "Leave empty" in Settings → Workout & logging turns it off (#97).
     val fillFromLast = prefs.autofillSource != PortableSettings.AUTOFILL_EMPTY
-    val template = remember(snap, date, exerciseId, fillFromLast) {
+    val template = remember(allSets, date, fillFromLast) {
         if (!fillFromLast) null else {
             val today = allSets.lastOrNull { it.date == date }
             val previousDay = allSets.filter { it.date < date }.maxByOrNull { it.date }?.date

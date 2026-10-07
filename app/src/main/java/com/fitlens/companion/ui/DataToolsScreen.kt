@@ -184,7 +184,7 @@ private fun CsvExportSection(snap: Snapshot) {
         }
     }
 
-    val count = remember(snap, body, from, to) {
+    val count = remember(snap.setsKey, snap.bodyKey, body, from, to) {
         if (body) CsvExport.countBody(snap, from, to) to 0 else CsvExport.countWorkouts(snap, from, to)
     }
     val preview = if (body) pluralStringResource(R.plurals.data_body_values, count.first, count.first)
@@ -244,7 +244,7 @@ private fun DeleteHistorySection(snap: Snapshot) {
     val from = range.from
     val to = range.to
 
-    val matching = remember(snap, from, to, exerciseIds) {
+    val matching = remember(snap.setsKey, from, to, exerciseIds) {
         snap.sets.filter { s ->
             val d = s.date.take(10)
             (from == null || d >= from) && (to == null || d <= to) &&
@@ -287,7 +287,7 @@ private fun DeleteHistorySection(snap: Snapshot) {
     ) { confirming = true }
 
     if (picking) {
-        val items = remember(snap) {
+        val items = remember(snap.libraryKey, snap.setsKey) {
             snap.exercisesSorted
                 .filter { snap.setsByExercise[it.id].orEmpty().isNotEmpty() }
                 .map { e -> PickerItem(e.id, e.name, section = snap.categories[e.categoryId]?.name) }

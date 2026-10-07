@@ -142,8 +142,8 @@ fun PhotosScreen(snap: Snapshot, nav: Nav) {
     val importFiles = rememberPhotoImporter()
     val importFolder = rememberFolderPhotoImporter()
 
-    val counts = remember(snap) { snap.datedPhotos.groupingBy { poseKey(it) }.eachCount() }
-    val filtered = remember(snap, poseFilter) {
+    val counts = remember(snap.photosKey) { snap.datedPhotos.groupingBy { poseKey(it) }.eachCount() }
+    val filtered = remember(snap.photosKey, poseFilter) {
         val base = snap.datedPhotos.reversed()
         when (poseFilter) {
             "All" -> base

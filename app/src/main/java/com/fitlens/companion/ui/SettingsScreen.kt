@@ -777,7 +777,7 @@ private fun RestPage() {
 @Composable
 private fun FormulaChoice(title: String, snap: Snapshot, chosen: Records.Formula) {
     // The best recent set to show the formulas on: the last 90 days, 2 to 10 reps, highest automatic estimate.
-    val example = remember(snap) {
+    val example = remember(snap.setsKey) {
         val from = java.time.LocalDate.now().minusDays(90).format(Dates.ISO)
         val recent = snap.statSets.filter { it.weightKg > 0 && it.reps in 2..10 }
         (recent.filter { it.date.take(10) >= from }.ifEmpty { recent })

@@ -528,7 +528,7 @@ fun ExerciseGraphPane(snap: Snapshot, nav: Nav, exId: Long, initial: PinnedGraph
                 val q = o.points.minByOrNull { kotlin.math.abs(it.x - x) } ?: return null
                 return "${o.label} ${fmtNum(q.y, 1)} $overlayUnit".trim() + if (q.x != x) " (${Dates.medium(q.date)})" else ""
             }
-            val photoDays = remember(snap.photosByDate) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
+            val photoDays = remember(snap.photosKey) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
             val unit = if (isRelative) "%" else graphUnit(snap, exId, g.label)
             // Pace is graphed in minutes per distance, so its trend reads "min /km" (#152).
             val trendUnit = if (g.label == GRAPH_MAX_PACE && !isRelative) "min $unit" else unit
@@ -830,7 +830,7 @@ private fun CompareSheet(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        val offered = remember(snap, compare) { compare.associateWith { graphLabelsFor(snap, it) } }
+        val offered = remember(snap.libraryKey, snap.setsKey, compare) { compare.associateWith { graphLabelsFor(snap, it) } }
         Text(snap.exercises[exId]?.name ?: stringResource(R.string.ex_fallback), Modifier.padding(vertical = 12.dp), style = MaterialTheme.typography.bodyLarge)
         compare.mapNotNull { id -> snap.exercises[id]?.name?.let { id to it } }.forEach { (id, name) ->
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -861,7 +861,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
     val sets = snap.setsByExercise[exId] ?: emptyList()
     val byDate = remember(sets) { sets.groupBy { it.date }.toSortedMap() }
     // The same labelled columns as the day log (#101), fixed for the whole history so days line up.
-    val fields = remember(snap, exId, sets) { setFields(snap, exId, sets) }
+    val fields = remember(snap.libraryKey, exId, sets) { setFields(snap, exId, sets) }
     val res = LocalContext.current.resources
     if (sets.isEmpty()) {
         EmptyState(stringResource(R.string.ex_history_empty_title), stringResource(R.string.ex_history_empty_body))

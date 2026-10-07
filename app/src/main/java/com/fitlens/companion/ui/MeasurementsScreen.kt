@@ -60,8 +60,8 @@ fun MeasurementsScreen(snap: Snapshot, nav: Nav) {
     var editing by remember { mutableStateOf<MeasurementDef?>(null) }
     var deleting by remember { mutableStateOf<MeasurementDef?>(null) }
     var goalFor by remember { mutableStateOf<MeasurementDef?>(null) }
-    val all = remember(snap) { snap.allMeasurements }
-    val missing = remember(snap) { StandardMeasurements.missing(snap.measurementDefs.map { it.name }) }
+    val all = remember(snap.bodyKey) { snap.allMeasurements }
+    val missing = remember(snap.bodyKey) { StandardMeasurements.missing(snap.measurementDefs.map { it.name }) }
 
     Column(Modifier.fillMaxSize()) {
         PlainTopBar(stringResource(R.string.body_measurements)) {

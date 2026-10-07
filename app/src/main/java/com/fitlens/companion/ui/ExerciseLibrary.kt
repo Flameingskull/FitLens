@@ -201,7 +201,7 @@ fun ExerciseLibraryScreen(snap: Snapshot, nav: Nav, forDate: String?) {
     BackHandler(enabled = picked.isNotEmpty() || searching || category != null) { back() }
 
     val q = query.trim()
-    val listed: List<Exercise> = remember(snap, category, q, searching) {
+    val listed: List<Exercise> = remember(snap.libraryKey, category, q, searching) {
         when {
             searching && q.isNotEmpty() -> snap.exercisesSorted.filter {
                 it.name.contains(q, true) || (it.notes ?: "").contains(q, true)
@@ -442,7 +442,7 @@ private fun toggle(picked: MutableList<Long>, id: Long) {
  */
 @Composable
 private fun CategoryList(snap: Snapshot, selectedId: Long?, modifier: Modifier = Modifier, onOpen: (Long) -> Unit) {
-    val counts = remember(snap) { snap.exercisesSorted.groupingBy { it.categoryId }.eachCount() }
+    val counts = remember(snap.libraryKey) { snap.exercisesSorted.groupingBy { it.categoryId }.eachCount() }
     var editing by remember { mutableStateOf<com.fitlens.companion.data.Category?>(null) }
     LazyColumn(modifier, contentPadding = PaddingValues(bottom = Spacing.xxl)) {
         if (snap.favouriteExercises.isNotEmpty()) {
@@ -860,7 +860,7 @@ fun ExerciseEditorSheet(
                     }
                     // The user's own types (#14); the library is in the key so a new or edited type shows at once.
                     FieldLabel(stringResource(R.string.types_yours))
-                    val customTypes = remember(snap.library) { ExerciseTypes.custom.values.sortedBy { it.name.lowercase() } }
+                    val customTypes = remember(snap.libraryKey) { ExerciseTypes.custom.values.sortedBy { it.name.lowercase() } }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         customTypes.forEach { t ->
                             FilterChip(selected = type == t.id, onClick = { type = t.id }, label = { Text(t.name) })

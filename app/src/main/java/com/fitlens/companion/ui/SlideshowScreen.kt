@@ -117,7 +117,7 @@ private fun poseLabel(res: Resources, p: String) = when (p) {
 fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
     val ctx = LocalContext.current
     val res = ctx.resources
-    val source = remember(snap, ids) {
+    val source = remember(snap.photosKey, ids) {
         if (ids == null) snap.datedPhotos else ids.mapNotNull { snap.photosById[it] }.filter { it.date != null }
     }
     val firstDate = source.firstOrNull()?.date ?: Dates.today()

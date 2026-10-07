@@ -427,7 +427,7 @@ const val GRAPH_PHOTO_DAYS = 14
  */
 @Composable
 fun NearestPhotoThumb(snap: Snapshot, nav: Nav, date: String, modifier: Modifier = Modifier) {
-    val photo = remember(snap.datedPhotos, date) { nearestPhoto(snap, date, GRAPH_PHOTO_DAYS) } ?: return
+    val photo = remember(snap.photosKey, date) { nearestPhoto(snap, date, GRAPH_PHOTO_DAYS) } ?: return
     val taken = photo.date ?: return
     val days = Dates.epochDay(taken) - Dates.epochDay(date)
     val gap = when {

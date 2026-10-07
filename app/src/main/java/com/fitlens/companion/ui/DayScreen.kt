@@ -442,7 +442,7 @@ private fun BodyValuesCard(snap: Snapshot, records: List<MRecord>, onOpen: (MRec
             .border(1.dp, Brand.Hairline, FitShapes.card)
     ) {
         records.forEachIndexed { i, r ->
-            val prev = remember(snap, r.id) { snap.recordsByName[r.name]?.lastOrNull { it.date < r.date } }
+            val prev = remember(snap.bodyKey, r.id) { snap.recordsByName[r.name]?.lastOrNull { it.date < r.date } }
             val def = snap.allMeasurements.firstOrNull { it.name == r.name }
             val change = prev?.let { changeText(LocalContext.current.resources, it, r) }
             val openLabel = stringResource(R.string.day_open_named, r.name)

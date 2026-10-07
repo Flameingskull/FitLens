@@ -222,7 +222,7 @@ private fun BodyHistoryAll(snap: Snapshot, measurements: List<MeasurementDef>, o
     val res = LocalContext.current.resources
     var filter by rememberSaveable { mutableStateOf<String?>(null) }
     val names = measurements.map { it.name }
-    val all = remember(snap, filter) {
+    val all = remember(snap.bodyKey, filter) {
         names.filter { filter == null || it == filter }.flatMap { snap.recordsByName[it].orEmpty() }
             .sortedWith(compareByDescending<MRecord> { it.date.take(10) }.thenByDescending { it.time })
     }
@@ -292,7 +292,7 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
     var showTrend by rememberSaveable { mutableStateOf(false) }
     var fromZero by rememberSaveable { mutableStateOf(false) }
     var fullScreen by rememberSaveable { mutableStateOf(false) }
-    val all = remember(snap, selectedName) { snap.dailySeries(selectedName) }
+    val all = remember(snap.bodyKey, selectedName) { snap.dailySeries(selectedName) }
     val shown = remember(all, rangeIdx) { inRange(all, RANGES[rangeIdx].second) { it.date } }
     // Line, bar, area or step, remembered for each measurement (#137).
     val (kind, setKind) = rememberChartKind("body:$selectedName")
@@ -315,7 +315,7 @@ internal fun BodyGraphPane(snap: Snapshot, nav: Nav, selectedName: String) {
             val points = rememberChartData(shown) {
                 shown.map { ChartPoint(Dates.epochDay(it.date), it.value, it.date) }
             } ?: emptyList()
-            val photoDays = remember(snap) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
+            val photoDays = remember(snap.photosKey) { snap.photosByDate.keys.map { Dates.epochDay(it) }.toSet() }
             val unit = def?.unit ?: shown.lastOrNull()?.unit ?: ""
             FitChart(
                 listOf(LineSeries(selectedName, points)),

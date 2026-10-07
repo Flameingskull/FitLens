@@ -167,7 +167,7 @@ internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilt
     }
     when (picking) {
         "category" -> {
-            val items = remember(snap) {
+            val items = remember(snap.libraryKey, snap.setsKey) {
                 val used = snap.setsByExercise.keys.mapNotNull { snap.exercises[it]?.categoryId }.toSet()
                 // A category without a chosen colour (0) gets no dot rather than a transparent one (#73).
                 snap.categoriesSorted.filter { it.id in used }
@@ -185,7 +185,7 @@ internal fun AnalysisFilterChips(snap: Snapshot, filter: Analysis.Filter, onFilt
             )
         }
         "exercise" -> {
-            val items = remember(snap) {
+            val items = remember(snap.libraryKey, snap.setsKey) {
                 snap.exercisesSorted.filter { snap.setsByExercise[it.id].orEmpty().isNotEmpty() }
                     .map { PickerItem(it.id, it.name, section = snap.categories[it.categoryId]?.name) }
             }

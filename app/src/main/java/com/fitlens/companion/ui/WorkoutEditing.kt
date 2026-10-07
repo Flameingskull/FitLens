@@ -181,7 +181,7 @@ private fun ChecklistHeading(title: String, state: ToggleableState, bold: Boolea
 /** Adds, edits or removes the comment on a whole workout. */
 @Composable
 fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
-    val existing = remember(snap, date) { snap.workoutComments[date]?.joinToString("\n\n").orEmpty() }
+    val existing = remember(snap.notesKey, date) { snap.workoutComments[date]?.joinToString("\n\n").orEmpty() }
     var text by remember(date) { mutableStateOf(existing) }
     val res = LocalContext.current.resources
 
@@ -240,10 +240,10 @@ fun WorkoutCommentSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
 /** Confirms deleting everything logged on a day, and offers an undo afterwards. */
 @Composable
 fun DeleteWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
-    val sets = remember(snap, date) { snap.setsByDate[date].orEmpty() }
-    val comment = remember(snap, date) { snap.workoutComments[date]?.joinToString("\n\n") }
+    val sets = remember(snap.setsKey, date) { snap.setsByDate[date].orEmpty() }
+    val comment = remember(snap.notesKey, date) { snap.workoutComments[date]?.joinToString("\n\n") }
     // Every time row, not just the first: a day can carry more than one and undo has to put them all back (#69).
-    val times = remember(snap, date) { snap.workoutTimes[date].orEmpty() }
+    val times = remember(snap.notesKey, date) { snap.workoutTimes[date].orEmpty() }
     val exercises = remember(sets) { sets.map { it.exerciseId }.distinct().size }
     val res = LocalContext.current.resources
 
@@ -290,7 +290,7 @@ private fun deleteWithUndo(res: Resources, date: String, sets: List<SetRow>, com
 fun CopyOrMoveWorkoutSheet(snap: Snapshot, date: String, move: Boolean, onDismiss: () -> Unit) {
     var target by remember { mutableStateOf<String?>(null) }
     var picking by remember { mutableStateOf(false) }
-    val exercises = remember(snap, date) { snap.setsByDate[date].orEmpty().map { it.exerciseId }.distinct() }
+    val exercises = remember(snap.setsKey, date) { snap.setsByDate[date].orEmpty().map { it.exerciseId }.distinct() }
     var checked by remember(date) { mutableStateOf(exercises.toSet()) }
     val ids = snap.setsByDate[date].orEmpty().filter { move || it.exerciseId in checked }.map { it.id }
     val chosen = target
@@ -359,8 +359,8 @@ fun CopyOrMoveWorkoutSheet(snap: Snapshot, date: String, move: Boolean, onDismis
 @Composable
 fun CopyPreviousWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
     var source by remember { mutableStateOf<String?>(null) }
-    val days = remember(snap, date) { snap.setsByDate.keys.filter { it != date }.sortedDescending().take(60) }
-    val sourceExercises = remember(source, snap) {
+    val days = remember(snap.setsKey, date) { snap.setsByDate.keys.filter { it != date }.sortedDescending().take(60) }
+    val sourceExercises = remember(source, snap.setsKey) {
         source?.let { d -> snap.setsByDate[d].orEmpty().map { it.exerciseId }.distinct() }.orEmpty()
     }
     var checked by remember(source) { mutableStateOf(sourceExercises.toSet()) }

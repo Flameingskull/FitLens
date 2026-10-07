@@ -153,7 +153,7 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
 
     when (picking) {
         "category" -> {
-            val items = remember(snap) {
+            val items = remember(snap.libraryKey, snap.setsKey) {
                 val used = snap.setsByExercise.keys.mapNotNull { snap.exercises[it]?.categoryId }.toSet()
                 snap.categoriesSorted.filter { it.id in used }.map { PickerItem(it.id, it.name) }
             }
@@ -169,7 +169,7 @@ fun RecordsBoard(snap: Snapshot, nav: Nav) {
             )
         }
         "exercises" -> {
-            val items = remember(snap) {
+            val items = remember(snap.libraryKey, snap.setsKey) {
                 snap.exercisesSorted
                     .filter { e -> snap.setsByExercise[e.id].orEmpty().any { it.weightKg > 0 && it.reps > 0 } }
                     .map { PickerItem(it.id, it.name, section = snap.categories[it.categoryId]?.name) }

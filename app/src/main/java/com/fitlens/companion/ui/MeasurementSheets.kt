@@ -55,7 +55,7 @@ fun MeasurementEntrySheet(
     onDismiss: () -> Unit
 ) {
     val res = LocalContext.current.resources
-    val names = remember(snap) {
+    val names = remember(snap.bodyKey) {
         (snap.usedMeasurements.map { it.name } + snap.measurementDefs.filter { it.enabled }.map { it.name }).distinct()
     }
     var name by remember { mutableStateOf(existing?.name ?: initialName ?: names.firstOrNull() ?: "Bodyweight") }

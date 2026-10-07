@@ -148,6 +148,15 @@ class Snapshot internal constructor(
     /** What body calculations depend on (#56): the measurements and their values, in the units shown. */
     val bodyKey: Any get() = body
 
+    /**
+     * Narrower cache keys, one per area (#60), for a calculation that reads only that area: a write elsewhere leaves
+     * the key equal, so `remember` keeps the result. Add [weightUnit] (or use [trainingKey]) when it formats weights.
+     */
+    val libraryKey: Any get() = library
+    val setsKey: Any get() = setPart
+    val notesKey: Any get() = notes
+    val photosKey: Any get() = photoPart
+
     /** Body lengths are shown in this unit (#7). */
     val lengthUnit: String get() = body.lengthUnit
 

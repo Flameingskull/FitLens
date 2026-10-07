@@ -95,7 +95,7 @@ fun AnalysisExercisesTab(snap: Snapshot, nav: Nav) {
 fun AnalysisGoalsTab(snap: Snapshot, nav: Nav, adding: Boolean, onAddingDone: () -> Unit) {
     val res = LocalContext.current.resources
     var editing by remember { mutableStateOf<ExerciseGoal?>(null) }
-    val byExercise = remember(snap) {
+    val byExercise = remember(snap.libraryKey) {
         snap.goals.groupBy { it.exerciseId }.entries
             .filter { snap.exercises.containsKey(it.key) }
             .sortedBy { snap.exercises[it.key]?.name?.lowercase() }

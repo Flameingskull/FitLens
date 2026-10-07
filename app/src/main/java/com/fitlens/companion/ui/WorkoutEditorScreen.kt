@@ -544,7 +544,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
     val type = ex?.type ?: ExerciseTypes.WEIGHT_REPS
     // A user-defined type's own metric (#14), predefined like the other values (#155).
     val metricDef = ExerciseTypes.metricOf(type)
-    val last = remember(snap, planned.exerciseId) {
+    val last = remember(snap.trainingKey, planned.exerciseId) {
         Routines.resolve(snap, planned.copy(fill = Routines.FILL_LAST), "9999-12-31")
     }
     var fill by remember { mutableStateOf(planned.fill) }
@@ -578,7 +578,7 @@ private fun PlannedSetsSheet(snap: Snapshot, planned: PlannedExercise, onDismiss
     val perSet = fill == Routines.FILL_PLANNED && !sameRest && !copyRest
     // What "Copy previous rest" would copy today, in the same words as the exercise row.
     val res = LocalContext.current.resources
-    val previousRest = remember(snap, planned.exerciseId) {
+    val previousRest = remember(snap.trainingKey, planned.exerciseId) {
         val copying = planned.copy(fill = Routines.FILL_LAST, restSeconds = Routines.REST_PREVIOUS, restAfterSeconds = Routines.REST_PREVIOUS)
         val r = Routines.resolveRest(snap, copying, "9999-12-31")
         restSummary(
