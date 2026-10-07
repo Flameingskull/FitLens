@@ -47,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,6 +64,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.fitlens.companion.R
+import com.fitlens.companion.data.AreaReads
 import com.fitlens.companion.data.AutoBackup
 import com.fitlens.companion.data.BackupSync
 import com.fitlens.companion.data.Dates
@@ -476,7 +478,7 @@ fun AppRoot(nav: Nav, onRetry: () -> Unit) {
                                 } else if (s == null) {
                                     LoadingState(stringResource(R.string.app_opening_title), stringResource(R.string.app_opening_body))
                                 } else {
-                                    ScreenContent(s, nav, screen)
+                                    ScreenContent(rememberScreenSnapshot(s), nav, screen)
                                 }
                             }
                         }
@@ -516,6 +518,29 @@ private fun slideOut(dir: Int): ExitTransition =
     slideOutHorizontally(tween(Motion.STANDARD)) { w -> -dir * w / 5 } + fadeOut(tween(Motion.FAST))
 
 /** The composable for each [Screen]. A new destination adds a [Screen] and a line here. */
+/**
+ * The snapshot one screen is given (#60): a view of [live] that records which areas the screen reads, replaced only
+ * when one of those areas (or a unit) changes. A write elsewhere, such as a photo import or a body value saved while
+ * the exercise screen is open, then leaves the screen as it is: `ScreenContent` gets the same view and is skipped.
+ * An area read for the first time, even off the main thread or in a click, checks the view again, so a view that
+ * was already behind in that area is replaced.
+ */
+@Composable
+private fun rememberScreenSnapshot(live: Snapshot): Snapshot {
+    val firstReads = remember { mutableIntStateOf(0) }
+    val held = remember { HeldView(AreaReads { firstReads.intValue += 1 }) }
+    // Read here, so the first read of an area runs this again.
+    firstReads.intValue
+    val view = held.view
+    if (view != null && !view.changedIn(live, held.reads)) return view
+    return live.viewFor(held.reads).also { held.view = it }
+}
+
+/** A screen's snapshot view and the areas it has read, kept while the screen is shown. */
+private class HeldView(val reads: AreaReads) {
+    var view: Snapshot? = null
+}
+
 @Composable
 private fun ScreenContent(s: Snapshot, nav: Nav, screen: Screen) {
     when (screen) {

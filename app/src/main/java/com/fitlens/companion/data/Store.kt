@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 
 /**
@@ -119,25 +120,77 @@ class PhotoPart internal constructor(val photos: List<Photo>) {
 }
 
 /**
+ * Which areas one screen has read from its snapshot (#60). The screen is given a view of the snapshot that records
+ * here, and a new view only when an area it has read changed, so a write anywhere else doesn't redraw it.
+ * [onFirstRead] runs the first time each area is read, possibly off the main thread, so the screen can check whether
+ * its view is already out of date in that area.
+ */
+class AreaReads(private val onFirstRead: () -> Unit = {}) {
+    private val bits = AtomicInteger(0)
+
+    internal fun mark(area: Area) {
+        val bit = 1 shl area.ordinal
+        if ((bits.getAndUpdate { it or bit } and bit) == 0) onFirstRead()
+    }
+
+    operator fun contains(area: Area): Boolean = (bits.get() and (1 shl area.ordinal)) != 0
+}
+
+/**
  * Everything the UI needs, held in memory. It's made of one part per [Area] (#60): a write rebuilds only the parts it
  * changed and shares the rest with the previous snapshot, so saving a set never re-reads photos or body values.
+ * A screen's view of it ([viewFor]) shares the same parts and records which of them the screen reads.
  */
 class Snapshot internal constructor(
-    internal val library: LibraryPart,
-    internal val setPart: SetPart,
-    internal val notes: NotesPart,
-    internal val body: BodyPart,
-    internal val photoPart: PhotoPart,
+    library: LibraryPart,
+    setPart: SetPart,
+    notes: NotesPart,
+    body: BodyPart,
+    photoPart: PhotoPart,
     val weightUnit: String,
     val photoDir: File,
     /** The first day of the week, 1 = Monday … 7 = Sunday (#7). */
     val weekStart: Int = 1,
     /** The global distance unit (#7); an exercise may have its own, see [distanceUnit]. */
-    val globalDistanceUnit: String = DistanceUnits.KM
+    val globalDistanceUnit: String = DistanceUnits.KM,
+    /** Set on a screen's view: where the areas it reads are recorded. */
+    private val reads: AreaReads? = null,
+    /** [allDates], when a view shares it with the snapshot it was made from. */
+    dates: List<String>? = null
 ) {
+    private val libraryData = library
+    private val setData = setPart
+    private val notesData = notes
+    private val bodyData = body
+    private val photoData = photoPart
+
+    internal val library: LibraryPart get() { reads?.mark(Area.LIBRARY); return libraryData }
+    internal val setPart: SetPart get() { reads?.mark(Area.SETS); return setData }
+    internal val notes: NotesPart get() { reads?.mark(Area.NOTES); return notesData }
+    internal val body: BodyPart get() { reads?.mark(Area.BODY); return bodyData }
+    internal val photoPart: PhotoPart get() { reads?.mark(Area.PHOTOS); return photoData }
+
     /** A snapshot with its sets replaced, for a write that changed only those. */
     internal fun replacing(setPart: SetPart): Snapshot =
-        Snapshot(library, setPart, notes, body, photoPart, weightUnit, photoDir, weekStart, globalDistanceUnit)
+        Snapshot(libraryData, setPart, notesData, bodyData, photoData, weightUnit, photoDir, weekStart, globalDistanceUnit)
+
+    /** This snapshot as one screen sees it (#60): the same data, recording into [reads] the areas the screen reads. */
+    internal fun viewFor(reads: AreaReads): Snapshot = Snapshot(
+        libraryData, setData, notesData, bodyData, photoData, weightUnit, photoDir, weekStart, globalDistanceUnit,
+        reads, dateList
+    )
+
+    /**
+     * Whether [newer] differs from this snapshot in a unit or week setting, or in an area [reads] has seen read: when
+     * it doesn't, a screen that has read only those areas would show exactly the same thing from either.
+     */
+    internal fun changedIn(newer: Snapshot, reads: AreaReads): Boolean =
+        weightUnit != newer.weightUnit || weekStart != newer.weekStart || globalDistanceUnit != newer.globalDistanceUnit ||
+            (Area.LIBRARY in reads && libraryData !== newer.libraryData) ||
+            (Area.SETS in reads && setData !== newer.setData) ||
+            (Area.NOTES in reads && notesData !== newer.notesData) ||
+            (Area.BODY in reads && bodyData !== newer.bodyData) ||
+            (Area.PHOTOS in reads && photoData !== newer.photoData)
 
     /**
      * What training calculations depend on (#60): the library, the sets, the workout notes and times, and the units.
@@ -242,10 +295,15 @@ class Snapshot internal constructor(
     val undatedPhotos: List<Photo> get() = photoPart.undatedPhotos
     val reviewPhotos: List<Photo> get() = photoPart.reviewPhotos
 
-    /** Every date that has anything on it, newest first. */
-    val allDates: List<String> =
-        (setsByDate.keys + recordsByDate.keys + photosByDate.keys + workoutComments.keys)
+    private val dateList: List<String> = dates
+        ?: (setData.setsByDate.keys + bodyData.recordsByDate.keys + photoData.photosByDate.keys + notesData.workoutComments.keys)
             .toSortedSet().toList().reversed()
+
+    /** Every date that has anything on it, newest first. */
+    val allDates: List<String> get() {
+        reads?.let { r -> r.mark(Area.SETS); r.mark(Area.BODY); r.mark(Area.PHOTOS); r.mark(Area.NOTES) }
+        return dateList
+    }
 
     fun photoFile(p: Photo): File = File(photoDir, p.file)
 
