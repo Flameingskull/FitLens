@@ -4,7 +4,7 @@
 
 **Your workouts, body stats and progress photos in one private Android app.**
 
-*Formerly FitLens. Renamed FlexNotes in 1.0.123; it installs over the old app as an update and keeps all your data.*
+*Formerly FitLens. Renamed FlexNotes in 1.0.124; it installs over the old app as an update and keeps all your data.*
 
 [![Latest release](https://img.shields.io/github/v/release/Flameingskull/FlexNotes?label=latest%20release)](https://github.com/Flameingskull/FlexNotes/releases/latest)
 [![Build](https://github.com/Flameingskull/FlexNotes/actions/workflows/build.yml/badge.svg)](https://github.com/Flameingskull/FlexNotes/actions/workflows/build.yml)
@@ -49,7 +49,7 @@ custom metrics.
   Room, Android's standard database library ([#36](https://github.com/Flameingskull/FlexNotes/issues/36)): every
   upgrade is checked against a recorded layout, and every read and save goes through queries checked when the app is
   built. From 1.0.119 to 1.0.122 big workout changes, photo dates and screen updates got faster and more accurate (photos
-  can now re-read their dates from their metadata), and in 1.0.123 the app was renamed FlexNotes. Next come accessibility checks on a real phone ([#157](https://github.com/Flameingskull/FlexNotes/issues/157)),
+  can now re-read their dates from their metadata), and in 1.0.124 the app was renamed FlexNotes. Next come accessibility checks on a real phone ([#157](https://github.com/Flameingskull/FlexNotes/issues/157)),
   measuring save speed on a long history ([#60](https://github.com/Flameingskull/FlexNotes/issues/60)) and the
   [feature request list](https://github.com/Flameingskull/FlexNotes/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 - **FitNotes stays supported** as an import source. You can import during first-run setup or at any time afterwards.

@@ -4,7 +4,7 @@ Native Android app (Kotlin, Jetpack Compose) that pairs FitNotes backup data wit
 GitHub: `Flameingskull/FlexNotes` (public). The `gh` CLI is signed in on the owner's PC. Builds 1.0.1–1.0.3 and the
 old history live in the private `Flameingskull/FitLens-private-archive`.
 
-**Name (owner, 2026-10-07, 1.0.123):** the app is **FlexNotes** (that capitalisation), formerly FitLens; the repo was
+**Name (owner, 2026-10-07, 1.0.124):** the app is **FlexNotes** (that capitalisation), formerly FitLens; the repo was
 renamed to match. Hidden identifiers that existing installs depend on keep the old name on purpose and must not be
 renamed: `applicationId` and the Kotlin package `com.fitlens.companion`, `fitlens.db`, the stored source value
 `Sources.FLEXNOTES = "fitlens"`, the WorkManager and DataStore names, and the `FITLENS_*` signing secrets and env vars.
@@ -47,7 +47,7 @@ New backups are `.flexnotes`; `.fitlens` files and `FitLens_auto_` backups still
    API level Google Play then requires, raising AGP and Gradle with it, and review that version's behaviour changes.
    Never let an update touch `applicationId`, the signing setup, the signing secrets or `BUILD_OFFSET`.
 7. **Refresh the README every 5 releases**, both on GitHub and locally. Rewrite `README.md` so it matches the app as
-   released, its purpose and direction, and every other section. Last refresh: **1.0.123**. Next due: **1.0.128**.
+   released, its purpose and direction, and every other section. Last refresh: **1.0.124**. Next due: **1.0.129**.
    The `/new-build`, `/safe-build` and `/slice-build` skills check this in their release-notes step.
 
 ## Product direction (owner decisions, 2026-09-23)
@@ -132,7 +132,8 @@ the editor. GitHub issues stay the source of truth; the tracker is a read-model 
 a backlog item only in the tracker, and never let the tracker decide what ships.
 
 Every open issue has exactly one tracker item, imported through the `github-issues` importer so it carries an
-`origin` back-link (`tracker_import`, provider `github-issues`, external id `Flameingskull/FlexNotes#N`). Re-importing
+`origin` back-link (`tracker_import`, provider `github-issues`, external id `Flameingskull/FlexNotes#N`; items imported before the 1.0.124 rename carry `Flameingskull/FitLens#N`,
+so check for an existing item by issue number before importing again). Re-importing
 an issue is safe: it returns the existing item instead of duplicating it.
 
 Field mapping, kept in step by whichever agent changed the labels:

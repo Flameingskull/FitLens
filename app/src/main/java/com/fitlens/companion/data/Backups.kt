@@ -32,7 +32,7 @@ object Backups {
 
     const val FORMAT = 1
     const val EXTENSION = "flexnotes"
-    /** Backups made before the rename to FlexNotes (1.0.123) end in `.fitlens`; they restore and prune the same way. */
+    /** Backups made before the rename to FlexNotes (1.0.124) end in `.fitlens`; they restore and prune the same way. */
     const val LEGACY_EXTENSION = "fitlens"
     /** Generic type so storage providers keep the .flexnotes name instead of appending .zip. */
     const val MIME = "application/octet-stream"
