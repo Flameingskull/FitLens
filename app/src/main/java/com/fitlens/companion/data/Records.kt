@@ -21,7 +21,7 @@ object Records {
     /**
      * The estimated-1RM formulas the user can choose from (#42), each with the most reps it's valid for: sets above
      * that aren't estimated. [key] is what's stored in `meta` (`PortableSettings.e1rmFormula`).
-     * - Automatic: FitLens's choice by rep range, following the validation studies, see [factor].
+     * - Automatic: FlexNotes's choice by rep range, following the validation studies, see [factor].
      * - Epley (1985): 1 + r/30. Widely used; a little high at low reps.
      * - Brzycki (1993): 36 / (37 − r). Accurate to about 10 reps, then climbs steeply.
      * - Lombardi (1989): r^0.10. A flat curve, conservative at higher reps.

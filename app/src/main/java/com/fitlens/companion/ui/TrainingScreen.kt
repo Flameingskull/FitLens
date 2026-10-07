@@ -82,7 +82,7 @@ internal fun isTimeBased(snap: Snapshot, exId: Long, sets: List<SetRow>): Boolea
 
 /**
  * The graph names an exercise offers, in order: the same lists [ExerciseGraphPane] builds (#15 stores the index). A
- * time-based FitLens type that also records weight or reps (#14) gets those graphs after the time ones, and FitNotes's
+ * time-based FlexNotes type that also records weight or reps (#14) gets those graphs after the time ones, and FitNotes's
  * extra graphs (#22) come after the older ones, so a saved default graph keeps pointing at the same graph. The names
  * are FitNotes's (#22): "Estimated 1RM", "Workout volume", "Workout reps".
  */
@@ -903,7 +903,7 @@ fun ExerciseHistoryPane(snap: Snapshot, nav: Nav, exId: Long) {
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
-                    // FitLens's extras under the sets: the day's totals (#22) and Copy to today, with Undo.
+                    // FlexNotes's extras under the sets: the day's totals (#22) and Copy to today, with Undo.
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             dayTotals(res, snap, exId, l),

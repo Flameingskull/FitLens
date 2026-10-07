@@ -1,6 +1,6 @@
 ---
 name: slice-build
-description: Owner-triggered FitLens build that ships exactly one small item or one complete slice of an issue, with no agents and a hard size cap. The single-slice mode that /safe-build used to be. Run it only when the owner types /slice-build.
+description: Owner-triggered FlexNotes build that ships exactly one small item or one complete slice of an issue, with no agents and a hard size cap. The single-slice mode that /safe-build used to be. Run it only when the owner types /slice-build.
 disable-model-invocation: true
 argument-hint: "[auto | one issue number, e.g. 23]"
 ---

@@ -17,9 +17,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * The FitNotes import (#40): a small synthetic FitNotes backup, built here, merged into a fresh FitLens database with
- * [FitNotesImporter.merge]. Imports only add: they never delete, edit or overwrite FitLens data, a second import of
- * the same backup adds nothing, and the renames and deletions made in FitLens are respected (conflict rules in
+ * The FitNotes import (#40): a small synthetic FitNotes backup, built here, merged into a fresh FlexNotes database with
+ * [FitNotesImporter.merge]. Imports only add: they never delete, edit or overwrite FlexNotes data, a second import of
+ * the same backup adds nothing, and the renames and deletions made in FlexNotes are respected (conflict rules in
  * `Workouts`).
  */
 @RunWith(RobolectricTestRunner::class)
@@ -28,20 +28,20 @@ class FitNotesImporterTest {
 
     private lateinit var app: Application
     private lateinit var backup: File
-    private lateinit var fitlens: Db
+    private lateinit var flexnotes: Db
 
     @Before
     fun setUp() {
         app = ApplicationProvider.getApplicationContext()
         app.deleteDatabase(Db.NAME)
-        fitlens = Db(app)
+        flexnotes = Db(app)
         backup = File(app.cacheDir, "test.fitnotes")
         OldSchemas.create(backup, 1, fitNotesSchema) { fillBackup(it) }
     }
 
     @After
     fun tearDown() {
-        fitlens.close()
+        flexnotes.close()
         app.deleteDatabase(Db.NAME)
         backup.delete()
     }
@@ -83,12 +83,12 @@ class FitNotesImporterTest {
      * Off the main thread, because Room refuses queries on it and Robolectric runs tests there.
      */
     private fun import(apply: Boolean = true): ImportPlan =
-        runBlocking(Dispatchers.IO) { FitNotesImporter.runMerge(backup, apply, fitlens) }
+        runBlocking(Dispatchers.IO) { FitNotesImporter.runMerge(backup, apply, flexnotes) }
 
-    private val db: SupportSQLiteDatabase get() = fitlens.writableDatabase
+    private val db: SupportSQLiteDatabase get() = flexnotes.writableDatabase
 
     @Test
-    fun importIntoAnEmptyFitLensAddsEverything() {
+    fun importIntoAnEmptyFlexNotesAddsEverything() {
         val plan = import()
         assertEquals(2, plan.categoriesAdded)
         assertEquals(2, plan.exercisesAdded)
@@ -114,29 +114,29 @@ class FitNotesImporterTest {
     }
 
     @Test
-    fun fitLensDataIsKeptAndMatchedNotOverwritten() {
-        // FitLens already has its own Bench Press (different case), one identical set and a comment on that day.
-        val bench = db.row("exercise", "name" to "bench press", "category_id" to 0L, "source" to Sources.FITLENS, "notes" to "Mine")
-        db.row("workout_set", "exercise_id" to bench, "date" to "2026-01-10", "weight" to 100.0, "reps" to 5, "source" to Sources.FITLENS)
-        db.row("workout_comment", "date" to "2026-01-10", "comment" to "Logged in FitLens", "source" to Sources.FITLENS)
+    fun flexNotesDataIsKeptAndMatchedNotOverwritten() {
+        // FlexNotes already has its own Bench Press (different case), one identical set and a comment on that day.
+        val bench = db.row("exercise", "name" to "bench press", "category_id" to 0L, "source" to Sources.FLEXNOTES, "notes" to "Mine")
+        db.row("workout_set", "exercise_id" to bench, "date" to "2026-01-10", "weight" to 100.0, "reps" to 5, "source" to Sources.FLEXNOTES)
+        db.row("workout_comment", "date" to "2026-01-10", "comment" to "Logged in FlexNotes", "source" to Sources.FLEXNOTES)
 
         val plan = import()
-        // Matched by name, so no second Bench Press, and the FitLens exercise is left exactly as it was.
+        // Matched by name, so no second Bench Press, and the FlexNotes exercise is left exactly as it was.
         assertEquals(1, plan.exercisesAdded)
         assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE lower(name)='bench press'"))
         assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE id=? AND name='bench press' AND notes='Mine' AND source='fitlens'", bench.toString()))
-        // Identical sets are counted: one of the three is already there, so two are added and the FitLens one stays.
+        // Identical sets are counted: one of the three is already there, so two are added and the FlexNotes one stays.
         assertEquals(3, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=? AND weight=100 AND reps=5", bench.toString()))
         assertEquals(1, db.count("SELECT COUNT(*) FROM workout_set WHERE exercise_id=? AND source='fitlens'", bench.toString()))
-        // The FitLens comment is still there; the FitNotes one is added beside it, never over it.
-        assertEquals(1, db.count("SELECT COUNT(*) FROM workout_comment WHERE comment='Logged in FitLens' AND source='fitlens'"))
+        // The FlexNotes comment is still there; the FitNotes one is added beside it, never over it.
+        assertEquals(1, db.count("SELECT COUNT(*) FROM workout_comment WHERE comment='Logged in FlexNotes' AND source='fitlens'"))
         assertEquals(2, db.count("SELECT COUNT(*) FROM workout_comment WHERE date='2026-01-10'"))
     }
 
     @Test
-    fun renamesAndDeletionsMadeInFitLensAreRespected() {
-        // The user renamed Bench Press to "Barbell Bench" and deleted Squat, both in FitLens.
-        val barbell = db.row("exercise", "name" to "Barbell Bench", "category_id" to 0L, "source" to Sources.FITLENS)
+    fun renamesAndDeletionsMadeInFlexNotesAreRespected() {
+        // The user renamed Bench Press to "Barbell Bench" and deleted Squat, both in FlexNotes.
+        val barbell = db.row("exercise", "name" to "Barbell Bench", "category_id" to 0L, "source" to Sources.FLEXNOTES)
         db.row("import_rule", "kind" to Workouts.RULE_EXERCISE, "key" to Workouts.nameKey("Bench Press"), "target_id" to barbell)
         db.row("import_rule", "kind" to Workouts.RULE_EXERCISE, "key" to Workouts.nameKey("Squat"), "target_id" to null)
 
@@ -149,10 +149,10 @@ class FitNotesImporterTest {
     }
 
     @Test
-    fun anImportNeverDeletesFitLensRows() {
-        val mine = db.row("exercise", "name" to "Face Pull", "category_id" to 0L, "source" to Sources.FITLENS)
-        db.row("workout_set", "exercise_id" to mine, "date" to "2026-01-11", "weight" to 20.0, "reps" to 15, "source" to Sources.FITLENS)
-        db.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-01-11", "value" to 81.0, "source" to Sources.FITLENS)
+    fun anImportNeverDeletesFlexNotesRows() {
+        val mine = db.row("exercise", "name" to "Face Pull", "category_id" to 0L, "source" to Sources.FLEXNOTES)
+        db.row("workout_set", "exercise_id" to mine, "date" to "2026-01-11", "weight" to 20.0, "reps" to 15, "source" to Sources.FLEXNOTES)
+        db.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-01-11", "value" to 81.0, "source" to Sources.FLEXNOTES)
         import()
         import()
         assertEquals(1, db.count("SELECT COUNT(*) FROM exercise WHERE name='Face Pull'"))
@@ -197,7 +197,7 @@ class FitNotesImporterTest {
     @Test
     fun bodyValuesAreAddedOnceAndUserEditsToADefinitionWin() {
         withMeasurements()
-        // The user reordered Waist and set its goal in FitLens, and logged the same Bodyweight value by hand.
+        // The user reordered Waist and set its goal in FlexNotes, and logged the same Bodyweight value by hand.
         db.execSQL("DELETE FROM measurement WHERE name='Waist'")
         db.row("measurement", "name" to "Waist", "unit" to "in", "sort_order" to 7, "goal_type" to 1, "goal_value" to 30.0, "edited" to 1)
         db.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-01-11", "time" to "12:00:00", "value" to 81.5, "source" to "manual")
@@ -206,7 +206,7 @@ class FitNotesImporterTest {
         assertEquals(2, plan.recordsAdded)
         assertEquals(1, plan.recordsSkipped)
         assertEquals(2, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Bodyweight'"))
-        // The unit follows FitNotes; the order and goal set in FitLens are kept.
+        // The unit follows FitNotes; the order and goal set in FlexNotes are kept.
         assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Waist' AND unit='cm' AND sort_order=7 AND goal_type=1 AND goal_value=30"))
 
         val again = import()
@@ -232,11 +232,11 @@ class FitNotesImporterTest {
             "2026-01-11,07:00:00,Chest,not a number,cm,",
             ""
         )
-        val first = runBlocking(Dispatchers.IO) { FitNotesImporter.mergeBodyCsv(lines, fitlens) }
+        val first = runBlocking(Dispatchers.IO) { FitNotesImporter.mergeBodyCsv(lines, flexnotes) }
         assertEquals(2 to 0, first)
         assertEquals(1, db.count("SELECT COUNT(*) FROM mrecord WHERE comment='Light, after cardio' AND source='csv'"))
         assertEquals(1, db.count("SELECT COUNT(*) FROM measurement WHERE name='Bodyweight'"))
-        val again = runBlocking(Dispatchers.IO) { FitNotesImporter.mergeBodyCsv(lines, fitlens) }
+        val again = runBlocking(Dispatchers.IO) { FitNotesImporter.mergeBodyCsv(lines, flexnotes) }
         assertEquals(0 to 2, again)
         assertEquals(2, db.count("SELECT COUNT(*) FROM mrecord WHERE name='Bodyweight'"))
     }

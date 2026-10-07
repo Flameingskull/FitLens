@@ -81,7 +81,7 @@ class TimerService : Service() {
 
     companion object {
         private const val CHANNEL_ONGOING = "timers"
-        // The alert channel is silent since 1.0.44: FitLens plays the chosen sound itself, at its own volume (#20).
+        // The alert channel is silent since 1.0.44: FlexNotes plays the chosen sound itself, at its own volume (#20).
         // A channel's sound can't be changed once created, hence a new id and the old one deleted.
         private const val CHANNEL_ALERT = "timer_alerts_v2"
         private const val OLD_CHANNEL_ALERT = "timer_alerts"
@@ -101,7 +101,7 @@ class TimerService : Service() {
 
         /**
          * Brings the notification up to date: updates the running service, or starts it when a timer has just
-         * started. Starting can fail if FitLens is in the background; the timers still run while the app does.
+         * started. Starting can fail if FlexNotes is in the background; the timers still run while the app does.
          */
         fun refresh(context: Context) {
             val running = instance
@@ -132,7 +132,7 @@ class TimerService : Service() {
             channels(context)
             val n = NotificationCompat.Builder(context, CHANNEL_ALERT)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                // The FitLens character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
+                // The FlexNotes character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
                 // stay a plain glyph: Android keeps only its outline.
                 .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_character))
                 .setColor(Brand.Gold.toArgb())
@@ -191,7 +191,7 @@ class TimerService : Service() {
             val workout = workoutStart()
             val b = NotificationCompat.Builder(context, CHANNEL_ONGOING)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                // The FitLens character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
+                // The FlexNotes character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
                 // stay a plain glyph: Android keeps only its outline.
                 .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_character))
                 .setColor(Brand.Gold.toArgb())

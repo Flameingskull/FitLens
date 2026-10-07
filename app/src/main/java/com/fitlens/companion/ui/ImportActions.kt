@@ -44,7 +44,7 @@ object AppScope {
      * The busy overlay is cleared too: a job that died on its way to `finally` would otherwise leave it stuck.
      */
     private val reportErrors = CoroutineExceptionHandler { _, e ->
-        Log.e("FitLens", "Background job failed", e)
+        Log.e("FlexNotes", "Background job failed", e)
         UiEvents.busy.value = null
         UiEvents.show(failure(e.message ?: e::class.java.simpleName), ResultLevel.Failure)
     }

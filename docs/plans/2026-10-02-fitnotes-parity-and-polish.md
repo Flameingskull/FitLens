@@ -173,18 +173,18 @@ with Build A's auto-advance, so the next exercise opens with its rest already co
 
 For each group:
 
-1. Lay the FitLens screen beside the FitNotes screenshots in `nimbalyst-local/fitnotes-screens/2026-09-28/`
+1. Lay the FlexNotes screen beside the FitNotes screenshots in `nimbalyst-local/fitnotes-screens/2026-09-28/`
    (1–14).
 2. List every difference: element, position, size, order, spacing, wording and behaviour.
 3. Fix all of them.
 
-The visual rule is FitNotes's structure, with the FitLens skin applied only to surfaces:
+The visual rule is FitNotes's structure, with the FlexNotes skin applied only to surfaces:
 
 - **Lists, labels and values float on the glass, without boxes.** `raisedGlass` stays only where FitNotes has a
   card or a button.
 - Gold hairlines take the place of FitNotes's blue rules.
 
-FitLens-only screens follow the same pattern.
+FlexNotes-only screens follow the same pattern.
 
 | Build | Screen group | Main files |
 | --- | --- | --- |
@@ -193,7 +193,7 @@ FitLens-only screens follow the same pattern.
 | F | Library, categories, routine switcher, workout editor (#83, #91, #126) | `ExerciseLibrary.kt`, `WorkoutEditorScreen.kt`, `WorkoutSheets.kt` |
 | G | Calendar, Body tracker and measurement | `CalendarScreen.kt`, `BodyScreen.kt`, `BodyMeasurementScreen.kt` |
 | H | Analysis and Settings | `AnalysisScreen.kt`, `AnalysisTabs.kt`, `BreakdownTab.kt`, `SettingsScreen.kt`, `design/SettingsRows.kt` |
-| I | FitLens-only screens: photos, viewer, slideshow, PDF (#92) | `PhotosScreen.kt`, `PhotoViewerScreen.kt`, `SlideshowScreen.kt` |
+| I | FlexNotes-only screens: photos, viewer, slideshow, PDF (#92) | `PhotosScreen.kt`, `PhotoViewerScreen.kt`, `SlideshowScreen.kt` |
 
 The shared pieces in `ui/design/` change first in Build D, so later groups inherit them: `FitTopBar`, `FitTabRow`,
 `SetRow`, `ExerciseCard` and `SettingsRows`.

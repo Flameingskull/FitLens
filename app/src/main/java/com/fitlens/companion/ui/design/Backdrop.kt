@@ -16,7 +16,7 @@ import androidx.compose.ui.res.painterResource
 import com.fitlens.companion.R
 
 /**
- * The full-body FitLens character (the owner's artwork, `branding/fitlens-icon-source.png`, placed unedited) drawn
+ * The full-body FlexNotes character (the owner's artwork, `branding/flexnotes-icon-source.png`, placed unedited) drawn
  * faintly behind every screen, over the ambient glow and under all content. It's kept dim and fades out towards the
  * top and edges, so text and controls stay as legible as before. Decorative: TalkBack skips it.
  */

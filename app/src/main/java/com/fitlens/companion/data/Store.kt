@@ -279,7 +279,7 @@ class Snapshot internal constructor(
     /** Every measurement: each definition and each name seen only in records, in the user's order (#88). */
     val allMeasurements: List<MeasurementDef> get() = body.allMeasurements
     /**
-     * Measurements that have at least one record, plus FitLens's own (custom and standard), in the user's order.
+     * Measurements that have at least one record, plus FlexNotes's own (custom and standard), in the user's order.
      * Those switched off on the Measurements screen are left out everywhere they'd be shown (#27).
      */
     val usedMeasurements: List<MeasurementDef> get() = body.usedMeasurements
@@ -660,7 +660,7 @@ object Store {
     }
 
     /**
-     * Adds the [StandardMeasurements] not already present (ignoring capitals) as FitLens's own measurements, after the
+     * Adds the [StandardMeasurements] not already present (ignoring capitals) as FlexNotes's own measurements, after the
      * existing ones. Existing measurements aren't touched. Returns how many were added.
      */
     suspend fun addStandardMeasurements(): Int = withContext(Dispatchers.IO) {

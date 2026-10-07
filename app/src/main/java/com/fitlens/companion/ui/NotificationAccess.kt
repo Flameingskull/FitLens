@@ -25,13 +25,13 @@ import com.fitlens.companion.ui.design.SettingsNote
 
 /**
  * Notifications as the settings that use them ask for them (#41, section 5.4). Switching such a setting on calls
- * [ask] with a one-line reason; FitLens shows the reason first, then Android's request (or, before Android 13, the
+ * [ask] with a one-line reason; FlexNotes shows the reason first, then Android's request (or, before Android 13, the
  * phone's notification settings). The settings still work in the app without notifications, so a setting stays on
  * when they're refused, and [NotificationsOffNote] under it says they're off, with a way to turn them on.
  */
 @Stable
 class NotificationAccess internal constructor(granted: Boolean) {
-    /** Whether FitLens may post notifications, read again each time the screen comes back. */
+    /** Whether FlexNotes may post notifications, read again each time the screen comes back. */
     var granted by mutableStateOf(granted)
         internal set
     internal var reason by mutableStateOf<String?>(null)
@@ -80,11 +80,11 @@ fun NotificationsOffNote(access: NotificationAccess, settingOn: Boolean) {
     SettingsActionRow(stringResource(R.string.notify_open_settings)) { openNotificationSettings(ctx) }
 }
 
-/** Whether FitLens may post notifications: the permission on Android 13+, and not switched off for the app. */
+/** Whether FlexNotes may post notifications: the permission on Android 13+, and not switched off for the app. */
 fun notificationsAllowed(context: Context): Boolean =
     TimerService.canNotify(context) && NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-/** Opens FitLens's page in the phone's notification settings, or its app page where that isn't offered. */
+/** Opens FlexNotes's page in the phone's notification settings, or its app page where that isn't offered. */
 fun openNotificationSettings(context: Context) {
     val app = Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS)
         .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)

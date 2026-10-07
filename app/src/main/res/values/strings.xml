@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FitLens</string>
+    <string name="app_name">FlexNotes</string>
 
     <!-- User-defined exercise types (#14). The first screen built from string resources (#94). -->
     <string name="type_new_title">New exercise type</string>
@@ -174,7 +174,7 @@
     <string name="settings_heading_settings">Settings</string>
     <string name="settings_heading_data">Data</string>
     <string name="settings_heading_other">Other</string>
-    <string name="settings_travel_note">These preferences travel with your .fitlens backups.</string>
+    <string name="settings_travel_note">These preferences travel with your .flexnotes backups.</string>
     <string name="settings_page_backups">Backup and restore</string>
     <string name="settings_page_import">Import from FitNotes</string>
     <string name="settings_page_data_tools">Export and delete history</string>
@@ -182,11 +182,11 @@
     <string name="settings_page_rest">Rest Timer</string>
     <string name="settings_page_media">Progress photos and media</string>
     <string name="settings_page_help">Help</string>
-    <string name="settings_page_about">About FitLens</string>
+    <string name="settings_page_about">About FlexNotes</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_kw">dark colour colours look black gold</string>
     <string name="settings_theme_value">Black and gold</string>
-    <string name="settings_theme_message">FitLens has one look: luxury black and gold.</string>
+    <string name="settings_theme_message">FlexNotes has one look: luxury black and gold.</string>
     <string name="settings_unit_system">Unit System</string>
     <string name="settings_unit_system_kw">metric imperial kg lbs km miles cm inches</string>
     <string name="settings_metric">Metric</string>
@@ -268,7 +268,7 @@
     <string name="settings_media_kw">photos pose slideshow video pdf report group</string>
     <string name="settings_media_summary">The pose for new photos, how the gallery is grouped, and the slideshow, video and PDF defaults</string>
     <string name="settings_backup">Backup</string>
-    <string name="settings_backup_kw">save share fitlens file</string>
+    <string name="settings_backup_kw">save share flexnotes file</string>
     <string name="settings_backup_summary">Back up your data to a file, then keep it off your phone or share it with an app you choose</string>
     <string name="settings_restore">Restore</string>
     <string name="settings_restore_kw">restore backup file</string>
@@ -287,13 +287,13 @@
     <string name="settings_delete_history_kw">erase remove clear</string>
     <string name="settings_delete_history_summary">Delete selected workouts while keeping the rest of your data intact</string>
     <string name="settings_reset">Reset Settings to Defaults</string>
-    <string name="settings_reset_summary">Put units, the rest timer, logging and display options back as they were when FitLens was new</string>
+    <string name="settings_reset_summary">Put units, the rest timer, logging and display options back as they were when FlexNotes was new</string>
     <string name="settings_import">Import From FitNotes</string>
     <string name="settings_import_kw">fitnotes backup merge sync folder</string>
-    <string name="settings_import_summary">Merge a FitNotes backup into FitLens, or sync its backup folder</string>
+    <string name="settings_import_summary">Merge a FitNotes backup into FlexNotes, or sync its backup folder</string>
     <string name="settings_help">Help</string>
     <string name="settings_help_kw">guide instructions readme how to</string>
-    <string name="settings_help_summary">Short guides to each feature, and the full FitLens guide</string>
+    <string name="settings_help_summary">Short guides to each feature, and the full FlexNotes guide</string>
     <string name="settings_feedback">Feedback</string>
     <string name="settings_feedback_kw">bug report feature request issue</string>
     <string name="settings_feedback_summary">Report a problem or suggest a feature on GitHub</string>
@@ -305,7 +305,7 @@
     <string name="settings_setup_summary">Units, automatic backups, FitNotes import, photos and the starter library</string>
     <string name="settings_privacy">Privacy Policy</string>
     <string name="settings_privacy_kw">privacy data local offline</string>
-    <string name="settings_privacy_summary">FitLens keeps everything on this phone: no account, cloud or internet</string>
+    <string name="settings_privacy_summary">FlexNotes keeps everything on this phone: no account, cloud or internet</string>
     <string name="settings_about">About</string>
     <string name="settings_about_kw">version privacy local licences</string>
     <string name="settings_about_summary">Version, privacy, open-source licences and links</string>
@@ -350,7 +350,7 @@
     <string name="rest_group_over">When rest is over</string>
     <string name="rest_keeps_running">The timer keeps running as you move between exercises, and with the screen off.</string>
     <string name="search_backup_file">Save, share or restore a backup</string>
-    <string name="search_backup_file_kw">fitlens file export</string>
+    <string name="search_backup_file_kw">flexnotes file export</string>
     <string name="search_auto_backups">Automatic backups</string>
     <string name="search_auto_backups_kw">schedule daily weekly folder</string>
     <string name="search_backup_names">Date and time in backup names</string>
@@ -427,7 +427,7 @@
     <string name="data_csv_saved">CSV saved.</string>
     <string name="data_csv_create_failed">Couldn\'t create the CSV file: %1$s</string>
     <string name="data_csv_group">Export as CSV</string>
-    <string name="data_csv_note">For spreadsheets such as Excel or Google Sheets. FitLens can\'t restore from a CSV file: use a backup for that.</string>
+    <string name="data_csv_note">For spreadsheets such as Excel or Google Sheets. FlexNotes can\'t restore from a CSV file: use a backup for that.</string>
     <string name="data_kind">Data</string>
     <string name="data_kind_workouts">Workouts</string>
     <string name="data_kind_body">Body data</string>
@@ -512,7 +512,7 @@
     <string name="cancel">Cancel</string>
     <string name="backup_busy_undo">Putting your previous data back…</string>
     <string name="backup_busy_checking">Checking backup…</string>
-    <string name="backup_not_fitlens">That isn\'t a FitLens backup file.</string>
+    <string name="backup_not_flexnotes">That isn\'t a FlexNotes backup file.</string>
     <string name="backup_busy_saving">Saving backup…</string>
     <string name="backup_busy_first_auto">Saving the first automatic backup…</string>
     <string name="backup_busy_pdf">Creating PDF…</string>
@@ -521,26 +521,26 @@
     <string name="backup_local_note">Everything stays on your devices. No account or internet connection is needed.</string>
     <string name="backup_group_file">Backup file</string>
     <string name="backup_save">Save backup</string>
-    <string name="backup_save_summary">One .fitlens file with all your data and photos. Keep a copy off your phone (computer, USB drive or SD card) to restore after reinstalling FitLens or on a new phone.</string>
+    <string name="backup_save_summary">One .flexnotes file with all your data and photos. Keep a copy off your phone (computer, USB drive or SD card) to restore after reinstalling FlexNotes or on a new phone.</string>
     <string name="backup_share">Share backup</string>
-    <string name="backup_share_summary">Send it with an app you already use, such as email, Drive or Dropbox. FitLens itself never uploads anything.</string>
+    <string name="backup_share_summary">Send it with an app you already use, such as email, Drive or Dropbox. FlexNotes itself never uploads anything.</string>
     <string name="backup_restore">Restore a backup</string>
     <string name="backup_restore_summary">Shows what the file holds before anything is replaced.</string>
     <string name="backup_timestamp">Add the date and time to file names</string>
     <string name="backup_group_auto">Automatic backups</string>
     <string name="backup_folder">Backup folder</string>
-    <string name="backup_choose_folder_summary">Choose a folder outside FitLens, such as Documents or an SD card, so backups survive uninstalling.</string>
+    <string name="backup_choose_folder_summary">Choose a folder outside FlexNotes, such as Documents or an SD card, so backups survive uninstalling.</string>
     <string name="backup_now">Back up now</string>
     <string name="backup_busy_now">Backing up…</string>
     <string name="backup_off">Off</string>
     <string name="backup_daily">Daily</string>
     <string name="backup_weekly">Weekly</string>
     <string name="backup_how_often">How often</string>
-    <string name="backup_how_often_summary">Backups run in the background, even when FitLens is closed, while the battery isn\'t low.</string>
+    <string name="backup_how_often_summary">Backups run in the background, even when FlexNotes is closed, while the battery isn\'t low.</string>
     <string name="backup_keep">Keep the newest</string>
     <string name="backup_keep_summary">Older automatic backups in the folder are deleted. Backups you save yourself are never touched.</string>
     <string name="backup_after">Back up after changes</string>
-    <string name="backup_after_summary">When you leave FitLens after changing something, a backup is saved in the background, at most once an hour.</string>
+    <string name="backup_after_summary">When you leave FlexNotes after changing something, a backup is saved in the background, at most once an hour.</string>
     <string name="backup_group_status">Status</string>
     <string name="backup_last_ok">Last successful backup: %1$s</string>
     <string name="backup_none_yet">No automatic backup yet.</string>
@@ -549,7 +549,7 @@
     <string name="backup_schedule_off">Scheduled backups are off.</string>
     <string name="backup_folder_ok">Backup folder: available</string>
     <string name="backup_folder_ok_free">Backup folder: available · %1$s free</string>
-    <string name="backup_folder_unreachable">FitLens can\'t reach the backup folder. If it\'s on an SD card, check the card is in; otherwise choose the folder again.</string>
+    <string name="backup_folder_unreachable">FlexNotes can\'t reach the backup folder. If it\'s on an SD card, check the card is in; otherwise choose the folder again.</string>
     <string name="backup_last_failed">Last attempt failed (%1$s): %2$s</string>
     <string name="backup_group_safety">Safety copy</string>
     <string name="backup_safety_copy">Safety copy</string>
@@ -559,15 +559,15 @@
     <string name="backup_group_pdf">PDF report</string>
     <string name="backup_pdf_create">Create PDF report</string>
     <string name="backup_pdf_empty">Log a workout, a measurement or a photo first.</string>
-    <string name="backup_pdf_summary">A readable report of your photos, measurements, charts and workouts in the FitLens style. Good for printing or sharing.</string>
+    <string name="backup_pdf_summary">A readable report of your photos, measurements, charts and workouts in the FlexNotes style. Good for printing or sharing.</string>
     <string name="backup_busy_restoring">Restoring backup…</string>
     <string name="backup_undo_title">Put your previous data back?</string>
-    <string name="backup_undo_body">This replaces everything in FitLens now with the safety copy from %1$s. Anything added since then will be lost.</string>
-    <string name="backup_undo_body_unknown">This replaces everything in FitLens now with the safety copy from before the last restore or import. Anything added since then will be lost.</string>
+    <string name="backup_undo_body">This replaces everything in FlexNotes now with the safety copy from %1$s. Anything added since then will be lost.</string>
+    <string name="backup_undo_body_unknown">This replaces everything in FlexNotes now with the safety copy from before the last restore or import. Anything added since then will be lost.</string>
     <string name="restore_title">Restore this backup?</string>
     <string name="restore_made">Made %1$s</string>
-    <string name="restore_made_with">Made %1$s with FitLens %2$s</string>
-    <string name="restore_legacy">An archive from an earlier version of FitLens.</string>
+    <string name="restore_made_with">Made %1$s with FlexNotes %2$s</string>
+    <string name="restore_legacy">An archive from an earlier version of FlexNotes.</string>
     <string name="restore_covers">Covers %1$s – %2$s</string>
     <string name="restore_confirm">Restore</string>
     <string name="report_title">PDF report</string>
@@ -604,8 +604,8 @@
         <item quantity="other">%1$d backups</item>
     </plurals>
     <plurals name="backup_undo_summary">
-        <item quantity="one">FitLens keeps a copy of your data from just before the last restore or import, for %1$d day. Undo puts that data back and replaces what is there now.</item>
-        <item quantity="other">FitLens keeps a copy of your data from just before the last restore or import, for %1$d days. Undo puts that data back and replaces what is there now.</item>
+        <item quantity="one">FlexNotes keeps a copy of your data from just before the last restore or import, for %1$d day. Undo puts that data back and replaces what is there now.</item>
+        <item quantity="other">FlexNotes keeps a copy of your data from just before the last restore or import, for %1$d days. Undo puts that data back and replaces what is there now.</item>
     </plurals>
     <plurals name="restore_photos">
         <item quantity="one">%1$d photo</item>
@@ -620,8 +620,8 @@
         <item quantity="other">%1$d body records</item>
     </plurals>
     <plurals name="restore_warning">
-        <item quantity="one">This replaces everything currently in FitLens on this phone. FitLens keeps a safety copy of the current data for %1$d day so you can undo, but a saved backup off the phone is safer still.</item>
-        <item quantity="other">This replaces everything currently in FitLens on this phone. FitLens keeps a safety copy of the current data for %1$d days so you can undo, but a saved backup off the phone is safer still.</item>
+        <item quantity="one">This replaces everything currently in FlexNotes on this phone. FlexNotes keeps a safety copy of the current data for %1$d day so you can undo, but a saved backup off the phone is safer still.</item>
+        <item quantity="other">This replaces everything currently in FlexNotes on this phone. FlexNotes keeps a safety copy of the current data for %1$d days so you can undo, but a saved backup off the phone is safer still.</item>
     </plurals>
     <plurals name="report_days">
         <item quantity="one">%1$d day</item>
@@ -639,9 +639,9 @@
     <string name="import_nothing_yet">Nothing imported yet.</string>
     <string name="import_last">Last import: %1$s (%2$s)</string>
     <string name="import_file">Import a backup file</string>
-    <string name="import_file_summary">FitNotes backups (.fitnotes, which include everything) and Body Tracker CSV exports. Imports merge: you\'ll see what will be added first, anything already in FitLens is skipped, and nothing you logged or edited in FitLens is deleted or changed.</string>
+    <string name="import_file_summary">FitNotes backups (.fitnotes, which include everything) and Body Tracker CSV exports. Imports merge: you\'ll see what will be added first, anything already in FlexNotes is skipped, and nothing you logged or edited in FlexNotes is deleted or changed.</string>
     <string name="import_open_fitnotes">Open FitNotes</string>
-    <string name="import_open_fitnotes_summary">Make a fresh backup there, then share it straight to FitLens.</string>
+    <string name="import_open_fitnotes_summary">Make a fresh backup there, then share it straight to FlexNotes.</string>
     <string name="import_fitnotes_missing">FitNotes isn\'t installed on this phone.</string>
     <string name="import_group_folder">FitNotes backup folder</string>
     <string name="import_folder_note">For moving over from FitNotes gradually. Choose the folder where FitNotes saves its backups, then tap Sync now to import the newest one.</string>
@@ -650,8 +650,8 @@
     <string name="import_sync_now">Sync now</string>
     <string name="import_sync_now_summary">Imports the newest backup in the folder, if it has changed.</string>
     <string name="import_sync_auto">Sync automatically</string>
-    <string name="import_sync_auto_summary">Off by default. When on, FitLens quietly imports the newest backup each time it opens, if it has changed.</string>
-    <string name="import_read_only_note">FitLens never changes your FitNotes data. It only reads FitNotes backups.</string>
+    <string name="import_sync_auto_summary">Off by default. When on, FlexNotes quietly imports the newest backup each time it opens, if it has changed.</string>
+    <string name="import_read_only_note">FlexNotes never changes your FitNotes data. It only reads FitNotes backups.</string>
     <plurals name="import_sets">
         <item quantity="one">%1$d set</item>
         <item quantity="other">%1$d sets</item>
@@ -690,18 +690,18 @@
     <string name="guide_photos_summary">Importing, poses, comparing and the slideshow</string>
     <string name="guide_photos_1">Open Photos from the day log\'s ⋮ menu. **+** imports photos; the ⋮ menu imports a whole folder and checks photo dates. Each photo can have a pose (front, side, back or other).</string>
     <string name="guide_photos_2">Open a photo to view it full screen, or compare two photos side by side. Tapping a point on a training graph shows the progress photo nearest that date.</string>
-    <string name="guide_photos_3">The ▶ button plays a slideshow, which can be saved as a video in Movies/FitLens. Settings → Progress Photos &amp; Media sets the defaults.</string>
+    <string name="guide_photos_3">The ▶ button plays a slideshow, which can be saved as a video in Movies/FlexNotes. Settings → Progress Photos &amp; Media sets the defaults.</string>
     <string name="guide_pdf">PDF report</string>
     <string name="guide_pdf_summary">A printable summary of your training and photos</string>
     <string name="guide_pdf_1">Settings → Backup and restore → **Create PDF report** makes a report with dark or light pages and up to four photos per day. It\'s made on your phone.</string>
     <string name="guide_backups">Backups and restore</string>
     <string name="guide_backups_summary">Keeping your data safe, on your phone only</string>
-    <string name="guide_backups_1">Settings → Backup and restore saves or shares a .fitlens backup with everything: workouts, body values, photos and settings. Restore replaces what\'s on the phone, after a safety copy.</string>
-    <string name="guide_backups_2">Automatic backups go to a folder you choose, daily or weekly. Nothing is ever uploaded: FitLens has no account, no cloud service and no internet permission.</string>
+    <string name="guide_backups_1">Settings → Backup and restore saves or shares a .flexnotes backup with everything: workouts, body values, photos and settings. Restore replaces what\'s on the phone, after a safety copy.</string>
+    <string name="guide_backups_2">Automatic backups go to a folder you choose, daily or weekly. Nothing is ever uploaded: FlexNotes has no account, no cloud service and no internet permission.</string>
     <string name="guide_import">Importing from FitNotes</string>
     <string name="guide_import_summary">Bring your FitNotes history across</string>
-    <string name="guide_import_1">Settings → Import from FitNotes merges a FitNotes backup into FitLens. Imports only add what\'s missing: they never wipe or overwrite anything you\'ve logged in FitLens.</string>
-    <string name="guide_import_2">You can import again at any time, or let FitLens sync a FitNotes backup folder.</string>
+    <string name="guide_import_1">Settings → Import from FitNotes merges a FitNotes backup into FlexNotes. Imports only add what\'s missing: they never wipe or overwrite anything you\'ve logged in FlexNotes.</string>
+    <string name="guide_import_2">You can import again at any time, or let FlexNotes sync a FitNotes backup folder.</string>
     <string name="guide_analysis">Analysis and graphs</string>
     <string name="guide_analysis_summary">Totals, breakdowns, records and pinned graphs</string>
     <string name="guide_analysis_1">Open Analysis from the day log\'s ⋮ menu: Workouts totals, a Breakdown by category or exercise, every exercise\'s graphs, goals and a records board.</string>
@@ -713,13 +713,13 @@
     <string name="about_all_releases">All releases</string>
     <string name="help_group_guides">Guides</string>
     <string name="help_group_more">More help</string>
-    <string name="help_guide">The FitLens guide</string>
+    <string name="help_guide">The FlexNotes guide</string>
     <string name="help_guide_summary">Every feature in detail, on GitHub</string>
     <string name="help_report">Report a problem or suggest a feature</string>
     <string name="help_report_summary">The bug report and feature request forms</string>
     <string name="help_releases_summary">What changed in every update</string>
-    <string name="help_links_note">These links open in your browser. FitLens itself has no internet access.</string>
-    <string name="about_group_app">FitLens</string>
+    <string name="help_links_note">These links open in your browser. FlexNotes itself has no internet access.</string>
+    <string name="about_group_app">FlexNotes</string>
     <string name="about_copy_hint_toast">Long-press to copy the version details for a bug report</string>
     <string name="about_copied">Version details copied</string>
     <string name="about_click_label">Show how to copy</string>
@@ -729,23 +729,23 @@
     <string name="about_copy_hint">Long-press to copy it with your phone\'s details, for a bug report</string>
     <string name="about_whats_new">What\'s new</string>
     <string name="about_whats_new_summary">This update\'s release notes</string>
-    <string name="about_licences_summary">FitLens, the Manrope font and the libraries it\'s built with</string>
+    <string name="about_licences_summary">FlexNotes, the Manrope font and the libraries it\'s built with</string>
     <string name="about_group_privacy">Privacy</string>
-    <string name="about_privacy">FitLens is a workout log that pairs your training with progress photos. It works entirely on this phone: no account, no cloud service and no internet permission. Your data leaves the phone only in backups, reports, videos and images you save or share yourself.</string>
+    <string name="about_privacy">FlexNotes is a workout log that pairs your training with progress photos. It works entirely on this phone: no account, no cloud service and no internet permission. Your data leaves the phone only in backups, reports, videos and images you save or share yourself.</string>
     <string name="about_group_links">Links</string>
     <string name="about_source">Source code</string>
-    <string name="about_source_summary">FitLens is free and open source</string>
+    <string name="about_source_summary">FlexNotes is free and open source</string>
     <string name="about_report">Report a problem</string>
     <string name="about_report_summary">The bug report form</string>
     <string name="about_releases_summary">Every update and its notes</string>
     <string name="licences_title">Open-source licences</string>
-    <string name="licences_fitlens">MIT License. Copyright (c) 2026 Flameingskull.</string>
+    <string name="licences_flexnotes">MIT License. Copyright (c) 2026 Flameingskull.</string>
     <string name="licences_libraries">Libraries</string>
     <string name="licences_libraries_text">Apache License 2.0: AndroidX (Core, Activity, Lifecycle, Navigation, Compose, Material 3, WorkManager, DataStore, ExifInterface), Kotlin, kotlinx.coroutines, kotlinx.serialization and Coil.</string>
     <string name="licences_manrope">Manrope font</string>
     <string name="licences_ofl">SIL Open Font License 1.1.</string>
     <!-- App shell: start-up and busy states (#93) -->
-    <string name="app_opening_title">Opening FitLens</string>
+    <string name="app_opening_title">Opening FlexNotes</string>
     <string name="app_opening_body">Loading your workouts, measurements and photos.</string>
     <string name="app_open_failed_title">Your data couldn\'t be opened</string>
     <string name="app_open_failed_body">Nothing has been changed or deleted. Try again, and if this keeps happening, restart your phone. Details: %1$s</string>
@@ -780,7 +780,7 @@
     <string name="day_edit_workout_comment">Edit workout comment</string>
     <string name="day_add_workout_comment">Add workout comment</string>
     <string name="day_delete_measurement_title">Delete measurement?</string>
-    <string name="day_delete_measurement_body">%1$s %2$s %3$s (added in FitLens)</string>
+    <string name="day_delete_measurement_body">%1$s %2$s %3$s (added in FlexNotes)</string>
     <string name="day_delete">Delete</string>
     <string name="day_open_photo">Open photo</string>
     <string name="day_add_photo_tile">ADD PHOTO</string>
@@ -1039,7 +1039,7 @@
     <string name="lib_add_starter">Add starter library</string>
     <string name="lib_search_every">Search every exercise</string>
     <string name="lib_empty_title">Your library is empty</string>
-    <string name="lib_empty_body">Create your own exercises, start from FitLens\'s starter library, or import a FitNotes backup from Settings → Import From FitNotes.</string>
+    <string name="lib_empty_body">Create your own exercises, start from FlexNotes\'s starter library, or import a FitNotes backup from Settings → Import From FitNotes.</string>
     <string name="lib_create_exercise">Create an exercise</string>
     <string name="lib_choose_category">Choose a category, or search every exercise.</string>
     <string name="lib_clear">Clear</string>
@@ -1099,7 +1099,7 @@
     <string name="lib_distance_change_note">Distances already logged keep their numbers and are shown in the new unit.</string>
     <string name="lib_rest_time">Rest time</string>
     <string name="lib_opens_graph">Opens on graph</string>
-    <string name="lib_from_fitnotes">This exercise came from FitNotes. Editing it makes it FitLens\'s own; its history is kept and a later import follows the change.</string>
+    <string name="lib_from_fitnotes">This exercise came from FitNotes. Editing it makes it FlexNotes\'s own; its history is kept and a later import follows the change.</string>
     <string name="lib_delete_title">Delete %1$s?</string>
     <string name="lib_delete_unused">Nothing has been logged for it, so nothing else is lost.</string>
     <string name="lib_delete_body">%1$s across %2$s will be deleted with it. This can\'t be undone, and a later FitNotes import won\'t bring them back.</string>
@@ -1152,7 +1152,7 @@
     <string name="wk_not_set">Not set</string>
     <string name="wk_share_heading">Workout · %1$s</string>
     <string name="wk_pr_mark">(PR)</string>
-    <string name="wk_logged_with">Logged with FitLens</string>
+    <string name="wk_logged_with">Logged with FlexNotes</string>
     <string name="wk_workout">Workout</string>
     <string name="wk_share_title">Share workout</string>
     <string name="wk_share">Share</string>
@@ -1736,14 +1736,14 @@
     <string name="ph_select">Select</string>
     <string name="ph_select_all">Select all</string>
     <string name="ph_open">Open</string>
-    <string name="ph_delete_body">They\'re removed from FitLens only — the originals on your phone aren\'t touched.</string>
+    <string name="ph_delete_body">They\'re removed from FlexNotes only — the originals on your phone aren\'t touched.</string>
     <string name="ph_delete_confirm">Delete photos</string>
     <string name="ph_set_pose">Set pose</string>
     <string name="ph_import_body">Applied to every photo in this import. You can change it later for one photo or many, or choose a pose for every new photo in Settings → Progress Photos &amp; Media.</string>
     <string name="ph_cancel_import">Cancel import</string>
     <string name="ph_check_dates">Check photo dates</string>
     <string name="ph_accept_all">Accept every date shown</string>
-    <string name="ph_review_body">These photos had no camera date in their metadata, so FitLens used the file date or found nothing. Accept the date if it\'s right, or set the correct one.</string>
+    <string name="ph_review_body">These photos had no camera date in their metadata, so FlexNotes used the file date or found nothing. Accept the date if it\'s right, or set the correct one.</string>
     <string name="ph_all_checked">All photo dates checked</string>
     <string name="ph_all_checked_body">Every photo is matched to a date.</string>
     <string name="ph_back_to_photos">Back to photos</string>
@@ -1797,7 +1797,7 @@
     <string name="pv_near_before">"  (≈ %1$dd before)"</string>
     <string name="pv_near_after">"  (≈ %1$dd after)"</string>
     <string name="pv_delete_title">Delete this photo?</string>
-    <string name="pv_delete_body">It\'s removed from FitLens only — the original on your phone isn\'t touched.</string>
+    <string name="pv_delete_body">It\'s removed from FlexNotes only — the original on your phone isn\'t touched.</string>
     <string name="pv_compare">Compare</string>
     <string name="pv_swap">Swap sides</string>
     <string name="pv_share_image">Share image</string>
@@ -1815,8 +1815,8 @@
     <string name="pv_choose">Choose</string>
     <string name="pv_cancel">Cancel</string>
     <string name="pv_creating_compare">Creating comparison image…</string>
-    <string name="pv_compare_footer">%1$d days · FitLens</string>
-    <string name="pv_saved_pictures">Saved to Pictures/FitLens</string>
+    <string name="pv_compare_footer">%1$d days · FlexNotes</string>
+    <string name="pv_saved_pictures">Saved to Pictures/FlexNotes</string>
     <string name="pv_image_failed">Couldn’t create the image: %1$s</string>
     <string name="pv_share">Share</string>
     <string name="pv_same_day">same day</string>
@@ -1857,11 +1857,11 @@
     <string name="ss_title_suffix">" · “%1$s”"</string>
     <string name="ss_change_options">Change options</string>
     <string name="ss_creating">Creating video… %1$d%%</string>
-    <string name="ss_saved">Video saved to Movies/FitLens</string>
+    <string name="ss_saved">Video saved to Movies/FlexNotes</string>
     <string name="ss_failed">Video export failed: %1$s</string>
     <string name="ss_create">Create video</string>
     <string name="ss_share">Share video</string>
-    <string name="ss_note">Videos are made on your phone and saved to Movies/FitLens. Full HD takes longer to create.</string>
+    <string name="ss_note">Videos are made on your phone and saved to Movies/FlexNotes. Full HD takes longer to create.</string>
     <string name="ss_note_remember">" These options are remembered for next time."</string>
     <string name="ss_done">Done</string>
     <string name="ss_pose">Pose</string>
@@ -1888,7 +1888,7 @@
     <string name="tl_title">All days</string>
     <string name="tl_log_today">Log today’s workout</string>
     <string name="tl_empty_title">Let\'s build your record</string>
-    <string name="tl_empty_body">Log your first workout, or import your FitNotes backup and bulk-import your progress photos. FitLens matches each photo to its date automatically.</string>
+    <string name="tl_empty_body">Log your first workout, or import your FitNotes backup and bulk-import your progress photos. FlexNotes matches each photo to its date automatically.</string>
     <string name="tl_import">Import from FitNotes</string>
     <string name="tl_restore">Restore from a backup</string>
     <string name="tl_show">Show</string>
@@ -1903,7 +1903,7 @@
     <string name="si_image_failed">Couldn’t create the image: %1$s</string>
     <string name="si_goal">Goal</string>
     <string name="si_pr">PR</string>
-    <string name="si_footer">LOGGED WITH FITLENS</string>
+    <string name="si_footer">LOGGED WITH FLEXNOTES</string>
     <string name="vid_day">Day %1$d</string>
     <string name="vid_week">"  ·  Week %1$d"</string>
     <string name="vid_near_before">≈ %1$dd before</string>
@@ -1914,25 +1914,25 @@
     <string name="su_step_fitnotes">FitNotes</string>
     <string name="su_step_photos">Progress photos</string>
     <string name="su_step_exercises">Exercises</string>
-    <string name="su_title">Set up FitLens</string>
+    <string name="su_title">Set up FlexNotes</string>
     <string name="su_step_of">Step %1$d of %2$d · %3$s</string>
     <string name="su_skip">Skip setup</string>
     <string name="su_back">Back</string>
     <string name="su_finish">Finish</string>
     <string name="su_next">Next</string>
     <string name="su_welcome_head">Your training, photos and measurements, together</string>
-    <string name="su_welcome_1">FitLens logs your workouts and keeps them next to your progress photos and body measurements. Everything stays on this phone: there\'s no account, and FitLens never goes online.</string>
+    <string name="su_welcome_1">FlexNotes logs your workouts and keeps them next to your progress photos and body measurements. Everything stays on this phone: there\'s no account, and FlexNotes never goes online.</string>
     <string name="su_welcome_2">A few quick steps set up your units, automatic backups and imports. Every step can be skipped, and you can run setup again any time from Settings.</string>
     <string name="su_moving">Moving from another phone?</string>
-    <string name="su_moving_body">Restore a FitLens backup (.fitlens) to bring everything back. This replaces setup, so it ends here.</string>
-    <string name="su_restore">Restore a FitLens backup</string>
+    <string name="su_moving_body">Restore a FlexNotes backup (.flexnotes) to bring everything back. This replaces setup, so it ends here.</string>
+    <string name="su_restore">Restore a FlexNotes backup</string>
     <string name="su_units_head">How do you weigh your lifts?</string>
     <string name="su_kg">Kilograms (kg)</string>
     <string name="su_lbs">Pounds (lbs)</string>
     <string name="su_units_body">Weights are stored exactly, so you can switch at any time in Settings → Unit System.</string>
     <string name="su_saving_first">Saving the first automatic backup…</string>
     <string name="su_backups_head">Keep a copy of everything, automatically</string>
-    <string name="su_backups_body">Strongly recommended. Choose a folder outside FitLens, such as Documents or an SD card, and FitLens saves a full backup there in the background. If the phone is lost or FitLens is uninstalled, that backup brings everything back.</string>
+    <string name="su_backups_body">Strongly recommended. Choose a folder outside FlexNotes, such as Documents or an SD card, and FlexNotes saves a full backup there in the background. If the phone is lost or FlexNotes is uninstalled, that backup brings everything back.</string>
     <string name="su_folder">Folder: %1$s</string>
     <string name="su_root">(root)</string>
     <string name="su_no_folder">No folder chosen yet.</string>
@@ -1945,13 +1945,13 @@
     <string name="su_importing">Importing…</string>
     <string name="su_not_fitnotes">That isn\'t a FitNotes backup (.fitnotes) or Body Tracker CSV.</string>
     <string name="su_fitnotes_head">Coming from FitNotes?</string>
-    <string name="su_fitnotes_body">Import a FitNotes backup to bring over your workouts, exercises and body measurements. Make one with FitNotes\' own backup option, or share it from FitNotes straight to FitLens. You\'ll see what will be added first, and importing never changes FitNotes itself.</string>
+    <string name="su_fitnotes_body">Import a FitNotes backup to bring over your workouts, exercises and body measurements. Make one with FitNotes\' own backup option, or share it from FitNotes straight to FlexNotes. You\'ll see what will be added first, and importing never changes FitNotes itself.</string>
     <string name="su_imported">Imported: %1$s · %2$s, %3$s.</string>
     <string name="su_import_backup">Import a FitNotes backup</string>
     <string name="su_import_another">Import another backup</string>
     <string name="su_fitnotes_later">Later imports merge in the same way, from Settings → Import From FitNotes. Syncing a FitNotes backup folder automatically is also there, and is off unless you turn it on.</string>
     <string name="su_photos_head">Add your progress photos</string>
-    <string name="su_photos_body">FitLens dates each photo from its camera details and places it on that day, next to the workout and measurements. You\'ll be asked which pose the photos show.</string>
+    <string name="su_photos_body">FlexNotes dates each photo from its camera details and places it on that day, next to the workout and measurements. You\'ll be asked which pose the photos show.</string>
     <string name="su_photos_status">%1$s on %2$s so far.</string>
     <string name="su_choose_photos">Choose photos</string>
     <string name="su_import_folder">Import a folder</string>
@@ -1986,16 +1986,16 @@
     <string name="fi_looking">Looking for the newest FitNotes backup…</string>
     <string name="fi_choose_folder">Choose your FitNotes backup folder first.</string>
     <string name="fi_none_found">No .fitnotes backups found in the chosen folder.</string>
-    <string name="fi_saving">Saving a FitLens backup…</string>
+    <string name="fi_saving">Saving a FlexNotes backup…</string>
     <string name="fi_importing">Importing the FitNotes backup…</string>
-    <string name="fi_saved_then">FitLens backup saved. %1$s</string>
+    <string name="fi_saved_then">FlexNotes backup saved. %1$s</string>
     <string name="fi_title">Import FitNotes backup</string>
-    <string name="fi_nothing_new">Nothing new: everything in this backup is already in FitLens.</string>
+    <string name="fi_nothing_new">Nothing new: everything in this backup is already in FlexNotes.</string>
     <string name="fi_will_add">Will be added</string>
     <string name="fi_bullet">"·  %1$s"</string>
-    <string name="fi_skipped">Skipped, already in FitLens</string>
-    <string name="fi_note">Imports only add to FitLens. Nothing you logged or edited in FitLens is deleted or changed, and FitNotes\' own data isn\'t touched.</string>
-    <string name="fi_backup_first">Save a FitLens backup first</string>
+    <string name="fi_skipped">Skipped, already in FlexNotes</string>
+    <string name="fi_note">Imports only add to FlexNotes. Nothing you logged or edited in FlexNotes is deleted or changed, and FitNotes\' own data isn\'t touched.</string>
+    <string name="fi_backup_first">Save a FlexNotes backup first</string>
     <string name="fi_close">Close</string>
     <string name="fi_import">Import</string>
     <string name="fi_cancel">Cancel</string>
@@ -2098,7 +2098,7 @@
         <item quantity="other">about %1$d reps</item>
     </plurals>
     <string name="pdf_page">Page %1$d</string>
-    <string name="pdf_footer">FitLens progress report · %1$s – %2$s</string>
+    <string name="pdf_footer">FlexNotes progress report · %1$s – %2$s</string>
     <string name="pdf_creating_cover">Creating PDF… cover</string>
     <string name="pdf_creating_measurements">Creating PDF… measurements</string>
     <string name="pdf_creating_training">Creating PDF… training</string>
@@ -2111,7 +2111,7 @@
     <string name="pdf_photos">Photos</string>
     <string name="pdf_workouts">Workouts</string>
     <string name="pdf_measurements">Measurements</string>
-    <string name="pdf_generated">Generated %1$s with FitLens</string>
+    <string name="pdf_generated">Generated %1$s with FlexNotes</string>
     <string name="pdf_body">Body measurements</string>
     <string name="pdf_no_measurements">No measurements in this period.</string>
     <string name="pdf_start">Start</string>
@@ -2259,7 +2259,7 @@
     <string name="ia_progress">Importing photos… %1$d / %2$d</string>
     <string name="ma_checking">Checking for a new FitNotes backup…</string>
     <string name="ma_workout_csv">Workout CSVs aren\'t needed — share a FitNotes backup (.fitnotes) instead; it contains everything.</string>
-    <string name="ma_unknown">FitLens doesn\'t recognise that file.</string>
+    <string name="ma_unknown">FlexNotes doesn\'t recognise that file.</string>
     <plurals name="ia_importing">
         <item quantity="one">Importing %1$d photo…</item>
         <item quantity="other">Importing %1$d photos…</item>
@@ -2287,9 +2287,9 @@
     <string name="bk_restore_partial">Restore failed part-way: %1$s. Your previous data has already been replaced by this backup. %2$s</string>
     <string name="bk_restore_failed">Restore failed: %1$s. Your current data wasn\'t changed.</string>
     <string name="bk_refused_open">Couldn\'t open the backup file.</string>
-    <string name="bk_refused_not_backup">That isn\'t a FitLens backup.</string>
-    <string name="bk_refused_damaged">That backup is damaged or isn\'t from FitLens.</string>
-    <string name="bk_refused_newer">That backup was made by a newer FitLens. Update FitLens first, then restore.</string>
+    <string name="bk_refused_not_backup">That isn\'t a FlexNotes backup.</string>
+    <string name="bk_refused_damaged">That backup is damaged or isn\'t from FlexNotes.</string>
+    <string name="bk_refused_newer">That backup was made by a newer FlexNotes. Update FlexNotes first, then restore.</string>
     <string name="bk_safety_saved">Safety copy saved.</string>
     <string name="bk_safety_no_room">There isn\'t room on this phone for a safety copy of your current data: about %1$s is needed and %2$s is free. Free some space and try again.</string>
     <string name="bk_safety_unfinished">Couldn\'t finish the safety copy of your current data.</string>
@@ -2302,15 +2302,15 @@
         <item quantity="one">Automatic backup saved (%1$d photo).</item>
         <item quantity="other">Automatic backup saved (%1$d photos).</item>
     </plurals>
-    <string name="bk_folder_lost">FitLens lost access to the backup folder. Choose it again in Settings → Backup.</string>
+    <string name="bk_folder_lost">FlexNotes lost access to the backup folder. Choose it again in Settings → Backup.</string>
     <string name="bk_folder_missing">The backup folder isn\'t available. If it\'s on an SD card, check the card is in; otherwise choose the folder again in Settings → Backup.</string>
     <string name="bk_auto_failed">Automatic backup failed: %1$s</string>
     <string name="ab_channel">Backups</string>
     <string name="ab_channel_desc">Problems with automatic backups</string>
-    <string name="ab_title_folder">FitLens can\'t reach your backup folder</string>
+    <string name="ab_title_folder">FlexNotes can\'t reach your backup folder</string>
     <string name="ab_title_failed">Automatic backup didn\'t finish</string>
     <string name="ab_text_folder">%1$s Tap to open the backup settings.</string>
-    <string name="ab_text_retry">%1$s FitLens will try again.</string>
+    <string name="ab_text_retry">%1$s FlexNotes will try again.</string>
     <!-- Data layer: FitNotes import and folder sync (#156) -->
     <plurals name="imp_sets">
         <item quantity="one">%1$d set</item>
@@ -2321,7 +2321,7 @@
         <item quantity="other">%1$d new workout days</item>
     </plurals>
     <string name="imp_sets_with_days">%1$s (%2$s)</string>
-    <string name="imp_sets_existing_days">%1$s on days already in FitLens</string>
+    <string name="imp_sets_existing_days">%1$s on days already in FlexNotes</string>
     <plurals name="imp_exercises">
         <item quantity="one">%1$d exercise</item>
         <item quantity="other">%1$d exercises</item>
@@ -2351,23 +2351,23 @@
         <item quantity="other">%1$d workout comments and times</item>
     </plurals>
     <plurals name="imp_exercises_deleted">
-        <item quantity="one">%1$d exercise you deleted in FitLens</item>
-        <item quantity="other">%1$d exercises you deleted in FitLens</item>
+        <item quantity="one">%1$d exercise you deleted in FlexNotes</item>
+        <item quantity="other">%1$d exercises you deleted in FlexNotes</item>
     </plurals>
-    <string name="imp_nothing_new">Everything in it was already in FitLens, so nothing changed.</string>
+    <string name="imp_nothing_new">Everything in it was already in FlexNotes, so nothing changed.</string>
     <string name="imp_added">Added %1$s.</string>
     <plurals name="imp_items_skipped">
-        <item quantity="one">%1$d item already in FitLens was skipped.</item>
-        <item quantity="other">%1$d items already in FitLens were skipped.</item>
+        <item quantity="one">%1$d item already in FlexNotes was skipped.</item>
+        <item quantity="other">%1$d items already in FlexNotes were skipped.</item>
     </plurals>
     <string name="imp_backup_name">backup</string>
     <string name="imp_cant_open">Couldn\'t open the file.</string>
     <string name="imp_not_fitnotes">That file isn\'t a FitNotes backup (.fitnotes).</string>
     <string name="imp_cant_read">Couldn\'t read that backup: %1$s</string>
     <string name="imp_safety_reason">Before importing %1$s</string>
-    <string name="imp_safety_failed">%1$s The import didn\'t run; nothing in FitLens was changed.</string>
+    <string name="imp_safety_failed">%1$s The import didn\'t run; nothing in FlexNotes was changed.</string>
     <string name="imp_done">Imported %1$s. %2$s</string>
-    <string name="imp_failed">Import failed: %1$s. Nothing in FitLens was changed.</string>
+    <string name="imp_failed">Import failed: %1$s. Nothing in FlexNotes was changed.</string>
     <string name="imp_failed_short">Import failed.</string>
     <string name="imp_csv_not_body">That isn\'t a FitNotes Body Tracker CSV export.</string>
     <plurals name="imp_csv_added">
@@ -2504,7 +2504,7 @@
     <!-- Settings rows, warnings and permissions (#41, sections 5.3, 5.4 and 7) -->
     <string name="settings_folder_choose">Choose</string>
     <string name="settings_folder_change">Change</string>
-    <string name="settings_folder_lost">FitLens can no longer reach this folder. Choose it again.</string>
+    <string name="settings_folder_lost">FlexNotes can no longer reach this folder. Choose it again.</string>
     <string name="settings_number_decrease">Decrease %1$s</string>
     <string name="settings_number_increase">Increase %1$s</string>
     <string name="settings_number_type">Type a value for %1$s</string>
@@ -2512,16 +2512,16 @@
     <string name="settings_number_range">A whole number from %1$d to %2$d.</string>
     <string name="settings_number_save">Save</string>
     <string name="settings_auto_backup_failed">The last automatic backup failed. Open to see why.</string>
-    <string name="settings_auto_backup_unreachable">FitLens can no longer reach the backup folder. Open to choose it again.</string>
+    <string name="settings_auto_backup_unreachable">FlexNotes can no longer reach the backup folder. Open to choose it again.</string>
     <string name="settings_auto_backup_overdue">Automatic backups are overdue. Open to back up now.</string>
     <string name="settings_auto_backup_off">Off</string>
     <string name="settings_auto_backup_on">On</string>
     <string name="notify_ask_title">Allow notifications?</string>
     <string name="notify_ask_continue">Continue</string>
     <string name="notify_ask_not_now">Not now</string>
-    <string name="notify_reason_rest">So the rest timer can count down and tell you when your rest is over while FitLens is in the background.</string>
+    <string name="notify_reason_rest">So the rest timer can count down and tell you when your rest is over while FlexNotes is in the background.</string>
     <string name="notify_reason_workout">So the workout timer can keep running in the notification bar while you use other apps.</string>
-    <string name="notify_reason_backup">So FitLens can tell you if an automatic backup can\'t reach its folder.</string>
-    <string name="notify_off">Notifications are off for FitLens. Turn them on in your phone\'s settings.</string>
+    <string name="notify_reason_backup">So FlexNotes can tell you if an automatic backup can\'t reach its folder.</string>
+    <string name="notify_off">Notifications are off for FlexNotes. Turn them on in your phone\'s settings.</string>
     <string name="notify_open_settings">Open notification settings</string>
 </resources>

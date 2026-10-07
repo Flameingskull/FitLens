@@ -24,17 +24,20 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
- * Local backups: one .fitlens file (a zip holding manifest.json, the database and every photo) that restores
+ * Local backups: one .flexnotes file (a zip holding manifest.json, the database and every photo) that restores
  * everything on this or another phone. No accounts and no network. Files go where the user chooses.
- * Older FitLens archives (.zip without a manifest) can still be restored.
+ * Older FlexNotes archives (.zip without a manifest) can still be restored.
  */
 object Backups {
 
     const val FORMAT = 1
-    const val EXTENSION = "fitlens"
-    /** Generic type so storage providers keep the .fitlens name instead of appending .zip. */
+    const val EXTENSION = "flexnotes"
+    /** Backups made before the rename to FlexNotes (1.0.123) end in `.fitlens`; they restore and prune the same way. */
+    const val LEGACY_EXTENSION = "fitlens"
+    /** Generic type so storage providers keep the .flexnotes name instead of appending .zip. */
     const val MIME = "application/octet-stream"
-    private const val AUTO_PREFIX = "FitLens_auto_"
+    private const val AUTO_PREFIX = "FlexNotes_auto_"
+    private const val LEGACY_AUTO_PREFIX = "FitLens_auto_"
     private const val PART = ".part"
 
     /** What a backup file contains, shown before restoring. */
@@ -52,7 +55,10 @@ object Backups {
 
     private val lock = Mutex()
 
-    fun fileName(prefix: String = "FitLens_backup_"): String =
+    /** Whether [name] is a backup file, under the current or the pre-rename extension. */
+    fun isBackupName(name: String): Boolean = name.endsWith(".$EXTENSION") || name.endsWith(".$LEGACY_EXTENSION")
+
+    fun fileName(prefix: String = "FlexNotes_backup_"): String =
         prefix + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm")) + ".$EXTENSION"
 
     /**
@@ -60,7 +66,7 @@ object Backups {
      * backups keep [fileName], because pruning tells them apart by it.
      */
     fun manualFileName(): String =
-        if (Settings.currentPortable().backupTimestamp) fileName() else "FitLens_backup.$EXTENSION"
+        if (Settings.currentPortable().backupTimestamp) fileName() else "FlexNotes_backup.$EXTENSION"
 
     // ---------- Writing ----------
 
@@ -86,7 +92,7 @@ object Backups {
         else Store.photoDir.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") } ?: emptyList()
         val manifest = JSONObject().apply {
             put("format", FORMAT)
-            put("app", "FitLens")
+            put("app", "FlexNotes")
             put("appVersion", appVersion(context))
             put("dbVersion", Db.VERSION)
             put("createdAt", LocalDateTime.now().toString())
@@ -103,7 +109,7 @@ object Backups {
         return photos.size
     }
 
-    /** The `.fitlens` archive itself: the manifest, the database, then the photos. Tested on its own (#40). */
+    /** The `.flexnotes` archive itself: the manifest, the database, then the photos. Tested on its own (#40). */
     internal fun writeArchive(os: OutputStream, manifest: JSONObject, dbFile: File, photos: List<File>) {
         ZipOutputStream(os.buffered()).use { zip ->
             zip.setLevel(Deflater.DEFAULT_COMPRESSION)
@@ -143,7 +149,7 @@ object Backups {
         lock.withLock {
             try {
                 val dir = File(context.cacheDir, SHARE_DIR).apply { mkdirs() }
-                dir.listFiles()?.filter { it.name.endsWith(".$EXTENSION") }?.forEach { it.delete() }
+                dir.listFiles()?.filter { isBackupName(it.name) }?.forEach { it.delete() }
                 val file = File(dir, manualFileName())
                 val n = file.outputStream().use { write(context, it) }
                 file to ImportSummary(context.resources.getQuantityString(R.plurals.bk_share_ready, n, n), true)
@@ -158,7 +164,7 @@ object Backups {
 
     // ---------- Inspecting and restoring ----------
 
-    /** Reads a backup's summary without changing anything. Returns null if it isn't a FitLens backup. */
+    /** Reads a backup's summary without changing anything. Returns null if it isn't a FlexNotes backup. */
     suspend fun inspect(context: Context, src: Uri): Info? = withContext(Dispatchers.IO) {
         try {
             var manifest: JSONObject? = null
@@ -195,7 +201,7 @@ object Backups {
     }
 
     /**
-     * Replaces all FitLens data with the backup. Everything is unpacked and checked in a staging folder first,
+     * Replaces all FlexNotes data with the backup. Everything is unpacked and checked in a staging folder first,
      * so a damaged or incompatible file is rejected before anything on the phone is touched.
      *
      * Once the staged database is copied over the live one the change can't be undone from the backup file, so
@@ -299,7 +305,7 @@ object Backups {
 
     /**
      * Reads an archive into [stageDb] and [stagePhotos] and checks the database before anything live is touched:
-     * refused when it isn't a FitLens backup, is damaged, or was made by a newer FitLens. Tested on its own (#40).
+     * refused when it isn't a FlexNotes backup, is damaged, or was made by a newer FlexNotes. Tested on its own (#40).
      */
     internal fun unpack(input: InputStream?, stageDb: File, stagePhotos: File): Unpacked {
         if (input == null) return Unpacked(Refusal.CANT_OPEN)
@@ -358,16 +364,17 @@ object Backups {
     // ---------- The safety copy: the way back from a restore or an import (#47) ----------
 
     /**
-     * Before anything replaces or merges into the user's data, FitLens writes a `.fitlens` archive of what is
+     * Before anything replaces or merges into the user's data, FlexNotes writes a `.flexnotes` archive of what is
      * there now to `filesDir/safety/`, and [undoLastRestore] puts it back through the normal restore path, so
      * database migrations still run and this phone's own settings survive.
      *
-     * The folder sits in app-private storage, outside `photos/`, so a `.fitlens` backup never picks it up, and
+     * The folder sits in app-private storage, outside `photos/`, so a `.flexnotes` backup never picks it up, and
      * `res/xml/data_extraction_rules.xml` keeps it out of Android's cloud backup and device transfer.
      */
     const val UNDO_DAYS = 7
     private const val SAFETY_DIR = "safety"
-    private const val SAFETY_FILE = "safety_copy.$EXTENSION"
+    // Kept on the old extension: the file is private, and an Undo pending across the update still finds it.
+    private const val SAFETY_FILE = "safety_copy.$LEGACY_EXTENSION"
 
     private fun safetyDir(context: Context): File = File(context.filesDir, SAFETY_DIR).apply { mkdirs() }
 
@@ -596,13 +603,13 @@ object Backups {
         )?.use { c ->
             while (c.moveToNext()) {
                 val name = c.getString(1) ?: continue
-                if (name.startsWith(AUTO_PREFIX)) found.add(name to DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0)))
+                if (name.startsWith(AUTO_PREFIX) || name.startsWith(LEGACY_AUTO_PREFIX)) found.add(name to DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0)))
             }
         }
         // Leftovers from interrupted backups
         found.filter { it.first.endsWith(PART) }.forEach { runCatching { DocumentsContract.deleteDocument(resolver, it.second) } }
-        found.filter { it.first.endsWith(".$EXTENSION") }
-            .sortedByDescending { it.first } // names contain the timestamp
+        found.filter { isBackupName(it.first) }
+            .sortedByDescending { it.first.removePrefix(AUTO_PREFIX).removePrefix(LEGACY_AUTO_PREFIX) } // the timestamp
             .drop(autoKeep())
             .forEach { runCatching { DocumentsContract.deleteDocument(resolver, it.second) } }
     }

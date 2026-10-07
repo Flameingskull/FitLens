@@ -1,8 +1,8 @@
 package com.fitlens.companion.data
 
 /**
- * Workouts and body data as CSV for spreadsheets (#31). These files are one-way: FitLens can't restore from them,
- * so the `.fitlens` backup stays the only way back. Columns are fixed and documented in [WORKOUT_COLUMNS] and
+ * Workouts and body data as CSV for spreadsheets (#31). These files are one-way: FlexNotes can't restore from them,
+ * so the `.flexnotes` backup stays the only way back. Columns are fixed and documented in [WORKOUT_COLUMNS] and
  * [BODY_COLUMNS], so a spreadsheet built on one export keeps working with the next.
  *
  * Numbers use a dot for decimals whatever the phone's language, dates are ISO (`yyyy-MM-dd`), and every file
@@ -88,7 +88,7 @@ object CsvExport {
             from == null && to == null -> "all"
             else -> "${from ?: "start"}_to_${to ?: Dates.today()}"
         }
-        return "FitLens_${kind}_$range.csv"
+        return "FlexNotes_${kind}_$range.csv"
     }
 
     private fun inRange(date: String, from: String?, to: String?): Boolean {

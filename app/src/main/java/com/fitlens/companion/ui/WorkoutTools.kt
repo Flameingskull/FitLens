@@ -111,7 +111,7 @@ fun rememberElapsed(start: String): Long {
 
 /**
  * Workout Time, as FitNotes's (#84, #148): the date with a ⋮ menu, Start Time and End Time fields (each opens a time
- * picker), Start Timer (or Stop Timer while one runs), then Close and Save. FitLens adds the live duration. A day with
+ * picker), Start Timer (or Stop Timer while one runs), then Close and Save. FlexNotes adds the live duration. A day with
  * more than one imported time range is replaced by the single range saved here.
  */
 @Composable
@@ -306,7 +306,7 @@ fun ShareWorkoutSheet(snap: Snapshot, date: String, onDismiss: () -> Unit) {
         )
     }
 
-    // FitNotes's Share Workout (#148): the set checklist, then Cancel, Options and Share. FitLens's extras (text or
+    // FitNotes's Share Workout (#148): the set checklist, then Cancel, Options and Share. FlexNotes's extras (text or
     // image, what to include, a progress photo) live behind Options.
     var options by remember { mutableStateOf(false) }
     FitSheet(

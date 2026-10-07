@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.fitlens.companion.R
 
 /**
- * The leading icon of every search field: the magnifying glass, so it still reads as search, with the FitLens
+ * The leading icon of every search field: the magnifying glass, so it still reads as search, with the FlexNotes
  * character beside it (the owner's torso art, `branding/torso/`, placed unedited and uncropped).
  */
 @Composable

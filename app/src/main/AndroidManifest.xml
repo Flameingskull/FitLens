@@ -27,7 +27,7 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FitLens">
+        android:theme="@style/Theme.FlexNotes">
 
         <activity
             android:name=".ui.MainActivity"
@@ -38,7 +38,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Share photos from the gallery into FitLens -->
+            <!-- Share photos from the gallery into FlexNotes -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />

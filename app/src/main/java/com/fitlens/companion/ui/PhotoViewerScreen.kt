@@ -334,7 +334,7 @@ fun compareRows(snap: Snapshot, da: String, db: String): List<CompareRow> =
         CompareRow("${m.name}${if (unit.isNotBlank()) " ($unit)" else ""}", l, r, ch, delta)
     }
 
-/** Picks one dated photo, newest first, on the FitLens glass (#92). */
+/** Picks one dated photo, newest first, on the FlexNotes glass (#92). */
 @Composable
 fun PhotoPickerDialog(snap: Snapshot, onDismiss: () -> Unit, onPick: (Long) -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
@@ -387,12 +387,12 @@ private fun shareCompare(ctx: Context, snap: Snapshot, pa: Photo, pb: Photo, sav
                 val out = FrameRenderer.renderCompare(ba, bb, da, db, rows, res.getString(R.string.pv_compare_footer, days.toInt()))
                 ba?.recycle(); bb?.recycle()
                 if (save) {
-                    VideoExporter.saveImageToGallery(app, out, "FitLens_compare_${da}_$db.jpg")
+                    VideoExporter.saveImageToGallery(app, out, "FlexNotes_compare_${da}_$db.jpg")
                     out.recycle()
                     null
                 } else {
                     val dir = File(app.cacheDir, "exports").apply { mkdirs() }
-                    val f = File(dir, "FitLens_compare_${da}_$db.jpg")
+                    val f = File(dir, "FlexNotes_compare_${da}_$db.jpg")
                     f.outputStream().use { out.compress(Bitmap.CompressFormat.JPEG, 92, it) }
                     out.recycle()
                     f

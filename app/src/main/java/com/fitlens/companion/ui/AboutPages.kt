@@ -44,9 +44,9 @@ import com.fitlens.companion.ui.design.SettingsGroup
 import com.fitlens.companion.ui.design.SettingsNote
 import java.io.IOException
 
-internal const val REPO_URL = "https://github.com/Flameingskull/FitLens"
+internal const val REPO_URL = "https://github.com/Flameingskull/FlexNotes"
 
-/** Opens [url] in the phone's browser. FitLens itself never needs the internet (#33). */
+/** Opens [url] in the phone's browser. FlexNotes itself never needs the internet (#33). */
 internal fun openInBrowser(ctx: Context, url: String) {
     try {
         ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -121,7 +121,7 @@ internal fun inlineMarkdown(text: String, accent: Color): AnnotatedString = buil
     }
 }
 
-/** Release notes drawn in the FitLens type: section labels, body text and indented bullets. */
+/** Release notes drawn in the FlexNotes type: section labels, body text and indented bullets. */
 @Composable
 internal fun MarkdownBlocks(text: String) {
     val blocks = remember(text) { parseMarkdown(text) }
@@ -233,7 +233,7 @@ fun AboutPage() {
                 onLongClick = {
                     clipboard.setText(
                         AnnotatedString(
-                            "FitLens $version (build $code) · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · " +
+                            "FlexNotes $version (build $code) · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · " +
                                 "${Build.MANUFACTURER} ${Build.MODEL}"
                         )
                     )
@@ -302,7 +302,7 @@ private fun SaveSpeed() {
     }
 }
 
-/** The licences FitLens ships under and with (#33). The Manrope licence is the full text bundled in the APK. */
+/** The licences FlexNotes ships under and with (#33). The Manrope licence is the full text bundled in the APK. */
 @Composable
 private fun LicencesSheet(onDismiss: () -> Unit) {
     val ctx = LocalContext.current
@@ -311,7 +311,7 @@ private fun LicencesSheet(onDismiss: () -> Unit) {
     }
     FitSheet(title = stringResource(R.string.licences_title), onDismiss = onDismiss, dismissLabel = stringResource(R.string.close)) {
         SectionLabel(stringResource(R.string.about_group_app))
-        Text(stringResource(R.string.licences_fitlens), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.licences_flexnotes), style = MaterialTheme.typography.bodyMedium)
         SectionLabel(stringResource(R.string.licences_libraries), Modifier.padding(top = 8.dp))
         Text(stringResource(R.string.licences_libraries_text), style = MaterialTheme.typography.bodyMedium)
         SectionLabel(stringResource(R.string.licences_manrope), Modifier.padding(top = 8.dp))

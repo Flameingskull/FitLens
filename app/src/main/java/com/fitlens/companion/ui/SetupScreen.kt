@@ -65,7 +65,7 @@ import com.fitlens.companion.R
  * feature: units ([Settings]), automatic backups ([Backups], [AutoBackup]), the FitNotes merge import
  * ([FitNotesImports]), photo import and the starter library.
  *
- * Choosing to restore a FitLens backup ends setup and hands the file to Settings → Backup, which checks it and asks
+ * Choosing to restore a FlexNotes backup ends setup and hands the file to Settings → Backup, which checks it and asks
  * before replacing anything, because the backup brings its own preferences with it.
  */
 private enum class SetupStep(@StringRes val title: Int) {
@@ -196,7 +196,7 @@ private fun BackupsStep() {
         if (uri != null) {
             Backups.setAutoFolder(ctx, uri)
             AutoBackup.schedule(ctx)
-            // So FitLens can say if the backup folder ever becomes unreachable, as in Settings → Backup.
+            // So FlexNotes can say if the backup folder ever becomes unreachable, as in Settings → Backup.
             if (Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)

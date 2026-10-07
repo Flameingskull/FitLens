@@ -26,7 +26,7 @@ suspend fun SnackbarHostState.showUndo(message: String, onUndo: () -> Unit, undo
 }
 
 /**
- * A snackbar host styled for FitLens: raised surface, ivory text, gold action (#80). It keeps clear of the navigation
+ * A snackbar host styled for FlexNotes: raised surface, ivory text, gold action (#80). It keeps clear of the navigation
  * bar itself (#140): the app draws edge to edge, so without this a message and its action sat under the system's
  * Back / Home buttons.
  */

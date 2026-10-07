@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FitLens"
+rootProject.name = "FlexNotes"
 include(":app")

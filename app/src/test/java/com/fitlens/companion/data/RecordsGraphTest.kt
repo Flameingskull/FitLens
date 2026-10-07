@@ -3,7 +3,7 @@ package com.fitlens.companion.data
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The graphs FitNotes offers that FitLens adds in #22: Max weight for reps and Personal records. */
+/** The graphs FitNotes offers that FlexNotes adds in #22: Max weight for reps and Personal records. */
 class RecordsGraphTest {
 
     private fun set(date: String, kg: Double, reps: Int, pr: Boolean = false) =

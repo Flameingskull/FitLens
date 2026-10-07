@@ -6,13 +6,13 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** Who owns a workout row: imported from a FitNotes backup, or created (or edited) in FitLens. See [Workouts]. */
+/** Who owns a workout row: imported from a FitNotes backup, or created (or edited) in FlexNotes. See [Workouts]. */
 object Sources {
     const val FITNOTES = "fitnotes"
-    const val FITLENS = "fitlens"
+    const val FLEXNOTES = "fitlens"
 }
 
-data class Category(val id: Long, val name: String, val colour: Int, val sortOrder: Int, val source: String = Sources.FITLENS) {
+data class Category(val id: Long, val name: String, val colour: Int, val sortOrder: Int, val source: String = Sources.FLEXNOTES) {
     val imported: Boolean get() = source == Sources.FITNOTES
 }
 
@@ -21,7 +21,7 @@ data class Category(val id: Long, val name: String, val colour: Int, val sortOrd
  * graphs and the records.
  *
  * 0–3 are FitNotes's own type ids and are stored as FitNotes stores them, so imports and backups keep working. 4 and
- * up are FitLens's extra built-in types, such as weight and time for a loaded hold or carry. FitNotes never sends
+ * up are FlexNotes's extra built-in types, such as weight and time for a loaded hold or carry. FitNotes never sends
  * them. [CUSTOM_BASE] and up are the user's own types ([CustomType], table `exercise_type`, #14), held in [custom]
  * by `Store` whenever the library is read, so every `uses*` check below answers for them too.
  */
@@ -86,7 +86,7 @@ object ExerciseTypes {
     /**
      * Whether an exercise's graphs and records are about time and distance rather than weight and reps. FitNotes's
      * own types keep their old rule (anything but weight and reps, once no set has a weight or reps), so existing
-     * default graphs keep pointing at the same graph. FitLens's types decide from what they record.
+     * default graphs keep pointing at the same graph. FlexNotes's types decide from what they record.
      */
     fun timeBased(type: Int, anyWeightOrReps: Boolean): Boolean = when {
         type <= TIME -> type != WEIGHT_REPS && !anyWeightOrReps
@@ -125,7 +125,7 @@ data class Exercise(
     val categoryId: Long,
     val type: Int,
     val notes: String?,
-    val source: String = Sources.FITLENS,
+    val source: String = Sources.FLEXNOTES,
     /** Starred in the exercise library, so it comes first in the pickers. */
     val favourite: Boolean = false,
     /** This exercise's + and − step in kg, or null for the global step (#15). */
@@ -152,7 +152,7 @@ data class SetRow(
     val durationSec: Int,
     val isPr: Boolean,
     val comment: String?,
-    val source: String = Sources.FITLENS,
+    val source: String = Sources.FLEXNOTES,
     /** Working, warm-up, drop or failure ([SetTypes], #43). */
     val setType: Int = SetTypes.WORKING,
     /** Effort as RPE (1–10, half steps), or null when not recorded (#44). RIR is shown as 10 − RPE. */
@@ -225,7 +225,7 @@ data class MeasurementDef(
     val goalType: Int,
     val goalValue: Double,
     val enabled: Boolean,
-    /** Created in FitLens rather than imported from FitNotes. */
+    /** Created in FlexNotes rather than imported from FitNotes. */
     val custom: Boolean = false,
     /** For custom metrics: the FitNotes measurement whose values fill it in (null = match by name). */
     val link: String? = null,

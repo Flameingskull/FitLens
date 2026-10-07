@@ -1,11 +1,11 @@
 name: Feature request
-description: Suggest a new feature or a change to FitLens.
+description: Suggest a new feature or a change to FlexNotes.
 labels: [enhancement, needs-triage]
 body:
   - type: textarea
     id: request
     attributes:
-      label: What would you like FitLens to do?
+      label: What would you like FlexNotes to do?
     validations:
       required: true
   - type: textarea

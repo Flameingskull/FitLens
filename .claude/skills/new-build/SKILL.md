@@ -1,6 +1,6 @@
 ---
 name: new-build
-description: Owner-triggered FitLens build. The bug-manager and feature-manager agents triage the GitHub bug and feature lists, the chosen items are implemented, and a new signed release is published. Run it only when the owner types /new-build.
+description: Owner-triggered FlexNotes build. The bug-manager and feature-manager agents triage the GitHub bug and feature lists, the chosen items are implemented, and a new signed release is published. Run it only when the owner types /new-build.
 disable-model-invocation: true
 argument-hint: "[auto | issue numbers, e.g. 12 15]"
 ---
@@ -67,8 +67,8 @@ lines.
 ## 6. Release notes and commit
 - Rewrite `RELEASE_NOTES.md` for this build only: Overview, then What's new / Improved / Fixed as relevant, then
   Known limitations. Write it professionally and for users, built from the agents' lines.
-- **README refresh every 5 releases** (owner rule). The last refresh was **1.0.118**. If this build's version is at
-  least 5 above the last refresh (next due: **1.0.123**), rewrite `README.md` in the same commit so it matches the app,
+- **README refresh every 5 releases** (owner rule). The last refresh was **1.0.123**. If this build's version is at
+  least 5 above the last refresh (next due: **1.0.128**), rewrite `README.md` in the same commit so it matches the app,
   its purpose and direction, and every other section. Then update the "last refresh" and "next due" versions here and
   in `CLAUDE.md`. After pushing, `git pull` so the local copy matches.
 - Commit using a message file (PowerShell here-strings don't pass reliably to `git commit -m`): a clear summary line,

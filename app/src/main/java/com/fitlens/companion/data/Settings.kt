@@ -23,7 +23,7 @@ import kotlinx.coroutines.sync.withLock
 
 /**
  * Settings that belong to this phone (#38): folders and their permissions, schedules, and state such as the last
- * import or the safety copy. They live in DataStore, outside `fitlens.db`, so they're never in a `.fitlens` backup
+ * import or the safety copy. They live in DataStore, outside `fitlens.db`, so they're never in a `.flexnotes` backup
  * and a restore never replaces them.
  */
 data class DeviceSettings(
@@ -62,7 +62,7 @@ data class DeviceSettings(
 
 /**
  * Preferences that belong to the user, not the phone. They stay in the database's `meta` table, so they go into
- * `.fitlens` backups and restore on another phone.
+ * `.flexnotes` backups and restore on another phone.
  */
 data class PortableSettings(
     /** "kg" or "lbs". */
@@ -159,7 +159,7 @@ private val Context.deviceStore: DataStore<Preferences> by preferencesDataStore(
 )
 
 /**
- * The only way FitLens reads or writes settings. Screens observe [device] and [portable] and change them with
+ * The only way FlexNotes reads or writes settings. Screens observe [device] and [portable] and change them with
  * [updateDevice] and [updatePortable]. Nothing else touches DataStore or the settings rows in `meta`, so where a
  * setting is stored never shows.
  *

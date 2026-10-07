@@ -92,7 +92,7 @@ private const val TAB_RECORDS = 5
 
 /**
  * The Analysis hub (#90, the #58 hub), with FitNotes's tabs: Workouts (#51), Breakdown (#52), Exercises (#22's graphs
- * for any exercise), Goals (every exercise goal) and Records (#54), after FitLens's Overview of pinned graphs (#55).
+ * for any exercise), Goals (every exercise goal) and Records (#54), after FlexNotes's Overview of pinned graphs (#55).
  * The filter is held here so the Breakdown can open a category or exercise in Workouts.
  */
 @Composable

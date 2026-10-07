@@ -231,7 +231,7 @@ fun DonutLegend(
 }
 
 /** The Material "fullscreen" glyph (four corners), drawn here because the core icon set doesn't include it. */
-val FullscreenIcon: ImageVector = materialIcon(name = "FitLens.Fullscreen") {
+val FullscreenIcon: ImageVector = materialIcon(name = "FlexNotes.Fullscreen") {
     materialPath {
         moveTo(7f, 14f); horizontalLineTo(5f); verticalLineTo(19f); horizontalLineTo(10f); verticalLineTo(17f); horizontalLineTo(7f); close()
         moveTo(5f, 10f); horizontalLineTo(7f); verticalLineTo(7f); horizontalLineTo(10f); verticalLineTo(5f); horizontalLineTo(5f); close()

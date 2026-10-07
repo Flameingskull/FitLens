@@ -24,7 +24,7 @@ import com.fitlens.companion.ui.Brand
 import kotlin.math.max
 
 /**
- * FitLens's glass depth (#102): surfaces lit like tinted glass in the brand colours instead of flat blocks. It is
+ * FlexNotes's glass depth (#102): surfaces lit like tinted glass in the brand colours instead of flat blocks. It is
  * drawn with gradients, rims and shadows only (no backdrop blur), so it looks the same on every supported phone.
  *
  * - [ambientBackdrop]: soft graphite and gold glows on black behind every screen, for the glass to catch.

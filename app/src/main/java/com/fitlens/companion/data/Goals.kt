@@ -5,7 +5,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * An exercise goal (#25): reach [target] in one of the [GoalKinds] for one exercise. Weights and volumes are in kg,
- * times in seconds. Goals live in `exercise_goal` (database v6), so they travel in `.fitlens` backups.
+ * times in seconds. Goals live in `exercise_goal` (database v6), so they travel in `.flexnotes` backups.
  */
 data class ExerciseGoal(val id: Long, val exerciseId: Long, val kind: Int, val target: Double, val sortOrder: Int)
 

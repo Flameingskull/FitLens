@@ -204,7 +204,7 @@ object PdfReport {
         w.newPage()
         val p = w.p
         val c = w.c
-        w.centered("FITLENS", paint(p.gold, 13f, bold = true, tracking = 0.5f), 96f)
+        w.centered("FLEXNOTES", paint(p.gold, 13f, bold = true, tracking = 0.5f), 96f)
         c.drawRect(PW / 2f - 40f, 108f, PW / 2f + 40f, 108.8f, fill(p.gold))
         w.centered(res.getString(R.string.pdf_title), paint(p.text, 34f, serif = true), 156f)
         w.centered(res.getString(R.string.pdf_range, Dates.medium(o.from), Dates.medium(o.to)), paint(p.muted, 12f, tracking = 0.05f), 182f)

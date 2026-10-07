@@ -34,10 +34,10 @@ import com.fitlens.companion.R
 
 /**
  * FitNotes imports that go through the pre-import summary (#6): the backup is read and checked first, the user sees
- * what it adds and skips, can save a FitLens backup first, and then confirms.
+ * what it adds and skips, can save a FlexNotes backup first, and then confirms.
  */
 object FitNotesImports {
-    /** A FitNotes backup opened or shared from outside FitLens, waiting for Settings → Import From FitNotes to show its summary. */
+    /** A FitNotes backup opened or shared from outside FlexNotes, waiting for Settings → Import From FitNotes to show its summary. */
     val pending = MutableStateFlow<Uri?>(null)
     /** A checked backup waiting for the user to confirm. */
     val staged = MutableStateFlow<FitNotesImporter.StagedImport?>(null)

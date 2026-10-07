@@ -1,4 +1,4 @@
-# Keeps FitLens's dependencies and Actions current (#39).
+# Keeps FlexNotes's dependencies and Actions current (#39).
 #
 # Guardrails: Dependabot only ever edits version strings and `uses:` tags. It must never change
 # `applicationId` (com.fitlens.companion), the signing config, the signing secrets, or BUILD_OFFSET.

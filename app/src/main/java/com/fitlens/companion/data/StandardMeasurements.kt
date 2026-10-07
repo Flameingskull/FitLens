@@ -2,7 +2,7 @@ package com.fitlens.companion.data
 
 /**
  * The standard body measurements (#27), for people who start without a FitNotes backup. They're offered in first-run
- * setup and on the Measurements screen, and added as FitLens's own measurements. A name that already exists (ignoring
+ * setup and on the Measurements screen, and added as FlexNotes's own measurements. A name that already exists (ignoring
  * capitals), imported or not, is left as it is, so adding the set twice or after an import changes nothing.
  */
 object StandardMeasurements {

@@ -8,7 +8,7 @@ import org.junit.Test
 /** A measurement's average per period, the overlay on Analysis → Workouts totals (#56). Plain Kotlin, no settings read. */
 class AnalysisAveragesTest {
 
-    private fun r(date: String, value: Double) = MRecord(0, "Bodyweight", "kg", date, "", value, null, Sources.FITLENS)
+    private fun r(date: String, value: Double) = MRecord(0, "Bodyweight", "kg", date, "", value, null, Sources.FLEXNOTES)
 
     @Test
     fun averagesEachWeekAndLeavesEmptyWeeksOut() {

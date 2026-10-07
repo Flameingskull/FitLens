@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 10-11 can't tell cloud backup from device transfer, so nothing is included. Use a .fitlens backup file instead. -->
+<!-- Android 10-11 can't tell cloud backup from device transfer, so nothing is included. Use a .flexnotes backup file instead. -->
 <full-backup-content>
     <exclude domain="root" path="." />
     <exclude domain="file" path="." />

@@ -108,9 +108,9 @@ private fun shiftDay(date: String, days: Long): String =
     Dates.parse(date)?.plusDays(days)?.format(Dates.ISO) ?: date
 
 /**
- * The day log (#81, #8): the home screen, laid out like FitNotes's training log in the FitLens look.
+ * The day log (#81, #8): the home screen, laid out like FitNotes's training log in the FlexNotes look.
  *
- * At the root of the stack it is home: the "FitLens" title, Calendar, + (add an exercise) and the menu that reaches
+ * At the root of the stack it is home: the "FlexNotes" title, Calendar, + (add an exercise) and the menu that reaches
  * every other screen (#79). Pushed from elsewhere (a calendar day, a record), it gets a back arrow instead.
  * The arrows and a swipe anywhere on the page move one calendar day, empty days included, so a workout can be
  * logged on any of them. The day's photos and body values sit above the workout when there are any.
@@ -298,7 +298,7 @@ private fun DayContent(
                 )
             }
         }
-        // The day's progress photos (a FitLens extra).
+        // The day's progress photos (a FlexNotes extra).
         if (photos.isNotEmpty()) {
             item(key = "photos") { PhotoStrip(snap, nav, photos, onAddPhoto) }
         }
@@ -389,7 +389,7 @@ private fun DayContent(
     }
 }
 
-/** The day's progress photos as a compact strip, with an Add photo tile at the end (FitLens extra, #81). */
+/** The day's progress photos as a compact strip, with an Add photo tile at the end (FlexNotes extra, #81). */
 @Composable
 private fun PhotoStrip(snap: Snapshot, nav: Nav, photos: List<Photo>, onAddPhoto: () -> Unit) {
     val openLabel = stringResource(R.string.day_open_photo)
@@ -428,7 +428,7 @@ private fun PhotoStrip(snap: Snapshot, nav: Nav, photos: List<Photo>, onAddPhoto
 /**
  * The body values logged on the day, as FitNotes shows them (owner, 2026-10-02): one card, a row per measurement with
  * its name on the left and its value and unit on the right, hairlines between. The change since the value before sits
- * small under the value (#120). Tapping a row opens that measurement; a value added in FitLens can be deleted with a
+ * small under the value (#120). Tapping a row opens that measurement; a value added in FlexNotes can be deleted with a
  * long press.
  */
 @OptIn(ExperimentalFoundationApi::class)

@@ -1,22 +1,29 @@
 ## Overview
 
-This is a behind-the-scenes update that makes FitLens smoother when something changes in the background. Each
-screen now redraws only when the data it actually shows changes.
+FitLens is now **FlexNotes**. This update gives the app its new name everywhere: on your home screen, in every
+screen, notification and report, and on GitHub. Nothing else about how the app works has changed.
 
-Install it over the current app as usual. There's no database upgrade, and everything you've logged, your photos and
-your settings are kept.
+Install it over the current app as usual. It's the same app, so it updates in place: everything you've logged, your
+photos, your settings and your automatic backups are kept. There's no database upgrade.
+
+## What's new
+
+- **A new name: FlexNotes.** The app's name under its icon, the home screen title, About, Help, notifications,
+  share images and PDF reports now all say FlexNotes.
+- **New backups end in .flexnotes.** Backups you save, share or schedule from now on are named
+  `FlexNotes_backup_…flexnotes`.
+- **New file names for exports.** CSV files, PDF reports, share images and comparison photos are named `FlexNotes_…`,
+  and new progress videos and images are saved to a **FlexNotes** folder in Movies and Pictures.
 
 ## Improved
 
-- **Screens redraw only when their data changes.** FitLens now notices which kinds of data each screen uses (your
-  exercises and workouts, logged sets, workout notes, body values or photos). When something else changes, the
-  screen is left as it is. For example, a photo import finishing in the background no longer redraws the exercise
-  screen you're logging on, and a body value saved elsewhere no longer redraws your workout. This builds on 1.0.121,
-  which stopped the calculations behind those screens from being redone.
-- **Always up to date.** A unit or week-start change still redraws every screen straight away, and so does any change
-  to the data a screen shows.
+- **Your older backups still work.** Backups made before the rename, ending in `.fitlens`, restore just as before.
+  Automatic backups in your backup folder are still counted and tidied with the new ones, so the number kept stays
+  as you set it.
+- **The project has moved on GitHub** to Flameingskull/FlexNotes. Old links redirect automatically, and Settings ›
+  About now opens the new address.
 
 ## Known limitations
 
-- Saving a set still redraws the screens that show your sets, which is expected. How long a save takes on a phone
-  with years of history is still being measured. Settings › About › Save speed shows the figures.
+- Videos and images exported before this update stay in their old FitLens folders in Movies and Pictures. You can
+  move them by hand if you like.

@@ -30,30 +30,30 @@ fun Throwable.userText(res: Resources): String =
 
 
 /**
- * Create, update and delete workout data in FitLens: categories, exercises, sets, and per-day workout comments and
+ * Create, update and delete workout data in FlexNotes: categories, exercises, sets, and per-day workout comments and
  * times. A "workout" is every set, comment and time logged on one date, as in FitNotes.
  *
  * ## Ownership
  * Every category, exercise, set, workout comment and workout time has a `source`:
  * - `fitnotes`: imported from a FitNotes backup and not changed since.
- * - `fitlens`: created in FitLens, or an imported row the user has edited in FitLens (editing makes it FitLens's).
- * Rows have FitLens's own stable `id`. Imported rows also keep their FitNotes id in `fitnotes_id`, for reference only.
+ * - `fitlens`: created in FlexNotes, or an imported row the user has edited in FlexNotes (editing makes it FlexNotes's).
+ * Rows have FlexNotes's own stable `id`. Imported rows also keep their FitNotes id in `fitnotes_id`, for reference only.
  *
  * ## Conflict rules (shared with [FitNotesImporter])
- * 1. A FitNotes import only ever **adds** rows. It never deletes, edits or overwrites anything already in FitLens,
- *    whoever created it. FitLens never writes to FitNotes or its backups.
+ * 1. A FitNotes import only ever **adds** rows. It never deletes, edits or overwrites anything already in FlexNotes,
+ *    whoever created it. FlexNotes never writes to FitNotes or its backups.
  * 2. Categories and exercises are matched **by name** (ignoring case and surrounding spaces), so imported and
- *    FitLens-logged history join up. When both exist, the FitLens row is kept as it is (its category, type, notes).
+ *    FlexNotes-logged history join up. When both exist, the FlexNotes row is kept as it is (its category, type, notes).
  * 3. A set is "already present" when a set on the same date, for the same exercise, with the same weight, reps,
  *    distance and time exists, whoever created it. Identical sets are counted, so three identical sets in a backup
- *    match three in FitLens. Re-importing the same backup therefore changes nothing.
+ *    match three in FlexNotes. Re-importing the same backup therefore changes nothing.
  * 4. Workout comments and times are present when the same text (or the same start and end) exists on that date.
- * 5. What the user does in FitLens wins over later imports: renaming an exercise or category keeps it linked to the
+ * 5. What the user does in FlexNotes wins over later imports: renaming an exercise or category keeps it linked to the
  *    FitNotes name; deleting imported data, or editing an imported set, comment or time, is remembered in
  *    `import_rule` so the next import doesn't bring the original back. Re-creating a deleted exercise or category
  *    with the same name lets its FitNotes history import again.
  * 6. Body measurements merge the same way: a FitNotes value is skipped when the same measurement, date, time and value
- *    exists, or when a value entered by hand in FitLens has the same measurement, date and value.
+ *    exists, or when a value entered by hand in FlexNotes has the same measurement, date and value.
  */
 object Workouts {
 
@@ -183,7 +183,7 @@ object Workouts {
         if (sameName(w.categoryNames(), n) != null) throw WorkoutDataException(R.string.wde_category_exists, n)
         val order = w.lastCategoryOrder() + 1
         w.clearDeletedLink(RULE_CATEGORY, n)
-        w.addCategory(n, colour, order, Sources.FITLENS)
+        w.addCategory(n, colour, order, Sources.FLEXNOTES)
     }
 
     suspend fun updateCategory(id: Long, name: String, colour: Int): Unit = write(LIBRARY) { w ->
@@ -194,12 +194,12 @@ object Workouts {
             w.setLink(RULE_CATEGORY, nameKey(old), id)
             w.clearDeletedLink(RULE_CATEGORY, n)
         }
-        w.updateCategory(id, n, colour, Sources.FITLENS)
+        w.updateCategory(id, n, colour, Sources.FLEXNOTES)
     }
 
     /**
      * Logs a workout day's sets on [date] in one transaction (#100, #106): each pair is an exercise and a prescribed set,
-     * added in order as FitLens sets, like FitNotes's "Log All". PR marks are replayed, since a prescribed set can be
+     * added in order as FlexNotes sets, like FitNotes's "Log All". PR marks are replayed, since a prescribed set can be
      * a record. [workoutId] (and [routineDayId]) record which workout and day the date was started from, for the workout's
      * next-day suggestion (#21). Returns the new ids, so the whole workout can be undone.
      */
@@ -224,7 +224,7 @@ object Workouts {
         val ids = rows.map { (exId, s) ->
             val g = groups[exId] ?: 0
             w.addSet(
-                exId, d, s.weightKg, s.reps, s.distance, s.durationSec, isPr = 0, comment = null, source = Sources.FITLENS,
+                exId, d, s.weightKg, s.reps, s.distance, s.durationSec, isPr = 0, comment = null, source = Sources.FLEXNOTES,
                 setType = s.setType, rpe = null, metric = s.metric, position = 0L, superset = if (g > 0) g + offset else 0,
                 done = 0, restSeconds = s.restSeconds
             )
@@ -235,7 +235,7 @@ object Workouts {
     }
 
     /**
-     * Swaps exercise [from] for [to] on [date] (#100): the day's sets move to the new exercise and become FitLens's own.
+     * Swaps exercise [from] for [to] on [date] (#100): the day's sets move to the new exercise and become FlexNotes's own.
      * An imported set that moves leaves a skip rule, so the next import doesn't bring the original back. PR marks are
      * replayed. Returns the moved sets' ids, for [setExerciseOf] to undo it.
      */
@@ -253,7 +253,7 @@ object Workouts {
             scope.exercises += from
             scope.exercises += to
             scope.dates += d
-            ids.inChunks { w.moveSetsToExercise(it, to, Sources.FITLENS) }
+            ids.inChunks { w.moveSetsToExercise(it, to, Sources.FLEXNOTES) }
             replayPrs(w, scope.exercises)
         }
         ids
@@ -270,11 +270,11 @@ object Workouts {
 
     /**
      * Sets or clears one set's comment (#108); null or blank removes it. Nothing else about the set changes. Like any
-     * edit, an imported set becomes FitLens's own; its values are unchanged, so no skip rule is needed.
+     * edit, an imported set becomes FlexNotes's own; its values are unchanged, so no skip rule is needed.
      */
     suspend fun setComment(id: Long, comment: String?): Unit = writeSets { w, scope ->
         scope.addSets(w, listOf(id))
-        val changed = w.setComment(id, comment?.trim()?.takeIf { it.isNotEmpty() }, Sources.FITLENS)
+        val changed = w.setComment(id, comment?.trim()?.takeIf { it.isNotEmpty() }, Sources.FLEXNOTES)
         if (changed == 0) throw WorkoutDataException(R.string.wde_set_gone)
     }
 
@@ -344,7 +344,7 @@ object Workouts {
         val n = cleanName(name, R.string.wde_name_exercise)
         if (sameName(w.exerciseNames(), n) != null) throw WorkoutDataException(R.string.wde_exercise_exists, n)
         w.clearDeletedLink(RULE_EXERCISE, n)
-        w.addExercise(n, categoryId, type, notes?.takeIf { it.isNotBlank() }, Sources.FITLENS)
+        w.addExercise(n, categoryId, type, notes?.takeIf { it.isNotBlank() }, Sources.FLEXNOTES)
     }
 
     suspend fun updateExercise(id: Long, name: String, categoryId: Long, type: Int, notes: String?): Unit = write(LIBRARY) { w ->
@@ -355,7 +355,7 @@ object Workouts {
             w.setLink(RULE_EXERCISE, nameKey(old), id)
             w.clearDeletedLink(RULE_EXERCISE, n)
         }
-        w.updateExercise(id, n, categoryId, type, notes?.takeIf { it.isNotBlank() }, Sources.FITLENS)
+        w.updateExercise(id, n, categoryId, type, notes?.takeIf { it.isNotBlank() }, Sources.FLEXNOTES)
     }
 
     /**
@@ -384,7 +384,7 @@ object Workouts {
         val count = t.copy(metricName = metric).valueCount
         if (count == 0) throw WorkoutDataException(R.string.wde_type_no_values, n)
         if (count > CustomType.MAX_VALUES) throw WorkoutDataException(R.string.wde_type_too_many, CustomType.MAX_VALUES)
-        // Its graphs are named after it ("Best Height"), so it can't share a name with a value FitLens already records.
+        // Its graphs are named after it ("Best Height"), so it can't share a name with a value FlexNotes already records.
         if (metric != null && nameKey(metric) in setOf("weight", "reps", "distance", "time")) {
             throw WorkoutDataException(R.string.wde_type_metric_builtin, metric)
         }
@@ -457,7 +457,7 @@ object Workouts {
             intoId,
             notes = if (into.notes.isNullOrBlank() && !from.notes.isNullOrBlank()) from.notes else into.notes,
             favourite = if (from.favourite != 0) 1 else into.favourite,
-            source = Sources.FITLENS
+            source = Sources.FLEXNOTES
         )
         w.deleteExercise(fromId)
         // Imports: names that led to the old exercise now lead to the kept one, and its skipped sets stay skipped.
@@ -495,14 +495,14 @@ object Workouts {
                 categoriesAdded += 1
                 w.clearDeletedLink(RULE_CATEGORY, sc.name)
                 val colour = if (palette.isEmpty()) 0 else palette[i % palette.size]
-                w.addCategory(sc.name, colour, order, Sources.FITLENS).also { categories += IdName(it, sc.name) }
+                w.addCategory(sc.name, colour, order, Sources.FLEXNOTES).also { categories += IdName(it, sc.name) }
             }
             sc.exercises.forEach { se ->
                 if (sameName(exercises, se.name) != null) {
                     skipped += 1
                 } else {
                     w.clearDeletedLink(RULE_EXERCISE, se.name)
-                    val id = w.addExercise(se.name, categoryId, se.type, null, Sources.FITLENS)
+                    val id = w.addExercise(se.name, categoryId, se.type, null, Sources.FLEXNOTES)
                     exercises += IdName(id, se.name)
                     exercisesAdded += 1
                 }
@@ -542,11 +542,11 @@ object Workouts {
         )
         w.addSet(
             exerciseId, d, weightKg, reps, distance, durationSec, flag(pr), comment?.takeIf { it.isNotBlank() },
-            Sources.FITLENS, setType, rpe, metric, position = 0L, superset = 0, done = 0, restSeconds = null
+            Sources.FLEXNOTES, setType, rpe, metric, position = 0L, superset = 0, done = 0, restSeconds = null
         )
     }
 
-    /** Saves changes to a set (matched by [SetRow.id]). An edited imported set becomes FitLens's own. */
+    /** Saves changes to a set (matched by [SetRow.id]). An edited imported set becomes FlexNotes's own. */
     suspend fun updateSet(set: SetRow): Unit = writeSets { w, scope ->
         val d = checkDate(set.date)
         val old = w.setById(set.id) ?: throw WorkoutDataException(R.string.wde_set_gone)
@@ -556,7 +556,7 @@ object Workouts {
         if (old.source == Sources.FITNOTES && old.key() != newKey) w.addSkip(RULE_SET, old.key())
         w.updateSet(
             set.id, set.exerciseId, d, set.weightKg, set.reps, set.distance, set.durationSec, flag(set.isPr),
-            set.comment?.takeIf { it.isNotBlank() }, Sources.FITLENS, set.setType, set.rpe, set.metric
+            set.comment?.takeIf { it.isNotBlank() }, Sources.FLEXNOTES, set.setType, set.rpe, set.metric
         )
         // A new weight, rep count or date can make or end a record, for this set and those logged after it.
         replayPrs(w, scope.exercises)
@@ -648,7 +648,7 @@ object Workouts {
     }
 
     /**
-     * Puts whole sets back in one transaction, used to undo a delete. They return as FitLens's own rows on the
+     * Puts whole sets back in one transaction, used to undo a delete. They return as FlexNotes's own rows on the
      * date they carry; their old ids are not reused. Returns how many were added.
      */
     suspend fun addSets(rows: List<SetRow>): Int = writeSets { w, scope ->
@@ -657,7 +657,7 @@ object Workouts {
             // Back in its old place (#70), group (#18) and tick (#19); 0 lets the triggers decide.
             w.addSet(
                 s.exerciseId, s.date.take(10), s.weightKg, s.reps, s.distance, s.durationSec, flag(s.isPr),
-                s.comment?.takeIf { it.isNotBlank() }, Sources.FITLENS, s.setType, s.rpe, s.metric, s.position,
+                s.comment?.takeIf { it.isNotBlank() }, Sources.FLEXNOTES, s.setType, s.rpe, s.metric, s.position,
                 s.superset, flag(s.done), s.restSeconds
             )
             // Deleting an imported set left one skip rule; the set is back, so drop one matching rule too (#76).
@@ -683,7 +683,7 @@ object Workouts {
         w.skipImportedComments(d)
         w.deleteCommentsOn(d)
         val text = comment?.trim()
-        if (!text.isNullOrEmpty()) w.addComment(d, text, Sources.FITLENS)
+        if (!text.isNullOrEmpty()) w.addComment(d, text, Sources.FLEXNOTES)
     }
 
     /** Replaces the comment on exercise [exerciseId] in [date]'s workout (#107). A blank comment removes it. */
@@ -701,7 +701,7 @@ object Workouts {
     private fun writeExerciseComment(w: WorkoutDao, d: String, exerciseId: Long, comment: String?) {
         w.deleteExerciseComment(d, exerciseId)
         val text = comment?.trim()
-        if (!text.isNullOrEmpty()) w.addExerciseComment(d, exerciseId, text, Sources.FITLENS)
+        if (!text.isNullOrEmpty()) w.addExerciseComment(d, exerciseId, text, Sources.FLEXNOTES)
     }
 
     /** Moves exercise comments from exercise [fromId] to [intoId]; on a date where both have one, they're joined. */
@@ -732,7 +732,7 @@ object Workouts {
         val d = checkDate(date)
         w.skipImportedTimes(d)
         w.deleteTimesOn(d)
-        if (start != null || finish != null) w.addTime(d, start, finish, Sources.FITLENS)
+        if (start != null || finish != null) w.addTime(d, start, finish, Sources.FLEXNOTES)
     }
 
     /**
@@ -744,7 +744,7 @@ object Workouts {
         val d = checkDate(date)
         w.skipImportedTimes(d)
         w.deleteTimesOn(d)
-        times.forEach { t -> w.addTime(d, t.start.ifBlank { null }, t.end.ifBlank { null }, Sources.FITLENS) }
+        times.forEach { t -> w.addTime(d, t.start.ifBlank { null }, t.end.ifBlank { null }, Sources.FLEXNOTES) }
     }
 
     /**
@@ -770,7 +770,7 @@ object Workouts {
     }
 
     /**
-     * Copies sets from the workout on [from] to [to], as new FitLens sets. [setIds] limits it to those sets;
+     * Copies sets from the workout on [from] to [to], as new FlexNotes sets. [setIds] limits it to those sets;
      * null copies the whole workout.
      *
      * The copies are added to whatever is already on [to] — nothing there is replaced. The originals are left
@@ -793,7 +793,7 @@ object Workouts {
             val ids = copies.map { s ->
                 w.addSet(
                     s.exercise_id, t, s.weight, s.reps, s.distance, s.duration.toInt(), isPr = 0, comment = s.comment,
-                    source = Sources.FITLENS, setType = s.set_type, rpe = s.rpe, metric = s.metric, position = 0L,
+                    source = Sources.FLEXNOTES, setType = s.set_type, rpe = s.rpe, metric = s.metric, position = 0L,
                     superset = if (s.superset > 0) s.superset + offset else 0, done = 0, restSeconds = s.rest_seconds
                 )
             }
@@ -802,7 +802,7 @@ object Workouts {
             val copied = copies.map { it.exercise_id }.toHashSet()
             if (copied.isNotEmpty()) {
                 w.exerciseCommentsOn(f).filter { it.exercise_id in copied }
-                    .forEach { w.addExerciseCommentIfNone(t, it.exercise_id, it.comment, Sources.FITLENS) }
+                    .forEach { w.addExerciseCommentIfNone(t, it.exercise_id, it.comment, Sources.FLEXNOTES) }
                 w.restsOn(f).filter { it.exercise_id in copied }.forEach { w.addRestIfNone(it.copy(date = t)) }
             }
             replayPrs(w, scope.exercises)
@@ -843,7 +843,7 @@ object Workouts {
 
     /**
      * Moves a whole workout (its sets, comment and times) from [from] to [to], merging into anything already
-     * there rather than replacing it. Moved rows become FitLens's own, and any FitNotes row that moves leaves a
+     * there rather than replacing it. Moved rows become FlexNotes's own, and any FitNotes row that moves leaves a
      * skip rule behind for its old date so a later import doesn't put the original back. PR marks are replayed for
      * the exercises moved, since a record can change hands when a workout moves past another. Returns sets moved.
      */
@@ -865,7 +865,7 @@ object Workouts {
         if (ssOffset > 0) w.shiftGroupsOn(f, ssOffset)
         // Where the workout came from moves with it (#21), replacing the target day's.
         w.moveOrigin(f, t)
-        w.moveSetsOn(f, t, Sources.FITLENS)
+        w.moveSetsOn(f, t, Sources.FLEXNOTES)
         // Prescribed rests (#138) move with their sets; the target day's own win where both have one.
         w.moveRests(f, t)
         w.deleteRestsOn(f)
@@ -874,7 +874,7 @@ object Workouts {
         w.deleteExerciseCommentsOn(f)
         movingComments.forEach { joinExerciseComment(w, t, it.exercise_id, it.comment) }
 
-        // Comments: if both days have one, merge into a single FitLens row (destination first) (#76).
+        // Comments: if both days have one, merge into a single FlexNotes row (destination first) (#76).
         val movedComments = w.commentsOn(f)
         val destComments = w.commentsOn(t)
         if (movedComments.isNotEmpty() && destComments.isNotEmpty()) {
@@ -882,9 +882,9 @@ object Workouts {
             val merged = (destComments + movedComments).map { it.comment.trim() }.filter { it.isNotEmpty() }.joinToString("\n\n")
             w.deleteCommentsOn(f)
             w.deleteCommentsOn(t)
-            if (merged.isNotEmpty()) w.addComment(t, merged, Sources.FITLENS)
+            if (merged.isNotEmpty()) w.addComment(t, merged, Sources.FLEXNOTES)
         } else {
-            w.moveComments(f, t, Sources.FITLENS)
+            w.moveComments(f, t, Sources.FLEXNOTES)
         }
 
         // Times: if both days have them, keep one row from the earliest start to the latest finish (#76).
@@ -898,11 +898,11 @@ object Workouts {
             val finish = all.mapNotNull { it.finish }.maxOrNull()
             w.deleteTimesOn(f)
             w.deleteTimesOn(t)
-            if (start != null || finish != null) w.addTime(t, start, finish, Sources.FITLENS)
+            if (start != null || finish != null) w.addTime(t, start, finish, Sources.FLEXNOTES)
         } else {
             // Start and finish are full timestamps that begin with the date, so their day part moves with the workout
             // and the recorded duration stays the same.
-            w.moveTimes(f, t, Sources.FITLENS)
+            w.moveTimes(f, t, Sources.FLEXNOTES)
         }
         replayPrs(w, scope.exercises)
         moved

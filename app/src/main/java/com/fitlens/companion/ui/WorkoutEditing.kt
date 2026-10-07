@@ -56,14 +56,14 @@ import com.fitlens.companion.ui.design.relativeDayLabel
 import kotlinx.coroutines.launch
 
 /**
- * Editing a whole workout (#10), as FitLens bottom sheets (#84): its comment, copying it to another day, copying a
+ * Editing a whole workout (#10), as FlexNotes bottom sheets (#84): its comment, copying it to another day, copying a
  * previous one into it, moving it and deleting it. Each keeps FitNotes's steps, and every change can be undone from
  * the snackbar. Everything goes through [Workouts], which keeps the FitNotes merge rules intact.
  */
 
 /**
  * FitNotes's Copy Workout dialog (#148): one menu entry, three choices, each with a line of explanation. Every choice
- * opens its FitLens sheet, which keeps the review step and Undo.
+ * opens its FlexNotes sheet, which keeps the review step and Undo.
  */
 @Composable
 fun CopyWorkoutSheet(hasSets: Boolean, hasWorkout: Boolean, onDismiss: () -> Unit, onChoose: (CopyChoice) -> Unit) {

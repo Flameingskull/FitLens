@@ -42,7 +42,7 @@ import com.fitlens.companion.ui.design.OverflowMenu
  *
  * A [totals] pin is an Analysis → Workouts graph (#51) instead: [graph] is "Metric/Period" (`Analysis.Metric` and
  * `Analysis.Period` names), [exerciseId] or [categoryId] its filter (0 for none) and [average] the average-duration
- * option. Pins live in `PortableSettings.pinnedGraphs`, so they travel in `.fitlens` backups with no schema change.
+ * option. Pins live in `PortableSettings.pinnedGraphs`, so they travel in `.flexnotes` backups with no schema change.
  */
 data class PinnedGraph(
     val exerciseId: Long,

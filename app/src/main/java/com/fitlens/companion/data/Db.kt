@@ -15,7 +15,7 @@ import java.io.Closeable
 import java.util.concurrent.Callable
 
 /**
- * FitLens's database, `fitlens.db`, opened through Room (#36). Room creates it on a fresh install from the tables in
+ * FlexNotes's database, `fitlens.db`, opened through Room (#36). Room creates it on a fresh install from the tables in
  * `Schema.kt`, runs [upgrade] and then [reconcile] on anything older, and checks the result against those tables
  * before the app sees it. The app reads and writes only through the typed queries in `Daos.kt`, reached through
  * [snapshotDao] and its neighbours; raw SQL is left to the upgrades below and to tests ([writableDatabase]).
@@ -32,7 +32,7 @@ class Db(context: Context) : Closeable {
 
         /**
          * The saved workouts of v7–v12 (#100). Since v13 their contents live in workout days (#106) and these tables
-         * stay empty, kept only so an older FitLens can still open the database (#77) and the v13 step can replay.
+         * stay empty, kept only so an older FlexNotes can still open the database (#77) and the v13 step can replay.
          */
         private const val CREATE_LEGACY_SAVED_WORKOUT =
             "CREATE TABLE saved_workout(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, notes TEXT, " +
@@ -47,7 +47,7 @@ class Db(context: Context) : Closeable {
                 "distance REAL NOT NULL DEFAULT 0, duration INTEGER NOT NULL DEFAULT 0, set_type INTEGER NOT NULL DEFAULT 0)"
 
         /**
-         * Exercise comments (#107): one note per exercise within a date's workout ("left shoulder tight"). FitLens's
+         * Exercise comments (#107): one note per exercise within a date's workout ("left shoulder tight"). FlexNotes's
          * own; FitNotes imports never write it.
          */
         const val CREATE_EXERCISE_COMMENT =
@@ -56,7 +56,7 @@ class Db(context: Context) : Closeable {
 
         /**
          * Prescribed rest on a logged date (#138): one row per exercise, copied from the workout day it was logged
-         * from. FitLens's own; FitNotes imports never write it.
+         * from. FlexNotes's own; FitNotes imports never write it.
          */
         const val CREATE_WORKOUT_REST =
             "CREATE TABLE workout_rest(date TEXT NOT NULL, exercise_id INTEGER NOT NULL, rest_seconds INTEGER, " +
@@ -65,7 +65,7 @@ class Db(context: Context) : Closeable {
         /**
          * User-defined exercise types (#14). Ids start at [ExerciseTypes.CUSTOM_BASE], so `exercise.type` tells them
          * from the built-in ones. Each flag says whether a set records that value; `metric_name` and `metric_unit`
-         * describe the type's own metric, kept in `workout_set.metric`. FitLens's own; FitNotes imports never write it.
+         * describe the type's own metric, kept in `workout_set.metric`. FlexNotes's own; FitNotes imports never write it.
          */
         const val CREATE_EXERCISE_TYPE =
             "CREATE TABLE exercise_type(id INTEGER PRIMARY KEY, name TEXT NOT NULL, uses_weight INTEGER NOT NULL DEFAULT 0, " +
@@ -78,8 +78,8 @@ class Db(context: Context) : Closeable {
             "CREATE TABLE workout_time(id INTEGER PRIMARY KEY, date TEXT NOT NULL, start TEXT, finish TEXT, source TEXT NOT NULL DEFAULT 'fitlens')"
 
         /**
-         * Remembers what the user did in FitLens to data that came from FitNotes, so a later import respects it.
-         * kind 'category' / 'exercise': key = lower-case FitNotes name, target_id = the FitLens row it now maps to
+         * Remembers what the user did in FlexNotes to data that came from FitNotes, so a later import respects it.
+         * kind 'category' / 'exercise': key = lower-case FitNotes name, target_id = the FlexNotes row it now maps to
          *   (after a rename), or NULL when the user deleted it (the import then skips it).
          * kind 'set' / 'comment' / 'time': key = the imported values the user deleted or edited; one matching row in a
          *   backup is skipped per rule.
@@ -122,7 +122,7 @@ class Db(context: Context) : Closeable {
                 addColumn(db, "measurement", "link", "TEXT")
             }
             if (oldVersion < 3) {
-                // FitLens-owned workout data (#6). Every workout row that exists before this version came from a FitNotes
+                // FlexNotes-owned workout data (#6). Every workout row that exists before this version came from a FitNotes
                 // import, so it is marked 'fitnotes' and keeps its FitNotes id for reference. Nothing is deleted.
                 listOf("category", "exercise", "workout_set").forEach { t ->
                     if (addColumn(db, t, "source", "TEXT NOT NULL DEFAULT 'fitlens'")) {
@@ -157,7 +157,7 @@ class Db(context: Context) : Closeable {
                 // Every statement must migrate in place and keep existing rows.
                 //
                 // #13 exercise library: favourite exercises, listed first in the exercise pickers. Existing
-                // exercises (imported or FitLens's own) default to not a favourite and are otherwise untouched.
+                // exercises (imported or FlexNotes's own) default to not a favourite and are otherwise untouched.
                 addColumn(db, "exercise", "favourite", "INTEGER NOT NULL DEFAULT 0")
                 // (add further 1.0.8 statements here)
             }
@@ -172,7 +172,7 @@ class Db(context: Context) : Closeable {
                 // ---- 1.0.28: goals and per-exercise defaults --------------------------------------------------
                 // Exercise goals (#25) get their own table. Exercises gain an optional weight step and default graph
                 // (#15; -1 means automatic). Measurements gain `edited`, set when the user changes a goal or the order
-                // in FitLens, so a FitNotes import stops refreshing them (#27). Every existing row is kept as it is.
+                // in FlexNotes, so a FitNotes import stops refreshing them (#27). Every existing row is kept as it is.
                 db.execSQL(CREATE_GOAL.replace("CREATE TABLE", "CREATE TABLE IF NOT EXISTS"))
                 addColumn(db, "exercise", "weight_step", "REAL")
                 addColumn(db, "exercise", "default_graph", "INTEGER NOT NULL DEFAULT -1")
@@ -355,7 +355,7 @@ class Db(context: Context) : Closeable {
                 db.execSQL("INSERT OR IGNORE INTO `$temp`(${into.joinToString()}) SELECT ${from.joinToString()} FROM `$table`")
             }
             val after = db.rawQuery("SELECT COUNT(*) FROM `$temp`", null).use { c -> if (c.moveToFirst()) c.getLong(0) else 0L }
-            if (after != before) Log.w("FitLens", "Rebuilding $table kept $after of $before rows (the others had no key)")
+            if (after != before) Log.w("FlexNotes", "Rebuilding $table kept $after of $before rows (the others had no key)")
             db.execSQL("DROP TABLE `$table`")
             db.execSQL("ALTER TABLE `$temp` RENAME TO `$table`")
             if (sequence != null) {
@@ -419,7 +419,7 @@ class Db(context: Context) : Closeable {
 
     private val appContext: Context = context.applicationContext ?: context
 
-    private val room: FitLensDatabase = Room.databaseBuilder(appContext, FitLensDatabase::class.java, NAME)
+    private val room: FlexNotesDatabase = Room.databaseBuilder(appContext, FlexNotesDatabase::class.java, NAME)
         // A rollback journal, as before: a backup copies the one database file, and a restore replaces it (#35).
         .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
         .addMigrations(*(1 until VERSION).map { Upgrade(appContext, it) }.toTypedArray())
@@ -455,7 +455,7 @@ class Db(context: Context) : Closeable {
     internal val readableDatabase: SupportSQLiteDatabase get() = writableDatabase
 
     /**
-     * Installing an older FitLens over a newer one used to be fatal: opening the newer file threw during
+     * Installing an older FlexNotes over a newer one used to be fatal: opening the newer file threw during
      * `Application.onCreate`, so the app crash-looped and the only way out was uninstalling, taking every workout,
      * photo and measurement with it (#77). Room refuses a newer file in the same way.
      *
@@ -470,7 +470,7 @@ class Db(context: Context) : Closeable {
         runCatching {
             val version = SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY).use { it.version }
             if (version <= VERSION) return
-            Log.w("FitLens", "Opening a version $version database with version $VERSION code. Data is kept as it is.")
+            Log.w("FlexNotes", "Opening a version $version database with version $VERSION code. Data is kept as it is.")
             val hash = RoomReference.read(appContext).identityHash
             SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
                 raw.beginTransaction()
@@ -483,7 +483,7 @@ class Db(context: Context) : Closeable {
                     raw.endTransaction()
                 }
             }
-        }.onFailure { Log.w("FitLens", "Couldn't check the database version before opening it", it) }
+        }.onFailure { Log.w("FlexNotes", "Couldn't check the database version before opening it", it) }
     }
 
     // ---- Typed queries (#36). Each opens the database first, so the downgrade check above runs before Room's. ----
@@ -498,7 +498,7 @@ class Db(context: Context) : Closeable {
     val importDao: ImportDao get() = opened().importDao()
     val maintenanceDao: MaintenanceDao get() = opened().maintenanceDao()
 
-    private fun opened(): FitLensDatabase {
+    private fun opened(): FlexNotesDatabase {
         writableDatabase
         return room
     }
@@ -551,7 +551,7 @@ internal class Upgrade(private val context: Context, from: Int) : Migration(from
 internal class RoomReference(val tables: List<Pair<String, String>>, val indices: List<String>, val identityHash: String) {
     companion object {
         fun read(context: Context): RoomReference {
-            val memory = Room.inMemoryDatabaseBuilder(context, FitLensDatabase::class.java).build()
+            val memory = Room.inMemoryDatabaseBuilder(context, FlexNotesDatabase::class.java).build()
             try {
                 val db = memory.openHelper.writableDatabase
                 val tables = ArrayList<Pair<String, String>>()
@@ -589,7 +589,7 @@ fun SupportSQLiteDatabase.insert(table: String, nullColumnHack: String?, values:
     try {
         insert(table, SQLiteDatabase.CONFLICT_NONE, values)
     } catch (e: SQLException) {
-        Log.e("FitLens", "Couldn't add a row to $table", e)
+        Log.e("FlexNotes", "Couldn't add a row to $table", e)
         -1L
     }
 

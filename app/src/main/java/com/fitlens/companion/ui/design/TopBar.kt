@@ -58,7 +58,7 @@ data class TopBarAction(
 data class MenuAction(val label: String, val enabled: Boolean = true, val onClick: () -> Unit)
 
 /**
- * The FitLens top bar (#80): title, optional letter-spaced subtitle, up to three [actions], an optional Settings gear
+ * The FlexNotes top bar (#80): title, optional letter-spaced subtitle, up to three [actions], an optional Settings gear
  * and an overflow menu, over a gold hairline.
  *
  * - Pushed screens pass [onBack] and get a back arrow; tab screens leave it null and are centre-aligned.
@@ -66,7 +66,7 @@ data class MenuAction(val label: String, val enabled: Boolean = true, val onClic
  *   to the scrolling content.
  * - [trailing] is a slot for anything the lists can't express, such as an existing dropdown; it sits after [actions].
  * - [titleMenu] turns the title into a dropdown (with a ▾), as the library's routine switcher does in FitNotes (#21).
- * - [brandMark] puts the FitLens character before the title, where FitNotes shows its app icon (#141). It's the torso
+ * - [brandMark] puts the FlexNotes character before the title, where FitNotes shows its app icon (#141). It's the torso
  *   art, as every small icon is (`CLAUDE.md` rule 4), placed unedited. Only for a screen with no back arrow.
  */
 @Composable

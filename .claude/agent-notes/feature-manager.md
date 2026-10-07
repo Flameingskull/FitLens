@@ -30,7 +30,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   Settings → Backups → Undo can reverse it (1.0.24, #32). First-run UI keys off `DeviceSettings.setupDone`.
 - 2026-09-25: Analysis maths lives in `data/Analysis.kt` (pure Kotlin, unit-testable); screens only format. A
   `@Composable` (e.g. `categoryColour`) can't be called inside `remember { }`; build colours from the raw Int there.
-- 2026-09-26: A value the user sets in FitLens on a FitNotes-owned row (e.g. a measurement's goal or order) needs a
+- 2026-09-26: A value the user sets in FlexNotes on a FitNotes-owned row (e.g. a measurement's goal or order) needs a
   marker (`measurement.edited`) that the importer checks, or the next import silently overwrites it (1.0.28).
 - 2026-09-26: Navigation is FitNotes-style since 1.0.29 (#79, #81): no bottom bar, `Screen.Day` is the root, and new
   destinations go in the day log's ⋮ menu (`DayScreen`), not a tab. `PlainTopBar` takes its back arrow from
@@ -81,7 +81,7 @@ that stop being true. The repository is public: no personal data, secrets or `FI
   old `saved_workout*` tables stay empty rather than dropped, because older builds must still open the database (#77):
   never drop a table in a migration.
 - 2026-09-29 (1.0.52, #107, #40 slice): exercise comments live in `exercise_comment` (v14), keyed by date and
-  exercise, FitLens-only (no skip rules). Any new path that copies, moves or deletes sets must carry them, and its
+  exercise, FlexNotes-only (no skip rules). Any new path that copies, moves or deletes sets must carry them, and its
   Undo must restore them (`Workouts.setExerciseComments`). JVM tests now exist (`app/src/test`, Robolectric, run in
   CI before the release build): every database change adds an upgrade test to `DbMigrationTest`.
 - 2026-09-29 (1.0.54, #40 closed): tests cover migrations (v1, v2, v12, v13), the FitNotes merge and backup/restore.

@@ -1,11 +1,11 @@
-# Contributing to FitLens
+# Contributing to FlexNotes
 
 Thanks for helping. Bug reports, feature ideas and code are all welcome.
 
 ## Reporting bugs and requesting features
 
 Open an issue with the **Bug report** or **Feature request** form. Before you post, search the existing issues in
-case someone has already reported it. For bugs, the steps to reproduce, your FitLens version and your phone model
+case someone has already reported it. For bugs, the steps to reproduce, your FlexNotes version and your phone model
 make a fix much faster. Please don't attach FitNotes backups or photos that you don't want to be public.
 
 Issues are triaged and labelled (`priority: high|medium|low`, `ready`, `needs-info`). Items marked `ready` are planned

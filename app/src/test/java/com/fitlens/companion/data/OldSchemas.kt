@@ -6,7 +6,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import java.io.File
 
 /**
- * Test fixtures (#40): database schemas as older FitLens versions created them, taken from the repository's history,
+ * Test fixtures (#40): database schemas as older FlexNotes versions created them, taken from the repository's history,
  * and small helpers for writing synthetic rows. Nothing here is real user data.
  */
 object OldSchemas {

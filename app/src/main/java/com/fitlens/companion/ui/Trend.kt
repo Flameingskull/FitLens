@@ -12,7 +12,7 @@ import kotlin.math.roundToInt
 import android.content.res.Resources
 import com.fitlens.companion.R
 
-// Trend lines (#152). Every trend in FitLens comes from here, so the line drawn, the figures written under it and a
+// Trend lines (#152). Every trend in FlexNotes comes from here, so the line drawn, the figures written under it and a
 // shared image always agree. Plain Kotlin with no Android parts, so it's unit tested on the JVM (TrendTest).
 
 /**

@@ -71,7 +71,7 @@ private object KeepScrollInSheet : NestedScrollConnection {
 }
 
 /**
- * A modal bottom sheet in the FitLens style (#80): serif [title], gold hairline, scrolling [content] and a sticky
+ * A modal bottom sheet in the FlexNotes style (#80): serif [title], gold hairline, scrolling [content] and a sticky
  * button row. The confirm button appears when both [confirmLabel] and [onConfirm] are given; use a specific verb
  * ("Save set", "Delete workout"), never "OK". [destructive] colours the confirm button as an error action.
  * The caller closes the sheet (usually inside [onConfirm]); [onDismiss] runs on Cancel, back or a tap outside.

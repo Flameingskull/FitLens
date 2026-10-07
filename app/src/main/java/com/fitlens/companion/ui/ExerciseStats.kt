@@ -177,7 +177,7 @@ fun ExerciseStatsTab(snap: Snapshot, nav: Nav, exId: Long, sets: List<SetRow>, t
 
 /**
  * The Estimated 1RM Calculator, as FitNotes's (#28, #148): WEIGHT and REPS steppers, then 1RM to 8RM, each with its
- * weight and its percentage of the 1RM under it. FitLens adds 9RM to 12RM (marked approximate past 10 reps) and a
+ * weight and its percentage of the 1RM under it. FlexNotes adds 9RM to 12RM (marked approximate past 10 reps) and a
  * percentage table. The estimate uses the formula and rep limit chosen in Settings (#42, #148).
  */
 @Composable

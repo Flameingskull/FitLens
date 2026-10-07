@@ -197,7 +197,7 @@ object PhotoImporter {
             ?: modified()?.let { it to DateSources.FILE }
 
     /**
-     * Re-dates a photo that was imported earlier with the import's date order (#163), from what FitLens keeps: the
+     * Re-dates a photo that was imported earlier with the import's date order (#163), from what FlexNotes keeps: the
      * stored copy's EXIF and the original file name (the media library's date and the file's modified time aren't
      * kept). Returns null to leave the photo as it is: its date was set by hand, nothing was found, its media library
      * date would give way to a weaker source, or nothing would change.

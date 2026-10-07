@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
  * Room takes over `fitlens.db` (#36). Opening a database through [Db] makes Room check every table against
  * `Schema.kt`, so each test here fails if the schema Room expects and the schema the app really has ever disagree:
  * on a fresh install, after the v21 rebuild of a full v20 database, when that rebuild replays, and when a newer
- * FitLens's file is opened by this one (#77). Synthetic data only.
+ * FlexNotes's file is opened by this one (#77). Synthetic data only.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class)
@@ -133,7 +133,7 @@ class RoomSchemaTest {
     fun theRebuildReplaysAfterAnOlderBuildStampsTheVersionBack() {
         v20Database()
         Db(app).use { it.writableDatabase }
-        // An older FitLens opened the file and stamped it back to 20 (#77), then this build is installed again.
+        // An older FlexNotes opened the file and stamped it back to 20 (#77), then this build is installed again.
         SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE).use { it.version = 20 }
         Db(app).use { h ->
             val db = h.writableDatabase
@@ -145,9 +145,9 @@ class RoomSchemaTest {
     }
 
     @Test
-    fun aNewerFitLensFileOpensAndKeepsItsData() {
+    fun aNewerFlexNotesFileOpensAndKeepsItsData() {
         Db(app).use { h -> h.writableDatabase.row("exercise", "id" to 1L, "name" to "Deadlift") }
-        // A later FitLens added a column and a version, then this build was installed over it (#77).
+        // A later FlexNotes added a column and a version, then this build was installed over it (#77).
         SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
             raw.execSQL("ALTER TABLE exercise ADD COLUMN future TEXT")
             raw.execSQL("UPDATE room_master_table SET identity_hash='from-a-later-build'")
@@ -213,7 +213,7 @@ class RoomSchemaTest {
 
     @Test
     fun everyUpgradeIsRegistered() {
-        // Room needs a path from every version FitLens has shipped; a database from any of them opens.
+        // Room needs a path from every version FlexNotes has shipped; a database from any of them opens.
         (1 until Db.VERSION).forEach { v ->
             app.deleteDatabase(Db.NAME)
             OldSchemas.create(file, v, OldSchemas.V20)

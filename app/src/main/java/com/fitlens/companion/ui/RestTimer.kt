@@ -191,7 +191,7 @@ object RestTimer {
     }
 }
 
-/** The rest-over sound (#20): the chosen ringtone (or the phone's default notification sound) at FitLens's volume. */
+/** The rest-over sound (#20): the chosen ringtone (or the phone's default notification sound) at FlexNotes's volume. */
 object RestSound {
     private var playing: Ringtone? = null
 

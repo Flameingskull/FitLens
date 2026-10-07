@@ -1,6 +1,6 @@
 ---
 name: safe-build
-description: Owner-triggered FitLens build that gets the most high-quality development into one release within the current usage limits. The main session plans a full build, implements it in checkpointed stages, and publishes a signed release. Run it only when the owner types /safe-build.
+description: Owner-triggered FlexNotes build that gets the most high-quality development into one release within the current usage limits. The main session plans a full build, implements it in checkpointed stages, and publishes a signed release. Run it only when the owner types /safe-build.
 disable-model-invocation: true
 argument-hint: "[auto | issue numbers, e.g. 23 38]"
 ---

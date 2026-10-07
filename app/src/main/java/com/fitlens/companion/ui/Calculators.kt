@@ -49,11 +49,11 @@ internal fun roundTo(v: Double, step: Double): Double = if (step <= 0) v else ro
 
 private fun parse(t: String): Double? = t.trim().replace(',', '.').toDoubleOrNull()
 
-/** The plates FitLens offers until the user edits the list, in the display unit (#28). */
+/** The plates FlexNotes offers until the user edits the list, in the display unit (#28). */
 fun defaultPlates(unit: String): List<Double> =
     if (unit == "lbs") listOf(45.0, 35.0, 25.0, 10.0, 5.0, 2.5) else listOf(25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25)
 
-/** The bar FitLens assumes until the user sets one, in the display unit. */
+/** The bar FlexNotes assumes until the user sets one, in the display unit. */
 fun defaultBar(unit: String): Double = if (unit == "lbs") 45.0 else 20.0
 
 /**

@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.FitLens" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.FlexNotes" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">#FF050505</item>
         <item name="android:statusBarColor">#FF050505</item>
         <item name="android:navigationBarColor">#FF050505</item>

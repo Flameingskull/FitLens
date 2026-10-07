@@ -13,11 +13,11 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Database migrations (#40, first slice): build a database as an older FitLens left it, open it with today's [Db],
+ * Database migrations (#40, first slice): build a database as an older FlexNotes left it, open it with today's [Db],
  * and check that every row survives the upgrade. Runs on the JVM with Robolectric's real SQLite, in CI before every
  * release build, so a migration that loses data stops the release. The fixtures are synthetic.
  *
- * A plain [Application] stands in for FitLens's own, so the test doesn't start the store, settings or backups.
+ * A plain [Application] stands in for FlexNotes's own, so the test doesn't start the store, settings or backups.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class)

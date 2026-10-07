@@ -38,12 +38,12 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Automatic backups in the background (#34), using Android's job scheduler through WorkManager.
- * Backups go only to the folder the user chose ([Backups.autoFolder]). There's no network constraint and FitLens has
+ * Backups go only to the folder the user chose ([Backups.autoFolder]). There's no network constraint and FlexNotes has
  * no internet permission; jobs run when the battery isn't low.
  *
  * - **Scheduled:** a periodic job checks every few hours and saves a backup when the daily or weekly one is due,
- *   even if FitLens isn't opened.
- * - **After changes (optional):** when FitLens goes to the background after data changed, a one-off job saves a
+ *   even if FlexNotes isn't opened.
+ * - **After changes (optional):** when FlexNotes goes to the background after data changed, a one-off job saves a
  *   backup, at most once an hour.
  * - If the folder can't be reached, a notification explains how to fix it, and Settings shows the problem until a
  *   backup works again. A failed backup is retried at the next check, so backups are never skipped silently.
@@ -79,9 +79,9 @@ object AutoBackup {
             try {
                 schedule(app)
             } catch (e: Exception) {
-                // WorkManager unavailable; backups still run when FitLens opens.
+                // WorkManager unavailable; backups still run when FlexNotes opens.
             }
-            // Every snapshot after the first one means FitLens data changed (imports, edits, photos, restores).
+            // Every snapshot after the first one means FlexNotes data changed (imports, edits, photos, restores).
             Store.snapshot.filterNotNull().drop(1).collect {
                 try {
                     if (!isDirty()) Settings.updateDevice { it.copy(backupDirty = true) }
@@ -108,7 +108,7 @@ object AutoBackup {
         wm.enqueueUniquePeriodicWork(WORK_PERIODIC, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
-    /** FitLens went to the background: queue a backup if data changed and "back up after changes" is on. */
+    /** FlexNotes went to the background: queue a backup if data changed and "back up after changes" is on. */
     fun onAppBackground(context: Context) {
         val app = context.applicationContext
         scope.launch {
@@ -160,7 +160,7 @@ object AutoBackup {
             cursor.use { c ->
                 while (c.moveToNext()) {
                     if (c.getString(1) == DocumentsContract.Document.MIME_TYPE_DIR) continue
-                    val isOurs = (c.getString(2) ?: "").startsWith("FitLens_")
+                    val isOurs = (c.getString(2) ?: "").let { it.startsWith("FlexNotes_") || it.startsWith("FitLens_") }
                     if (probe == null || isOurs) probe = DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0))
                     if (isOurs) break
                 }
@@ -209,7 +209,7 @@ object AutoBackup {
 
         val n = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_warning)
-            // The FitLens character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
+            // The FlexNotes character beside the notification, in colour (the torso art, branding/torso/). The status-bar icon has to
             // stay a plain glyph: Android keeps only its outline.
             .setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_character))
             .setColor(Brand.Gold.toArgb())
@@ -238,7 +238,7 @@ class BackupWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val result: ImportSummary = if (reason == AutoBackup.REASON_CHANGES) {
             if (!AutoBackup.afterChangesEnabled() || !AutoBackup.isDirty()) return Result.success()
             val last = Backups.lastAutoBackup() ?: 0L
-            // Another backup ran meanwhile: the next time FitLens goes to the background queues a new one.
+            // Another backup ran meanwhile: the next time FlexNotes goes to the background queues a new one.
             if (System.currentTimeMillis() - last < AutoBackup.THROTTLE_MS - 120_000L) return Result.success()
             Backups.backupToFolder(ctx)
         } else {

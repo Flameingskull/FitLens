@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
  * optional notes and ordered **days** the user names freely ("Monday", "Push Day"), each holding its own exercises
  * with how their sets are filled. It replaced the separate saved workouts (#100) and routines (#21) in database v13.
  * The code keeps the `Routine` names and tables (`routine`, `routine_day`, `routine_day_exercise`, `routine_day_set`).
- * They travel in `.fitlens` backups and FitNotes imports never touch them. `workout_origin` remembers which workout
+ * They travel in `.flexnotes` backups and FitNotes imports never touch them. `workout_origin` remembers which workout
  * and day a logged date was started from, which is how the next day is suggested.
  */
 
@@ -310,7 +310,7 @@ object Routines {
      * and sets of the saved workout it pointed at (a saved workout shared by two days becomes two copies), and each
      * saved workout no day used becomes a one-day workout with its name and notes. `workout_origin` rows are
      * re-pointed at the workout and day (one whose saved workout is gone keeps its row, pointing nowhere). Nothing is lost: the saved-workout rows are only emptied once copied, and the
-     * empty tables stay so an older FitLens can still open the database (#77). Replays safely: a day already copied
+     * empty tables stay so an older FlexNotes can still open the database (#77). Replays safely: a day already copied
      * has `workout_id` 0, and a saved workout already copied is gone.
      */
     internal fun migrateSavedWorkouts(db: SupportSQLiteDatabase) {

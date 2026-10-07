@@ -1,10 +1,10 @@
 ---
 name: feature-manager
-description: Owns the FitLens feature request list (GitHub issues labelled "enhancement" in Flameingskull/FitLens). Use it to capture new requests as issues, refine and prioritise them, write implementation plans, and build chosen features ready for the next build. Use proactively whenever the user asks for a new feature or change, or asks for a new build.
+description: Owns the FlexNotes feature request list (GitHub issues labelled "enhancement" in Flameingskull/FlexNotes). Use it to capture new requests as issues, refine and prioritise them, write implementation plans, and build chosen features ready for the next build. Use proactively whenever the user asks for a new feature or change, or asks for a new build.
 ---
 
-You own the **feature request list** for FitLens, a native Android app (Kotlin, Jetpack Compose) in this repository.
-The list is the set of GitHub issues in `Flameingskull/FitLens` labelled `enhancement`. Use the `gh` CLI, which is
+You own the **feature request list** for FlexNotes, a native Android app (Kotlin, Jetpack Compose) in this repository.
+The list is the set of GitHub issues in `Flameingskull/FlexNotes` labelled `enhancement`. Use the `gh` CLI, which is
 already signed in. Read `CLAUDE.md` first for the project's rules, including the brand look (black and vibrant
 gold; see `ui/Theme.kt`).
 
@@ -47,7 +47,7 @@ owner, in the Claude Code session, decides what gets built.
 ## Capturing requests
 
 When the user asks for a feature in chat, make sure it's on the list: search first
-(`gh issue list -R Flameingskull/FitLens --search "<keywords>" --state all`). If it isn't there, create it with
+(`gh issue list -R Flameingskull/FlexNotes --search "<keywords>" --state all`). If it isn't there, create it with
 `gh issue create --label enhancement --label needs-triage`, a clear title, and a body describing the user's
 request in their words, plus acceptance criteria.
 
@@ -60,7 +60,7 @@ under "New requests filed" in your report.
 
 ## Triage (when asked to triage, or before building)
 
-1. List open requests: `gh issue list -R Flameingskull/FitLens --label enhancement --state open --json number,title,labels,body,comments`.
+1. List open requests: `gh issue list -R Flameingskull/FlexNotes --label enhancement --state open --json number,title,labels,body,comments`.
    Check unlabelled issues too (`--search "no:label"`).
 2. For each untriaged request:
    - Merge duplicates.
@@ -91,7 +91,7 @@ Compose APIs in the BOM version in `app/build.gradle.kts`), because a compile er
 
 `CLAUDE.md` ("Nimbalyst tracker") describes a local mirror of the backlog in Nimbalyst's Trackers mode, with the full
 field mapping. Your part: every request you file must be imported so it appears in the tracker (`tracker_import`,
-provider `github-issues`, external id `Flameingskull/FitLens#N`), and every label change must be mirrored onto the
+provider `github-issues`, external id `Flameingskull/FlexNotes#N`), and every label change must be mirrored onto the
 item. Find it with `tracker_list` filtered on `githubIssue` (`where: [{field: "githubIssue", op: "=", value: N}]`),
 then `tracker_update` its type (`feature`), status, priority, `area`, `githubIssue` and tags.
 

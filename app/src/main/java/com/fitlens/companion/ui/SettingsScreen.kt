@@ -194,7 +194,7 @@ private fun dayName(day: DayOfWeek) = day.getDisplayName(TextStyle.FULL, Locale.
 
 /**
  * The main Settings screen (#147): FitNotes's single list, under its SETTINGS, DATA and OTHER headings, in its order
- * and wording, with on/off settings as checkboxes. FitLens's own settings follow FitNotes's in the matching group.
+ * and wording, with on/off settings as checkboxes. FlexNotes's own settings follow FitNotes's in the matching group.
  * Searching (#86) filters the list to the matching rows, which work in place, and lists matching settings on the
  * pages it opens.
  */
@@ -249,7 +249,7 @@ fun SettingsScreen(snap: Snapshot, nav: Nav) {
     }
 }
 
-/** The main list's rows, FitNotes's first in each group, then FitLens's own (#147). */
+/** The main list's rows, FitNotes's first in each group, then FlexNotes's own (#147). */
 @Composable
 private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
     val prefs by Settings.portable.collectAsState()
@@ -348,7 +348,7 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
                 Settings.updatePortable { it.copy(keepScreenOn = on) }
             }
         },
-        // FitLens's own settings follow FitNotes's.
+        // FlexNotes's own settings follow FitNotes's.
         mainRow(s, R.string.settings_fill, R.string.settings_fill_kw) { title ->
             SettingsChoiceRow(
                 title,
@@ -422,7 +422,7 @@ private fun mainRows(snap: Snapshot, nav: Nav): List<MainRow> {
                 sheetOpen = e1rmLimit
             ) { e1rmLimit = true }
         },
-        // FitLens's own: photos, the slideshow and video, and the PDF report (#46).
+        // FlexNotes's own: photos, the slideshow and video, and the PDF report (#46).
         mainRow(s, R.string.settings_media, R.string.settings_media_kw) { title ->
             SettingsActionRow(title, stringResource(R.string.settings_media_summary)) { open(SettingsSection.Media) }
         },
@@ -635,7 +635,7 @@ private fun HomePage() {
 }
 
 /**
- * Settings → Progress photos and media (#46): the defaults FitLens's own photo features start from. All of them
+ * Settings → Progress photos and media (#46): the defaults FlexNotes's own photo features start from. All of them
  * travel in backups, and each is validated when read, so a newer build's backup can't break these screens.
  */
 @Composable

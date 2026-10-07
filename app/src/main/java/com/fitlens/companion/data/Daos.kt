@@ -676,7 +676,7 @@ interface WorkoutDao {
     fun moveRests(fromDate: String, toDate: String)
 }
 
-/** A category or exercise already in FitLens, as a FitNotes import matches against it. */
+/** A category or exercise already in FlexNotes, as a FitNotes import matches against it. */
 data class LibraryOrigin(val id: Long, val name: String, val source: String, val fitnotes_id: Long?)
 
 /** The values that tell one logged set from another (`Workouts.setKey`). */

@@ -718,7 +718,7 @@ fun ExerciseInfoSheet(snap: Snapshot, ex: Exercise, weightStepShown: Double, onE
 
 /**
  * Creates or edits an exercise on its own full screen, as FitNotes does (#83, #126): NAME, NOTES, CATEGORY (with + for
- * a new one), TYPE and WEIGHT UNIT, then FitLens's own defaults. ✓ saves; ✓+ saves and clears the form for the next
+ * a new one), TYPE and WEIGHT UNIT, then FlexNotes's own defaults. ✓ saves; ✓+ saves and clears the form for the next
  * exercise, keeping the category. [onSaved] runs after a plain save of a new exercise, so the library can open it.
  */
 @Composable

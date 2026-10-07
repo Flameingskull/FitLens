@@ -299,7 +299,7 @@ fun SlideshowScreen(snap: Snapshot, nav: Nav, ids: List<Long>?) {
                         UiEvents.busy.value = res.getString(R.string.ss_creating, 0)
                         try {
                             val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
-                            val out = File(File(app.cacheDir, "exports"), "FitLens_progress_$stamp.mp4")
+                            val out = File(File(app.cacheDir, "exports"), "FlexNotes_progress_$stamp.mp4")
                             VideoExporter.export(snap, snapSlides, snapOpts, out) { p ->
                                 UiEvents.busy.value = res.getString(R.string.ss_creating, (p * 100).toInt())
                             }

@@ -29,7 +29,7 @@ import androidx.room.RoomDatabase
         PhotoRow::class, MetaRow::class
     ]
 )
-abstract class FitLensDatabase : RoomDatabase() {
+abstract class FlexNotesDatabase : RoomDatabase() {
     abstract fun snapshotDao(): SnapshotDao
     abstract fun metaDao(): MetaDao
     abstract fun bodyDao(): BodyDao
@@ -41,7 +41,7 @@ abstract class FitLensDatabase : RoomDatabase() {
     abstract fun maintenanceDao(): MaintenanceDao
 }
 
-// ---- Workout data. `source` is 'fitnotes' (imported) or 'fitlens' (made or edited in FitLens) -------------------
+// ---- Workout data. `source` is 'fitnotes' (imported) or 'fitlens' (made or edited in FlexNotes) -------------------
 
 @Entity(tableName = "category")
 data class CategoryRow(
@@ -134,7 +134,7 @@ data class WorkoutTimeRow(
     @ColumnInfo(defaultValue = "'fitlens'") val source: String
 )
 
-/** What the user did in FitLens to imported data, so a later FitNotes import respects it (#6). */
+/** What the user did in FlexNotes to imported data, so a later FitNotes import respects it (#6). */
 @Entity(tableName = "import_rule")
 data class ImportRuleRow(
     @PrimaryKey(autoGenerate = true) val id: Long,
@@ -166,7 +166,7 @@ data class ExerciseTypeRow(
     val metric_unit: String?
 )
 
-// ---- Saved workouts of v7–v12 (#100): empty since v13, kept so an older FitLens can still open the file (#77) ------
+// ---- Saved workouts of v7–v12 (#100): empty since v13, kept so an older FlexNotes can still open the file (#77) ------
 
 @Entity(tableName = "saved_workout")
 data class SavedWorkoutRow(

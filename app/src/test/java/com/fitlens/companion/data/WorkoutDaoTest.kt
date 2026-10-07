@@ -46,15 +46,15 @@ class WorkoutDaoTest {
 
     private fun WorkoutDao.set(exerciseId: Long, date: String, weight: Double, reps: Int, setType: Int = SetTypes.WORKING, superset: Int = 0) =
         addSet(
-            exerciseId, date, weight, reps, 0.0, 0, isPr = 0, comment = null, source = Sources.FITLENS, setType = setType,
+            exerciseId, date, weight, reps, 0.0, 0, isPr = 0, comment = null, source = Sources.FLEXNOTES, setType = setType,
             rpe = null, metric = null, position = 0L, superset = superset, done = 0, restSeconds = null
         )
 
     @Test
     fun aNewSetIsPlacedAndGroupedByTheTriggers() = withDao { _, w ->
-        val chest = w.addCategory("Chest", 0, w.lastCategoryOrder() + 1, Sources.FITLENS)
-        val bench = w.addExercise("Bench Press", chest, 0, null, Sources.FITLENS)
-        val fly = w.addExercise("Cable Fly", chest, 0, null, Sources.FITLENS)
+        val chest = w.addCategory("Chest", 0, w.lastCategoryOrder() + 1, Sources.FLEXNOTES)
+        val bench = w.addExercise("Bench Press", chest, 0, null, Sources.FLEXNOTES)
+        val fly = w.addExercise("Cable Fly", chest, 0, null, Sources.FLEXNOTES)
         val first = w.set(bench, "2026-10-06", 100.0, 5, superset = 2)
         val second = w.set(bench, "2026-10-06", 100.0, 5)
         w.set(fly, "2026-10-06", 20.0, 12)
@@ -72,7 +72,7 @@ class WorkoutDaoTest {
 
     @Test
     fun warmUpsSetTheBarOnlyWhenTheyCount() = withDao { _, w ->
-        val squat = w.addExercise("Squat", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
+        val squat = w.addExercise("Squat", Workouts.UNCATEGORISED, 0, null, Sources.FLEXNOTES)
         w.set(squat, "2026-10-01", 140.0, 5, setType = SetTypes.WARMUP)
         w.set(squat, "2026-10-02", 120.0, 5)
         assertEquals(120.0, w.bestBefore(squat, 5, "2026-10-06", countWarmups = false, warmup = SetTypes.WARMUP)!!, 0.0)
@@ -83,8 +83,8 @@ class WorkoutDaoTest {
 
     @Test
     fun aScopedPrReplayMatchesTheFullReplayForItsExercises() = withDao { _, w ->
-        val bench = w.addExercise("Bench Press", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
-        val squat = w.addExercise("Squat", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
+        val bench = w.addExercise("Bench Press", Workouts.UNCATEGORISED, 0, null, Sources.FLEXNOTES)
+        val squat = w.addExercise("Squat", Workouts.UNCATEGORISED, 0, null, Sources.FLEXNOTES)
         val first = w.set(bench, "2026-10-01", 100.0, 5)
         val record = w.set(bench, "2026-10-02", 110.0, 5)
         val after = w.set(bench, "2026-10-03", 105.0, 5)
@@ -111,10 +111,10 @@ class WorkoutDaoTest {
 
     @Test
     fun aHistoryDeleteHonoursItsRangeAndExercises() = withDao { _, w ->
-        val a = w.addExercise("Row", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
-        val b = w.addExercise("Curl", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
+        val a = w.addExercise("Row", Workouts.UNCATEGORISED, 0, null, Sources.FLEXNOTES)
+        val b = w.addExercise("Curl", Workouts.UNCATEGORISED, 0, null, Sources.FLEXNOTES)
         listOf("2026-09-01", "2026-09-15", "2026-10-01").forEach { d -> w.set(a, d, 60.0, 8); w.set(b, d, 15.0, 10) }
-        w.addExerciseComment("2026-09-15", a, "Strap", Sources.FITLENS)
+        w.addExerciseComment("2026-09-15", a, "Strap", Sources.FLEXNOTES)
 
         // One exercise, open-ended start.
         assertEquals(2, w.deleteSetsInRange(null, "2026-09-15", everyExercise = false, exerciseIds = listOf(a)))
@@ -150,24 +150,24 @@ class WorkoutDaoTest {
     fun aDaysNotesMoveWithItsWorkout() = withDao { _, w ->
         w.addTime("2026-10-01", "2026-10-01 18:00:00", null, Sources.FITNOTES)
         w.addComment("2026-10-01", "Good day", Sources.FITNOTES)
-        w.addExerciseComment("2026-10-01", 1L, "Elbows in", Sources.FITLENS)
+        w.addExerciseComment("2026-10-01", 1L, "Elbows in", Sources.FLEXNOTES)
         w.putRest(WorkoutRestRow("2026-10-01", 1L, 120, null))
         w.putOrigin(WorkoutOriginRow("2026-10-01", 1L, 3L))
 
-        w.moveTimes("2026-10-01", "2026-10-03", Sources.FITLENS)
-        w.moveComments("2026-10-01", "2026-10-03", Sources.FITLENS)
+        w.moveTimes("2026-10-01", "2026-10-03", Sources.FLEXNOTES)
+        w.moveComments("2026-10-01", "2026-10-03", Sources.FLEXNOTES)
         w.moveRests("2026-10-01", "2026-10-03")
         w.moveOrigin("2026-10-01", "2026-10-03")
         val time = w.timesOn("2026-10-03").single()
         assertEquals("2026-10-03 18:00:00", time.start)
         assertNull(time.finish)
-        assertEquals(Sources.FITLENS, time.source)
+        assertEquals(Sources.FLEXNOTES, time.source)
         assertEquals("Good day", w.commentsOn("2026-10-03").single().comment)
         assertEquals(120, w.restsOn("2026-10-03").single().rest_seconds)
 
         // A copied comment or rest never replaces the day's own.
-        w.addExerciseComment("2026-10-04", 1L, "Own note", Sources.FITLENS)
-        w.addExerciseCommentIfNone("2026-10-04", 1L, "Elbows in", Sources.FITLENS)
+        w.addExerciseComment("2026-10-04", 1L, "Own note", Sources.FLEXNOTES)
+        w.addExerciseCommentIfNone("2026-10-04", 1L, "Elbows in", Sources.FLEXNOTES)
         assertEquals("Own note", w.exerciseComment("2026-10-04", 1L))
         w.addRestIfNone(WorkoutRestRow("2026-10-03", 1L, 60, null))
         assertEquals(120, w.restsOn("2026-10-03").single().rest_seconds)
@@ -176,7 +176,7 @@ class WorkoutDaoTest {
     @Test
     fun aDeletedExerciseLeavesEveryWorkoutDay() = withDao { h, w ->
         val r = h.routineDao
-        val ex = w.addExercise("Dip", Workouts.UNCATEGORISED, 0, null, Sources.FITLENS)
+        val ex = w.addExercise("Dip", Workouts.UNCATEGORISED, 0, null, Sources.FLEXNOTES)
         val routine = r.addRoutine(RoutineRow(0L, "Upper", null, r.nextRoutineOrder()))
         val day = r.addDay(routine, "Push Day", r.nextDayOrder(routine))
         val item = r.addItem(RoutineDayExerciseRow(0L, day, ex, 0, Routines.FILL_LAST, 0, 90, null))
@@ -202,7 +202,7 @@ class WorkoutDaoTest {
 class ExportedSchemaTest {
 
     @get:Rule
-    val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), FitLensDatabase::class.java)
+    val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), FlexNotesDatabase::class.java)
 
     private lateinit var app: Application
 

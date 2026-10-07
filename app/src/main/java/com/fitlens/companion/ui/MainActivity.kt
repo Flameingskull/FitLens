@@ -261,12 +261,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        setContent { FitLensTheme { AppRoot(nav, onRetry = { startUp(null) }) } }
+        setContent { FlexNotesTheme { AppRoot(nav, onRetry = { startUp(null) }) } }
         startUp(if (savedInstanceState == null) intent else null)
     }
 
     /**
-     * Loads the data, then the start-up chores and [opening] (the file or photos FitLens was opened with). If the data
+     * Loads the data, then the start-up chores and [opening] (the file or photos FlexNotes was opened with). If the data
      * can't be read, the error screen's Try again comes back here (#93).
      */
     private fun startUp(opening: Intent?) {
@@ -308,7 +308,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        // "Back up after changes" (#34): queue a background backup when FitLens leaves the screen.
+        // "Back up after changes" (#34): queue a background backup when FlexNotes leaves the screen.
         AutoBackup.onAppBackground(applicationContext)
     }
 
@@ -350,7 +350,7 @@ class MainActivity : ComponentActivity() {
                 FileKind.BODY_CSV -> FitNotesImporter.importBodyCsv(this, u).let { UiEvents.show(it.message, it.level()) }
                 FileKind.WORKOUT_CSV -> UiEvents.show(getString(R.string.ma_workout_csv))
                 FileKind.ARCHIVE -> {
-                    // A .fitlens backup: Settings → Backup checks it and asks before restoring.
+                    // A .flexnotes backup: Settings → Backup checks it and asks before restoring.
                     openBackups()
                     UiEvents.pendingRestore.value = u
                 }

@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 /**
  * A screen's own state (#37): which sheet or dialog is open, filters, a selection. It belongs to the screen's entry
  * in the back stack, so it outlives rotation, and it's kept in that entry's saved state, so it comes back after
- * Android stops FitLens in the background. Values must fit in a Bundle (Boolean, Int, Long, String and lists of them).
+ * Android stops FlexNotes in the background. Values must fit in a Bundle (Boolean, Int, Long, String and lists of them).
  *
  * A screen gets its own with `viewModel<DayState>()` and swaps `remember { mutableStateOf(x) }` for `state.saved("key", x)`.
  */

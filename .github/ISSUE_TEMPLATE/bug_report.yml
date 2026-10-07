@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in FitLens isn't working as it should.
+description: Something in FlexNotes isn't working as it should.
 labels: [bug, needs-triage]
 body:
   - type: textarea
@@ -28,8 +28,8 @@ body:
   - type: input
     id: build
     attributes:
-      label: FitLens version
-      description: The release you installed, e.g. FitLens 1.0.3.
+      label: FlexNotes version
+      description: The release you installed, e.g. FlexNotes 1.0.3.
   - type: input
     id: device
     attributes:

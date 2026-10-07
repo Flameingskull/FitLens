@@ -273,7 +273,7 @@ fun animationsEnabled(): Boolean {
 val CategoryFallbackColour: Color get() = Brand.Outline
 
 /**
- * FitLens always uses its black and gold theme, whatever the system setting.
+ * FlexNotes always uses its black and gold theme, whatever the system setting.
  *
  * Every background is dark, so text is never black. Compose's own default content colour is black, and it is what
  * any text without a colour falls back to wherever its container isn't one of the theme's colours: the transparent
@@ -281,7 +281,7 @@ val CategoryFallbackColour: Color get() = Brand.Outline
  * sheet and dialog.
  */
 @Composable
-fun FitLensTheme(content: @Composable () -> Unit) {
+fun FlexNotesTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = Scheme, typography = LuxuryType, shapes = LuxuryShapes) {
         CompositionLocalProvider(
             LocalContentColor provides Brand.Ivory,

@@ -122,7 +122,7 @@ private fun redatePhotos(res: Resources) {
 }
 
 /**
- * The Photos gallery (#92): the FitLens top bar with icon actions and an overflow menu, which becomes a selection bar
+ * The Photos gallery (#92): the FlexNotes top bar with icon actions and an overflow menu, which becomes a selection bar
  * with the count while photos are selected. Sections follow "Group photos by" (#46), remembered in Settings.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -398,7 +398,7 @@ private fun PoseOptions(onPick: (String) -> Unit) {
     }
 }
 
-/** Sets the pose of one or more existing photos, as a FitLens sheet (#92). */
+/** Sets the pose of one or more existing photos, as a FlexNotes sheet (#92). */
 @Composable
 fun PoseDialog(onDismiss: () -> Unit, count: Int = 0, onPick: (String) -> Unit) {
     FitSheet(title = if (count > 1) pluralStringResource(R.plurals.ph_set_pose_n, count, count) else stringResource(R.string.ph_set_pose), onDismiss = onDismiss) {

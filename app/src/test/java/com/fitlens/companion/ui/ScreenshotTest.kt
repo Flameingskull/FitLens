@@ -91,7 +91,7 @@ class ScreenshotTest {
         compose.setContent {
             val base = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(base.density, variant.fontScale)) {
-                FitLensTheme {
+                FlexNotesTheme {
                     Box(Modifier.testTag(TAG).width(variant.width.dp).background(Brand.Black)) { content() }
                 }
             }
@@ -157,15 +157,15 @@ class ScreenshotTest {
             SettingsGroup("General")
             SettingsSwitchRow("Count warm-up sets", checked = true, summary = "Include warm-ups in totals and records") {}
             SettingsChoiceRow("Weight unit", options = listOf("kg", "lbs"), selected = 0) {}
-            SettingsActionRow("Back up now", summary = "Saves a .fitlens backup to your chosen folder", value = "Today") {}
+            SettingsActionRow("Back up now", summary = "Saves a .flexnotes backup to your chosen folder", value = "Today") {}
         }
     }
 
     @Test fun settingsRowVariants() = shoot("settings_row_variants") {
         Column {
             SettingsGroup("Automatic backups")
-            SettingsFolderRow("Backup folder", "Documents/FitLens", summary = "Choose a folder outside FitLens") {}
-            SettingsFolderRow("FitNotes folder", "FitNotes", lost = true, lostText = "FitLens can no longer reach this folder. Choose it again.") {}
+            SettingsFolderRow("Backup folder", "Documents/FlexNotes", summary = "Choose a folder outside FlexNotes") {}
+            SettingsFolderRow("FitNotes folder", "FitNotes", lost = true, lostText = "FlexNotes can no longer reach this folder. Choose it again.") {}
             SettingsActionRow("Automatic Backup", value = "On", warning = "The last automatic backup failed. Open to see why.") {}
             SettingsNumberRow("Photos per day", 2, 0..4, summary = "In the PDF report") {}
             SettingsStatusCard(listOf(StatusLine("Last backup: 2 Oct 2026, 03:12"), StatusLine("The folder can't be reached", problem = true)))

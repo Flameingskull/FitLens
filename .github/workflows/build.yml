@@ -1,4 +1,4 @@
-name: Build FitLens APK
+name: Build FlexNotes APK
 
 # Releases only. Pull request checks live in pr.yml so they don't advance this workflow's run number, which the
 # versionCode is built from (#78).
@@ -57,8 +57,8 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.FITLENS_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then echo "::error::FITLENS_KEYSTORE_BASE64 secret is missing"; exit 1; fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/fitlens.keystore"
-          echo "FITLENS_KEYSTORE=$RUNNER_TEMP/fitlens.keystore" >> "$GITHUB_ENV"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/flexnotes.keystore"
+          echo "FITLENS_KEYSTORE=$RUNNER_TEMP/flexnotes.keystore" >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v6
         if: steps.guard.outputs.skip != 'true'
@@ -107,16 +107,16 @@ jobs:
         if: success() && steps.guard.outputs.skip != 'true'
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/FitLens-$VERSION.apk"
-          git archive --format=zip --prefix="FitLens-$VERSION/" -o "dist/FitLens-$VERSION-source.zip" HEAD
-          git archive --format=tar.gz --prefix="FitLens-$VERSION/" -o "dist/FitLens-$VERSION-source.tar.gz" HEAD
+          cp app/build/outputs/apk/release/app-release.apk "dist/FlexNotes-$VERSION.apk"
+          git archive --format=zip --prefix="FlexNotes-$VERSION/" -o "dist/FlexNotes-$VERSION-source.zip" HEAD
+          git archive --format=tar.gz --prefix="FlexNotes-$VERSION/" -o "dist/FlexNotes-$VERSION-source.tar.gz" HEAD
           (cd dist && sha256sum * > SHA256SUMS.txt)
 
       - name: Keep release files as build artifact
         if: success() && steps.guard.outputs.skip != 'true'
         uses: actions/upload-artifact@v7
         with:
-          name: FitLens-${{ env.VERSION }}
+          name: FlexNotes-${{ env.VERSION }}
           path: dist/*
 
       # The release post = RELEASE_NOTES.md (the hand-written update list for this build)
@@ -128,12 +128,12 @@ jobs:
         run: |
           PREV=$(git describe --tags --abbrev=0 --match 'build-*' HEAD^ 2>/dev/null || true)
           RANGE=${PREV:+$PREV..}HEAD
-          APK="FitLens-$VERSION.apk"
+          APK="FlexNotes-$VERSION.apk"
           size() { numfmt --to=iec --suffix=B "$(stat -c %s "dist/$1")"; }
           # Issues closed by "Fixes #N" / "Closes #N" / "Resolves #N" in this build's commits
           ISSUES=$(git log --format=%B "$RANGE" | grep -oiE '(fix(es|ed)?|close[sd]?|resolve[sd]?) #[0-9]+' | grep -oE '[0-9]+' | sort -un || true)
           {
-            echo "# FitLens $VERSION"
+            echo "# FlexNotes $VERSION"
             echo
             echo "**Build $FITLENS_BUILD** · $(date -u '+%d %B %Y') · commit [\`${GITHUB_SHA::7}\`](${{ github.server_url }}/${{ github.repository }}/commit/$GITHUB_SHA)"
             echo
@@ -153,7 +153,7 @@ jobs:
             echo
             echo "1. On your Android phone, download **$APK** from the files below."
             echo "2. Open it and allow installs from your browser or file manager if Android asks."
-            echo "3. It installs over any earlier FitLens build and keeps all your data."
+            echo "3. It installs over any earlier FlexNotes build and keeps all your data."
             echo
             echo "Requires Android 10 or newer."
             echo
@@ -162,8 +162,8 @@ jobs:
             echo "| File | Size | Contents |"
             echo "| --- | --- | --- |"
             echo "| \`$APK\` | $(size "$APK") | Signed Android app, ready to install |"
-            echo "| \`FitLens-$VERSION-source.zip\` | $(size "FitLens-$VERSION-source.zip") | Complete source code for this build |"
-            echo "| \`FitLens-$VERSION-source.tar.gz\` | $(size "FitLens-$VERSION-source.tar.gz") | Same source code, tar.gz format |"
+            echo "| \`FlexNotes-$VERSION-source.zip\` | $(size "FlexNotes-$VERSION-source.zip") | Complete source code for this build |"
+            echo "| \`FlexNotes-$VERSION-source.tar.gz\` | $(size "FlexNotes-$VERSION-source.tar.gz") | Same source code, tar.gz format |"
             echo "| \`SHA256SUMS.txt\` | $(size SHA256SUMS.txt) | Checksums to verify the downloads |"
             echo
             echo "## Commits in this build"
@@ -180,7 +180,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ env.FITLENS_BUILD }}
-          name: FitLens ${{ env.VERSION }}
+          name: FlexNotes ${{ env.VERSION }}
           body_path: release-post.md
           files: dist/*
 
@@ -192,8 +192,8 @@ jobs:
           SHA="${{ github.sha }}"
           mkdir -p /tmp/ci && cd /tmp/ci
           git init -q
-          git config user.name "fitlens-ci"
-          git config user.email "fitlens-ci@users.noreply.github.com"
+          git config user.name "flexnotes-ci"
+          git config user.email "flexnotes-ci@users.noreply.github.com"
           echo "run=${{ github.run_number }} build=${FITLENS_BUILD:-?} sha=$SHA result=$RESULT" > status.txt
           if [ -f "$GITHUB_WORKSPACE/build.log" ]; then
             grep -E "^e: |error:|FAILURE|What went wrong|BUILD (SUCCESSFUL|FAILED)|AAPT|Execution failed| FAILED$|AssertionError|Exception at|Caused by" "$GITHUB_WORKSPACE/build.log" | head -300 > errors.txt || true

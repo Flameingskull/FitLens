@@ -1,24 +1,26 @@
-# FitLens
+# FlexNotes
 
-<p align="center"><img src="branding/fitlens-icon-512.png" alt="FitLens icon" width="180"></p>
+<p align="center"><img src="branding/flexnotes-icon-512.png" alt="FlexNotes icon" width="180"></p>
 
 **Your workouts, body stats and progress photos in one private Android app.**
 
-[![Latest release](https://img.shields.io/github/v/release/Flameingskull/FitLens?label=latest%20release)](https://github.com/Flameingskull/FitLens/releases/latest)
-[![Build](https://github.com/Flameingskull/FitLens/actions/workflows/build.yml/badge.svg)](https://github.com/Flameingskull/FitLens/actions/workflows/build.yml)
+*Formerly FitLens. Renamed FlexNotes in 1.0.123; it installs over the old app as an update and keeps all your data.*
+
+[![Latest release](https://img.shields.io/github/v/release/Flameingskull/FlexNotes?label=latest%20release)](https://github.com/Flameingskull/FlexNotes/releases/latest)
+[![Build](https://github.com/Flameingskull/FlexNotes/actions/workflows/build.yml/badge.svg)](https://github.com/Flameingskull/FlexNotes/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-FitLens puts your training history, body measurements and progress photos together, day by day. It lets you see what
+FlexNotes puts your training history, body measurements and progress photos together, day by day. It lets you see what
 your body looked like next to what you lifted and what you measured. Everything stays on your phone.
 
 ## Purpose and where it's heading
 
-FitLens started as a companion to [FitNotes](https://www.fitnotesapp.com/). It read FitNotes backups and matched
+FlexNotes started as a companion to [FitNotes](https://www.fitnotesapp.com/). It read FitNotes backups and matched
 each progress photo to that day's workout and measurements. **It is now a workout logger in its own right.** The aim
 is to record workouts the way FitNotes does, plus what FitNotes can't: photos, progress videos, PDF reports and
 custom metrics.
 
-- **Today:** FitLens opens on today's training log and moves around the way FitNotes does. It logs your workouts
+- **Today:** FlexNotes opens on today's training log and moves around the way FitNotes does. It logs your workouts
   (an exercise library with ten exercise types plus types you make yourself, each with up to three values and a
   metric of your own, set-by-set entry with set types, effort, comments and a done tick, workouts made of days you
   name with planned sets and rests, a workout timer and a rest timer), analyses your training (with graphs you can
@@ -26,37 +28,38 @@ custom metrics.
   bodyweight), tracks goals, and imports and shows your FitNotes history. It also manages progress photos, tracks body
   measurements (with body fat calculated from them) and custom metrics, shows the nearest progress photo beside a
   graph point, makes slideshows, videos and PDF reports that remember your options, and backs everything up locally. Every
-  exercise, set and workout records whether it came from FitNotes or was created in FitLens, so the two histories sit
+  exercise, set and workout records whether it came from FitNotes or was created in FlexNotes, so the two histories sit
   side by side without colliding.
 - **In progress:** FitNotes is the guide for every screen that does what a FitNotes screen does, so moving across
-  feels familiar. A screen-by-screen pass laid each FitLens screen beside FitNotes and fixed the differences, one
+  feels familiar. A screen-by-screen pass laid each FlexNotes screen beside FitNotes and fixed the differences, one
   group per release from 1.0.75 to 1.0.87: the day log and workout drawer, the exercise screen, the library and
   workout editor, the calendar and Body Tracker, Analysis, the photo screens and finally Settings, now FitNotes's
   single list. In 1.0.96 the photo, viewer, compare, slideshow and PDF screens joined the same design system, and in
   1.0.101 Settings had an accessibility pass and gained Reset settings to defaults. From 1.0.103 to 1.0.107 every
   screen's wording moved into the app's string resources, with counts that read correctly for one or many, ready for
-  translations ([#94](https://github.com/Flameingskull/FitLens/issues/94)), and 1.0.108 and 1.0.109 did the same for
-  the messages built while saving, importing and backing up ([#156](https://github.com/Flameingskull/FitLens/issues/156)).
-  From 1.0.110 to 1.0.112 Settings was finished ([#41](https://github.com/Flameingskull/FitLens/issues/41): status
+  translations ([#94](https://github.com/Flameingskull/FlexNotes/issues/94)), and 1.0.108 and 1.0.109 did the same for
+  the messages built while saving, importing and backing up ([#156](https://github.com/Flameingskull/FlexNotes/issues/156)).
+  From 1.0.110 to 1.0.112 Settings was finished ([#41](https://github.com/Flameingskull/FlexNotes/issues/41): status
   and warnings, search that opens the page at the setting, keyboard and switch access) and the motion and polish pass
-  closed ([#93](https://github.com/Flameingskull/FitLens/issues/93))
-  ([parity epic #134](https://github.com/Flameingskull/FitLens/issues/134), building on the
-  [redesign epic #79](https://github.com/Flameingskull/FitLens/issues/79)), along with the FitNotes parity
-  ([#59](https://github.com/Flameingskull/FitLens/issues/59)) and analysis hub
-  ([#58](https://github.com/Flameingskull/FitLens/issues/58)) epics. From 1.0.113 to 1.0.118 the data layer moved to
-  Room, Android's standard database library ([#36](https://github.com/Flameingskull/FitLens/issues/36)): every
+  closed ([#93](https://github.com/Flameingskull/FlexNotes/issues/93))
+  ([parity epic #134](https://github.com/Flameingskull/FlexNotes/issues/134), building on the
+  [redesign epic #79](https://github.com/Flameingskull/FlexNotes/issues/79)), along with the FitNotes parity
+  ([#59](https://github.com/Flameingskull/FlexNotes/issues/59)) and analysis hub
+  ([#58](https://github.com/Flameingskull/FlexNotes/issues/58)) epics. From 1.0.113 to 1.0.118 the data layer moved to
+  Room, Android's standard database library ([#36](https://github.com/Flameingskull/FlexNotes/issues/36)): every
   upgrade is checked against a recorded layout, and every read and save goes through queries checked when the app is
-  built. Next come accessibility checks on a real phone ([#157](https://github.com/Flameingskull/FitLens/issues/157)),
-  measuring save speed on a long history ([#60](https://github.com/Flameingskull/FitLens/issues/60)) and the
-  [feature request list](https://github.com/Flameingskull/FitLens/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
+  built. From 1.0.119 to 1.0.122 big workout changes, photo dates and screen updates got faster and more accurate (photos
+  can now re-read their dates from their metadata), and in 1.0.123 the app was renamed FlexNotes. Next come accessibility checks on a real phone ([#157](https://github.com/Flameingskull/FlexNotes/issues/157)),
+  measuring save speed on a long history ([#60](https://github.com/Flameingskull/FlexNotes/issues/60)) and the
+  [feature request list](https://github.com/Flameingskull/FlexNotes/issues?q=is%3Aissue+is%3Aopen+label%3Aenhancement).
 - **FitNotes stays supported** as an import source. You can import during first-run setup or at any time afterwards.
-  Imports always merge and never overwrite FitLens data. There's no export back to FitNotes.
+  Imports always merge and never overwrite FlexNotes data. There's no export back to FitNotes.
 
 ### Exercises, workouts and routines
 
 - An **exercise** is one movement, such as Bench Press, kept in the exercise library.
 - A **workout** is one you make yourself (FitNotes calls it a routine): a name and days you name freely, such as
-  "Monday" or "Push Day", each holding its exercises and how their sets are filled. FitLens suggests the next day each
+  "Monday" or "Push Day", each holding its exercises and how their sets are filled. FlexNotes suggests the next day each
   time you train.
 - A **logged workout** is what you recorded on a date. Adding a workout adds a whole day of exercises at once; a
   control that adds one exercise always says **Add exercise**.
@@ -64,14 +67,14 @@ custom metrics.
 ### Principles
 
 - **Local only.** No accounts, no cloud services, no subscriptions and **no internet permission**. Google cloud backup
-  is turned off for FitLens. Backups go only to a folder you choose.
+  is turned off for FlexNotes. Backups go only to a folder you choose.
 - **Every update installs over the last one** and keeps your data. Database changes are always migrated, never reset.
 - **Android phones** (Android 10 or newer), across phone screen sizes. A self-hosted web version may come later.
-- **The FitLens look:** luxury black and vibrant gold. Cards, bars and buttons are smoked glass with fine gold
+- **The FlexNotes look:** luxury black and vibrant gold. Cards, bars and buttons are smoked glass with fine gold
   rims, graphs are red over a translucent gold fill, rises show in green and falls in red, and all text is ivory or
   gold, never black. Everything is set in **Manrope**, a clean, highly legible typeface bundled with the app, on one
   calm type scale, with FitNotes-style uppercase section headings over a fine gold rule. Text wraps between words,
-  never inside one. The FitLens character stands
+  never inside one. The FlexNotes character stands
   faintly behind every screen, and its torso appears in notifications and beside the magnifying glass in search
   fields.
 
@@ -107,7 +110,7 @@ custom metrics.
   workout to another day (leaving out any exercises you choose), moves it, or copies a previous workout into today,
   and a workout can be deleted.
   Each of these opens as a sheet, and the result can be undone. **Share workout** sends a workout to any app as text or
-  as a FitLens image card (with one of that day's photos only if you choose it), with a checklist of exactly which
+  as a FlexNotes image card (with one of that day's photos only if you choose it), with a checklist of exactly which
   exercises and sets to include.
 - **Workouts.** The exercise library's title (**+** on the day log) switches between **All exercises**, each of your
   workouts and **Create new workout**. A workout shows its days as cards, with the next one marked in gold, and
@@ -144,20 +147,23 @@ custom metrics.
   increase, decrease or a specific value.
 - **Imports FitNotes backups** (`.fitnotes`), which contain workouts, sets, PRs, comments, workout times, exercises,
   categories, all body tracker measurements and custom measurements. It also accepts Body Tracker CSV exports.
-  Before importing, FitLens shows what will be added and what is skipped as already present, and offers to save a
-  FitLens backup first (see [FitNotes imports and your FitLens data](#fitnotes-imports-and-your-fitlens-data)).
-- **Optional FitNotes folder sync** for moving over gradually. Point FitLens at the folder where FitNotes saves its
-  backups, then tap **Sync now**, or turn on automatic sync to import the newest backup whenever FitLens opens.
-  Automatic sync is **off by default**. You can also share a backup from FitNotes straight into FitLens.
+  Before importing, FlexNotes shows what will be added and what is skipped as already present, and offers to save a
+  FlexNotes backup first (see [FitNotes imports and your FlexNotes data](#fitnotes-imports-and-your-flexnotes-data)).
+- **Optional FitNotes folder sync** for moving over gradually. Point FlexNotes at the folder where FitNotes saves its
+  backups, then tap **Sync now**, or turn on automatic sync to import the newest backup whenever FlexNotes opens.
+  Automatic sync is **off by default**. You can also share a backup from FitNotes straight into FlexNotes.
 - **Bulk photo import:** choose many photos or a whole folder, or share photos from your gallery. You pick the pose
   (Front, Side, Back or Other) for the batch as you import, or set a **pose for new photos** in **Settings → Progress
-  Photos & Media** and FitLens stops asking. Each photo is dated from:
+  Photos & Media** and FlexNotes stops asking. Each photo is dated from:
   1. camera metadata (EXIF "date taken"),
   2. then the media library date,
   3. then a date in the file name (for example `IMG_20230826_132000.jpg`, `PXL_…` or `Screenshot_2023-08-26…`),
-  4. then the file's modified date. Photos dated this way are flagged for you to check.
+  4. then the EXIF edit time, flagged for you to check,
+  5. then the file's modified date, also flagged.
 
-  Duplicates are detected and skipped, so re-importing a folder is safe.
+  Duplicates are detected and skipped, so re-importing a folder is safe. **Photos → ⋮ → Re-read photo dates** runs
+  the same order again over photos already imported (except any you dated by hand), says how many changed, and can be
+  undone.
 - **Manual entry:** add photos to a specific day and log measurements by hand, with a date, time and comment. A value
   you logged can be changed or deleted on the measurement's Track tab (tap it there, or in its History). If the same value later arrives in a
   FitNotes backup, the FitNotes copy is skipped and your entry is kept.
@@ -171,13 +177,13 @@ custom metrics.
   shown with its date, and any value more than 14 days old is flagged. A missing measurement is named so you can enter
   it on the spot, and impossible inputs are refused with the reason. **Settings → Sex (Body Fat)** holds the one
   choice the formula needs.
-- **Guided setup:** a fresh install opens a short, skippable setup: restore a FitLens backup, or choose your units,
+- **Guided setup:** a fresh install opens a short, skippable setup: restore a FlexNotes backup, or choose your units,
   an automatic backup folder, a FitNotes import, your progress photos, the starter exercise library and the standard
   body measurements.
   **Settings → Show Setup Again** opens it any time.
 - **Settings:** open it from the **⋮** menu on the day log. As in FitNotes, it's one list. **SETTINGS** has Theme,
   Unit System, Calendar Week Start, Default Weight Increment, Home Screen Settings, Track Personal Records, Mark Sets
-  Complete, Auto-Select Next Set and Keep Screen On, in FitNotes's order, then FitLens's own: your units, sex for the
+  Complete, Auto-Select Next Set and Keep Screen On, in FitNotes's order, then FlexNotes's own: your units, sex for the
   body fat formula, the rest timer, how new sets fill in, set types, effort, warm-ups, the workout timer, the
   estimated 1RM formula and settings, and **Progress Photos & Media** (the pose for new photos, how the gallery is
   grouped, remembered slideshow and video options, and the PDF report's page style and photos per day). **DATA**
@@ -206,13 +212,13 @@ custom metrics.
     categories, photos and body data are kept, personal records are worked out again, and deleted FitNotes sets stay
     deleted on the next import. A safety copy is taken first, so it can be undone.
   - **Reset settings to defaults:** puts units, the rest timer, logging, display, photo and report options back as
-    they were when FitLens was new, with **Undo** straight afterwards. Workouts, photos, measurements, backups,
+    they were when FlexNotes was new, with **Undo** straight afterwards. Workouts, photos, measurements, backups,
     backup folders and schedules, pinned graphs and your body fat profile are kept. Home Screen Settings, Rest Timer
     and Progress Photos & Media can also be reset on their own, from **Reset this section** in each page's ⋮ menu.
 - **Getting around:** as in FitNotes, there's no tab bar. The **day log** is home, and its top bar has **Calendar**,
   **+** (the exercise library and workout switcher), the rest countdown while you rest, and a **⋮** menu with the
   day's workout actions, then Analysis, Body tracker, Photos and Settings. Each of those slides in on top of the log,
-  and Back returns you to it. Rotating the phone, or Android closing FitLens in the background, keeps your place:
+  and Back returns you to it. Rotating the phone, or Android closing FlexNotes in the background, keeps your place:
   the screen you were on and the ones under it, with their open sheets, selections and filters. Choices such as a
   period, a pose or a sort order sit in compact dropdowns, so the data gets the screen; the controls you use
   mid-workout stay in view. Tapping an exercise card on the day log opens it out into the exercise screen, and Back
@@ -291,7 +297,7 @@ custom metrics.
     with a second point's photo. An exercise graph's ⋮ can **overlay a body measurement** (bodyweight, body fat or any
     measurement) on its own scale at the right; a shared graph includes body values only if you choose. Every graph opens **full screen** (the expand button or a double
     tap), where pinching across zooms the timeline and pinching up and down zooms the values, dragging moves around, and the range and options can change. TalkBack reads each graph's range and
-    values and offers zoom and move actions for both. A graph's ⋮ menu can **share it as an image** in the FitLens
+    values and offers zoom and move actions for both. A graph's ⋮ menu can **share it as an image** in the FlexNotes
     look. An exercise graph's ⋮ can **compare** up to five exercises on one graph, each with its own colour and
     marker (tap a name in the legend to hide it, tap a date for every value on it), as values or as a percentage of
     each one's first value in the range. The **star** beside full screen pins a graph to Analysis → Overview.
@@ -303,53 +309,53 @@ custom metrics.
     saved as an image.
 - **Slideshow and video:** plays your photos in date order with overlays: the date, a day or week counter, the pose,
   chosen measurements (with the change since the start) and a moving progress chart. Every option is in one options
-  sheet, and FitLens remembers them for next time (the dates always start at all photos; **Settings → Progress Photos
+  sheet, and FlexNotes remembers them for next time (the dates always start at all photos; **Settings → Progress Photos
   & Media** can switch this off or reset them). It exports an **MP4 video**, rendered on the phone, in Portrait HD,
-  Full HD or Square. Videos are saved to *Movies/FitLens* and can be shared.
+  Full HD or Square. Videos are saved to *Movies/FlexNotes* and can be shared.
 - **PDF report:** a readable report with your photos, measurement charts, training summary and a daily log, in dark
   (as in the app) or light (for printing). The page style and photos per day start from your Settings choice.
 - **Backups, all on your phone** (in **Settings → Backups**):
-  - **Backup file:** save everything, photos included, as one `.fitlens` file, or **share** it with an app you
-    already use (email, Drive, Dropbox and so on; FitLens itself never uploads anything). Restore it after
+  - **Backup file:** save everything, photos included, as one `.flexnotes` file, or **share** it with an app you
+    already use (email, Drive, Dropbox and so on; FlexNotes itself never uploads anything). Restore it after
     reinstalling or on a new phone, or open it straight from a file manager. The date and time in the file name can
-    be switched off.
+    be switched off. Backups made before the rename (`.fitlens` files) still restore.
   - **Automatic backups:** daily or weekly to a folder you choose (for example Documents or an SD card), so they
     survive uninstalling. You choose how many to keep (the newest 3, 5 or 10). They run in the background through Android's job scheduler,
-    even when FitLens is closed, whenever the battery isn't low. Optionally, **Back up after changes** saves a backup
-    when you leave FitLens after changing something, at most once an hour.
+    even when FlexNotes is closed, whenever the battery isn't low. Optionally, **Back up after changes** saves a backup
+    when you leave FlexNotes after changing something, at most once an hour.
   - **Status and alerts:** a status card shows the last successful backup, the next scheduled one, the folder and
     its free space, each with a tick or a warning sign. Folder rows show the folder's name, or Not set, with Choose
     or Change. If the folder can't be reached (the SD card was removed or access was lost), the row says so and a
     notification explains how to fix it.
-  - **Safety copy with Undo:** before a restore, a FitNotes import, merging exercises or deleting workout history, FitLens keeps a copy
+  - **Safety copy with Undo:** before a restore, a FitNotes import, merging exercises or deleting workout history, FlexNotes keeps a copy
     of your current data on the phone. For 7 days, **Settings → Backups → Safety copy → Undo** puts it back.
-  - **Phone-to-phone transfer** (Android 12+) carries FitLens data across when you set up a new phone with a cable or
+  - **Phone-to-phone transfer** (Android 12+) carries FlexNotes data across when you set up a new phone with a cable or
     a direct transfer.
 
-FitLens only *reads* FitNotes backups and never changes your FitNotes data. FitLens backups (`.fitlens`) are for
-FitLens only.
+FlexNotes only *reads* FitNotes backups and never changes your FitNotes data. FlexNotes backups (`.flexnotes`) are for
+FlexNotes only.
 
-**Permissions:** the only one FitLens asks for is notifications (Android 13+), and only when you set up automatic
+**Permissions:** the only one FlexNotes asks for is notifications (Android 13+), and only when you set up automatic
 backups or start a timer. Switching on a setting that needs them gives a one-line reason first, and if notifications
 are off, the setting still works in the app and offers a way to turn them on. It also uses vibration and a foreground service for the timers, which Android grants
 without asking. Photos and folders are accessed through Android's file pickers, and only the ones you choose.
 
-## FitNotes imports and your FitLens data
+## FitNotes imports and your FlexNotes data
 
 Every category, exercise, set, workout comment and workout time records who owns it: **FitNotes** (imported) or
-**FitLens** (created or edited in FitLens). FitLens gives every row its own id and keeps the FitNotes id only for
+**FlexNotes** (created or edited in FlexNotes). FlexNotes gives every row its own id and keeps the FitNotes id only for
 reference, so the two never collide. Importing a FitNotes backup follows these rules:
 
-1. An import only **adds**. It never deletes, edits or overwrites anything already in FitLens, whoever created it.
+1. An import only **adds**. It never deletes, edits or overwrites anything already in FlexNotes, whoever created it.
 2. Categories and exercises are matched **by name**, ignoring upper and lower case, so imported history and history
-   logged in FitLens join up under one exercise. If both exist, the FitLens version is kept as it is.
-3. A set counts as already present when FitLens has a set on the same date, for the same exercise, with the same
+   logged in FlexNotes join up under one exercise. If both exist, the FlexNotes version is kept as it is.
+3. A set counts as already present when FlexNotes has a set on the same date, for the same exercise, with the same
    weight, reps, distance and time. Identical sets are counted, so 3 × 5 × 100 kg in the backup matches three such
-   sets in FitLens. Importing the same backup twice changes nothing.
+   sets in FlexNotes. Importing the same backup twice changes nothing.
 4. Workout comments and times are skipped when the same comment, or the same start and end, is already on that date.
    Body measurements are skipped when the same measurement, date, time and value exists, or when you entered the same
    value by hand that day.
-5. **Your changes in FitLens win.** After you rename an exercise or category, the FitNotes name still maps to it.
+5. **Your changes in FlexNotes win.** After you rename an exercise or category, the FitNotes name still maps to it.
    After you delete imported data, or edit an imported set, comment or time, the next import doesn't bring the
    original back. Re-creating a deleted exercise with the same name lets its FitNotes history import again.
 
@@ -360,7 +366,7 @@ The rules are also documented in the code (`data/Workouts.kt`).
 ## Download and install
 
 1. On your Android phone (Android 10 or newer), open the
-   [latest release](https://github.com/Flameingskull/FitLens/releases/latest) and download `FitLens-1.0.N.apk`.
+   [latest release](https://github.com/Flameingskull/FlexNotes/releases/latest) and download `FlexNotes-1.0.N.apk`.
    No GitHub account is needed.
 2. Open the downloaded file. Android will ask you to allow installs from your browser or file manager. Allow it once.
 3. New releases install **over** the old one and keep all your data.
@@ -369,22 +375,22 @@ Each release includes the APK, the full source code, SHA-256 checksums and profe
 changed. The version number goes up with every release (`1.0.<build>`). A number can be skipped: a build that fails
 publishes nothing but still uses up its number (as with 1.0.54, 1.0.56, 1.0.95, 1.0.115 and 1.0.116), and earlier releases skipped some
 (1.0.8 was followed by 1.0.13) because pull request checks shared the release build counter
-([#78](https://github.com/Flameingskull/FitLens/issues/78)). A higher number is
+([#78](https://github.com/Flameingskull/FlexNotes/issues/78)). A higher number is
 always the newer build.
 
 ## First-time setup (in the app)
 
-The first time FitLens opens, a short guided setup walks through the steps below. Every step can be skipped, and
+The first time FlexNotes opens, a short guided setup walks through the steps below. Every step can be skipped, and
 **Settings → Show Setup Again** brings it back. To do it by hand:
 
-0. **Just want to start logging?** FitLens opens on today's log: tap **+**, pick a category and an exercise, and
+0. **Just want to start logging?** FlexNotes opens on today's log: tap **+**, pick a category and an exercise, and
    record your sets. Save a day you like as a workout day (**⋮ → Save as a workout day**), or build a workout from
    the library's title, to add a whole day in one go next time. You don't need FitNotes at all: steps 1 and 2 are only for bringing an existing FitNotes history across.
 1. **Settings → Import From FitNotes → Import a backup file**, then choose your latest `FitNotes_Backup_….fitnotes`.
 2. Optional, if you keep using FitNotes for a while: **Settings → Import From FitNotes → FitNotes backup folder** and pick the folder where FitNotes saves its backups. Tap **Sync now** after making a backup in FitNotes, or turn on
-   automatic sync so FitLens imports the newest backup each time it opens.
+   automatic sync so FlexNotes imports the newest backup each time it opens.
 3. **⋮ → Photos → + → Import a whole folder** (for example your camera folder or a "Progress" album), or choose
-   photos. FitLens dates each photo and places it on the right day.
+   photos. FlexNotes dates each photo and places it on the right day.
 4. If any photos had no camera date, a banner says **"N photos need their date checked"**. Tap it to accept or fix
    the dates.
 5. Tag poses (Front/Side/Back) while importing, in the photo viewer, or with multi-select, or choose a pose for every
@@ -396,27 +402,27 @@ The first time FitLens opens, a short guided setup walks through the steps below
 - Sets, and exercises in the workout editor, are reordered with buttons (and TalkBack actions), not by dragging.
   Routines from FitNotes backups aren't imported.
 - Graphs use compact dropdowns rather than FitNotes's 1m / 3m / 6m / 1y / all buttons, so the graph gets the room
-  ([#125](https://github.com/Flameingskull/FitLens/issues/125)).
+  ([#125](https://github.com/Flameingskull/FlexNotes/issues/125)).
 - Planned rests apply to days logged from a workout from 1.0.73 on; earlier days use each exercise's own rest or
   your usual length.
-- Values imported from FitNotes can be viewed but not edited in FitLens: the next import would bring the original
+- Values imported from FitNotes can be viewed but not edited in FlexNotes: the next import would bring the original
   back. Change them in FitNotes and import again.
 - Android doesn't let one app read another app's private data, and FitNotes has no interface for other apps. So
-  FitLens can't pull data out of FitNotes directly or make FitNotes create a backup. Folder sync is the closest to
+  FlexNotes can't pull data out of FitNotes directly or make FitNotes create a backup. Folder sync is the closest to
   automatic that Android allows. It works best if FitNotes saves its backups to one folder on your phone.
 - If a set you already imported is later edited or deleted in FitNotes, the next import adds the changed version as a
   new set.
 - Background backups follow Android's battery rules, so a scheduled backup can run a few hours after it's due.
-- A backup can be restored into the same or a newer FitLens. Backups made with 1.0.113 or later can't be restored
+- A backup can be restored into the same or a newer FlexNotes. Backups made with 1.0.113 or later can't be restored
   into 1.0.112 or earlier, so update the app before restoring.
-- Photos are copied into FitLens, so deleting a photo in your gallery doesn't remove it from FitLens, and the reverse.
+- Photos are copied into FlexNotes, so deleting a photo in your gallery doesn't remove it from FlexNotes, and the reverse.
   Save a backup, or turn on automatic backups, before changing phones.
 
 ---
 
 ## Report a bug or request a feature
 
-Use the [Issues](https://github.com/Flameingskull/FitLens/issues/new/choose) tab and choose **Bug report** or
+Use the [Issues](https://github.com/Flameingskull/FlexNotes/issues/new/choose) tab and choose **Bug report** or
 **Feature request**. You need a free GitHub account. Every report is triaged, and the planned work is visible in the
 open issues. Fixes and features arrive in the next release.
 
@@ -436,9 +442,9 @@ with your debug key, so Android won't install them over the official release. Te
 Alternatively, save a backup first (**Settings → Backups → Save backup**) and uninstall the official app.
 
 Unit tests run on the JVM with Robolectric, no emulator needed: `./gradlew testDebugUnitTest`. They build databases
-the way older FitLens versions left them and check that every upgrade keeps every row and ends in exactly the
+the way older FlexNotes versions left them and check that every upgrade keeps every row and ends in exactly the
 recorded Room schema, run the database queries on a real database, import a made-up FitNotes
-backup to check the merge rules, save and restore `.fitlens` backups, and check the 1RM formulas and unit
+backup to check the merge rules, save and restore `.flexnotes` backups, and check the 1RM formulas and unit
 conversions, graph zoom, the remembered chart types, pinned graphs and comparisons, and the in-memory data
 updates. Screenshot tests draw the shared components at two phone widths and at double text size and compare them
 with saved images, so layout slips fail the build.

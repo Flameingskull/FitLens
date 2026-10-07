@@ -16,7 +16,7 @@ import java.io.File
 /** Outcome of an import, export or backup. [folderProblem]: the backup folder couldn't be reached. */
 data class ImportSummary(val message: String, val ok: Boolean, val folderProblem: Boolean = false)
 
-/** What a FitNotes import adds to FitLens and what it skips as already present. */
+/** What a FitNotes import adds to FlexNotes and what it skips as already present. */
 class ImportPlan {
     var categoriesAdded = 0
     var exercisesAdded = 0
@@ -55,7 +55,7 @@ class ImportPlan {
         count(R.plurals.imp_measurements, measurementsAdded)
     }
 
-    /** What the import skips because FitLens already has it (or the user removed it in FitLens). */
+    /** What the import skips because FlexNotes already has it (or the user removed it in FlexNotes). */
     fun skippedLines(res: Resources): List<String> = buildList {
         fun count(id: Int, n: Int) { if (n > 0) add(res.getQuantityString(id, n, n)) }
         count(R.plurals.imp_sets, setsSkipped)
@@ -108,9 +108,9 @@ object FitNotesImporter {
         }
     }
 
-    // ---------- FitNotes backups: merged into FitLens, never replacing it ----------
+    // ---------- FitNotes backups: merged into FlexNotes, never replacing it ----------
 
-    /** A FitNotes backup copied into FitLens's cache and checked, waiting for the user to confirm the import. */
+    /** A FitNotes backup copied into FlexNotes's cache and checked, waiting for the user to confirm the import. */
     class StagedImport(
         val file: File,
         val name: String,
@@ -156,7 +156,7 @@ object FitNotesImporter {
         }
     }
 
-    /** Imports a staged backup (merging it into FitLens) and deletes the staged copy. */
+    /** Imports a staged backup (merging it into FlexNotes) and deletes the staged copy. */
     suspend fun importStaged(staged: StagedImport): ImportSummary = withContext(Dispatchers.IO) {
         val ctx = staged.context
         try {
@@ -189,7 +189,7 @@ object FitNotesImporter {
 
     /**
      * Imports a FitNotes backup straight away, without the summary step (used by the automatic folder sync).
-     * The backup is merged into FitLens as described in [Workouts]: nothing in FitLens is deleted or overwritten.
+     * The backup is merged into FlexNotes as described in [Workouts]: nothing in FlexNotes is deleted or overwritten.
      */
     suspend fun importBackup(context: Context, uri: Uri, sourceModified: Long = 0L): ImportSummary {
         val p = prepare(context, uri, sourceModified)
@@ -228,7 +228,7 @@ object FitNotesImporter {
         false // table missing in older FitNotes versions
     }
 
-    /** A category or exercise already in FitLens, for matching. */
+    /** A category or exercise already in FlexNotes, for matching. */
     private class Owned(val id: Long, val key: String, val source: String, val fitnotesId: Long?)
 
     private const val SKIP = -1L
@@ -237,7 +237,7 @@ object FitNotesImporter {
         rows.mapTo(ArrayList()) { Owned(it.id, Workouts.nameKey(it.name), it.source, it.fitnotes_id) }
 
     /**
-     * FitLens id for a FitNotes category or exercise: a rename or delete the user made in FitLens first ([SKIP] when
+     * FlexNotes id for a FitNotes category or exercise: a rename or delete the user made in FlexNotes first ([SKIP] when
      * deleted), then the untouched imported row with the same FitNotes id and name, then any row with the same name.
      * Null when nothing matches and a new row is needed.
      */
@@ -252,7 +252,7 @@ object FitNotesImporter {
     }
 
     /**
-     * Merges a FitNotes backup into FitLens following the conflict rules in [Workouts]: only adds rows, matches
+     * Merges a FitNotes backup into FlexNotes following the conflict rules in [Workouts]: only adds rows, matches
      * categories and exercises by name, and skips sets, comments, times and body records that are already present.
      * The caller runs it inside one transaction on [db], off the main thread.
      */
@@ -262,7 +262,7 @@ object FitNotesImporter {
         val workouts = db.workoutDao
         val all = db.snapshotDao
 
-        // What the user changed in FitLens (see Workouts, conflict rule 5).
+        // What the user changed in FlexNotes (see Workouts, conflict rule 5).
         val links = HashMap<String, Long?>()
         val skips = HashMap<String, Int>()
         for (rule in w.rules()) {
@@ -324,7 +324,7 @@ object FitNotesImporter {
         }
 
         // ---------- Sets ----------
-        // Sets already in FitLens, counted by date, exercise and values (identical sets are common, e.g. 3 x 5 x 100 kg).
+        // Sets already in FlexNotes, counted by date, exercise and values (identical sets are common, e.g. 3 x 5 x 100 kg).
         val present = HashMap<String, Int>()
         val workoutDates = HashSet<String>()
         for (s in w.setValues()) {
@@ -429,13 +429,13 @@ object FitNotesImporter {
                 return@each
             }
             // Measurement definitions imported from FitNotes (not custom metrics) follow FitNotes: their unit, order
-            // and goal are refreshed. Custom metrics made in FitLens are never changed.
+            // and goal are refreshed. Custom metrics made in FlexNotes are never changed.
             val existing = body.definition(name)
             if (existing == null) {
                 w.addMeasurement(name, unit, c.int(3), c.int(4), c.dbl(5), c.int(6))
                 plan.measurementsAdded++
             } else if (existing.custom == 0) {
-                // A goal or order the user set in FitLens wins over FitNotes's (#27); the unit still follows FitNotes.
+                // A goal or order the user set in FlexNotes wins over FitNotes's (#27); the unit still follows FitNotes.
                 // So does switching it on or off on the Measurements screen.
                 if (existing.edited != 0) w.setMeasurementUnit(name, unit)
                 else w.refreshMeasurement(name, unit, c.int(3), c.int(4), c.dbl(5), c.int(6))
@@ -453,7 +453,7 @@ object FitNotesImporter {
             if (c.dbl(2) > 0) addRecord(target("Body Fat"), "%", date, time, c.dbl(2), null)
         }
 
-        // FitNotes's weight unit is used for display unless the user has picked one in FitLens.
+        // FitNotes's weight unit is used for display unless the user has picked one in FlexNotes.
         if (!db.metaDao.has("weight_unit_manual")) {
             var metric = 1
             src.each("SELECT metric FROM settings LIMIT 1") { c -> metric = c.int(0) }

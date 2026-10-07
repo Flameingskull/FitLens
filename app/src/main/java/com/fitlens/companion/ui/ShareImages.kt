@@ -21,7 +21,7 @@ import com.fitlens.companion.R
 
 /**
  * Branded images for the share sheet: a graph (#22) and a workout card (#11). Both are drawn on an Android [Canvas] in
- * the FitLens look (black and gold, serif headings, letter-spaced labels, gold hairlines), so they
+ * the FlexNotes look (black and gold, serif headings, letter-spaced labels, gold hairlines), so they
  * don't depend on what is on screen. Colours come from [Brand].
  */
 object ShareImages {
@@ -66,7 +66,7 @@ object ShareImages {
 
     /** A file name made safe for any share target: letters, digits and dashes. */
     fun fileName(vararg parts: String): String =
-        "FitLens_" + parts.joinToString("_") { it.replace(Regex("[^A-Za-z0-9-]+"), "-").trim('-') } + ".jpg"
+        "FlexNotes_" + parts.joinToString("_") { it.replace(Regex("[^A-Za-z0-9-]+"), "-").trim('-') } + ".jpg"
 
     // ---------- Graph (#22) ----------
 
@@ -262,9 +262,9 @@ object ShareImages {
         })
     }
 
-    /** The FITLENS label, a serif title, an optional letter-spaced subtitle and a gold hairline. Returns the y below. */
+    /** The FLEXNOTES label, a serif title, an optional letter-spaced subtitle and a gold hairline. Returns the y below. */
     private fun header(c: Canvas, title: String, subtitle: String?): Float {
-        c.drawText("FITLENS", PAD, 110f, text(gold, 30f, bold = true, tracking = 0.4f))
+        c.drawText("FLEXNOTES", PAD, 110f, text(gold, 30f, bold = true, tracking = 0.4f))
         val t = text(ivory, 64f, serif = true)
         c.drawText(ellipsize(title, t, W - 2 * PAD), PAD, 200f, t)
         var y = 200f

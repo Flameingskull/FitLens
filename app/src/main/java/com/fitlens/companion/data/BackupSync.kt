@@ -10,12 +10,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Optional FitNotes folder sync, for people moving over from FitNotes gradually: the user points FitLens at the
+ * Optional FitNotes folder sync, for people moving over from FitNotes gradually: the user points FlexNotes at the
  * folder where FitNotes saves its backups. "Sync now" imports the newest .fitnotes file there (after showing what it
- * adds), and when "sync automatically" is on, FitLens imports it quietly on opening if it's newer than the last one.
- * Imports merge into FitLens and never delete or overwrite FitLens data (see [Workouts]).
+ * adds), and when "sync automatically" is on, FlexNotes imports it quietly on opening if it's newer than the last one.
+ * Imports merge into FlexNotes and never delete or overwrite FlexNotes data (see [Workouts]).
  *
- * Automatic sync is off by default. Installs that had chosen a sync folder before FitLens became the main logger
+ * Automatic sync is off by default. Installs that had chosen a sync folder before FlexNotes became the main logger
  * keep it on (set by the database upgrade to version 3), unless they had switched it off.
  */
 object BackupSync {
@@ -34,7 +34,7 @@ object BackupSync {
     }
 
     /**
-     * Whether the chosen folder can still be listed (#41): false once the phone has withdrawn FitLens's access or the
+     * Whether the chosen folder can still be listed (#41): false once the phone has withdrawn FlexNotes's access or the
      * storage holding it is gone, null when no folder is chosen. Settings shows a warning on the folder row for false.
      */
     suspend fun folderReachable(context: Context): Boolean? = withContext(Dispatchers.IO) {

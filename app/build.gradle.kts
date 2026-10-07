@@ -104,7 +104,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     // Background automatic backups (#34). Local only: WorkManager needs no internet permission.
     implementation("androidx.work:work-runtime-ktx:2.9.1")
-    // Phone-only settings (#38): folders, schedules and state that must never travel in a .fitlens backup.
+    // Phone-only settings (#38): folders, schedules and state that must never travel in a .flexnotes backup.
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     // The database (#36): Room opens fitlens.db, runs every upgrade and checks the schema it finds.
     implementation("androidx.room:room-runtime:2.6.1")

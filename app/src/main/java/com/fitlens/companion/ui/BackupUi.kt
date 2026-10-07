@@ -115,12 +115,12 @@ fun BackupsPage(snap: Snapshot) {
         AppScope.scope.launch {
             UiEvents.busy.value = res.getString(R.string.backup_busy_checking)
             val info = try { Backups.inspect(ctx, uri) } finally { UiEvents.busy.value = null }
-            if (info == null) UiEvents.show(res.getString(R.string.backup_not_fitlens))
+            if (info == null) UiEvents.show(res.getString(R.string.backup_not_flexnotes))
             else { restoreUri = uri; restoreInfo = info }
         }
     }
 
-    // A backup opened from a file manager or shared to FitLens
+    // A backup opened from a file manager or shared to FlexNotes
     val pending by UiEvents.pendingRestore.collectAsState()
     LaunchedEffect(pending) {
         pending?.let { UiEvents.pendingRestore.value = null; inspect(it) }
@@ -290,7 +290,7 @@ fun BackupsPage(snap: Snapshot) {
         ReportDialog(snap, onDismiss = { showReport = false }) { o ->
             showReport = false
             reportOpts = o
-            savePdf.launch("FitLens_Report_${o.from}_to_${o.to}.pdf")
+            savePdf.launch("FlexNotes_Report_${o.from}_to_${o.to}.pdf")
         }
     }
 }
@@ -333,7 +333,7 @@ private fun RestoreDialog(info: Backups.Info, onDismiss: () -> Unit, onConfirm: 
 }
 
 /**
- * The PDF report's options as a FitLens sheet (#92). It opens with the page style and photos per day saved in
+ * The PDF report's options as a FlexNotes sheet (#92). It opens with the page style and photos per day saved in
  * Settings → Progress photos and media (#46); the period and sections are chosen per report.
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)

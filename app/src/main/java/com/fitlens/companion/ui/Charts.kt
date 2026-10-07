@@ -75,7 +75,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.fitlens.companion.R
 
-// Shared chart components (#50). Every graph in FitLens is drawn by one of these, so they look and behave alike.
+// Shared chart components (#50). Every graph in FlexNotes is drawn by one of these, so they look and behave alike.
 // Colours come only from LocalChartColors (ui/Theme.kt).
 
 data class ChartPoint(val x: Long, val y: Double, val date: String)
@@ -109,7 +109,7 @@ enum class ChartKind(val key: String, val label: String) {
 
 /**
  * The chart kind chosen for the graph [graphId] (#137), and a function that remembers a new choice. Choices travel in
- * `.fitlens` backups with the other preferences. A graph never chosen is drawn as [default].
+ * `.flexnotes` backups with the other preferences. A graph never chosen is drawn as [default].
  */
 @Composable
 fun rememberChartKind(graphId: String, default: ChartKind = ChartKind.LINE): Pair<ChartKind, (ChartKind) -> Unit> {

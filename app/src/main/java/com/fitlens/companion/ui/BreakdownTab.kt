@@ -180,7 +180,7 @@ fun BreakdownTab(snap: Snapshot, nav: Nav, onOpen: (Analysis.Filter) -> Unit) {
                 )
             }
 
-            // The selected slice against the same period before it (a FitLens extra, to spot imbalances).
+            // The selected slice against the same period before it (a FlexNotes extra, to spot imbalances).
             val slice = slices.getOrNull(sel)
             if (slice != null && slice.id != null) {
                 val prev = Analysis.previousWindow(snap, span, window)

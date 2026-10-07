@@ -16,7 +16,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * `.fitlens` backup and restore (#40): the archive written by [Backups.writeArchive], read back and checked by
+ * `.flexnotes` backup and restore (#40): the archive written by [Backups.writeArchive], read back and checked by
  * [Backups.unpack], and put in place by [Backups.installDatabase] — the same three steps a real backup and restore
  * take. A restored backup gives back exactly what was saved; an older backup is upgraded when it opens; a damaged,
  * foreign or newer file is refused before anything live is touched.
@@ -46,7 +46,7 @@ class BackupsTest {
     /** Writes an archive of [dbFile] (plus [photos]) and returns its bytes. */
     private fun archive(dbFile: File?, photos: List<File> = emptyList(), dataOnly: Boolean = false): ByteArray {
         val out = java.io.ByteArrayOutputStream()
-        val manifest = JSONObject().apply { put("format", 1); put("app", "FitLens"); if (dataOnly) put("dataOnly", true) }
+        val manifest = JSONObject().apply { put("format", 1); put("app", "FlexNotes"); if (dataOnly) put("dataOnly", true) }
         if (dbFile != null) {
             Backups.writeArchive(out, manifest, dbFile, photos)
         } else {
@@ -72,11 +72,11 @@ class BackupsTest {
     fun aRestoredBackupGivesBackWhatWasSaved() {
         Db(app).use { h ->
             val w = h.writableDatabase
-            val ex = w.row("exercise", "name" to "Deadlift", "category_id" to 0L, "source" to Sources.FITLENS)
-            w.row("workout_set", "exercise_id" to ex, "date" to "2026-02-01", "weight" to 180.0, "reps" to 3, "source" to Sources.FITLENS)
-            w.row("workout_set", "exercise_id" to ex, "date" to "2026-02-01", "weight" to 190.0, "reps" to 1, "source" to Sources.FITLENS)
-            w.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-02-01", "value" to 90.5, "source" to Sources.FITLENS)
-            w.row("exercise_comment", "date" to "2026-02-01", "exercise_id" to ex, "comment" to "Belt on", "source" to Sources.FITLENS)
+            val ex = w.row("exercise", "name" to "Deadlift", "category_id" to 0L, "source" to Sources.FLEXNOTES)
+            w.row("workout_set", "exercise_id" to ex, "date" to "2026-02-01", "weight" to 180.0, "reps" to 3, "source" to Sources.FLEXNOTES)
+            w.row("workout_set", "exercise_id" to ex, "date" to "2026-02-01", "weight" to 190.0, "reps" to 1, "source" to Sources.FLEXNOTES)
+            w.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-02-01", "value" to 90.5, "source" to Sources.FLEXNOTES)
+            w.row("exercise_comment", "date" to "2026-02-01", "exercise_id" to ex, "comment" to "Belt on", "source" to Sources.FLEXNOTES)
         }
         val photo = File(work, "front.jpg").apply { writeBytes(byteArrayOf(1, 2, 3, 4)) }
         val saved = archive(liveDb, listOf(photo))
@@ -125,7 +125,7 @@ class BackupsTest {
     }
 
     @Test
-    fun aBackupFromANewerFitLensIsRefused() {
+    fun aBackupFromANewerFlexNotesIsRefused() {
         val newer = File(work, "newer.db")
         OldSchemas.create(newer, Db.VERSION + 1, OldSchemas.V2)
         val u = unpack(archive(newer))
@@ -134,7 +134,7 @@ class BackupsTest {
 
     @Test
     fun aDamagedOrForeignFileIsRefused() {
-        // A database without FitLens's tables.
+        // A database without FlexNotes's tables.
         val foreign = File(work, "foreign.db")
         OldSchemas.create(foreign, 1, listOf("CREATE TABLE something(id INTEGER)"))
         assertEquals(Backups.Refusal.DAMAGED, unpack(archive(foreign)).problem)
@@ -148,7 +148,7 @@ class BackupsTest {
     fun aRefusedBackupLeavesTheLiveDataAlone() {
         Db(app).use { h ->
             val w = h.writableDatabase
-            w.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-03-01", "value" to 77.0, "source" to Sources.FITLENS)
+            w.row("mrecord", "name" to "Bodyweight", "unit" to "kg", "date" to "2026-03-01", "value" to 77.0, "source" to Sources.FLEXNOTES)
         }
         val newer = File(work, "newer.db")
         OldSchemas.create(newer, Db.VERSION + 1, OldSchemas.V2)

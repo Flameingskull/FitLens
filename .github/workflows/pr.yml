@@ -29,7 +29,7 @@ jobs:
           ./gradlew testDebugUnitTest assembleDebug --stacktrace
       - uses: actions/upload-artifact@v7
         with:
-          name: FitLens-pr-${{ github.event.pull_request.number }}-debug
+          name: FlexNotes-pr-${{ github.event.pull_request.number }}-debug
           path: app/build/outputs/apk/debug/*.apk
       # Screenshot tests (#95): golden images (new ones are recorded on the first run) and any diffs.
       - uses: actions/upload-artifact@v7

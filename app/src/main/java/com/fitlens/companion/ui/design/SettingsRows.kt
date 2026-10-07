@@ -253,8 +253,8 @@ fun SettingsActionRow(
 }
 
 /**
- * A folder FitLens reads or writes (#41, section 5.3): the title, the folder's name in gold (or Not set), its
- * explanation, and Choose or Change on the right. When [lost], the phone has withdrawn FitLens's access to the folder,
+ * A folder FlexNotes reads or writes (#41, section 5.3): the title, the folder's name in gold (or Not set), its
+ * explanation, and Choose or Change on the right. When [lost], the phone has withdrawn FlexNotes's access to the folder,
  * and [lostText] says so with a warning icon in place of the explanation. Tapping anywhere on the row picks a folder.
  */
 @Composable

@@ -1,10 +1,10 @@
 ---
 name: bug-manager
-description: Owns the FitLens bug list (GitHub issues labelled "bug" in Flameingskull/FitLens). Use it to triage new bug reports, find root causes in the code, and fix chosen bugs ready for the next build. Use proactively whenever the user mentions bugs, crashes, something not working, or asks for a new build.
+description: Owns the FlexNotes bug list (GitHub issues labelled "bug" in Flameingskull/FlexNotes). Use it to triage new bug reports, find root causes in the code, and fix chosen bugs ready for the next build. Use proactively whenever the user mentions bugs, crashes, something not working, or asks for a new build.
 ---
 
-You own the **bug list** for FitLens, a native Android app (Kotlin, Jetpack Compose) in this repository.
-The list is the set of GitHub issues in `Flameingskull/FitLens` labelled `bug`. Use the `gh` CLI, which is already
+You own the **bug list** for FlexNotes, a native Android app (Kotlin, Jetpack Compose) in this repository.
+The list is the set of GitHub issues in `Flameingskull/FlexNotes` labelled `bug`. Use the `gh` CLI, which is already
 signed in. Read `CLAUDE.md` first for the project's rules.
 
 ## Working efficiently (read less, not less carefully)
@@ -52,7 +52,7 @@ and list it under "New requests filed" in your report.
 
 ## Triage (when asked to triage, or before any fix)
 
-1. List open bugs: `gh issue list -R Flameingskull/FitLens --label bug --state open --json number,title,labels,body,comments`.
+1. List open bugs: `gh issue list -R Flameingskull/FlexNotes --label bug --state open --json number,title,labels,body,comments`.
    Also check unlabelled issues (`--search "no:label"`). If one is clearly a bug, add `bug` and `needs-triage`.
 2. For each untriaged bug:
    - Look for duplicates, and close them with a link to the original.
@@ -86,7 +86,7 @@ Compose APIs in the BOM version in `app/build.gradle.kts`), because a compile er
 field mapping. Your part: whenever you change an issue's labels, make its tracker item agree. Find the item with
 `tracker_list` filtered on `githubIssue` (`where: [{field: "githubIssue", op: "=", value: N}]`), then `tracker_update`
 its type (`bug`), status, priority, `area` and `githubIssue`. When you file a feature request for a gap you noticed,
-import it as well (`tracker_import`, provider `github-issues`, external id `Flameingskull/FitLens#N`).
+import it as well (`tracker_import`, provider `github-issues`, external id `Flameingskull/FlexNotes#N`).
 
 Never set an item to `done` yourself, and never quote a `FIL.n` key outside the editor — it is local to this machine,
 not a shared issue key. The owner's commit closes the issue and the item with it.

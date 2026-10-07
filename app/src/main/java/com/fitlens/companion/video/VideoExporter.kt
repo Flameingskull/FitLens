@@ -229,12 +229,12 @@ object VideoExporter {
         }
     }
 
-    /** Copies a finished video into the phone's Movies/FitLens folder so it shows in the gallery. */
+    /** Copies a finished video into the phone's Movies/FlexNotes folder so it shows in the gallery. */
     fun saveToGallery(context: Context, file: File): Uri? {
         val values = ContentValues().apply {
             put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
             put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
-            put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/FitLens")
+            put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/FlexNotes")
             put(MediaStore.Video.Media.IS_PENDING, 1)
         }
         val resolver = context.contentResolver
@@ -250,7 +250,7 @@ object VideoExporter {
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, name)
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/FitLens")
+            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/FlexNotes")
         }
         val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return null
         context.contentResolver.openOutputStream(uri)?.use { bmp.compress(Bitmap.CompressFormat.JPEG, 92, it) }
